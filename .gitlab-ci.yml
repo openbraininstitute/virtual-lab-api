@@ -1,0 +1,52 @@
+include:
+  - project: cs/gitlabci-templates
+    file: /build-image-using-kaniko.yml
+
+default:
+  interruptible: true
+  image: python:3.12
+
+.install_packages:
+  script: &install_packages
+    pip install poetry && poetry install
+
+stages:
+  - setup
+  - check
+  - build
+  - deploy
+
+setup:
+  stage: setup
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push"
+      changes:
+        - package-lock.json
+  script: *install_packages
+
+eslint:
+  stage: check
+  script:
+    - *install_packages
+    - npm run lint
+
+prettier:
+  stage: check
+  script:
+    - *install_packages
+    - npm run prettier:check
+
+unit-test:
+  stage: check
+  script:
+    - *install_packages
+    - npm run test:ci
+
+build:
+  stage: check
+  script:
+    - *install_packages
+    - npm run build
+  except:
+    - develop
+    - main

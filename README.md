@@ -35,4 +35,21 @@ The docs will be available at http://127.0.0.1:8000/docs#/
 ## VS Code
 
 1. Make sure that VSCode is picking up the right python version. This should look like `~/.cache/pypoetry/virtualenvs/virtual-labs[uuid]...`
-2. You might want to install the Ruff extension for vscode (extension_id - charliermarsh.ruff)
+2. Recommended extensions:
+    - Ruff (extension_id - charliermarsh.ruff)
+    - MyPy Type Checker (extension_id: ms-python.mypy-type-checker)
+
+# Contributing
+
+To create an MR and push code to it, you will need to setup git-hooks *only the first time you push code to the repo*.
+
+1. Install git hooks to enable pre-push checks
+```
+poetry run pre-commit install
+```
+
+This will setup a git hook (pre-push) that is configured to run the following checks.
+
+- Static type checks (using mypy)
+- Formatting (using ruff)
+- Linting (using ruff)
