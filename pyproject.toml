@@ -2,7 +2,7 @@
 name = "virtual-labs"
 version = "0.1.0"
 description = ""
-authors = ["Bilal Meddah <dinika.saxena@epfl.ch>", "Pavlo Getta", "Dinika Saxena <dinika.saxena@epfl.ch>"]
+authors = ["Bilal Meddah <bilal.meddah@epfl.ch>", "Pavlo Getta <pavlo.getta@epfl.ch>", "Dinika Saxena <dinika.saxena@epfl.ch>"]
 readme = "README.md"
 packages = [{include = "virtual_labs"}]
 

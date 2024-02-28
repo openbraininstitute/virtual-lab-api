@@ -25,4 +25,4 @@ COPY ./virtual_labs ./virtual-lab-manager-app
 
 EXPOSE 8086
 
-ENTRYPOINT ["python", "-m", "uvicorn", "virtual-lab-manager-app.api:app"]
+ENTRYPOINT ["python", "-m", "uvicorn", "--host=0.0.0.0", "--port=8086",  "virtual-lab-manager-app.api:app"]
