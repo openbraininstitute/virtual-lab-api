@@ -1,17 +1,31 @@
 # Development
 
 0. Make sure you have [poetry installed](https://python-poetry.org/docs/#installation)
-
 1. Install the dependencies
 
-```
-poetry install
-```
+   ```sh
+   poetry install
+   ```
+2. Start keycloak and local database
 
-2. Start the server
-```
-poetry run uvicorn virtual_labs.api:app --reload
-```
+   ```sh
+   make init # this is will start keycloak instance and local database
+   ```
+3. add envirement variables
+    ```sh
+    DATABASE_URL = "postgresql://vlm:vlm@localhost:15432/vlm"
+    ```
+4. Start the server
+
+   ```sh
+   make dev
+   ```
+
+   or
+
+   ```sh
+   poetry run uvicorn virtual_labs.api:app --reload
+   ```
 
 This should start the server on port 8000 (http://127.0.0.1:8000)
 The docs will be available at http://127.0.0.1:8000/docs#/
