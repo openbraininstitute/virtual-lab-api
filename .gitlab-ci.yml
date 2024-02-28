@@ -6,47 +6,34 @@ default:
   interruptible: true
   image: python:3.12
 
-.install_packages:
-  script: &install_packages
-    pip install poetry && poetry install
+.install__dev_packages:
+  script: &install_dev_packages
+    pip install poetry && poetry install --sync
+
+.install_prod_packages:
+  script: &install_prod_packages
+    pip install poetry && poetry install --without dev --sync
 
 stages:
-  - setup
   - check
-  - build
-  - deploy
 
-setup:
-  stage: setup
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "push"
-      changes:
-        - package-lock.json
-  script: *install_packages
-
-eslint:
+static-checks:
   stage: check
   script:
-    - *install_packages
-    - npm run lint
+    - *install_dev_packages
+    -  poetry run pre-commit run --all-files --config ./.pre-commit-config-ci.yaml # Runs static type checks, linting, and formatting
 
-prettier:
-  stage: check
-  script:
-    - *install_packages
-    - npm run prettier:check
+# unit-test:
+#   stage: check
+#   script:
+#     - *install_packages
+#     - npm run test:ci
 
-unit-test:
-  stage: check
-  script:
-    - *install_packages
-    - npm run test:ci
-
-build:
-  stage: check
-  script:
-    - *install_packages
-    - npm run build
-  except:
-    - develop
-    - main
+# build:
+#   stage: check
+#   script:
+#     - *install_packages
+#     - npm run build
+#   except:
+#     - develop
+#     - main
