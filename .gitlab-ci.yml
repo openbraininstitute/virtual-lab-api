@@ -17,7 +17,6 @@ default:
 stages:
   - check
   - test
-  - build
   - publish
 
 static-checks:
@@ -32,22 +31,13 @@ unit-tests:
     - *install_dev_packages
     - poetry run pytest
 
-build:
-  stage: build
-  script:
-    - docker build -t bluebrain/virtual-lab-manager:latest .
-
-publish:
-  stage: publish
-  needs: ["build"]
-  script:
-    - echo ${{ secrets.DOCKER_PASS }} | docker login --username ${{ secrets.DOCKER_USER }} --password-stdin docker push bluebrain/virtual-lab-manager:latest
-
-# build:
-#   stage: check
-#   script:
-#     - *install_packages
-#     - npm run build
-#   except:
-#     - develop
-#     - main
+build_and_publish:
+  stage: publish 
+  extends:
+    - .build-image-using-kaniko
+  variables:
+    CI_REGISTRY_IMAGE: bluebrain/virtual-lab-manager
+    CI_REGISTRY: https://index.docker.io/v1/
+    CI_REGISTRY_USER: bbpbuildbot
+    CI_REGISTRY_PASSWORD: $CI_REGISTRY_PASSWORD_DOCKERHUB
+    REGISTRY_IMAGE_TAG: latest
