@@ -16,6 +16,9 @@ default:
 
 stages:
   - check
+  - test
+  - build
+  - publish
 
 static-checks:
   stage: check
@@ -23,11 +26,22 @@ static-checks:
     - *install_dev_packages
     -  poetry run pre-commit run --all-files --config ./.pre-commit-config-ci.yaml # Runs static type checks, linting, and formatting
 
-# unit-test:
-#   stage: check
-#   script:
-#     - *install_packages
-#     - npm run test:ci
+unit-tests:
+  stage: test
+  script:
+    - *install_dev_packages
+    - poetry run pytest
+
+build:
+  stage: build
+  script:
+    - docker build -t bluebrain/virtual-lab-manager:latest .
+
+publish:
+  stage: publish
+  needs: ["build"]
+  script:
+    - echo ${{ secrets.DOCKER_PASS }} | docker login --username ${{ secrets.DOCKER_USER }} --password-stdin docker push bluebrain/virtual-lab-manager:latest
 
 # build:
 #   stage: check
