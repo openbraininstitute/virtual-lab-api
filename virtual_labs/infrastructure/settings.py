@@ -1,7 +1,7 @@
 from typing import Any, Dict, Optional, Union
 
 from dotenv import load_dotenv
-from pydantic import AnyHttpUrl, PostgresDsn, validator
+from pydantic import AnyHttpUrl, PostgresDsn, field_validator
 from pydantic_settings import BaseSettings
 
 load_dotenv()
@@ -20,7 +20,7 @@ class Settings(BaseSettings):
         PostgresDsn, AnyHttpUrl
     ] = "postgresql://vlm:vlm@localhost:15432/vlm"
 
-    @validator("DATABASE_URI", pre=True)
+    @field_validator("DATABASE_URI", mode="before")
     def build_db_connection(cls, v: Optional[str], values: Dict[str, Any]) -> Any:
         if isinstance(v, str):
             return v

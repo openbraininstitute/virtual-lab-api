@@ -18,15 +18,17 @@ if settings.DATABASE_URI is None and "pytest" not in sys.modules:
 
 def init_db() -> Session:
     try:
-        engine = create_engine(
-            settings.DATABASE_URI.unicode_string(),
-            echo=settings.DEBUG_DATABASE_ECHO,
-        )
-        session_local = sessionmaker(autoflush=False, autocommit=False, bind=engine)
-        Base.metadata.create_all(engine)
+        # TODO: remove this, it's only momentarily
+        if "pytest" not in sys.modules:
+            engine = create_engine(
+                settings.DATABASE_URI.unicode_string(),
+                echo=settings.DEBUG_DATABASE_ECHO,
+            )
+            session_local = sessionmaker(autoflush=False, autocommit=False, bind=engine)
+            Base.metadata.create_all(engine)
 
-        logger.info("✅ DB connected")
-        return session_local
+            logger.info("✅ DB connected")
+            return session_local
     except exc.ArgumentError:
         logger.error("⛔️ database connection failed, check the env variable")
 
