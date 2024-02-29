@@ -23,6 +23,6 @@ COPY --from=builder ${VIRTUAL_ENV} ${VIRTUAL_ENV}
 
 COPY ./virtual_labs ./virtual-lab-manager-app
 
-EXPOSE 8086
+EXPOSE 8000
 
-ENTRYPOINT ["python", "-m", "uvicorn", "--host=0.0.0.0", "--port=8086",  "virtual-lab-manager-app.api:app"]
+ENTRYPOINT ["python", "-m", "uvicorn", "--host=0.0.0.0", "virtual-lab-manager-app.api:app"]
