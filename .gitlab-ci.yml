@@ -41,3 +41,5 @@ unit_tests:
 #     CI_REGISTRY_USER: bbpbuildbot
 #     CI_REGISTRY_PASSWORD: $CI_REGISTRY_PASSWORD_DOCKERHUB
 #     REGISTRY_IMAGE_TAG: latest
+#   only:
+#     - main
