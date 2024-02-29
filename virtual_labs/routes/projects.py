@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from ..infrastructure.db.config import default_session_factory
 
-router = APIRouter(prefix="/projects")
+router = APIRouter(prefix="/virtual-labs/{lab_id}/projects")
 
 
 """
