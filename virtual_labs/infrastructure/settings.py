@@ -3,8 +3,7 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    APP_NAME: str = "virtual-lab service"
-    API_V1_STR: str = "/api/v1"
+    APP_NAME: str = "virtual-lab-manager service"
     DATABASE_URI: str = Field(
         alias="DATABASE_URL", default="postgresql://vlm:vlm@localhost:15432/vlm"
     )
@@ -13,4 +12,3 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
-print(settings.model_dump())
