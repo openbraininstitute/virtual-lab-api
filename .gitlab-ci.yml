@@ -23,13 +23,13 @@ static_checks:
   stage: check
   script:
     - *install_dev_packages
-    -  poetry run pre-commit run --all-files --config ./.pre-commit-config-ci.yaml # Runs static type checks, linting, and formatting
+    -  make static-checks # Runs static type checks, linting, and formatting
 
 unit_tests:
   stage: test
   script:
     - *install_dev_packages
-    - poetry run pytest
+    - make test
 
 # build_and_publish:
 #   stage: publish 
