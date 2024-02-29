@@ -1,4 +1,4 @@
-FROM python:3.12 as builder
+FROM python:3.12-bookworm as builder
 
 RUN pip install poetry==1.4.2
 
@@ -14,7 +14,7 @@ RUN poetry add psycopg2-binary
 
 RUN --mount=type=cache,target=$POETRY_CACHE_DIR poetry install --without dev --no-root
 
-FROM python:3.12 as runtime
+FROM python:3.12-slim-bookworm as runtime
 
 ENV VIRTUAL_ENV=/app/.venv \
     PATH="/app/.venv/bin:$PATH"
