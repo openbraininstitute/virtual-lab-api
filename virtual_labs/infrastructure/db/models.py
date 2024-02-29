@@ -1,5 +1,4 @@
 import uuid
-from datetime import datetime
 
 from sqlalchemy import (
     Boolean,
@@ -12,15 +11,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, relationship
-
-from virtual_labs.core.exceptions.api_error import VlmError, VlmErrorCode
-from virtual_labs.infrastructure.settings import settings
-
-if settings.DATABASE_URI is None:
-    raise VlmError(
-        "DATABASE_URI/DATABASE_URL is not set",
-        error_code=VlmErrorCode.DATABASE_URI_NOT_SET,
-    )
+from sqlalchemy.sql import func
 
 
 class Base(DeclarativeBase):
@@ -32,14 +23,14 @@ class VirtualLab(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     nexus_organization_id = Column(
-        String(255), nullable=False
+        String(255), nullable=False, unique=True
     )  # the string length may change in the future, when we know the structure of it
     name = Column(String(250), unique=True)
-    description = Column(Text, default=String(""))
+    description = Column(Text, default=Null)
     deleted = Column(Boolean, default=False)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, onupdate=func.now())
     deleted_at = Column(DateTime, default=Null)
 
 
@@ -48,15 +39,15 @@ class Project(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     nexus_project_id = Column(
-        String(255), nullable=False
+        String(255), nullable=False, unique=True
     )  # the string length may change in the future, when we know the structure of it
 
     name = Column(String(250), unique=True)
-    description = Column(Text, default=String(""))
+    description = Column(Text, default=Null)
     deleted = Column(Boolean, default=False)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, onupdate=func.now())
     deleted_at = Column(DateTime, default=Null)
 
     virtual_lab_id = Column(
