@@ -46,4 +46,4 @@ app.include_router(user_router)
 
 @app.get("/")
 def root() -> str:
-    return "📡 server is running."
+    return "server is running."
