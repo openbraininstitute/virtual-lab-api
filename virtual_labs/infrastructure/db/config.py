@@ -34,7 +34,7 @@ class VirtualLab(Base):
     __tablename__ = "virtual_lab"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    delta_organization_id = Column(
+    nexus_organization_id = Column(
         String(255), nullable=False
     )  # the string length may change in the future, when we know the structure of it
     name = Column(String(250), unique=True)
@@ -50,7 +50,7 @@ class Project(Base):
     __tablename__ = "project"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    delta_project_id = Column(
+    nexus_project_id = Column(
         String(255), nullable=False
     )  # the string length may change in the future, when we know the structure of it
 
