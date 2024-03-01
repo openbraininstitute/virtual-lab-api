@@ -1,5 +1,4 @@
-from fastapi import APIRouter
-from fastapi.params import Depends
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from ..infrastructure.db.config import default_session_factory
