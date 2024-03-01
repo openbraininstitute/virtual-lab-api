@@ -13,7 +13,9 @@ app = FastAPI(title=settings.APP_NAME)
 
 
 @app.exception_handler(VlmError)
-async def vlm_exception_handler(request: Request, exception: VlmError):
+async def vlm_exception_handler(
+    request: Request, exception: VlmError
+) -> responses.JSONResponse:
     """
     this is will handle (format, standardize) all exceptions raised by the app
     any VlmError raised anywhere in the app, will be captured by this handler

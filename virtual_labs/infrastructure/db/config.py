@@ -1,4 +1,5 @@
 import sys
+from typing import Generator, Any
 
 from loguru import logger
 from sqlalchemy import create_engine, exc
@@ -16,27 +17,26 @@ if settings.DATABASE_URI is None and "pytest" not in sys.modules:
     )
 
 
-def init_db() -> Session:
+def init_db() -> sessionmaker[Session]:
     try:
-        # TODO: remove this, it's only momentarily
-        if "pytest" not in sys.modules:
-            engine = create_engine(
-                settings.DATABASE_URI.unicode_string(),
-                echo=settings.DEBUG_DATABASE_ECHO,
-            )
-            session_local = sessionmaker(autoflush=False, autocommit=False, bind=engine)
-            Base.metadata.create_all(engine)
+        engine = create_engine(
+            settings.DATABASE_URI.unicode_string(),
+            echo=settings.DEBUG_DATABASE_ECHO,
+        )
+        session_local = sessionmaker(autoflush=False, autocommit=False, bind=engine)
+        Base.metadata.create_all(engine)
 
-            logger.info("✅ DB connected")
-            return session_local
+        logger.info("✅ DB connected")
+        return session_local
     except exc.ArgumentError:
         logger.error("⛔️ database connection failed, check the env variable")
+        raise
 
 
 session_local = init_db()
 
 
-def default_session_factory():
+def default_session_factory() -> Generator[Any, Any, Any]:
     try:
         database = session_local()
         yield database
