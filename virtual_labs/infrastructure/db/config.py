@@ -1,8 +1,8 @@
 import sys
-from typing import Generator, Any
+from typing import Any, Generator
 
 from loguru import logger
-from sqlalchemy import create_engine, exc
+from sqlalchemy import Engine, create_engine, exc
 from sqlalchemy.orm import Session, sessionmaker
 
 from virtual_labs.core.exceptions.api_error import VlmError, VlmErrorCode
@@ -17,28 +17,30 @@ if settings.DATABASE_URI is None and "pytest" not in sys.modules:
     )
 
 
-def init_db() -> sessionmaker[Session]:
+def init_db() -> Engine:
     try:
         engine = create_engine(
             settings.DATABASE_URI.unicode_string(),
             echo=settings.DEBUG_DATABASE_ECHO,
         )
-        session_local = sessionmaker(autoflush=False, autocommit=False, bind=engine)
         Base.metadata.create_all(engine)
 
         logger.info("✅ DB connected")
-        return session_local
+        return engine
     except exc.ArgumentError:
         logger.error("⛔️ database connection failed, check the env variable")
         raise
 
 
-session_local = init_db()
+engine: Engine = init_db()
+session_factory: sessionmaker[Session] = sessionmaker(
+    autoflush=False, autocommit=False, bind=engine
+)
 
 
-def default_session_factory() -> Generator[Any, Any, Any]:
+def default_session_factory() -> Generator[Session, Any, None]:
     try:
-        database = session_local()
+        database = session_factory()
         yield database
     finally:
         database.close()
