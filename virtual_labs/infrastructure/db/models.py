@@ -33,6 +33,8 @@ class VirtualLab(Base):
     updated_at = Column(DateTime, onupdate=func.now())
     deleted_at = Column(DateTime, default=Null)
 
+    projects = relationship("Project", back_populates="virtual_lab")
+
 
 class Project(Base):
     __tablename__ = "project"
@@ -53,7 +55,7 @@ class Project(Base):
     virtual_lab_id = Column(
         "virtual_lab_id", UUID(as_uuid=True), ForeignKey("virtual_lab.id")
     )
-    virtual_lab = relationship("Project")
+    virtual_lab = relationship("VirtualLab", back_populates="projects")
 
 
 # class PaymentCard(Base):
