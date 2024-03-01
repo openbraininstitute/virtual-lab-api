@@ -1,7 +1,8 @@
-from typing import Any, Dict, Optional, Union
+from typing import Any, Optional
 
 from dotenv import load_dotenv
-from pydantic import AnyHttpUrl, PostgresDsn, field_validator
+from pydantic import ValidationInfo, PostgresDsn, field_validator
+from pydantic_core import MultiHostUrl
 from pydantic_settings import BaseSettings
 
 load_dotenv()
@@ -16,21 +17,20 @@ class Settings(BaseSettings):
     POSTGRES_USER: str = "vlm"
     POSTGRES_PASSWORD: str = "vlm"
     POSTGRES_DB: str = "vlm"
-    DATABASE_URI: Union[
-        PostgresDsn, AnyHttpUrl
-    ] = "postgresql://vlm:vlm@localhost:15432/vlm"
+    DATABASE_URI: PostgresDsn = MultiHostUrl("postgresql://vlm:vlm@localhost:15432/vlm")
 
     @field_validator("DATABASE_URI", mode="before")
-    def build_db_connection(cls, v: Optional[str], values: Dict[str, Any]) -> Any:
+    @classmethod
+    def build_db_connection(cls, v: Optional[str], values: ValidationInfo) -> Any:
         if isinstance(v, str):
             return v
         return PostgresDsn.build(
             scheme="postgresql",
-            username=values.get("POSTGRES_USER"),
-            password=values.get("POSTGRES_PASSWORD"),
-            host=values.get("POSTGRES_HOST"),
-            port=values.get("POSTGRES_PORT"),
-            path=f"{values.get('POSTGRES_DB') or ''}",
+            username=values.data.get("POSTGRES_USER"),
+            password=values.data.get("POSTGRES_PASSWORD"),
+            host=values.data.get("POSTGRES_HOST"),
+            port=values.data.get("POSTGRES_PORT"),
+            path=f"{values.data.get('POSTGRES_DB') or ''}",
         )
 
 
