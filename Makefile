@@ -15,7 +15,8 @@ define HELPTEXT
 		format-check    Only check formatting of files but do not modify them to fix formatting issues 
 		lint            Fix linting issues in files, if any
 		lint-check      Check linting issues in files but do not modify them to fix linting issues
-		static-checks   Run static type checks, formatting, and linting
+		style-check     Run formatting, and linting
+		type-check      Run static type checks
 		test            Run tests
 
 endef
@@ -48,8 +49,11 @@ lint:
 lint-check:
 	poetry run ruff check
 
-static-checks:
+style-check:
 	poetry run pre-commit run --all-files --config ./.pre-commit-config-ci.yaml
+
+type-check:
+	poetry run mypy . --strict
 
 test:
 	poetry run pytest

@@ -23,7 +23,8 @@ static_checks:
   stage: check
   script:
     - *install_dev_packages
-    -  make static-checks # Runs static type checks, linting, and formatting
+    -  make style-check
+    -  make type-check
 
 unit_tests:
   stage: test
