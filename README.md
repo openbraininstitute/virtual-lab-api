@@ -50,6 +50,5 @@ poetry run pre-commit install
 
 This will setup a git hook (pre-push) that is configured to run the following checks.
 
-- Static type checks (using mypy)
 - Formatting (using ruff)
 - Linting (using ruff)

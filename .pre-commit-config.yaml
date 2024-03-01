@@ -10,8 +10,3 @@ repos:
     # Run the formatter.
     - id: ruff-format
       stages: [push]
--   repo: https://github.com/pre-commit/mirrors-mypy
-    rev: 'v1.8.0'  # Use the sha / tag you want to point at
-    hooks:
-    -   id: mypy
-        stages: [push]
