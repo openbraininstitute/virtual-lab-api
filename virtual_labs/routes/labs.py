@@ -41,3 +41,19 @@ def create_virtual_lab(
     lab: domains.VirtualLabCreate, db: Session = Depends(default_session_factory)
 ) -> models.VirtualLab:
     return virtual_lab_service.create_virtual_lab(db, lab)
+
+
+@router.patch("/{lab_id}", response_model=domains.VirtualLab)
+def update_virtual_lab(
+    lab_id: UUID4,
+    lab: domains.VirtualLabUpdate,
+    db: Session = Depends(default_session_factory),
+) -> models.VirtualLab:
+    updated_lab = virtual_lab_service.update_virtual_lab(db, lab_id, lab)
+    if updated_lab is None:
+        raise VlmError(
+            message="Virtual lab not found",
+            error_code=VlmErrorCode.ENTITY_NOT_FOUND,
+            http_status_code=HTTPStatus.NOT_FOUND,
+        )
+    return updated_lab

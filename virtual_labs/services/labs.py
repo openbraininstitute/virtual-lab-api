@@ -19,3 +19,8 @@ class VirtualLabService:
         self, db: Session, lab: domain.VirtualLabCreate
     ) -> models.VirtualLab:
         return repository.create_virtual_lab(db, lab)
+
+    def update_virtual_lab(
+        self, db: Session, lab_id: UUID4, lab: domain.VirtualLabUpdate
+    ) -> models.VirtualLab | None:
+        return repository.update_virtual_lab(db, lab_id, lab)

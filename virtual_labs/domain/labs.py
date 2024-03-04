@@ -13,6 +13,12 @@ class VirtualLabCreate(VirtualLabBase):
     pass
 
 
+class VirtualLabUpdate(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    reference_email: str | None = None
+
+
 class VirtualLab(VirtualLabBase):
     id: UUID4
     nexus_organization_id: str
