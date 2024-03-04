@@ -26,12 +26,14 @@ class VirtualLab(Base):
         String(255), nullable=False, unique=True
     )  # the string length may change in the future, when we know the structure of it
     name = Column(String(250), unique=True)
-    description = Column(Text, default=Null)
+    description = Column(Text)
+    reference_email = Column(String(255))
+
     deleted = Column(Boolean, default=False)
 
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, onupdate=func.now())
-    deleted_at = Column(DateTime, default=Null)
+    deleted_at = Column(DateTime)
 
     projects = relationship("Project", back_populates="virtual_lab")
 
