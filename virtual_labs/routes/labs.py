@@ -57,3 +57,17 @@ def update_virtual_lab(
             http_status_code=HTTPStatus.NOT_FOUND,
         )
     return updated_lab
+
+
+@router.delete("/{lab_id}", response_model=domains.VirtualLab)
+def delete_virtual_lab(
+    lab_id: UUID4, db: Session = Depends(default_session_factory)
+) -> models.VirtualLab:
+    deleted_lab = virtual_lab_service.delete_virtual_lab(db, lab_id)
+    if deleted_lab is None:
+        raise VlmError(
+            message="Virtual lab not found",
+            error_code=VlmErrorCode.ENTITY_NOT_FOUND,
+            http_status_code=HTTPStatus.NOT_FOUND,
+        )
+    return deleted_lab

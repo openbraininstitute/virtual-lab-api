@@ -31,4 +31,4 @@ class VirtualLab(VirtualLabBase):
     projects: list[Any] = []
 
     class Config:
-        orm_mode = True
+        from_attributes = True

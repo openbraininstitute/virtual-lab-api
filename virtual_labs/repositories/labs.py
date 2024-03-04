@@ -54,3 +54,13 @@ def update_virtual_lab(
     db.commit()
 
     return current
+
+
+def delete_virtual_lab(db: Session, lab_id: UUID4) -> VirtualLab | None:
+    lab = get_virtual_lab(db, lab_id)
+    if lab is None:
+        return None
+
+    db.delete(lab)
+    db.commit()
+    return lab

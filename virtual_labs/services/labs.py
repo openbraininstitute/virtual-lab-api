@@ -24,3 +24,8 @@ class VirtualLabService:
         self, db: Session, lab_id: UUID4, lab: domain.VirtualLabUpdate
     ) -> models.VirtualLab | None:
         return repository.update_virtual_lab(db, lab_id, lab)
+
+    def delete_virtual_lab(
+        self, db: Session, lab_id: UUID4
+    ) -> models.VirtualLab | None:
+        return repository.delete_virtual_lab(db, lab_id)
