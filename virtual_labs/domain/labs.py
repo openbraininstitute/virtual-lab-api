@@ -1,6 +1,14 @@
-from typing import Any, Optional
+from typing import Any, Optional, TypeVar, Generic
 from pydantic import BaseModel, UUID4
 from datetime import datetime
+
+
+T = TypeVar("T")
+
+
+class LabResponse(BaseModel, Generic[T]):
+    message: str
+    data: T
 
 
 class VirtualLabBase(BaseModel):
@@ -19,7 +27,7 @@ class VirtualLabUpdate(BaseModel):
     reference_email: str | None = None
 
 
-class VirtualLab(VirtualLabBase):
+class VirtualLabDomain(VirtualLabBase):
     id: UUID4
     nexus_organization_id: str
 
