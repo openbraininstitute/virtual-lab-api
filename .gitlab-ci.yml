@@ -32,15 +32,15 @@ unit_tests:
     - *install_dev_packages
     - make test
 
-# build_and_publish:
-#   stage: publish 
-#   extends:
-#     - .build-image-using-kaniko
-#   variables:
-#     CI_REGISTRY_IMAGE: bluebrain/obp-virtual-lab-manager
-#     CI_REGISTRY: https://index.docker.io/v1/
-#     CI_REGISTRY_USER: bbpbuildbot
-#     CI_REGISTRY_PASSWORD: $CI_REGISTRY_PASSWORD_DOCKERHUB
-#     REGISTRY_IMAGE_TAG: latest
-#   only:
-#     - main
+build_and_publish:
+  stage: publish 
+  extends:
+    - .build-image-using-kaniko
+  variables:
+    CI_REGISTRY_IMAGE: bluebrain/obp-virtual-lab-api
+    CI_REGISTRY: https://index.docker.io/v1/
+    CI_REGISTRY_USER: bbpbuildbot
+    CI_REGISTRY_PASSWORD: $CI_REGISTRY_PASSWORD_DOCKERHUB
+    REGISTRY_IMAGE_TAG: latest
+  only:
+    - main
