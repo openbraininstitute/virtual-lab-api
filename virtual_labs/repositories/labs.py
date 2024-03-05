@@ -35,7 +35,7 @@ def update_virtual_lab(
 ) -> VirtualLab:
     query = db.query(VirtualLab).filter(VirtualLab.id == lab_id)
     current = query.one()
-
+    print("Reaches here")
     updated_data = lab.model_dump(exclude_unset=True)
     query.update(
         {

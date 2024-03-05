@@ -10,6 +10,7 @@ class VlmErrorCode(IntEnum):
     DATABASE_URI_NOT_SET = 1
     ENTITY_NOT_FOUND = 2
     ENTITY_ALREADY_EXISTS = 3
+    OTHER = 10
 
 
 class VlmError(Exception):
