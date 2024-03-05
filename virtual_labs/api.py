@@ -1,6 +1,10 @@
 from fastapi import FastAPI, Request, responses
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from fastapi.encoders import jsonable_encoder
 from loguru import logger
 from starlette.middleware.cors import CORSMiddleware
+from http import HTTPStatus
 
 from .core.exceptions.api_error import VlmError, VlmErrorCode
 from .core.schemas import api
@@ -29,6 +33,22 @@ async def vlm_exception_handler(
             message=exception.message,
             error_code=VlmErrorCode(exception.error_code),
         ).model_dump(),
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(
+    request: Request, exc: RequestValidationError
+) -> responses.JSONResponse:
+    errors = {
+        err.get("loc", (0, index))[1]: err.get(
+            "msg", "Field value is invalid. Further details unavailable."
+        )
+        for index, err in enumerate(exc.errors())
+    }
+    return JSONResponse(
+        status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
+        content=jsonable_encoder(errors),
     )
 
 
