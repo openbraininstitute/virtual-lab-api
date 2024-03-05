@@ -12,7 +12,7 @@ class VirtualLabService:
         # TODO: Use keycloak to retrieve only labs that belong to the current user
         return repository.get_all_virtual_lab_for_user(db)
 
-    def get_virtual_lab(self, db: Session, lab_id: UUID4) -> models.VirtualLab | None:
+    def get_virtual_lab(self, db: Session, lab_id: UUID4) -> models.VirtualLab:
         return repository.get_virtual_lab(db, lab_id)
 
     def create_virtual_lab(
@@ -22,10 +22,8 @@ class VirtualLabService:
 
     def update_virtual_lab(
         self, db: Session, lab_id: UUID4, lab: domain.VirtualLabUpdate
-    ) -> models.VirtualLab | None:
+    ) -> models.VirtualLab:
         return repository.update_virtual_lab(db, lab_id, lab)
 
-    def delete_virtual_lab(
-        self, db: Session, lab_id: UUID4
-    ) -> models.VirtualLab | None:
+    def delete_virtual_lab(self, db: Session, lab_id: UUID4) -> models.VirtualLab:
         return repository.delete_virtual_lab(db, lab_id)

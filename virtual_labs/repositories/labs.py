@@ -11,8 +11,8 @@ def get_all_virtual_lab_for_user(db: Session) -> List[VirtualLab]:
     return db.query(VirtualLab).all()
 
 
-def get_virtual_lab(db: Session, lab_id: UUID4) -> VirtualLab | None:
-    return db.query(VirtualLab).filter(VirtualLab.id == lab_id).first()
+def get_virtual_lab(db: Session, lab_id: UUID4) -> VirtualLab:
+    return db.query(VirtualLab).filter(VirtualLab.id == lab_id).one()
 
 
 def create_virtual_lab(db: Session, lab: labs.VirtualLabCreate) -> VirtualLab:
@@ -26,19 +26,15 @@ def create_virtual_lab(db: Session, lab: labs.VirtualLabCreate) -> VirtualLab:
 
     db.add(db_lab)
     db.commit()
-    db.refresh(db_lab)
 
     return db_lab
 
 
 def update_virtual_lab(
     db: Session, lab_id: UUID4, lab: labs.VirtualLabUpdate
-) -> VirtualLab | None:
+) -> VirtualLab:
     query = db.query(VirtualLab).filter(VirtualLab.id == lab_id)
-    current = query.first()
-
-    if current is None:
-        return None
+    current = query.one()
 
     updated_data = lab.model_dump(exclude_unset=True)
     query.update(
@@ -52,15 +48,11 @@ def update_virtual_lab(
         }
     )
     db.commit()
-
     return current
 
 
-def delete_virtual_lab(db: Session, lab_id: UUID4) -> VirtualLab | None:
+def delete_virtual_lab(db: Session, lab_id: UUID4) -> VirtualLab:
     lab = get_virtual_lab(db, lab_id)
-    if lab is None:
-        return None
-
     db.delete(lab)
     db.commit()
     return lab
