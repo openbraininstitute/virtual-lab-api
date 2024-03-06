@@ -48,7 +48,9 @@ async def validation_exception_handler(
     }
     return JSONResponse(
         status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
-        content=jsonable_encoder(errors),
+        content=jsonable_encoder(
+            {"error_code": VlmErrorCode.INVALID_REQUEST, "details": errors}
+        ),
     )
 
 
