@@ -1,7 +1,6 @@
 from http import HTTPStatus as status
 from typing import Union
 
-from fastapi import HTTPException
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from loguru import logger
@@ -25,9 +24,10 @@ def create_new_project_use_case(
     try:
         vlr.retrieve_lab_by_id(virtual_lab_id)
     except NoResultFound:
-        raise HTTPException(
-            status_code=status.BAD_REQUEST,
-            detail={"message": "virtual lab not found", "data": None},
+        raise VliError(
+            error_code=VliErrorCode.ENTITY_NOT_FOUND,
+            http_status_code=status.BAD_REQUEST,
+            message="virtual lab not found",
         )
     """
     TODO: 
@@ -56,9 +56,10 @@ def create_new_project_use_case(
         )
 
     except IntegrityError:
-        raise HTTPException(
-            status_code=status.BAD_REQUEST,
-            detail={"message": "project already exists"},
+        raise VliError(
+            error_code=VliErrorCode.ENTITY_ALREADY_EXISTS,
+            http_status_code=status.BAD_REQUEST,
+            message="project already exists",
         )
     except SQLAlchemyError:
         raise VliError(
