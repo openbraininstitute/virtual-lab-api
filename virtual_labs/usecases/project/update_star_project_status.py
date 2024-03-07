@@ -26,9 +26,7 @@ def update_star_project_status_use_case(
         project = pqr.retrieve_project_star(user_id=user_id, project_id=project_id)
 
         if project is not None:
-            print("unstaring")
             result = pmr.unstar_project(project_id=project_id, user_id=user_id)
-            print("unstar:", result)
             return JSONResponse(
                 status_code=status.OK,
                 content={
@@ -41,7 +39,6 @@ def update_star_project_status_use_case(
                 },
             )
         else:
-            print("staring..")
             result = pmr.star_project(project_id=project_id, user_id=user_id)
             return JSONResponse(
                 status_code=status.OK,
