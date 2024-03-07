@@ -17,6 +17,8 @@ python-dotenv = "^1.0.1"
 psycopg2-binary = "^2.9.9"
 loguru = "^0.7.2"
 pydantic-settings = "^2.2.1"
+python-keycloak = "^3.9.1"
+pydantic = {extras = ["email"], version = "^2.6.3"}
 
 
 [tool.poetry.group.dev.dependencies]
