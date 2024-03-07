@@ -17,12 +17,12 @@ def search_projects_per_virtual_lab_by_name_use_case(
     session: Session, virtual_lab_id: UUID4, user_id: UUID4, query_term: str | None
 ) -> Union[JSONResponse, VliError]:
     pr = ProjectQueryRepository(session)
-    print(virtual_lab_id, user_id, query_term)
+
     if not query_term:
         raise VliError(
             error_code=VliErrorCode.INVALID_PARAMETER,
             http_status_code=status.BAD_REQUEST,
-            message="no search query provided",
+            message="No search query provided",
         )
     try:
         # TODO: provide projects from only the user allow to access
@@ -31,9 +31,9 @@ def search_projects_per_virtual_lab_by_name_use_case(
         return JSONResponse(
             status_code=status.OK,
             content={
-                "message": f"projects with {query_term} found successfully"
+                "message": f"Projects with '{query_term}' found successfully"
                 if len(projects) > 0
-                else "no projects was found",
+                else "No projects was found",
                 "data": jsonable_encoder(
                     {
                         "projects": [
@@ -48,7 +48,7 @@ def search_projects_per_virtual_lab_by_name_use_case(
         raise VliError(
             error_code=VliErrorCode.DATABASE_ERROR,
             http_status_code=status.BAD_REQUEST,
-            message="searching for projects failed",
+            message="Searching for projects failed",
         )
     except Exception as ex:
         print(ex)

@@ -22,7 +22,7 @@ def retrieve_users_per_project_count_use_case(
         return JSONResponse(
             status_code=status.OK,
             content={
-                "message": f"count users per project {project_id} fetched successfully",
+                "message": f"Count users per project {project_id} fetched successfully",
                 # "data": jsonable_encoder({"count": count}),
             },
         )
@@ -30,7 +30,7 @@ def retrieve_users_per_project_count_use_case(
         raise VliError(
             error_code=VliErrorCode.DATABASE_ERROR,
             http_status_code=status.BAD_REQUEST,
-            message="retrieving users per project failed",
+            message="Retrieving users per project failed",
         )
     except Exception as ex:
         logger.error(

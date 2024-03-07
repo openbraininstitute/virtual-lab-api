@@ -21,7 +21,7 @@ def retrieve_projects_count_per_virtual_lab_use_case(
         return JSONResponse(
             status_code=status.OK,
             content={
-                "message": "project count per virtual lab fetched successfully",
+                "message": "Project count per virtual lab fetched successfully",
                 "data": jsonable_encoder({"count": count}),
             },
         )
@@ -29,7 +29,7 @@ def retrieve_projects_count_per_virtual_lab_use_case(
         raise VliError(
             error_code=VliErrorCode.DATABASE_ERROR,
             http_status_code=status.BAD_REQUEST,
-            message="retrieving count of projects per virtual lab failed",
+            message="Retrieving count of projects per virtual lab failed",
         )
     except Exception as ex:
         logger.error(

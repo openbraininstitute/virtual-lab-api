@@ -26,7 +26,7 @@ def update_project_budget_use_case(
         return JSONResponse(
             status_code=status.OK,
             content={
-                "message": "project new budget updated successfully",
+                "message": "Project new budget updated successfully",
                 "data": jsonable_encoder(
                     {
                         "updated_project_id": updated_project_id,
@@ -40,7 +40,7 @@ def update_project_budget_use_case(
         raise VliError(
             error_code=VliErrorCode.DATABASE_ERROR,
             http_status_code=status.BAD_REQUEST,
-            message="updating project budget failed",
+            message="Updating project budget failed",
         )
     except Exception as ex:
         logger.error(

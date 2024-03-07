@@ -29,7 +29,7 @@ def attach_user_to_project_use_case(
         return JSONResponse(
             status_code=status.OK,
             content={
-                "message": "user attached to the project successfully",
+                "message": "User attached to the project successfully",
                 # "data": result,
             },
         )
@@ -37,7 +37,7 @@ def attach_user_to_project_use_case(
         raise VliError(
             error_code=VliErrorCode.DATABASE_ERROR,
             http_status_code=status.BAD_REQUEST,
-            message="attaching user to project failed",
+            message="Attaching user to project failed",
         )
     except Exception as ex:
         logger.error(

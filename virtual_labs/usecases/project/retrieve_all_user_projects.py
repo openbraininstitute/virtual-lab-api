@@ -26,9 +26,9 @@ def retrieve_user_projects_use_case(
         return JSONResponse(
             status_code=status.OK,
             content={
-                "message": "projects found"
+                "message": "Projects found successfully"
                 if len(projects) > 0
-                else "no projects was found",
+                else "No projects was found",
                 "data": jsonable_encoder(
                     {
                         "projects": [
@@ -43,7 +43,7 @@ def retrieve_user_projects_use_case(
         raise VliError(
             error_code=VliErrorCode.DATABASE_ERROR,
             http_status_code=status.BAD_REQUEST,
-            message="retrieving projects failed",
+            message="Retrieving projects failed",
         )
     except Exception as ex:
         logger.error(

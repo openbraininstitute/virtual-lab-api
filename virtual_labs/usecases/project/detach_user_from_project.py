@@ -26,7 +26,7 @@ def detach_user_from_project_use_case(
         return JSONResponse(
             status_code=status.OK,
             content={
-                "message": "user detached from the project successfully",
+                "message": "User detached from the project successfully",
                 # "data": result,
             },
         )
@@ -34,7 +34,7 @@ def detach_user_from_project_use_case(
         raise VliError(
             error_code=VliErrorCode.DATABASE_ERROR,
             http_status_code=status.BAD_REQUEST,
-            message="user detachment from a project failed",
+            message="User detachment from a project failed",
         )
     except Exception as ex:
         logger.error(

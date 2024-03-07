@@ -22,19 +22,19 @@ def retrieve_single_project_use_case(
         return JSONResponse(
             status_code=status.OK,
             content={
-                "message": "project found successfully",
+                "message": "Project found successfully",
                 "data": jsonable_encoder({"project": Project(**project.__dict__)}),
             },
         )
     except NoResultFound:
         raise VliError(
-            error_code=VliErrorCode.DATABASE_ERROR,
+            error_code=VliErrorCode.ENTITY_NOT_FOUND,
             http_status_code=status.BAD_REQUEST,
             message="No project found",
         )
     except MultipleResultsFound:
         raise VliError(
-            error_code=VliErrorCode.DATABASE_ERROR,
+            error_code=VliErrorCode.MULTIPLE_ENTITIES_FOUND,
             http_status_code=status.BAD_REQUEST,
             message="Multiple projects found",
         )
@@ -42,7 +42,7 @@ def retrieve_single_project_use_case(
         raise VliError(
             error_code=VliErrorCode.DATABASE_ERROR,
             http_status_code=status.BAD_REQUEST,
-            message="retrieving project failed",
+            message="Retrieving project failed",
         )
     except Exception as ex:
         logger.error(

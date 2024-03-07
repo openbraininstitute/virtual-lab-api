@@ -19,16 +19,16 @@ def check_project_existence_use_case(
         raise VliError(
             error_code=VliErrorCode.INVALID_PARAMETER,
             http_status_code=status.BAD_REQUEST,
-            message="no search query provided",
+            message="No search query provided",
         )
     try:
         projects_count = pr.check(query_term=query_term).count()
         return JSONResponse(
             status_code=status.OK,
             content={
-                "message": f"project with name {query_term} already exist"
+                "message": f"Project with name {query_term} already exist"
                 if projects_count > 0
-                else f"no project was found by {query_term}",
+                else f"No project was found by {query_term}",
                 "data": jsonable_encoder({"exist": projects_count != 0}),
             },
         )
@@ -36,7 +36,7 @@ def check_project_existence_use_case(
         raise VliError(
             error_code=VliErrorCode.DATABASE_ERROR,
             http_status_code=status.BAD_REQUEST,
-            message="searching for projects failed",
+            message="Searching for projects failed",
         )
     except Exception as ex:
         print(ex)

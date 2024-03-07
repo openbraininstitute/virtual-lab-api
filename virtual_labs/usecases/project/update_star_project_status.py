@@ -24,7 +24,7 @@ def update_star_project_status_use_case(
     # TODO: check if the user really part of the project
     try:
         project = pqr.retrieve_project_star(user_id=user_id, project_id=project_id)
-        print("project ->", project, user_id, project_id)
+
         if project is not None:
             print("unstaring")
             result = pmr.unstar_project(project_id=project_id, user_id=user_id)
@@ -32,7 +32,7 @@ def update_star_project_status_use_case(
             return JSONResponse(
                 status_code=status.OK,
                 content={
-                    "message": f"user unstar project {project_id} successfully",
+                    "message": f"User unstar project {project_id} successfully",
                     "data": jsonable_encoder(
                         {
                             "project_id": result[0],
@@ -46,7 +46,7 @@ def update_star_project_status_use_case(
             return JSONResponse(
                 status_code=status.OK,
                 content={
-                    "message": f"user star a new project {project_id} successfully",
+                    "message": f"User star a new project {project_id} successfully",
                     "data": jsonable_encoder(
                         {
                             "project_id": result.project_id,
@@ -60,7 +60,7 @@ def update_star_project_status_use_case(
         raise VliError(
             error_code=VliErrorCode.DATABASE_ERROR,
             http_status_code=status.BAD_REQUEST,
-            message="staring/unstaring project failed",
+            message="Staring/Unstaring project failed",
         )
     except Exception as ex:
         logger.error(f"Error during staring user project: {project_id} ({ex})")

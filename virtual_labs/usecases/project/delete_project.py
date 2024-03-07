@@ -25,7 +25,7 @@ def delete_project_use_case(
         return JSONResponse(
             status_code=status.OK,
             content={
-                "message": "project marked as deleted successfully",
+                "message": "Project marked as deleted successfully",
                 "data": jsonable_encoder(
                     {
                         "project_id": deleted_project_id,
@@ -39,7 +39,7 @@ def delete_project_use_case(
         raise VliError(
             error_code=VliErrorCode.DATABASE_ERROR,
             http_status_code=status.BAD_REQUEST,
-            message="project deletion failed",
+            message="Project deletion failed",
         )
     except Exception as ex:
         logger.error(

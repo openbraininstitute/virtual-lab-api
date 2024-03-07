@@ -21,7 +21,7 @@ def retrieve_project_budget_use_case(
         return JSONResponse(
             status_code=status.OK,
             content={
-                "message": "project budget fetched successfully",
+                "message": "Project budget fetched successfully",
                 "data": jsonable_encoder({"budget": budget}),
             },
         )
@@ -29,7 +29,7 @@ def retrieve_project_budget_use_case(
         raise VliError(
             error_code=VliErrorCode.DATABASE_ERROR,
             http_status_code=status.BAD_REQUEST,
-            message="retrieving budget of project failed",
+            message="Retrieving budget of project failed",
         )
     except Exception as ex:
         logger.error(

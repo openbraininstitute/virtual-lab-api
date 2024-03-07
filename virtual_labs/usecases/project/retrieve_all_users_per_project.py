@@ -25,7 +25,7 @@ def retrieve_all_users_per_project_use_case(
         return JSONResponse(
             status_code=status.OK,
             content={
-                "message": "users found successfully",
+                "message": "Users found successfully",
                 # "data": jsonable_encoder(users),
             },
         )
@@ -33,7 +33,7 @@ def retrieve_all_users_per_project_use_case(
         raise VliError(
             error_code=VliErrorCode.DATABASE_ERROR,
             http_status_code=status.BAD_REQUEST,
-            message="retrieving users for a project failed",
+            message="Retrieving users for a project failed",
         )
     except Exception as ex:
         logger.error(f"Error during retrieving users per project: {project_id} ({ex})")

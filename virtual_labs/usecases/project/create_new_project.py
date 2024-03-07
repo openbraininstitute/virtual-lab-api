@@ -46,7 +46,7 @@ def create_new_project_use_case(
         return JSONResponse(
             status_code=status.OK,
             content={
-                "message": "project created successfully",
+                "message": "Project created successfully",
                 "data": jsonable_encoder(
                     {
                         "project": Project(**project.__dict__),
@@ -59,13 +59,13 @@ def create_new_project_use_case(
         raise VliError(
             error_code=VliErrorCode.ENTITY_ALREADY_EXISTS,
             http_status_code=status.BAD_REQUEST,
-            message="project already exists",
+            message="Project already exists",
         )
     except SQLAlchemyError:
         raise VliError(
             error_code=VliErrorCode.DATABASE_ERROR,
             http_status_code=status.BAD_REQUEST,
-            message="project creation failed",
+            message="Project creation failed",
         )
     except Exception as ex:
         logger.error(f"Error during creating new project ({ex})")

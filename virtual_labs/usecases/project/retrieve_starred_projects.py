@@ -18,11 +18,10 @@ def retrieve_starred_projects_use_case(
     pr = ProjectQueryRepository(session)
     try:
         projects = pr.retrieve_starred_projects_per_user(user_id)
-        print("projects", projects)
         return JSONResponse(
             status_code=status.OK,
             content={
-                "message": "starred projects found successfully",
+                "message": "Starred projects found successfully",
                 "data": jsonable_encoder(
                     {
                         "projects": [
@@ -37,12 +36,11 @@ def retrieve_starred_projects_use_case(
                 ),
             },
         )
-    except SQLAlchemyError as ex:
-        print("er", ex)
+    except SQLAlchemyError:
         raise VliError(
             error_code=VliErrorCode.DATABASE_ERROR,
             http_status_code=status.BAD_REQUEST,
-            message="retrieving starred project failed",
+            message="Retrieving starred project failed",
         )
     except Exception as ex:
         logger.error(
