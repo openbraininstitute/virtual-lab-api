@@ -6,9 +6,8 @@ from sqlalchemy import Engine, create_engine, exc
 from sqlalchemy.orm import Session, sessionmaker
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
+from virtual_labs.infrastructure.db.models import Base
 from virtual_labs.infrastructure.settings import settings
-
-from .models import Base
 
 if settings.DATABASE_URI is None and "pytest" not in sys.modules:
     raise VliError(
@@ -33,13 +32,14 @@ def init_db() -> Engine:
 
 
 engine: Engine = init_db()
-session_factory: sessionmaker[Session] = sessionmaker(
-    autoflush=False, autocommit=False, bind=engine
-)
 
 
 def default_session_factory() -> Generator[Session, Any, None]:
     try:
+        session_factory: sessionmaker[Session] = sessionmaker(
+            autoflush=False, autocommit=False, bind=engine
+        )
+
         database = session_factory()
         yield database
     finally:
