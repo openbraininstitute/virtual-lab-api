@@ -29,3 +29,13 @@ def create_virtual_lab(db: Session, lab: domain.VirtualLabCreate) -> models.Virt
             error_code=VlmErrorCode.OTHER,
             http_status_code=HTTPStatus.BAD_REQUEST,
         )
+    except Exception as error:
+        logger.error(
+            "Virtual lab could not be created due to an unknown error {}".format(error)
+        )
+
+        raise VlmError(
+            message="Virtual lab could not be created",
+            error_code=VlmErrorCode.OTHER,
+            http_status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+        )

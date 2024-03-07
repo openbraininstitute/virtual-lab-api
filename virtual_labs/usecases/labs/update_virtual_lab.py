@@ -38,3 +38,13 @@ def update_virtual_lab(
             error_code=VlmErrorCode.OTHER,
             http_status_code=HTTPStatus.BAD_REQUEST,
         )
+    except Exception as error:
+        logger.error(
+            "Virtual lab could not be saved due to an unknown error {}".format(error)
+        )
+
+        raise VlmError(
+            message="Virtual lab could not be saved to the database",
+            error_code=VlmErrorCode.OTHER,
+            http_status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+        )
