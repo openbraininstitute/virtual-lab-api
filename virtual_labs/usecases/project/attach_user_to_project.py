@@ -25,6 +25,7 @@ def attach_user_to_project_use_case(
         ur.attach_user_to_project(
             virtual_lab_id=virtual_lab_id, project_id=project_id, user_email=user_email
         )
+
         return VliResponse.new(
             message="User attached to the project successfully",
         )

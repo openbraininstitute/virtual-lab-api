@@ -2,7 +2,7 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, Query
-from fastapi.responses import JSONResponse
+from fastapi.responses import Response
 from pydantic import UUID4, EmailStr
 from sqlalchemy.orm import Session
 
@@ -34,7 +34,7 @@ router = APIRouter(prefix="/virtual-labs")
 )
 def retrieve_projects(
     virtual_lab_id: UUID4, session: Session = Depends(default_session_factory)
-) -> JSONResponse | VliError:
+) -> Response | VliError:
     # TODO get it from token
     user_id: UUID4 = uuid.uuid4()
     return cases.retrieve_user_projects_use_case(session, virtual_lab_id, user_id)
@@ -51,7 +51,7 @@ def search_projects_per_virtual_lab(
     virtual_lab_id: UUID4,
     q: str | None = Query(max_length=50, description="query string"),
     session: Session = Depends(default_session_factory),
-) -> JSONResponse | VliError:
+) -> Response | VliError:
     # TODO get it from token
     user_id: UUID4 = uuid.uuid4()
     return cases.search_projects_per_virtual_lab_by_name_use_case(
@@ -69,7 +69,7 @@ def search_projects_per_virtual_lab(
 def check_project_existence(
     q: str | None = Query(max_length=50, description="query string"),
     session: Session = Depends(default_session_factory),
-) -> JSONResponse | VliError:
+) -> Response | VliError:
     return cases.check_project_existence_use_case(session, query_term=q)
 
 
@@ -84,7 +84,7 @@ def retrieve_project(
     virtual_lab_id: UUID4,
     project_id: UUID4,
     session: Session = Depends(default_session_factory),
-) -> JSONResponse | VliError:
+) -> Response | VliError:
     return cases.retrieve_single_project_use_case(session, virtual_lab_id, project_id)
 
 
@@ -99,7 +99,7 @@ def create_new_project(
     virtual_lab_id: UUID4,
     payload: ProjectCreationModel,
     session: Session = Depends(default_session_factory),
-) -> JSONResponse | VliError:
+) -> Response | VliError:
     """
     Allow only the User that has the right role (based on KC groups "Admin")
     to create a new project for a specific virtual lab
@@ -118,7 +118,7 @@ def delete_project(
     virtual_lab_id: UUID4,
     project_id: UUID4,
     session: Session = Depends(default_session_factory),
-) -> JSONResponse | VliError:
+) -> Response | VliError:
     """
     Allow only the User that has the right role (based on KC groups "Admin")
     to delete a project from a specific virtual lab
@@ -141,7 +141,7 @@ def retrieve_project_budget(
     virtual_lab_id: UUID4,
     project_id: UUID4,
     session: Session = Depends(default_session_factory),
-) -> JSONResponse | VliError:
+) -> Response | VliError:
     return cases.retrieve_project_budget_use_case(
         session, virtual_lab_id=virtual_lab_id, project_id=project_id
     )
@@ -159,7 +159,7 @@ def update_project_budget(
     project_id: UUID4,
     new_budget: Annotated[float, Body(embed=True)],
     session: Session = Depends(default_session_factory),
-) -> JSONResponse | VliError:
+) -> Response | VliError:
     """
     Allow only the User that has the right role (based on KC groups "Virtual Lab Admin")
     to update the project budget from a specific virtual lab
@@ -180,7 +180,7 @@ def update_project_budget(
 def retrieve_project_users(
     project_id: UUID4,
     session: Session = Depends(default_session_factory),
-) -> JSONResponse | VliError:
+) -> Response | VliError:
     # TODO: need more work
     return cases.retrieve_all_users_per_project_use_case(session, project_id)
 
@@ -195,7 +195,7 @@ def retrieve_project_users(
 def retrieve_project_users_count(
     project_id: UUID4,
     session: Session = Depends(default_session_factory),
-) -> JSONResponse | VliError:
+) -> Response | VliError:
     # TODO: need more work
     return cases.retrieve_users_per_project_count_use_case(session, project_id)
 
@@ -212,7 +212,7 @@ def attach_user_to_project(
     project_id: UUID4,
     user_email: Annotated[EmailStr, Body(embed=True)],
     session: Session = Depends(default_session_factory),
-) -> JSONResponse | VliError:
+) -> Response | VliError:
     """
     Allow only the User that has the right role (based on KC groups "Virtual Lab Admin/Project Admin")
     Attach a user to a project
@@ -238,7 +238,7 @@ def detach_user_to_project(
     project_id: UUID4,
     user_email: Annotated[EmailStr, Body(embed=True)],
     session: Session = Depends(default_session_factory),
-) -> JSONResponse | VliError:
+) -> Response | VliError:
     """
     Allow only the User that has the right role (based on KC groups "Virtual Lab Admin/Project Admin")
     Detach a user from a project
@@ -263,7 +263,7 @@ def update_project_star_status(
     virtual_lab_id: UUID4,
     project_id: UUID4,
     session: Session = Depends(default_session_factory),
-) -> JSONResponse | VliError:
+) -> Response | VliError:
     """
     Allow only the User that has the right role (be part of the project)
     Star or Unstar (Pin/Unpin) a project
@@ -284,7 +284,7 @@ def update_project_star_status(
 )
 def retrieve_stars_project(
     session: Session = Depends(default_session_factory),
-) -> JSONResponse | VliError:
+) -> Response | VliError:
     """
     Allow only the User that has the right role (be part of the project)
     Retrieve the star projects for a specific user
