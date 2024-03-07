@@ -2,7 +2,7 @@ from enum import IntEnum
 from http import HTTPStatus
 
 
-class VlmErrorCode(IntEnum):
+class VliErrorCode(IntEnum):
     """
     Error codes of the virtual-lab backend service.
     """
@@ -14,7 +14,7 @@ class VlmErrorCode(IntEnum):
     OTHER = 10
 
 
-class VlmError(Exception):
+class VliError(Exception):
     """Base class for virtual-lab backend service exceptions."""
 
     message: str
@@ -24,7 +24,7 @@ class VlmError(Exception):
     def __init__(
         self,
         message: str,
-        error_code: VlmErrorCode,
+        error_code: VliErrorCode,
         http_status_code: HTTPStatus = HTTPStatus.BAD_REQUEST,
     ):
         super().__init__(message, error_code, http_status_code)

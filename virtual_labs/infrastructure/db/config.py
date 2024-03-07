@@ -5,15 +5,15 @@ from loguru import logger
 from sqlalchemy import Engine, create_engine, exc
 from sqlalchemy.orm import Session, sessionmaker
 
-from virtual_labs.core.exceptions.api_error import VlmError, VlmErrorCode
+from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.infrastructure.settings import settings
 
 from .models import Base
 
 if settings.DATABASE_URI is None and "pytest" not in sys.modules:
-    raise VlmError(
+    raise VliError(
         "DATABASE_URI/DATABASE_URL is not set",
-        error_code=VlmErrorCode.DATABASE_URI_NOT_SET,
+        error_code=VliErrorCode.DATABASE_URI_NOT_SET,
     )
 
 

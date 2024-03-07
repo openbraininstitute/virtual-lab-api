@@ -3,7 +3,7 @@ from virtual_labs.domain import labs as domain
 from virtual_labs.infrastructure.db import models
 from virtual_labs.repositories import labs as repository
 from sqlalchemy.orm import Session
-from virtual_labs.core.exceptions.api_error import VlmError, VlmErrorCode
+from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError, NoResultFound
 from http import HTTPStatus
 from loguru import logger
@@ -15,15 +15,15 @@ def update_virtual_lab(
     try:
         return repository.update_virtual_lab(db, lab_id, lab)
     except IntegrityError:
-        raise VlmError(
+        raise VliError(
             message="Another virtual lab with same name already exists",
-            error_code=VlmErrorCode.ENTITY_ALREADY_EXISTS,
+            error_code=VliErrorCode.ENTITY_ALREADY_EXISTS,
             http_status_code=HTTPStatus.CONFLICT,
         )
     except NoResultFound:
-        raise VlmError(
+        raise VliError(
             message="Virtual lab not found",
-            error_code=VlmErrorCode.ENTITY_NOT_FOUND,
+            error_code=VliErrorCode.ENTITY_NOT_FOUND,
             http_status_code=HTTPStatus.NOT_FOUND,
         )
     except SQLAlchemyError:
@@ -33,9 +33,9 @@ def update_virtual_lab(
             )
         )
 
-        raise VlmError(
+        raise VliError(
             message="Virtual lab could not be saved to the database",
-            error_code=VlmErrorCode.OTHER,
+            error_code=VliErrorCode.OTHER,
             http_status_code=HTTPStatus.BAD_REQUEST,
         )
     except Exception as error:
@@ -43,8 +43,8 @@ def update_virtual_lab(
             "Virtual lab could not be saved due to an unknown error {}".format(error)
         )
 
-        raise VlmError(
+        raise VliError(
             message="Virtual lab could not be saved to the database",
-            error_code=VlmErrorCode.OTHER,
+            error_code=VliErrorCode.OTHER,
             http_status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
         )

@@ -6,7 +6,7 @@ from loguru import logger
 from starlette.middleware.cors import CORSMiddleware
 from http import HTTPStatus
 
-from .core.exceptions.api_error import VlmError, VlmErrorCode
+from .core.exceptions.api_error import VliError, VliErrorCode
 from .core.schemas import api
 from .infrastructure.settings import settings
 from .routes.labs import router as virtual_lab_router
@@ -16,9 +16,9 @@ from .routes.users import router as user_router
 app = FastAPI(title=settings.APP_NAME)
 
 
-@app.exception_handler(VlmError)
+@app.exception_handler(VliError)
 async def vlm_exception_handler(
-    request: Request, exception: VlmError
+    request: Request, exception: VliError
 ) -> responses.JSONResponse:
     """
     this is will handle (format, standardize) all exceptions raised by the app
@@ -31,7 +31,7 @@ async def vlm_exception_handler(
         status_code=int(exception.http_status_code),
         content=api.ErrorResponse(
             message=exception.message,
-            error_code=VlmErrorCode(exception.error_code),
+            error_code=VliErrorCode(exception.error_code),
         ).model_dump(),
     )
 
@@ -49,7 +49,7 @@ async def validation_exception_handler(
     return JSONResponse(
         status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
         content=jsonable_encoder(
-            {"error_code": VlmErrorCode.INVALID_REQUEST, "details": errors}
+            {"error_code": VliErrorCode.INVALID_REQUEST, "details": errors}
         ),
     )
 
