@@ -1,28 +1,27 @@
-from enum import IntEnum
+from enum import StrEnum
 from http import HTTPStatus
 
 
-class VliErrorCode(IntEnum):
+class VliErrorCode(StrEnum):
     """
     Error codes of the virtual-lab backend service.
     """
 
-    DATABASE_URI_NOT_SET = 1
-    ENTITY_NOT_FOUND = 2
-    ENTITY_ALREADY_EXISTS = 3
-    INVALID_REQUEST = 4
-    INVALID_PARAMETER = 5
-    MULTIPLE_ENTITIES_FOUND = 6
-    DATABASE_ERROR = 10
-
-    SERVER_ERROR = 500
+    DATABASE_URI_NOT_SET = "DATABASE_URI_NOT_SET"
+    ENTITY_NOT_FOUND = "ENTITY_NOT_FOUND"
+    ENTITY_ALREADY_EXISTS = "ENTITY_ALREADY_EXISTS"
+    INVALID_REQUEST = "INVALID_REQUEST"
+    INVALID_PARAMETER = "INVALID_PARAMETER"
+    MULTIPLE_ENTITIES_FOUND = "MULTIPLE_ENTITIES_FOUND"
+    DATABASE_ERROR = "DATABASE_ERROR"
+    SERVER_ERROR = "SERVER_ERROR"
 
 
 class VliError(Exception):
     """Base class for virtual-lab backend service exceptions."""
 
     message: str
-    error_code: int
+    error_code: str
     http_status_code: HTTPStatus
 
     def __init__(
