@@ -27,7 +27,11 @@ def search_projects_per_virtual_lab_by_name_use_case(
     try:
         # TODO: provide projects from only the user allow to access
         # TODO: provide projects_ids
-        projects = pr.search(query_term=query_term, projects_ids=None).all()
+        projects = pr.search(
+            query_term=query_term,
+            projects_ids=None,
+        ).all()
+
         return JSONResponse(
             status_code=status.OK,
             content={
@@ -51,7 +55,6 @@ def search_projects_per_virtual_lab_by_name_use_case(
             message="Searching for projects failed",
         )
     except Exception as ex:
-        print(ex)
         logger.error(f"Error during searching for projects in {virtual_lab_id} ({ex})")
         raise VliError(
             error_code=VliErrorCode.SERVER_ERROR0,

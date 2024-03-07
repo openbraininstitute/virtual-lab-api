@@ -86,11 +86,15 @@ class ProjectQueryRepository:
         the search fn can be used either for the full list of projects
         or provide list of projects for search within it
         """
-        query = self.session.query(Project).filter(~Project.deleted)
+        conditions = [
+            ~Project.deleted,
+            func.lower(Project.name).like(f"%{query_term.lower()}%"),
+        ]
+
         if projects_ids and (len(projects_ids) > 0):
-            query.filter(Project.id.in_(projects_ids))
-        query.filter(Project.name.match(query_term))
-        return query
+            conditions.append(Project.id.in_(projects_ids))
+
+        return self.session.query(Project).filter(*conditions)
 
     def check(self, *, query_term: str) -> Query[Project]:
         """
