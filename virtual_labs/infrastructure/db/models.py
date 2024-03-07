@@ -1,14 +1,6 @@
 import uuid
 
-from sqlalchemy import (
-    Boolean,
-    Column,
-    DateTime,
-    ForeignKey,
-    Null,
-    String,
-    Text,
-)
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, relationship
 from sqlalchemy.sql import func
@@ -25,11 +17,10 @@ class VirtualLab(Base):
     nexus_organization_id = Column(
         String(255), nullable=False, unique=True
     )  # the string length may change in the future, when we know the structure of it
-    name = Column(String(250), unique=True)
+    name = Column(String(250), unique=True, index=True)
     description = Column(Text)
     reference_email = Column(String(255))
-
-    deleted = Column(Boolean, default=False)
+    deleted = Column(Boolean, default=False, index=True)
 
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, onupdate=func.now())
@@ -46,18 +37,31 @@ class Project(Base):
         String(255), nullable=False, unique=True
     )  # the string length may change in the future, when we know the structure of it
 
-    name = Column(String(250), unique=True)
-    description = Column(Text, default=Null)
-    deleted = Column(Boolean, default=False)
+    name = Column(String(250), unique=True, index=True)
+    description = Column(Text)
+    deleted = Column(Boolean, default=False, index=True)
+    budget = Column(Float, default=None)
 
     created_at = Column(DateTime, default=func.now())
-    updated_at = Column(DateTime, onupdate=func.now())
-    deleted_at = Column(DateTime, default=Null)
+    updated_at = Column(DateTime, onupdate=func.now(), default=func.now())
+    deleted_at = Column(DateTime)
 
     virtual_lab_id = Column(
         "virtual_lab_id", UUID(as_uuid=True), ForeignKey("virtual_lab.id")
     )
     virtual_lab = relationship("VirtualLab", back_populates="projects")
+    project_stars = relationship("ProjectStar", back_populates="project")
+
+
+class ProjectStar(Base):
+    __tablename__ = "project_star"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    created_at = Column(DateTime, default=func.now())
+
+    user_id = Column(UUID, nullable=False)
+    project_id = Column(UUID, ForeignKey("project.id"))
+    project = relationship("Project", back_populates="project_stars")
 
 
 # class PaymentCard(Base):
