@@ -1,12 +1,14 @@
+from http import HTTPStatus
+
+from loguru import logger
 from pydantic import UUID4
+from sqlalchemy.exc import IntegrityError, NoResultFound, SQLAlchemyError
+from sqlalchemy.orm import Session
+
+from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.domain import labs as domain
 from virtual_labs.infrastructure.db import models
 from virtual_labs.repositories import labs as repository
-from sqlalchemy.orm import Session
-from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
-from sqlalchemy.exc import SQLAlchemyError, IntegrityError, NoResultFound
-from http import HTTPStatus
-from loguru import logger
 
 
 def update_virtual_lab(
@@ -35,7 +37,7 @@ def update_virtual_lab(
 
         raise VliError(
             message="Virtual lab could not be saved to the database",
-            error_code=VliErrorCode.OTHER,
+            error_code=VliErrorCode.DATABASE_ERROR,
             http_status_code=HTTPStatus.BAD_REQUEST,
         )
     except Exception as error:
@@ -45,6 +47,6 @@ def update_virtual_lab(
 
         raise VliError(
             message="Virtual lab could not be saved to the database",
-            error_code=VliErrorCode.OTHER,
+            error_code=VliErrorCode.SERVER_ERROR0,
             http_status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
         )
