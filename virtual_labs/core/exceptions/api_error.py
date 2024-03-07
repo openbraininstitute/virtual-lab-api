@@ -11,7 +11,11 @@ class VliErrorCode(IntEnum):
     ENTITY_NOT_FOUND = 2
     ENTITY_ALREADY_EXISTS = 3
     INVALID_REQUEST = 4
-    OTHER = 10
+    INVALID_PARAMETER = 5
+    DATABASE_ERROR = 10
+
+    SERVER_ERROR0 = 500
+    SERVER_ERROR1 = 501
 
 
 class VliError(Exception):

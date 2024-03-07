@@ -1,0 +1,30 @@
+{
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll": "explicit",
+    "source.organizeImports": "explicit"
+  },
+"editor.defaultFormatter": "charliermarsh.ruff",
+"cSpell.words": [
+  "autoflush",
+  "DBAPI",
+  "dotenv",
+  "fastapi",
+  "fulltext",
+  "ilike",
+  "jdbc",
+  "jsonable",
+  "keycloak",
+  "loguru",
+  "onupdate",
+  "pydantic",
+  "regconfig",
+  "sessionmaker",
+  "sqlalchemy",
+  "starlette",
+  "tsvector",
+  "unstar",
+  "unstaring",
+  "usecases"
+]
+}
