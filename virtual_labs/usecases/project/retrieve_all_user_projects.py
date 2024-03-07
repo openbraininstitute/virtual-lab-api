@@ -50,7 +50,7 @@ def retrieve_user_projects_use_case(
             f"Error during retrieving project for user {user_id}: {virtual_lab_id} ({ex})"
         )
         raise VliError(
-            error_code=VliErrorCode.SERVER_ERROR0,
+            error_code=VliErrorCode.SERVER_ERROR,
             http_status_code=status.INTERNAL_SERVER_ERROR,
             message="Error during retrieving project",
         )

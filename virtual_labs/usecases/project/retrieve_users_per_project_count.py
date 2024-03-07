@@ -37,7 +37,7 @@ def retrieve_users_per_project_count_use_case(
             f"Error during retrieving users per project count: {project_id} ({ex})"
         )
         raise VliError(
-            error_code=VliErrorCode.SERVER_ERROR0,
+            error_code=VliErrorCode.SERVER_ERROR,
             http_status_code=status.INTERNAL_SERVER_ERROR,
             message="Error during retrieving users per project",
         )

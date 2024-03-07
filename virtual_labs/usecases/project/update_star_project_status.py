@@ -62,7 +62,7 @@ def update_star_project_status_use_case(
     except Exception as ex:
         logger.error(f"Error during staring user project: {project_id} ({ex})")
         raise VliError(
-            error_code=VliErrorCode.SERVER_ERROR0,
+            error_code=VliErrorCode.SERVER_ERROR,
             http_status_code=status.SERVICE_UNAVAILABLE,
             message="Error during staring/unstaring user project",
         )

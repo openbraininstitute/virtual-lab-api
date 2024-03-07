@@ -41,6 +41,6 @@ def create_virtual_lab(db: Session, lab: domain.VirtualLabCreate) -> models.Virt
 
         raise VliError(
             message="Virtual lab could not be created",
-            error_code=VliErrorCode.SERVER_ERROR0,
+            error_code=VliErrorCode.SERVER_ERROR,
             http_status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
         )

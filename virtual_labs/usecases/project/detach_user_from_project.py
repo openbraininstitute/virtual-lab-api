@@ -41,7 +41,7 @@ def detach_user_from_project_use_case(
             f"Error during detaching user {user_email} from project: {virtual_lab_id}/{project_id} ({ex})"
         )
         raise VliError(
-            error_code=VliErrorCode.SERVER_ERROR0,
+            error_code=VliErrorCode.SERVER_ERROR,
             http_status_code=status.INTERNAL_SERVER_ERROR,
             message="Error during detaching user from the project",
         )

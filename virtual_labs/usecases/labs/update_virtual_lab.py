@@ -47,6 +47,6 @@ def update_virtual_lab(
 
         raise VliError(
             message="Virtual lab could not be saved to the database",
-            error_code=VliErrorCode.SERVER_ERROR0,
+            error_code=VliErrorCode.SERVER_ERROR,
             http_status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
         )

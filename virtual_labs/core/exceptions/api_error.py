@@ -15,8 +15,7 @@ class VliErrorCode(IntEnum):
     MULTIPLE_ENTITIES_FOUND = 6
     DATABASE_ERROR = 10
 
-    SERVER_ERROR0 = 500
-    SERVER_ERROR1 = 501
+    SERVER_ERROR = 500
 
 
 class VliError(Exception):

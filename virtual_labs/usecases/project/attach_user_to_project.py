@@ -44,7 +44,7 @@ def attach_user_to_project_use_case(
             f"Error during attaching user {user_email} to the project: {virtual_lab_id}/{project_id} ({ex})"
         )
         raise VliError(
-            error_code=VliErrorCode.SERVER_ERROR0,
+            error_code=VliErrorCode.SERVER_ERROR,
             http_status_code=status.SERVICE_UNAVAILABLE,
             message="Error during attaching user to the project",
         )

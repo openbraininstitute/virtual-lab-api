@@ -46,7 +46,7 @@ def delete_project_use_case(
             f"Error during deleting the project: {virtual_lab_id}/{project_id} ({ex})"
         )
         raise VliError(
-            error_code=VliErrorCode.SERVER_ERROR0,
+            error_code=VliErrorCode.SERVER_ERROR,
             http_status_code=status.INTERNAL_SERVER_ERROR,
             message="Error during deleting the project",
         )

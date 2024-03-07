@@ -32,14 +32,13 @@ def init_db() -> Engine:
 
 
 engine: Engine = init_db()
+session_factory: sessionmaker[Session] = sessionmaker(
+    autoflush=False, autocommit=False, bind=engine
+)
 
 
 def default_session_factory() -> Generator[Session, Any, None]:
     try:
-        session_factory: sessionmaker[Session] = sessionmaker(
-            autoflush=False, autocommit=False, bind=engine
-        )
-
         database = session_factory()
         yield database
     finally:

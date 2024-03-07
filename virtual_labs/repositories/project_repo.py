@@ -35,15 +35,6 @@ class ProjectQueryRepository:
             .one()
         )
 
-    def retrieve_project(self, virtual_lab_id: UUID4, project_id: UUID4) -> Project:
-        return (
-            self.session.query(Project)
-            .filter(
-                and_(Project.id == project_id, Project.virtual_lab_id == virtual_lab_id)
-            )
-            .one()
-        )
-
     def retrieve_project_star(
         self, *, project_id: UUID4, user_id: UUID4
     ) -> ProjectStar | None:

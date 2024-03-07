@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.domain.project import Project, ProjectCreationModel
-from virtual_labs.repositories.lab_repo import VirtualLabQueryRepository
+from virtual_labs.repositories.labs import get_virtual_lab
 from virtual_labs.repositories.project_repo import ProjectMutationRepository
 from virtual_labs.shared.utils.random_string import gen_random_string
 
@@ -19,10 +19,9 @@ def create_new_project_use_case(
     session: Session, virtual_lab_id: UUID4, payload: ProjectCreationModel
 ) -> Union[JSONResponse, VliError]:
     pr = ProjectMutationRepository(session)
-    vlr = VirtualLabQueryRepository(session)
 
     try:
-        vlr.retrieve_lab_by_id(virtual_lab_id)
+        get_virtual_lab(session, virtual_lab_id)
     except NoResultFound:
         raise VliError(
             error_code=VliErrorCode.ENTITY_NOT_FOUND,
@@ -70,7 +69,7 @@ def create_new_project_use_case(
     except Exception as ex:
         logger.error(f"Error during creating new project ({ex})")
         raise VliError(
-            error_code=VliErrorCode.SERVER_ERROR0,
+            error_code=VliErrorCode.SERVER_ERROR,
             http_status_code=status.INTERNAL_SERVER_ERROR,
             message="Error during creating a new project",
         )

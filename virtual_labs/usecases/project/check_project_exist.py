@@ -42,7 +42,7 @@ def check_project_existence_use_case(
         print(ex)
         logger.error(f"Error during searching for project existence ({ex})")
         raise VliError(
-            error_code=VliErrorCode.SERVER_ERROR0,
+            error_code=VliErrorCode.SERVER_ERROR,
             http_status_code=status.INTERNAL_SERVER_ERROR,
             message="Error during searching for project existence",
         )

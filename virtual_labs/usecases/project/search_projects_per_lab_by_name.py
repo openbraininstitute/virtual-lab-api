@@ -57,7 +57,7 @@ def search_projects_per_virtual_lab_by_name_use_case(
     except Exception as ex:
         logger.error(f"Error during searching for projects in {virtual_lab_id} ({ex})")
         raise VliError(
-            error_code=VliErrorCode.SERVER_ERROR0,
+            error_code=VliErrorCode.SERVER_ERROR,
             http_status_code=status.INTERNAL_SERVER_ERROR,
             message="Error during searching for project",
         )
