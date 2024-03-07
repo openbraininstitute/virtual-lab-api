@@ -22,7 +22,9 @@ class Settings(BaseSettings):
     KC_SERVER_URI: str = "http://localhost:8081/"
     KC_USER_NAME: str = "admin"
     KC_PASSWORD: str = "admin"
-    KC_NAME: str = "master"
+    KC_CLIENT_ID: str = "obpapp"
+    KC_CLIENT_SECRET: str = "obp-secret"
+    KC_REALM_NAME: str = "obp-realm"
 
     @field_validator("DATABASE_URI", mode="before")
     @classmethod
