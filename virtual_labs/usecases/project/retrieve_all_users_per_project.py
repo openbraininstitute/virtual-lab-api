@@ -1,19 +1,20 @@
 from http import HTTPStatus as status
 
-from fastapi.responses import JSONResponse
+from fastapi.responses import Response
 from loguru import logger
 from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
+from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.repositories.user_repo import UserRepository
 
 
 def retrieve_all_users_per_project_use_case(
     session: Session,
     project_id: UUID4,
-) -> JSONResponse | VliError:
+) -> Response | VliError:
     ur = UserRepository("master")
     try:
         # TODO:
@@ -22,12 +23,9 @@ def retrieve_all_users_per_project_use_case(
         # 3. consider pagination
         # 4. return the list + count
         ur.retrieve_users_per_project(project_id)
-        return JSONResponse(
-            status_code=status.OK,
-            content={
-                "message": "Users found successfully",
-                # "data": jsonable_encoder(users),
-            },
+
+        return VliResponse.new(
+            message="Users found successfully",
         )
     except SQLAlchemyError:
         raise VliError(

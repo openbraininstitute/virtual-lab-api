@@ -1,20 +1,20 @@
 from http import HTTPStatus as status
-from typing import Union
 
-from fastapi.responses import JSONResponse
+from fastapi.responses import Response
 from loguru import logger
 from pydantic import UUID4, EmailStr
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
+from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.repositories.user_repo import UserRepository
 from virtual_labs.shared.utils.random_string import gen_random_string
 
 
 def attach_user_to_project_use_case(
     session: Session, *, virtual_lab_id: UUID4, project_id: UUID4, user_email: EmailStr
-) -> Union[JSONResponse, VliError]:
+) -> Response | VliError:
     ur = UserRepository("master")
     # TODO:
     # validate the data
@@ -25,13 +25,8 @@ def attach_user_to_project_use_case(
         ur.attach_user_to_project(
             virtual_lab_id=virtual_lab_id, project_id=project_id, user_email=user_email
         )
-
-        return JSONResponse(
-            status_code=status.OK,
-            content={
-                "message": "User attached to the project successfully",
-                # "data": result,
-            },
+        return VliResponse.new(
+            message="User attached to the project successfully",
         )
     except SQLAlchemyError:
         raise VliError(

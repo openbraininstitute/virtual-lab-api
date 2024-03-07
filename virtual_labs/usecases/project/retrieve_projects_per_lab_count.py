@@ -1,30 +1,28 @@
 from http import HTTPStatus as status
-from typing import Union
 
-from fastapi.encoders import jsonable_encoder
-from fastapi.responses import JSONResponse
+from fastapi.responses import Response
 from loguru import logger
 from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
+from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.repositories.project_repo import ProjectQueryRepository
 
 
 def retrieve_projects_count_per_virtual_lab_use_case(
     session: Session, virtual_lab_id: UUID4
-) -> Union[JSONResponse, VliError]:
+) -> Response | VliError:
     pr = ProjectQueryRepository(session)
     try:
         count = pr.retrieve_projects_per_lab_count(virtual_lab_id)
-        return JSONResponse(
-            status_code=status.OK,
-            content={
-                "message": "Project count per virtual lab fetched successfully",
-                "data": jsonable_encoder({"count": count}),
-            },
+
+        return VliResponse.new(
+            message="Project count per virtual lab fetched successfully",
+            data={"count": count},
         )
+
     except SQLAlchemyError:
         raise VliError(
             error_code=VliErrorCode.DATABASE_ERROR,

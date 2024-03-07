@@ -1,19 +1,19 @@
 from http import HTTPStatus as status
-from typing import Union
 
-from fastapi.responses import JSONResponse
+from fastapi.responses import Response
 from loguru import logger
 from pydantic import UUID4, EmailStr
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
+from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.repositories.user_repo import UserRepository
 
 
 def detach_user_from_project_use_case(
     session: Session, virtual_lab_id: UUID4, project_id: UUID4, user_email: EmailStr
-) -> Union[JSONResponse, VliError]:
+) -> Response | VliError:
     ur = UserRepository("master")
     # validate the data
     # check the user group (if he is in the project group)
@@ -23,12 +23,9 @@ def detach_user_from_project_use_case(
             virtual_lab_id=virtual_lab_id, project_id=project_id, user_email=user_email
         )
 
-        return JSONResponse(
-            status_code=status.OK,
-            content={
-                "message": "User detached from the project successfully",
-                # "data": result,
-            },
+        return VliResponse.new(
+            message="User detached from the project successfully",
+            data=None,
         )
     except SQLAlchemyError:
         raise VliError(

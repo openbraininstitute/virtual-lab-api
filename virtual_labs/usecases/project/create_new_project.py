@@ -1,14 +1,13 @@
 from http import HTTPStatus as status
-from typing import Union
 
-from fastapi.encoders import jsonable_encoder
-from fastapi.responses import JSONResponse
+from fastapi.responses import Response
 from loguru import logger
 from pydantic import UUID4
 from sqlalchemy.exc import IntegrityError, NoResultFound, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
+from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.domain.project import Project, ProjectCreationModel
 from virtual_labs.repositories.labs import get_virtual_lab
 from virtual_labs.repositories.project_repo import ProjectMutationRepository
@@ -17,7 +16,7 @@ from virtual_labs.shared.utils.random_string import gen_random_string
 
 def create_new_project_use_case(
     session: Session, virtual_lab_id: UUID4, payload: ProjectCreationModel
-) -> Union[JSONResponse, VliError]:
+) -> Response | VliError:
     pr = ProjectMutationRepository(session)
 
     try:
@@ -41,19 +40,14 @@ def create_new_project_use_case(
         project = pr.create_new_project(
             payload=payload, nexus_id=nexus_project_id, virtual_lab_id=virtual_lab_id
         )
+
         # TODO: add include_members list to the group in KC
-        return JSONResponse(
-            status_code=status.OK,
-            content={
-                "message": "Project created successfully",
-                "data": jsonable_encoder(
-                    {
-                        "project": Project(**project.__dict__),
-                    }
-                ),
+        return VliResponse.new(
+            message="Project created successfully",
+            data={
+                "project": Project(**project.__dict__),
             },
         )
-
     except IntegrityError:
         raise VliError(
             error_code=VliErrorCode.ENTITY_ALREADY_EXISTS,

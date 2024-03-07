@@ -1,30 +1,28 @@
 from http import HTTPStatus as status
-from typing import Union
 
-from fastapi.encoders import jsonable_encoder
-from fastapi.responses import JSONResponse
+from fastapi.responses import Response
 from loguru import logger
 from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
+from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.repositories.project_repo import ProjectQueryRepository
 
 
 def retrieve_project_budget_use_case(
     session: Session, virtual_lab_id: UUID4, project_id: UUID4
-) -> Union[JSONResponse, VliError]:
+) -> Response | VliError:
     pr = ProjectQueryRepository(session)
     try:
         budget = pr.retrieve_one_project(virtual_lab_id, project_id).budget
-        return JSONResponse(
-            status_code=status.OK,
-            content={
-                "message": "Project budget fetched successfully",
-                "data": jsonable_encoder({"budget": budget}),
-            },
+
+        return VliResponse.new(
+            message="Project budget fetched successfully",
+            data={"budget": budget},
         )
+
     except SQLAlchemyError:
         raise VliError(
             error_code=VliErrorCode.DATABASE_ERROR,

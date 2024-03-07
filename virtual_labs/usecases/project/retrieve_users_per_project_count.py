@@ -1,31 +1,30 @@
 from http import HTTPStatus as status
 
-from fastapi.responses import JSONResponse
+from fastapi.responses import Response
 from loguru import logger
 from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
+from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.repositories.project_repo import ProjectQueryRepository
 
 
 def retrieve_users_per_project_count_use_case(
     session: Session, project_id: UUID4
-) -> JSONResponse | VliError:
+) -> Response | VliError:
     pr = ProjectQueryRepository(session)
     try:
         # TODO:
         # use kc instead of db
         # fetch from keycloak the users (admin + members) of the project
         pr.retrieve_project_users_count(project_id)
-        return JSONResponse(
-            status_code=status.OK,
-            content={
-                "message": f"Count users per project {project_id} fetched successfully",
-                # "data": jsonable_encoder({"count": count}),
-            },
+
+        return VliResponse.new(
+            message=f"Count users per project {project_id} fetched successfully",
         )
+
     except SQLAlchemyError:
         raise VliError(
             error_code=VliErrorCode.DATABASE_ERROR,

@@ -1,20 +1,20 @@
 from http import HTTPStatus as status
 
-from fastapi.encoders import jsonable_encoder
-from fastapi.responses import JSONResponse
+from fastapi.responses import Response
 from loguru import logger
 from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
+from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.domain.project import Project
 from virtual_labs.repositories.project_repo import ProjectQueryRepository
 
 
 def retrieve_user_projects_use_case(
     session: Session, virtual_lab_id: UUID4, user_id: UUID4
-) -> JSONResponse | VliError:
+) -> Response | VliError:
     pr = ProjectQueryRepository(session)
     try:
         # TODO: 1. fetch the user projects from keycloak
@@ -23,20 +23,14 @@ def retrieve_user_projects_use_case(
             virtual_lab_id,
             #   projects=projects_ids
         )
-        return JSONResponse(
-            status_code=status.OK,
-            content={
-                "message": "Projects found successfully"
-                if len(projects) > 0
-                else "No projects was found",
-                "data": jsonable_encoder(
-                    {
-                        "projects": [
-                            Project(**project.__dict__) for project in projects
-                        ],
-                        "total": len(projects),
-                    }
-                ),
+
+        return VliResponse.new(
+            message="Projects found successfully"
+            if len(projects) > 0
+            else "No projects was found",
+            data={
+                "projects": [Project(**project.__dict__) for project in projects],
+                "total": len(projects),
             },
         )
     except SQLAlchemyError:

@@ -1,41 +1,38 @@
 from http import HTTPStatus as status
 
-from fastapi.encoders import jsonable_encoder
-from fastapi.responses import JSONResponse
+from fastapi.responses import Response
 from loguru import logger
 from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
+from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.domain.project import Project
 from virtual_labs.repositories.project_repo import ProjectQueryRepository
 
 
 def retrieve_starred_projects_use_case(
     session: Session, user_id: UUID4
-) -> JSONResponse | VliError:
+) -> Response | VliError:
     pr = ProjectQueryRepository(session)
     try:
         projects = pr.retrieve_starred_projects_per_user(user_id)
-        return JSONResponse(
-            status_code=status.OK,
-            content={
-                "message": "Starred projects found successfully",
-                "data": jsonable_encoder(
+
+        return VliResponse.new(
+            message="Starred projects found successfully",
+            data={
+                "projects": [
                     {
-                        "projects": [
-                            {
-                                **Project(**project.__dict__).__dict__,
-                                "starred_at": star.created_at,
-                            }
-                            for star, project in projects
-                        ],
-                        "total": len(projects),
+                        **Project(**project.__dict__).__dict__,
+                        "starred_at": star.created_at,
                     }
-                ),
+                    for star, project in projects
+                ],
+                "total": len(projects),
             },
         )
+
     except SQLAlchemyError:
         raise VliError(
             error_code=VliErrorCode.DATABASE_ERROR,

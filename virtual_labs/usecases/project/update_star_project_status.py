@@ -1,14 +1,13 @@
 from http import HTTPStatus as status
-from typing import Union
 
-from fastapi.encoders import jsonable_encoder
-from fastapi.responses import JSONResponse
+from fastapi.responses import Response
 from loguru import logger
 from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
+from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.repositories.project_repo import (
     ProjectMutationRepository,
     ProjectQueryRepository,
@@ -17,7 +16,7 @@ from virtual_labs.repositories.project_repo import (
 
 def update_star_project_status_use_case(
     session: Session, *, virtual_lab_id: UUID4, user_id: UUID4, project_id: UUID4
-) -> Union[JSONResponse, VliError]:
+) -> Response | VliError:
     pmr = ProjectMutationRepository(session)
     pqr = ProjectQueryRepository(session)
 
@@ -27,29 +26,21 @@ def update_star_project_status_use_case(
 
         if project is not None:
             result = pmr.unstar_project(project_id=project_id, user_id=user_id)
-            return JSONResponse(
-                status_code=status.OK,
-                content={
-                    "message": f"User unstar project {project_id} successfully",
-                    "data": jsonable_encoder(
-                        {
-                            "project_id": result[0],
-                        }
-                    ),
+
+            return VliResponse.new(
+                message=f"User unstar project {project_id} successfully",
+                data={
+                    "project_id": result[0],
                 },
             )
         else:
             result = pmr.star_project(project_id=project_id, user_id=user_id)
-            return JSONResponse(
-                status_code=status.OK,
-                content={
-                    "message": f"User star a new project {project_id} successfully",
-                    "data": jsonable_encoder(
-                        {
-                            "project_id": result.project_id,
-                            "starred_at": result.created_at,
-                        }
-                    ),
+
+            return VliResponse.new(
+                message=f"User star a new project {project_id} successfully",
+                data={
+                    "project_id": result.project_id,
+                    "stared_at": result.created_at,
                 },
             )
 
