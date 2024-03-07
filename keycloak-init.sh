@@ -14,7 +14,7 @@ echo "1️⃣ Login to the keycloak account"
 echo "2️⃣ create the realm $REALM_NAME"
 ./kcadm.sh create realms -s realm=$REALM_NAME -s enabled=true --server http://localhost:8080/
 echo "3️⃣create a new client 'obp', you can give it another label"
-./kcadm.sh create clients -r $CLIENT_NAME -s clientId=obp -s enabled=true -s clientAuthenticatorType=client-secret -s secret=$SECRET
+./kcadm.sh create clients -r $REALM_NAME -s clientId=$CLIENT_NAME -s enabled=true -s clientAuthenticatorType=client-secret -s secret=$SECRET
 echo "4️⃣ get the client id for $CLIENT_NAME"
 # Run the command to get the client data
 output=$(./kcadm.sh get clients -r $CLIENT_NAME --fields id,clientId)
