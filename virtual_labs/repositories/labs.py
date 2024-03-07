@@ -2,17 +2,19 @@ from typing import List
 from pydantic import UUID4
 from sqlalchemy.orm import Session
 import uuid
-from sqlalchemy.sql import func
+from sqlalchemy import func
 from virtual_labs.domain import labs
-from virtual_labs.infrastructure.db.models import VirtualLab
+from virtual_labs.infrastructure.db.models import Project, VirtualLab
 
 
 def get_all_virtual_lab_for_user(db: Session) -> List[VirtualLab]:
-    return db.query(VirtualLab).all()
+    return db.query(VirtualLab).filter(~VirtualLab.deleted).all()
 
 
 def get_virtual_lab(db: Session, lab_id: UUID4) -> VirtualLab:
-    return db.query(VirtualLab).filter(VirtualLab.id == lab_id).one()
+    return (
+        db.query(VirtualLab).filter(~VirtualLab.deleted, VirtualLab.id == lab_id).one()
+    )
 
 
 def create_virtual_lab(db: Session, lab: labs.VirtualLabCreate) -> VirtualLab:
@@ -35,7 +37,7 @@ def create_virtual_lab(db: Session, lab: labs.VirtualLabCreate) -> VirtualLab:
 def update_virtual_lab(
     db: Session, lab_id: UUID4, lab: labs.VirtualLabUpdate
 ) -> VirtualLab:
-    query = db.query(VirtualLab).filter(VirtualLab.id == lab_id)
+    query = db.query(VirtualLab).filter(~VirtualLab.deleted, VirtualLab.id == lab_id)
     current = query.one()
 
     data_to_update = lab.model_dump(exclude_unset=True)
@@ -57,6 +59,37 @@ def update_virtual_lab(
 
 def delete_virtual_lab(db: Session, lab_id: UUID4) -> VirtualLab:
     lab = get_virtual_lab(db, lab_id)
-    db.delete(lab)
+    now = func.now()
+
+    # Mark virtual lab as deleted
+    db.query(VirtualLab).where(VirtualLab.id == lab_id).update(
+        {"deleted": True, "deleted_at": now}
+    )
+
+    # Mark projects for the virtual lab as deleted
+    db.query(Project).where(Project.virtual_lab_id == lab_id).update(
+        {"deleted": True, "deleted_at": now}
+    )
+
     db.commit()
     return lab
+
+
+def check_virtual_lab_name_exists(db: Session, name: str) -> bool:
+    count = (
+        db.query(VirtualLab)
+        .filter(~VirtualLab.deleted, func.lower(VirtualLab.name) == func.lower(name))
+        .count()
+    )
+    return count > 0
+
+
+def get_virtual_labs_with_matching_name(db: Session, term: str) -> list[VirtualLab]:
+    return (
+        db.query(VirtualLab)
+        .filter(
+            ~VirtualLab.deleted,
+            func.lower(VirtualLab.name).like(f"%{term.strip().lower()}%"),
+        )
+        .all()
+    )

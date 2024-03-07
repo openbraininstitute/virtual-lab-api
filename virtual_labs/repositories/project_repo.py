@@ -16,7 +16,6 @@ class ProjectQueryRepository:
         self.session = session
 
     def retrieve_projects_batch(self, virtual_lab_id: UUID4) -> List[Project]:
-        print("virtual_lab_id", virtual_lab_id)
         data = (
             self.session.query(Project)
             # TODO: for the moment just return everything until will have KC groups

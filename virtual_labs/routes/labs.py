@@ -1,10 +1,11 @@
+import uuid
 from fastapi import APIRouter, Depends
 from pydantic import UUID4
 from sqlalchemy.orm import Session
 
 from virtual_labs.infrastructure.db.config import default_session_factory
 from virtual_labs.domain.labs import (
-    AllLabs,
+    Labs,
     Lab,
     LabResponse,
     VirtualLabDomain,
@@ -12,22 +13,50 @@ from virtual_labs.domain.labs import (
     VirtualLabUpdate,
 )
 from virtual_labs.usecases import labs as usecases
+from virtual_labs.usecases.labs.check_virtual_lab_name_exists import LabExists
 
 router = APIRouter(prefix="/virtual-labs", tags=["Virtual Labs Endpoints"])
 
 
-@router.get("", response_model=LabResponse[AllLabs])
+@router.get("", response_model=LabResponse[Labs])
 def get_all_virtual_labs_for_user(
     db: Session = Depends(default_session_factory),
-) -> LabResponse[AllLabs]:
+) -> LabResponse[Labs]:
     all_labs = [
         VirtualLabDomain.model_validate(lab) for lab in usecases.all_labs_for_user(db)
     ]
-    response = AllLabs(all_virtual_labs=all_labs)
-    return LabResponse[AllLabs](message="All virtual labs for user", data=response)
+    response = Labs(virtual_labs=all_labs)
+    return LabResponse[Labs](message="All virtual labs for user", data=response)
 
 
-@router.get("/{lab_id}", response_model=LabResponse[Lab])
+@router.get("/_check", response_model=LabResponse[LabExists])
+def check_if_virtual_lab_name_exists(
+    q: str, db: Session = Depends(default_session_factory)
+) -> LabResponse[LabExists]:
+    response = usecases.check_virtual_lab_name_exists(db, q)
+    return LabResponse[LabExists](
+        message=f"Virtual lab with name {q} already exist"
+        if response["exists"] > 0
+        else f"No virtual lab with name {q} was found",
+        data=response,
+    )
+
+
+@router.get("/_search", response_model=LabResponse[Labs])
+def search_virtual_lab_by_name(
+    q: str, db: Session = Depends(default_session_factory)
+) -> LabResponse[Labs]:
+    return LabResponse[Labs](
+        message=f"All labs with names matching {q} for user",
+        data=usecases.search_virtual_labs_by_name(q, uuid.uuid4(), db),
+    )
+
+
+@router.get(
+    "/{lab_id}",
+    response_model=LabResponse[Lab],
+    summary="Get non deleted virtual lab by id",
+)
 def get_virtual_lab(
     lab_id: UUID4, db: Session = Depends(default_session_factory)
 ) -> LabResponse[Lab]:

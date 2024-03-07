@@ -30,7 +30,7 @@ class VirtualLab(Base):
     nexus_organization_id = Column(
         String(255), nullable=False, unique=True
     )  # the string length may change in the future, when we know the structure of it
-    name = Column(String(250), unique=True, index=True)
+    name = Column(String(250), index=True)
     description = Column(Text)
     reference_email = Column(String(255))
 
@@ -48,6 +48,17 @@ class VirtualLab(Base):
 
     plan_id = Column(Integer, ForeignKey("plan.id"))
     plan = relationship("Plan", back_populates="virtual_labs")
+
+    # Virtual lab name should be unique among non-deleted labs
+    __table_args__ = (
+        Index(
+            "unique_lab_name_for_non_deleted",
+            name,
+            deleted,
+            unique=True,
+            postgresql_where=(not_(deleted)),
+        ),
+    )
 
 
 class Project(Base):

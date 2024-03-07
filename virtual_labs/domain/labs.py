@@ -1,4 +1,4 @@
-from typing import Any, Optional, TypeVar, Generic
+from typing import Optional, TypeVar, Generic
 from pydantic import BaseModel, UUID4, field_validator, JsonValue
 from datetime import datetime
 
@@ -58,6 +58,25 @@ class PlanDomain(BaseModel):
         from_attributes = True
 
 
+class ProjectStar(BaseModel):
+    id: UUID4
+
+    class Config:
+        from_attributes = True
+
+
+class VirtualLabProject(BaseModel):
+    id: UUID4
+    name: str
+    description: str | None
+    project_stars: list[ProjectStar] | None = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
 class VirtualLabDomain(VirtualLabBase):
     id: UUID4
     nexus_organization_id: str
@@ -69,14 +88,14 @@ class VirtualLabDomain(VirtualLabBase):
     updated_at: Optional[datetime] = None
     deleted_at: Optional[datetime] = None
 
-    projects: list[Any] = []
+    projects: list[VirtualLabProject] | None = None
 
     class Config:
         from_attributes = True
 
 
-class AllLabs(BaseModel):
-    all_virtual_labs: list[VirtualLabDomain]
+class Labs(BaseModel):
+    virtual_labs: list[VirtualLabDomain]
 
 
 class Lab(BaseModel):

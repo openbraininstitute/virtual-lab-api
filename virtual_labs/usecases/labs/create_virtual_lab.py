@@ -33,7 +33,7 @@ def create_virtual_lab(db: Session, lab: domain.VirtualLabCreate) -> models.Virt
     except SQLAlchemyError as error:
         logger.error(
             "Virtual lab could not be created due to an unknown database error {}".format(
-                type(error)
+                error
             )
         )
 
