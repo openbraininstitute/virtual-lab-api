@@ -40,3 +40,11 @@ class VirtualLabDomain(VirtualLabBase):
 
     class Config:
         from_attributes = True
+
+
+class AllLabs(BaseModel):
+    all_virtual_labs: list[VirtualLabDomain]
+
+
+class Lab(BaseModel):
+    virtual_lab: VirtualLabDomain

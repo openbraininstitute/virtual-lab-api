@@ -11,7 +11,10 @@ from loguru import logger
 def create_virtual_lab(db: Session, lab: domain.VirtualLabCreate) -> models.VirtualLab:
     try:
         return repository.create_virtual_lab(db, lab)
-    except IntegrityError:
+    except IntegrityError as error:
+        logger.error(
+            "Virtual lab could not be created due to database error {}".format(error)
+        )
         raise VliError(
             message="Another virtual lab with same name already exists",
             error_code=VliErrorCode.ENTITY_ALREADY_EXISTS,
