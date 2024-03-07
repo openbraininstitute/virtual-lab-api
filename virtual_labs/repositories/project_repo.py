@@ -19,8 +19,8 @@ class ProjectQueryRepository:
         print("virtual_lab_id", virtual_lab_id)
         data = (
             self.session.query(Project)
+            # TODO: for the moment just return everything until will have KC groups
             # .filter(and_(Project.id in projects, Project.virtual_lab_id == virtual_lab_id))
-            # for the moment just return everything until will have KC groups
             .filter(~Project.deleted, Project.virtual_lab_id == virtual_lab_id)
             .all()
         )
@@ -82,6 +82,10 @@ class ProjectQueryRepository:
     def search(
         self, *, query_term: str, projects_ids: list[UUID4] | None = None
     ) -> Query[Project]:
+        """
+        the search fn can be used either for the full list of projects
+        or provide list of projects for search within it
+        """
         query = self.session.query(Project).filter(~Project.deleted)
         if projects_ids and (len(projects_ids) > 0):
             query.filter(Project.id.in_(projects_ids))
@@ -89,6 +93,10 @@ class ProjectQueryRepository:
         return query
 
     def check(self, *, query_term: str) -> Query[Project]:
+        """
+        TODO: check the project for deleted projects
+        (depends on the discussion on how will handle deletion)
+        """
         query = self.session.query(Project).filter(
             ~Project.deleted, func.lower(Project.name) == func.lower(query_term)
         )
