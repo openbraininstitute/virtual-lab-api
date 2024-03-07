@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 
 from pydantic import UUID4, BaseModel
 
@@ -21,3 +21,50 @@ class Project(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class ProjectExistenceOut(BaseModel):
+    exist: bool
+
+
+class ProjectOut(BaseModel):
+    project: Project
+
+
+class ProjectsOut(BaseModel):
+    project: List[Project]
+    total: int
+
+
+class ProjectDeletionOut(BaseModel):
+    project_id: UUID4
+    deleted: bool
+    deleted_at: datetime
+
+
+class ProjectBudgetOut(BaseModel):
+    budget: float
+
+
+class ProjectCountOut(BaseModel):
+    count: int
+
+
+class ProjectWithStarredDateOut(Project):
+    starred_at: datetime
+
+
+class StarProjectsOut(BaseModel):
+    projects: List[ProjectWithStarredDateOut]
+    total: int
+
+
+class ProjectUpdateBudgetOut(BaseModel):
+    project_id: UUID4
+    new_budget: float
+    updated_at: datetime
+
+
+class ProjectStarStatusUpdateOut(BaseModel):
+    project_id: UUID4
+    starred_at: datetime | None

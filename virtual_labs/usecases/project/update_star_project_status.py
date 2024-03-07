@@ -47,7 +47,7 @@ def update_star_project_status_use_case(
                     "data": jsonable_encoder(
                         {
                             "project_id": result.project_id,
-                            "stared_at": result.created_at,
+                            "starred_at": result.created_at,
                         }
                     ),
                 },

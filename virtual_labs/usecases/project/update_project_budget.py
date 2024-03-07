@@ -29,7 +29,7 @@ def update_project_budget_use_case(
                 "message": "Project new budget updated successfully",
                 "data": jsonable_encoder(
                     {
-                        "updated_project_id": updated_project_id,
+                        "project_id": updated_project_id,
                         "new_budget": new_budget,
                         "updated_at": updated_at,
                     }
