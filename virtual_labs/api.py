@@ -1,10 +1,11 @@
-from fastapi import FastAPI, Request, responses
+from http import HTTPStatus
+
+from fastapi import FastAPI, Request
+from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from fastapi.encoders import jsonable_encoder
 from loguru import logger
 from starlette.middleware.cors import CORSMiddleware
-from http import HTTPStatus
 
 from .core.exceptions.api_error import VliError, VliErrorCode
 from .core.schemas import api
@@ -17,17 +18,15 @@ app = FastAPI(title=settings.APP_NAME)
 
 
 @app.exception_handler(VliError)
-async def vlm_exception_handler(
-    request: Request, exception: VliError
-) -> responses.JSONResponse:
+async def vlm_exception_handler(request: Request, exception: VliError) -> JSONResponse:
     """
     this is will handle (format, standardize) all exceptions raised by the app
-    any VlmError raised anywhere in the app, will be captured by this handler
+    any VliError raised anywhere in the app, will be captured by this handler
     and format it.
     """
     logger.error(f"{request.method} {request.url} failed: {repr(exception)}")
 
-    return responses.JSONResponse(
+    return JSONResponse(
         status_code=int(exception.http_status_code),
         content=api.ErrorResponse(
             message=exception.message,
@@ -39,7 +38,7 @@ async def vlm_exception_handler(
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(
     request: Request, exc: RequestValidationError
-) -> responses.JSONResponse:
+) -> JSONResponse:
     errors = {
         err.get("loc", (0, index))[1]: err.get(
             "msg", "Field value is invalid. Further details unavailable."
