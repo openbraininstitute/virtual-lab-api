@@ -1,5 +1,5 @@
 from typing import Any, Optional, TypeVar, Generic
-from pydantic import BaseModel, UUID4
+from pydantic import BaseModel, UUID4, field_validator, JsonValue
 from datetime import datetime
 
 
@@ -15,16 +15,47 @@ class VirtualLabBase(BaseModel):
     name: str
     description: str
     reference_email: str
+    budget: float
+
+    @field_validator("budget")
+    @classmethod
+    def check_budget_greater_than_0(cls, v: float) -> float:
+        if v <= 0:
+            raise ValueError("Budget should be greater than 0")
+
+        return v
 
 
 class VirtualLabCreate(VirtualLabBase):
-    pass
+    plan_id: int
 
 
 class VirtualLabUpdate(BaseModel):
     name: str | None = None
     description: str | None = None
     reference_email: str | None = None
+    budget: float | None = None
+    plan_id: int | None = None
+
+    @field_validator("budget")
+    @classmethod
+    def check_budget_greater_than_0(cls, v: float | None) -> float | None:
+        if v is None:
+            return v
+
+        if v <= 0:
+            raise ValueError("Budget should be greater than 0")
+        return v
+
+
+class PlanDomain(BaseModel):
+    id: int
+    name: str
+    price: float
+    features: JsonValue
+
+    class Config:
+        from_attributes = True
 
 
 class VirtualLabDomain(VirtualLabBase):
@@ -32,10 +63,12 @@ class VirtualLabDomain(VirtualLabBase):
     nexus_organization_id: str
 
     deleted: bool
+    plan: PlanDomain
 
     created_at: datetime
     updated_at: Optional[datetime] = None
     deleted_at: Optional[datetime] = None
+
     projects: list[Any] = []
 
     class Config:
@@ -48,3 +81,7 @@ class AllLabs(BaseModel):
 
 class Lab(BaseModel):
     virtual_lab: VirtualLabDomain
+
+
+class AllPlans(BaseModel):
+    all_plans: list[PlanDomain]

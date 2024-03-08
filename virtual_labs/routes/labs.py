@@ -13,7 +13,7 @@ from virtual_labs.domain.labs import (
 )
 from virtual_labs.usecases import labs as usecases
 
-router = APIRouter(prefix="/virtual-labs")
+router = APIRouter(prefix="/virtual-labs", tags=["Virtual Labs Endpoints"])
 
 
 @router.get("", response_model=LabResponse[AllLabs])

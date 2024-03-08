@@ -10,6 +10,9 @@ from sqlalchemy import (
     String,
     Text,
     not_,
+    CheckConstraint,
+    Integer,
+    JSON,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, relationship
@@ -30,13 +33,20 @@ class VirtualLab(Base):
     name = Column(String(250), unique=True, index=True)
     description = Column(Text)
     reference_email = Column(String(255))
-    deleted = Column(Boolean, default=False, index=True)
 
+    budget = Column(
+        Float(2), CheckConstraint("budget > 0"), nullable=False
+    )  # Amount in USD
+
+    deleted = Column(Boolean, default=False, index=True)
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, onupdate=func.now())
     deleted_at = Column(DateTime)
 
     projects = relationship("Project", back_populates="virtual_lab")
+
+    plan_id = Column(Integer, ForeignKey("plan.id"))
+    plan = relationship("Plan", back_populates="virtual_labs")
 
 
 class Project(Base):
@@ -82,6 +92,16 @@ class ProjectStar(Base):
     user_id = Column(UUID, nullable=False)
     project_id = Column(UUID, ForeignKey("project.id"))
     project = relationship("Project", back_populates="project_stars")
+
+
+class Plan(Base):
+    __tablename__ = "plan"
+
+    id = Column(Integer, primary_key=True, default=uuid.uuid4)
+    name = Column(String(50), nullable=False, unique=True, index=True)
+    price = Column(Float(2), nullable=False)
+    features = Column(JSON, nullable=False)
+    virtual_labs = relationship("VirtualLab", back_populates="plan")
 
 
 # class PaymentCard(Base):

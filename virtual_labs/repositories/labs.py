@@ -22,6 +22,8 @@ def create_virtual_lab(db: Session, lab: labs.VirtualLabCreate) -> VirtualLab:
         reference_email=lab.reference_email,
         nexus_organization_id=uuid.uuid4(),
         projects=[],
+        budget=lab.budget,
+        plan_id=lab.plan_id,
     )
 
     db.add(db_lab)
@@ -36,15 +38,17 @@ def update_virtual_lab(
     query = db.query(VirtualLab).filter(VirtualLab.id == lab_id)
     current = query.one()
 
-    updated_data = lab.model_dump(exclude_unset=True)
+    data_to_update = lab.model_dump(exclude_unset=True)
     query.update(
         {
-            "name": updated_data.get("name", current.name),
-            "description": updated_data.get("description", current.description),
-            "reference_email": updated_data.get(
+            "name": data_to_update.get("name", current.name),
+            "description": data_to_update.get("description", current.description),
+            "reference_email": data_to_update.get(
                 "reference_email", current.reference_email
             ),
             "updated_at": func.now(),
+            "budget": data_to_update.get("budget", current.budget),
+            "plan_id": data_to_update.get("plan_id", current.plan_id),
         }
     )
     db.commit()

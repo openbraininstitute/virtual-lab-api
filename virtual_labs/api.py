@@ -11,6 +11,7 @@ from .core.exceptions.api_error import VliError, VliErrorCode
 from .core.schemas import api
 from .infrastructure.settings import settings
 from .routes.labs import router as virtual_lab_router
+from .routes.plans import router as plans_router
 from .routes.projects import router as project_router
 from .routes.users import router as user_router
 
@@ -65,6 +66,7 @@ if settings.CORS_ORIGINS:
 app.include_router(project_router)
 app.include_router(virtual_lab_router)
 app.include_router(user_router)
+app.include_router(plans_router)
 
 
 @app.get("/")

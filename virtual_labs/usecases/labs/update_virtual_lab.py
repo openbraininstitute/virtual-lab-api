@@ -9,14 +9,22 @@ from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.domain import labs as domain
 from virtual_labs.infrastructure.db import models
 from virtual_labs.repositories import labs as repository
+from virtual_labs.usecases.plans.verify_plan import verify_plan
 
 
 def update_virtual_lab(
     db: Session, lab_id: UUID4, lab: domain.VirtualLabUpdate
 ) -> models.VirtualLab:
     try:
+        if lab.plan_id is not None:
+            verify_plan(db, lab.plan_id)
         return repository.update_virtual_lab(db, lab_id, lab)
-    except IntegrityError:
+    except IntegrityError as error:
+        logger.error(
+            "Virtual lab {} update could not be processed for unknown database error {}".format(
+                lab_id, error
+            )
+        )
         raise VliError(
             message="Another virtual lab with same name already exists",
             error_code=VliErrorCode.ENTITY_ALREADY_EXISTS,
@@ -28,10 +36,16 @@ def update_virtual_lab(
             error_code=VliErrorCode.ENTITY_NOT_FOUND,
             http_status_code=HTTPStatus.NOT_FOUND,
         )
-    except SQLAlchemyError:
+    except ValueError as error:
+        raise VliError(
+            message=str(error),
+            error_code=VliErrorCode.INVALID_REQUEST,
+            http_status_code=HTTPStatus.BAD_REQUEST,
+        )
+    except SQLAlchemyError as error:
         logger.error(
-            "Virtual lab {} update could not be processed for unknown database error".format(
-                lab_id
+            "Virtual lab {} update could not be processed for unknown database error {}".format(
+                lab_id, error
             )
         )
 
