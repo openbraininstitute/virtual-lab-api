@@ -1,6 +1,16 @@
 import uuid
 
-from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, String, Text
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    String,
+    Text,
+    not_,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, relationship
 from sqlalchemy.sql import func
@@ -37,9 +47,9 @@ class Project(Base):
         String(255), nullable=False, unique=True
     )  # the string length may change in the future, when we know the structure of it
 
-    name = Column(String(250), unique=True, index=True)
+    name = Column(String(250), index=True)
     description = Column(Text)
-    deleted = Column(Boolean, default=False, index=True)
+    deleted = Column(Boolean, default=False)
     budget = Column(Float, default=None)
 
     created_at = Column(DateTime, default=func.now())
@@ -51,6 +61,16 @@ class Project(Base):
     )
     virtual_lab = relationship("VirtualLab", back_populates="projects")
     project_stars = relationship("ProjectStar", back_populates="project")
+
+    __table_args__ = (
+        Index(
+            "unique_name_for_non_deleted",
+            name,
+            deleted,
+            unique=True,
+            postgresql_where=(not_(deleted)),
+        ),
+    )
 
 
 class ProjectStar(Base):
