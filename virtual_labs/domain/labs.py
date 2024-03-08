@@ -79,15 +79,26 @@ class VirtualLabProject(BaseModel):
 
 class VirtualLabDomain(VirtualLabBase):
     id: UUID4
-    nexus_organization_id: str
-
-    deleted: bool
-    plan: PlanDomain
-
+    plan_id: int
     created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class VirtualLabWithProject(VirtualLabDomain):
+    projects: list[VirtualLabProject] | None = None
+
+    class Config:
+        from_attributes = True
+
+
+class VirtualLabDomainVerbose(VirtualLabDomain):
+    nexus_organization_id: str
+    deleted: bool
+
     updated_at: Optional[datetime] = None
     deleted_at: Optional[datetime] = None
-
     projects: list[VirtualLabProject] | None = None
 
     class Config:
@@ -95,11 +106,15 @@ class VirtualLabDomain(VirtualLabBase):
 
 
 class Labs(BaseModel):
-    virtual_labs: list[VirtualLabDomain]
+    virtual_labs: list[VirtualLabWithProject]
 
 
 class Lab(BaseModel):
     virtual_lab: VirtualLabDomain
+
+
+class LabVerbose(BaseModel):
+    virtual_lab: VirtualLabDomainVerbose
 
 
 class AllPlans(BaseModel):

@@ -5,12 +5,15 @@ from sqlalchemy.orm import Session
 
 from virtual_labs.infrastructure.db.config import default_session_factory
 from virtual_labs.domain.labs import (
+    LabVerbose,
     Labs,
     Lab,
     LabResponse,
     VirtualLabDomain,
+    VirtualLabDomainVerbose,
     VirtualLabCreate,
     VirtualLabUpdate,
+    VirtualLabWithProject,
 )
 from virtual_labs.usecases import labs as usecases
 from virtual_labs.usecases.labs.check_virtual_lab_name_exists import LabExists
@@ -23,7 +26,8 @@ def get_all_virtual_labs_for_user(
     db: Session = Depends(default_session_factory),
 ) -> LabResponse[Labs]:
     all_labs = [
-        VirtualLabDomain.model_validate(lab) for lab in usecases.all_labs_for_user(db)
+        VirtualLabWithProject.model_validate(lab)
+        for lab in usecases.all_labs_for_user(db)
     ]
     response = Labs(virtual_labs=all_labs)
     return LabResponse[Labs](message="All virtual labs for user", data=response)
@@ -35,7 +39,7 @@ def check_if_virtual_lab_name_exists(
 ) -> LabResponse[LabExists]:
     response = usecases.check_virtual_lab_name_exists(db, q)
     return LabResponse[LabExists](
-        message=f"Virtual lab with name {q} already exist"
+        message=f"Virtual lab with name {q} already exists"
         if response["exists"] > 0
         else f"No virtual lab with name {q} was found",
         data=response,
@@ -54,18 +58,18 @@ def search_virtual_lab_by_name(
 
 @router.get(
     "/{lab_id}",
-    response_model=LabResponse[Lab],
+    response_model=LabResponse[LabVerbose],
     summary="Get non deleted virtual lab by id",
 )
 def get_virtual_lab(
     lab_id: UUID4, db: Session = Depends(default_session_factory)
-) -> LabResponse[Lab]:
-    lab_response = Lab(
-        virtual_lab=VirtualLabDomain.model_validate(
+) -> LabResponse[LabVerbose]:
+    lab_response = LabVerbose(
+        virtual_lab=VirtualLabDomainVerbose.model_validate(
             usecases.get_virtual_lab(db, lab_id)
         )
     )
-    return LabResponse[Lab](
+    return LabResponse[LabVerbose](
         message="Virtual lab resource for id {}".format(lab_id),
         data=lab_response,
     )

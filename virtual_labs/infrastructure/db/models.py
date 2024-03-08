@@ -35,7 +35,7 @@ class VirtualLab(Base):
     reference_email = Column(String(255))
 
     budget = Column(
-        Float(2), CheckConstraint("budget > 0"), nullable=False
+        Float, CheckConstraint("budget > 0"), nullable=False
     )  # Amount in USD
 
     deleted = Column(Boolean, default=False, index=True)
@@ -110,7 +110,7 @@ class Plan(Base):
 
     id = Column(Integer, primary_key=True, default=uuid.uuid4)
     name = Column(String(50), nullable=False, unique=True, index=True)
-    price = Column(Float(2), nullable=False)
+    price = Column(Float, nullable=False)
     features = Column(JSON, nullable=False)
     virtual_labs = relationship("VirtualLab", back_populates="plan")
 

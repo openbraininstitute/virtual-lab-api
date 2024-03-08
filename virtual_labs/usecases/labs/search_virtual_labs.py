@@ -1,13 +1,13 @@
 from pydantic import UUID4
 from sqlalchemy.orm import Session
 
-from virtual_labs.domain.labs import Labs, VirtualLabDomain
+from virtual_labs.domain.labs import Labs, VirtualLabDomainVerbose
 from virtual_labs.repositories import labs as respository
 
 
 def search_virtual_labs_by_name(term: str, user_id: UUID4, db: Session) -> Labs:
     matching_labs = [
-        VirtualLabDomain.model_validate(lab)
+        VirtualLabDomainVerbose.model_validate(lab)
         for lab in respository.get_virtual_labs_with_matching_name(db, term)
     ]
     # TODO: Filter labs for user
