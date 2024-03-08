@@ -3,6 +3,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, Query
 from fastapi.responses import Response
+from httpx import AsyncClient
 from pydantic import UUID4, EmailStr
 from sqlalchemy.orm import Session
 
@@ -20,16 +21,19 @@ from virtual_labs.domain.project import (
     StarProjectsOut,
 )
 from virtual_labs.infrastructure.db.config import default_session_factory
+from virtual_labs.infrastructure.transport.httpx import httpx_factory
 from virtual_labs.usecases import project as cases
 
-router = APIRouter(prefix="/virtual-labs")
+router = APIRouter(
+    prefix="/virtual-labs",
+    tags=["Project Endpoints"],
+)
 
 
 @router.get(
     "/{virtual_lab_id}/projects",
     operation_id="get_projects",
     summary="Retrieve projects per virtual lab for a specific user (only allowed projects)",
-    tags=["Project Endpoints"],
     response_model=VliAppResponse[ProjectsOut],
 )
 def retrieve_projects(
@@ -44,7 +48,6 @@ def retrieve_projects(
     "/{virtual_lab_id}/projects/_search",
     operation_id="search_projects",
     summary="Fulltext search for only allowed projects per virtual lab for a specific user",
-    tags=["Project Endpoints"],
     response_model=VliAppResponse[ProjectsOut],
 )
 def search_projects_per_virtual_lab(
@@ -63,7 +66,6 @@ def search_projects_per_virtual_lab(
     "/{virtual_lab_id}/projects/_check",
     operation_id="check_project_existence_in_app",
     summary="Look for projects with the same name case insensitive",
-    tags=["Project Endpoints"],
     response_model=VliAppResponse[ProjectExistenceOut],
 )
 def check_project_existence(
@@ -77,7 +79,6 @@ def check_project_existence(
     "/{virtual_lab_id}/projects/{project_id}",
     operation_id="get_project_by_id",
     summary="Retrieve single project detail per virtual lab",
-    tags=["Project Endpoints"],
     response_model=VliAppResponse[ProjectOut],
 )
 def retrieve_project(
@@ -92,26 +93,27 @@ def retrieve_project(
     "/{virtual_lab_id}/projects",
     operation_id="create_new_project",
     summary="Create a new project for a virtual lab",
-    tags=["Project Endpoints"],
     response_model=VliAppResponse[ProjectOut],
 )
 def create_new_project(
     virtual_lab_id: UUID4,
     payload: ProjectCreationModel,
     session: Session = Depends(default_session_factory),
+    httpx_clt: AsyncClient = Depends(httpx_factory),
 ) -> Response | VliError:
     """
     Allow only the User that has the right role (based on KC groups "Admin")
     to create a new project for a specific virtual lab
     """
-    return cases.create_new_project_use_case(session, virtual_lab_id, payload)
+    return cases.create_new_project_use_case(
+        session, virtual_lab_id=virtual_lab_id, payload=payload, httpx_clt=httpx_clt
+    )
 
 
 @router.delete(
     "/{virtual_lab_id}/projects/{project_id}",
     operation_id="delete_project",
     summary="Delete project of a virtual lab if the user has permission",
-    tags=["Project Endpoints"],
     response_model=VliAppResponse[ProjectDeletionOut],
 )
 def delete_project(
@@ -134,7 +136,6 @@ def delete_project(
     "/{virtual_lab_id}/projects/{project_id}/budget",
     operation_id="get_project_budget",
     summary="Retrieve project budget",
-    tags=["Project Endpoints"],
     response_model=VliAppResponse[ProjectBudgetOut],
 )
 def retrieve_project_budget(
@@ -151,7 +152,6 @@ def retrieve_project_budget(
     "/{virtual_lab_id}/projects/{project_id}/budget",
     operation_id="update_project_budget",
     summary="Update project budget if the user has permission",
-    tags=["Project Endpoints"],
     response_model=VliAppResponse[ProjectUpdateBudgetOut],
 )
 def update_project_budget(
@@ -174,7 +174,7 @@ def update_project_budget(
     "/{virtual_lab_id}/projects/{project_id}/users",
     operation_id="get_project_users",
     summary="Retrieve users per project",
-    tags=["Project Endpoints", "Not Yet Implemented"],
+    tags=["Not Yet Implemented"],
     response_model=VliAppResponse[None],
 )
 def retrieve_project_users(
@@ -189,7 +189,7 @@ def retrieve_project_users(
     "/{virtual_lab_id}/projects/{project_id}/users/count",
     operation_id="get_project_users_count",
     summary="Retrieve users count per project",
-    tags=["Project Endpoints", "Not Yet Implemented"],
+    tags=["Not Yet Implemented"],
     response_model=VliAppResponse[None],
 )
 def retrieve_project_users_count(
@@ -204,7 +204,7 @@ def retrieve_project_users_count(
     "/{virtual_lab_id}/projects/{project_id}/attach",
     operation_id="attach_user_to_project",
     summary="Attach user to project",
-    tags=["Project Endpoints", "Not Yet Implemented"],
+    tags=["Not Yet Implemented"],
     response_model=VliAppResponse[None],
 )
 def attach_user_to_project(
@@ -230,7 +230,7 @@ def attach_user_to_project(
     "/{virtual_lab_id}/projects/{project_id}/detach",
     operation_id="detach_user_to_project",
     summary="Detach user to project",
-    tags=["Project Endpoints", "Not Yet Implemented"],
+    tags=["Not Yet Implemented"],
     response_model=VliAppResponse[None],
 )
 def detach_user_to_project(
@@ -279,7 +279,6 @@ def update_project_star_status(
     "/projects/stars",
     operation_id="get_star_projects",
     summary="Retrieve star projects",
-    tags=["Project Endpoints"],
     response_model=VliAppResponse[StarProjectsOut],
 )
 def retrieve_stars_project(
