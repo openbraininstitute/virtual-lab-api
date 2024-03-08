@@ -1,8 +1,8 @@
-from typing import Any, Optional
+from typing import Annotated, Any, Optional
 
 from dotenv import load_dotenv
-from pydantic import PostgresDsn, ValidationInfo, field_validator
-from pydantic_core import MultiHostUrl
+from pydantic import PostgresDsn, UrlConstraints, ValidationInfo, field_validator
+from pydantic_core import MultiHostUrl, Url
 from pydantic_settings import BaseSettings
 
 load_dotenv()
@@ -18,6 +18,10 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str = "vlm"
     POSTGRES_DB: str = "vlm"
     DATABASE_URI: PostgresDsn = MultiHostUrl("postgresql://vlm:vlm@localhost:15432/vlm")
+    NEXUS_DELTA_URI: Annotated[
+        Url,
+        UrlConstraints(allowed_schemes=["https"]),
+    ]
 
     KC_SERVER_URI: str = "http://localhost:8081/"
     KC_USER_NAME: str = "admin"
