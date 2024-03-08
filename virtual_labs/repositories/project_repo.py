@@ -104,12 +104,18 @@ class ProjectMutationRepository:
         self.session = session
 
     def create_new_project(
-        self, *, payload: ProjectCreationModel, nexus_id: str, virtual_lab_id: UUID4
+        self,
+        *,
+        payload: ProjectCreationModel,
+        id: UUID4,
+        nexus_project_id: str,
+        virtual_lab_id: UUID4,
     ) -> Project:
         project = Project(
+            id=id,
             name=payload.name,
             description=payload.description,
-            nexus_project_id=nexus_id,
+            nexus_project_id=nexus_project_id,
             virtual_lab_id=virtual_lab_id,
         )
         self.session.add(project)
