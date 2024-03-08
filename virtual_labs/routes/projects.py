@@ -95,7 +95,7 @@ def retrieve_project(
     summary="Create a new project for a virtual lab",
     response_model=VliAppResponse[ProjectOut],
 )
-def create_new_project(
+async def create_new_project(
     virtual_lab_id: UUID4,
     payload: ProjectCreationModel,
     session: Session = Depends(default_session_factory),
@@ -105,7 +105,7 @@ def create_new_project(
     Allow only the User that has the right role (based on KC groups "Admin")
     to create a new project for a specific virtual lab
     """
-    return cases.create_new_project_use_case(
+    return await cases.create_new_project_use_case(
         session, virtual_lab_id=virtual_lab_id, payload=payload, httpx_clt=httpx_clt
     )
 

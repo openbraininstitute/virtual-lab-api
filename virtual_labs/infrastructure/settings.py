@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     NEXUS_DELTA_URI: Annotated[
         Url,
         UrlConstraints(allowed_schemes=["https"]),
-    ]
+    ] = Url("https://dev.nise.bbp.epfl.ch/nexus/v1")
 
     KC_SERVER_URI: str = "http://localhost:8081/"
     KC_USER_NAME: str = "admin"
