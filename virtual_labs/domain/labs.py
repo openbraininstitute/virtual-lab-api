@@ -1,5 +1,5 @@
 from typing import Optional, TypeVar, Generic
-from pydantic import BaseModel, UUID4, field_validator, JsonValue
+from pydantic import BaseModel, UUID4, field_validator, JsonValue, EmailStr
 from datetime import datetime
 
 
@@ -14,7 +14,7 @@ class LabResponse(BaseModel, Generic[T]):
 class VirtualLabBase(BaseModel):
     name: str
     description: str
-    reference_email: str
+    reference_email: EmailStr
     budget: float
 
     @field_validator("budget")
@@ -33,7 +33,7 @@ class VirtualLabCreate(VirtualLabBase):
 class VirtualLabUpdate(BaseModel):
     name: str | None = None
     description: str | None = None
-    reference_email: str | None = None
+    reference_email: EmailStr | None = None
     budget: float | None = None
     plan_id: int | None = None
 
