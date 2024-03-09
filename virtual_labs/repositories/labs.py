@@ -1,14 +1,31 @@
-from typing import List
-from pydantic import UUID4
-from sqlalchemy.orm import Session
 import uuid
+from typing import List
+
+from pydantic import UUID4
 from sqlalchemy import func
+from sqlalchemy.orm import Session
+
 from virtual_labs.domain import labs
+from virtual_labs.domain.common import PageParams
 from virtual_labs.infrastructure.db.models import Project, VirtualLab
 
 
 def get_all_virtual_lab_for_user(db: Session) -> List[VirtualLab]:
     return db.query(VirtualLab).filter(~VirtualLab.deleted).all()
+
+
+def get_paginated_virtual_labs(
+    db: Session, page_params: PageParams
+) -> list[VirtualLab]:
+    paginated_query = (
+        db.query(VirtualLab)
+        .filter(~VirtualLab.deleted)
+        .offset((page_params.page - 1) * page_params.size)
+        .limit(page_params.size)
+        .all()
+    )
+
+    return paginated_query
 
 
 def get_virtual_lab(db: Session, lab_id: UUID4) -> VirtualLab:
@@ -75,13 +92,12 @@ def delete_virtual_lab(db: Session, lab_id: UUID4) -> VirtualLab:
     return lab
 
 
-def check_virtual_lab_name_exists(db: Session, name: str) -> bool:
-    count = (
+def count_virtual_labs_with_name(db: Session, name: str) -> int:
+    return (
         db.query(VirtualLab)
         .filter(~VirtualLab.deleted, func.lower(VirtualLab.name) == func.lower(name))
         .count()
     )
-    return count > 0
 
 
 def get_virtual_labs_with_matching_name(db: Session, term: str) -> list[VirtualLab]:

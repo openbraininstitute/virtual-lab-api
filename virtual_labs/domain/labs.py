@@ -1,7 +1,9 @@
-from typing import Optional, TypeVar, Generic
-from pydantic import BaseModel, UUID4, field_validator, JsonValue, EmailStr
 from datetime import datetime
+from typing import Generic, Optional, TypeVar
 
+from pydantic import UUID4, BaseModel, EmailStr, JsonValue, field_validator
+
+from virtual_labs.domain.project import ProjectStar
 
 T = TypeVar("T")
 
@@ -53,13 +55,6 @@ class PlanDomain(BaseModel):
     name: str
     price: float
     features: JsonValue
-
-    class Config:
-        from_attributes = True
-
-
-class ProjectStar(BaseModel):
-    id: UUID4
 
     class Config:
         from_attributes = True

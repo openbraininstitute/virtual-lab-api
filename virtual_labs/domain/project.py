@@ -68,3 +68,10 @@ class ProjectUpdateBudgetOut(BaseModel):
 class ProjectStarStatusUpdateOut(BaseModel):
     project_id: UUID4
     starred_at: datetime | None
+
+
+class ProjectStar(BaseModel):
+    id: UUID4
+
+    class Config:
+        from_attributes = True

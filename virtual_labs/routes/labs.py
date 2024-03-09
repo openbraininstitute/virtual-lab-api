@@ -2,6 +2,7 @@ import uuid
 from fastapi import APIRouter, Depends
 from pydantic import UUID4
 from sqlalchemy.orm import Session
+from virtual_labs.domain.common import PageParams, PagedResponse
 
 from virtual_labs.infrastructure.db.config import default_session_factory
 from virtual_labs.domain.labs import (
@@ -18,19 +19,18 @@ from virtual_labs.domain.labs import (
 from virtual_labs.usecases import labs as usecases
 from virtual_labs.usecases.labs.check_virtual_lab_name_exists import LabExists
 
+PaginatedLabs = LabResponse[PagedResponse[VirtualLabWithProject]]
 router = APIRouter(prefix="/virtual-labs", tags=["Virtual Labs Endpoints"])
 
 
-@router.get("", response_model=LabResponse[Labs])
-def get_all_virtual_labs_for_user(
-    db: Session = Depends(default_session_factory),
-) -> LabResponse[Labs]:
-    all_labs = [
-        VirtualLabWithProject.model_validate(lab)
-        for lab in usecases.all_labs_for_user(db)
-    ]
-    response = Labs(virtual_labs=all_labs)
-    return LabResponse[Labs](message="All virtual labs for user", data=response)
+@router.get("", response_model=PaginatedLabs)
+def get_paginated_virtual_labs_for_user(
+    page: int = 1, size: int = 50, db: Session = Depends(default_session_factory)
+) -> PaginatedLabs:
+    return LabResponse(
+        message="Paginated virtual labs for user",
+        data=usecases.paginated_labs_for_user(db, PageParams(page=page, size=size)),
+    )
 
 
 @router.get("/_check", response_model=LabResponse[LabExists])
