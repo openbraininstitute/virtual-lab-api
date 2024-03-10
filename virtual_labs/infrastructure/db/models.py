@@ -1,18 +1,18 @@
 import uuid
 
 from sqlalchemy import (
+    JSON,
     Boolean,
+    CheckConstraint,
     Column,
     DateTime,
     Float,
     ForeignKey,
     Index,
+    Integer,
     String,
     Text,
     not_,
-    CheckConstraint,
-    Integer,
-    JSON,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, relationship
@@ -44,6 +44,7 @@ class VirtualLab(Base):
     deleted_at = Column(DateTime)
 
     projects = relationship("Project", back_populates="virtual_lab")
+    invites = relationship("VirtualLabInvite", back_populates="virtual_lab")
 
     plan_id = Column(Integer, ForeignKey("plan.id"))
     plan = relationship("Plan", back_populates="virtual_labs")
@@ -53,10 +54,8 @@ class Project(Base):
     __tablename__ = "project"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    nexus_project_id = Column(
-        String(255), nullable=False, unique=True
-    )  # the string length may change in the future, when we know the structure of it
-
+    nexus_project_id = Column(String, nullable=False, unique=True)
+    kc_project_group_id = Column(String, nullable=False, unique=True)
     name = Column(String(250), index=True)
     description = Column(Text)
     deleted = Column(Boolean, default=False)
@@ -71,6 +70,7 @@ class Project(Base):
     )
     virtual_lab = relationship("VirtualLab", back_populates="projects")
     project_stars = relationship("ProjectStar", back_populates="project")
+    invites = relationship("ProjectInvite", back_populates="project")
 
     __table_args__ = (
         Index(
@@ -104,6 +104,36 @@ class Plan(Base):
     virtual_labs = relationship("VirtualLab", back_populates="plan")
 
 
+class ProjectInvite(Base):
+    __tablename__ = "project_invite"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_email = Column(String, nullable=False)
+    user_id = Column(UUID)
+    competed = Column(Boolean, default=False)
+
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, onupdate=func.now(), default=func.now())
+
+    project_id = Column(UUID, ForeignKey("project.id"))
+    project = relationship("Project", back_populates="invites")
+
+
+class VirtualLabInvite(Base):
+    __tablename__ = "virtual_lab_invite"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_email = Column(String, nullable=False)
+    user_id = Column(UUID)
+    competed = Column(Boolean, default=False)
+
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, onupdate=func.now(), default=func.now())
+
+    virtual_lab_id = Column(UUID, ForeignKey("virtual_lab.id"))
+    virtual_lab = relationship("VirtualLab", back_populates="invites")
+
+
 # class PaymentCard(Base):
 #     __tablename__ = "payment_card"
 
@@ -129,23 +159,3 @@ class Plan(Base):
 #         "payment_card_id", UUID(as_uuid=True), ForeignKey("payment_card.id")
 #     )
 #     payment_card = relationship("PaymentCard")
-
-
-# class Invite(Base):
-#     __tablename__ = "invite"
-
-#     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-
-#     invitee = Column(UUID(as_uuid=True))
-#     inviter = Column(String)
-
-#     created_at = Column(DateTime, default=datetime.utcnow)
-#     updated_at = Column(DateTime, onupdate=datetime.utcnow)
-
-#     virtual_lab_id = Column(
-#         "virtual_lab_id", UUID(as_uuid=True), ForeignKey("virtual_lab.id")
-#     )
-#     virtual_lab = relationship("VirtualLab")
-
-#     project_id = Column("project_id", UUID(as_uuid=True), ForeignKey("project.id"))
-#     project = relationship("Project")
