@@ -10,6 +10,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    Null,
     String,
     Text,
     not_,
@@ -119,9 +120,9 @@ class ProjectInvite(Base):
     __tablename__ = "project_invite"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_email = Column(String, nullable=False)
+    inviter_id = Column(UUID, nullable=False)
     user_id = Column(UUID)
-    completed = Column(Boolean, default=False)
+    accepted = Column(Boolean, default=Null)
 
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, onupdate=func.now(), default=func.now())
@@ -134,9 +135,9 @@ class VirtualLabInvite(Base):
     __tablename__ = "virtual_lab_invite"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_email = Column(String, nullable=False)
+    inviter_id = Column(UUID, nullable=False)
     user_id = Column(UUID)
-    completed = Column(Boolean, default=False)
+    accepted = Column(Boolean, default=Null)
 
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, onupdate=func.now(), default=func.now())
