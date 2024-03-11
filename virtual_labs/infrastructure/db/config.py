@@ -2,13 +2,11 @@ import sys
 from typing import Any, Generator
 
 from loguru import logger
-from sqlalchemy import Engine, create_engine, exc, event
+from sqlalchemy import Engine, create_engine, exc
 from sqlalchemy.orm import Session, sessionmaker
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
-from virtual_labs.infrastructure.db.models import Base, Plan
 from virtual_labs.infrastructure.settings import settings
-from virtual_labs.infrastructure.initialize_plans import populate_plans
 
 if settings.DATABASE_URI is None and "pytest" not in sys.modules:
     raise VliError(
@@ -23,7 +21,6 @@ def init_db() -> Engine:
             settings.DATABASE_URI.unicode_string(),
             echo=settings.DEBUG_DATABASE_ECHO,
         )
-        Base.metadata.create_all(engine)
 
         logger.info("✅ DB connected")
         return engine
@@ -33,7 +30,6 @@ def init_db() -> Engine:
 
 
 # Populate Plan table with static content.
-event.listen(Plan.__table__, "after_create", populate_plans)
 
 engine: Engine = init_db()
 session_factory: sessionmaker[Session] = sessionmaker(

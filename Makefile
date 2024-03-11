@@ -18,6 +18,8 @@ define HELPTEXT
 		style-check     Run formatting, and linting
 		type-check      Run static type checks
 		test            Run tests
+		init-db         Create & seed db tables
+		check-db-schema Checks if db schema change requires a migration. Note: Not all changes can be checked here.
 
 endef
 export HELPTEXT
@@ -25,7 +27,7 @@ export HELPTEXT
 help:
 	@echo "$$HELPTEXT"
 
-dev: 
+dev: init-db 
 	poetry run uvicorn virtual_labs.api:app --reload
 
 init: 
@@ -57,3 +59,9 @@ type-check:
 
 test:
 	poetry run pytest
+
+init-db:
+	poetry run alembic upgrade head
+
+check-db-schema:
+	poetry run alembic check

@@ -11,24 +11,33 @@
    ```sh
    make init # this is will start keycloak instance and local database
    ```
-3. add envirement variables
-    ```sh
-    DATABASE_URL = "postgresql://vlm:vlm@localhost:15432/vlm"
-    ```
-4. Start the server
+3. Start the server. This will apply migrations and start the server.
 
    ```sh
    make dev
    ```
 
-   or
-
-   ```sh
-   poetry run uvicorn virtual_labs.api:app --reload
-   ```
-
 This should start the server on port 8000 (http://127.0.0.1:8000)
 The docs will be available at http://127.0.0.1:8000/docs#/
+
+# Generating db migrations
+
+The version numbers are stored in alembic/versions. Alembic can be used to autogenerate migration scripts based on schema changes like so:
+
+```
+poetry run alembic revision --autogenerate -m '<A descriptive message>'
+```
+Note that these migration scripts *should* be reviewed carefully. Also, not all schema changes can be autogerated. Details about which schema changes need scripts to be written manually are [here](https://alembic.sqlalchemy.org/en/latest/autogenerate.html#what-does-autogenerate-detect-and-what-does-it-not-detect).
+
+Migration can be run like so:
+```
+poetry run alembic upgrade head
+```
+
+To check if migration is needed (same as above, alembic cannot check all schema changes):
+```
+make check-db-schema
+```
 
 # IDE Setup
 
