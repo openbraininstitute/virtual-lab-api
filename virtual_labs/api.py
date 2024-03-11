@@ -7,13 +7,13 @@ from fastapi.responses import JSONResponse
 from loguru import logger
 from starlette.middleware.cors import CORSMiddleware
 
-from .core.exceptions.api_error import VliError, VliErrorCode
-from .core.schemas import api
-from .infrastructure.settings import settings
-from .routes.labs import router as virtual_lab_router
-from .routes.plans import router as plans_router
-from .routes.projects import router as project_router
-from .routes.users import router as user_router
+from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
+from virtual_labs.core.schemas import api
+from virtual_labs.infrastructure.settings import settings
+from virtual_labs.routes.labs import router as virtual_lab_router
+from virtual_labs.routes.plans import router as plans_router
+from virtual_labs.routes.projects import router as project_router
+from virtual_labs.routes.users import router as user_router
 
 app = FastAPI(title=settings.APP_NAME)
 

@@ -21,8 +21,10 @@ ENV VIRTUAL_ENV=/app/.venv \
 
 COPY --from=builder ${VIRTUAL_ENV} ${VIRTUAL_ENV}
 
-COPY ./virtual_labs ./virtual-lab-manager-app
+COPY ./virtual_labs ./virtual_labs_manager_app/virtual_labs
+
+ENV PYTHONPATH=/virtual_labs_manager_app
 
 EXPOSE 8000
 
-ENTRYPOINT ["python", "-m", "uvicorn", "--host=0.0.0.0", "virtual-lab-manager-app.api:app"]
+ENTRYPOINT ["python", "-m", "uvicorn", "--host=0.0.0.0", "virtual_labs_manager_app.virtual_labs.api:app"]
