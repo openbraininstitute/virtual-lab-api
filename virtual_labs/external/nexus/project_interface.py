@@ -5,7 +5,7 @@ from loguru import logger
 from pydantic import UUID4, AnyUrl
 
 from virtual_labs.core.exceptions.nexus_error import NexusError, NexusErrorValue
-from virtual_labs.external.defaults import (
+from virtual_labs.external.nexus.defaults import (
     AGGREGATE_ELASTIC_SEARCH_VIEW,
     AGGREGATE_SPARQL_VIEW,
     ES_VIEW_ID,
@@ -13,7 +13,7 @@ from virtual_labs.external.defaults import (
     SP_VIEW_ID,
     SP_VIEWS,
 )
-from virtual_labs.external.project_models import (
+from virtual_labs.external.nexus.models import (
     NexusAcls,
     NexusApiMapping,
     NexusElasticSearchViewMapping,
@@ -31,7 +31,7 @@ def create_context(vocab: str) -> Dict[str, Any]:
     }
 
 
-class Nexus:
+class NexusProjectInterface:
     httpx_clt: AsyncClient
 
     def __init__(self, httpx_clt: AsyncClient) -> None:
@@ -214,6 +214,45 @@ class Nexus:
             raise NexusError(
                 "Error during creating nexus es view",
                 type=NexusErrorValue.CREATE_ES_VIEW,
+            )
+
+    async def create_nexus_sp_view(
+        self,
+        *,
+        org_label: str,
+        project_label: str,
+        include_metadata: bool = True,
+        include_deprecated: bool = False,
+        resource_schemas: Optional[Set[str]] = None,
+        resource_types: Optional[Set[str]] = None,
+        view_id: Optional[
+            str
+        ] = "https://bbp.epfl.ch/neurosciencegraph/data/views/es/dataset",
+    ) -> NexusResource:
+        nexus_es_view_url = (
+            f"{settings.NEXUS_DELTA_URI}/views/{org_label}/{project_label}/{view_id}"
+        )
+        try:
+            updated_payload = {
+                "includeMetadata": include_metadata,
+                "includeDeprecated": include_deprecated,
+                "@type": ["View", "SparqlView"],
+            }
+            if resource_types:
+                updated_payload.update({"resourceTypes": resource_types})
+            if resource_schemas:
+                updated_payload.update({"resourceSchemas": resource_schemas})
+
+            response = await self.httpx_clt.put(nexus_es_view_url, data=updated_payload)
+
+            data = response.json()
+
+            return NexusResource(**data)
+        except Exception as ex:
+            logger.error(f"Error during creating nexus es view {ex}")
+            raise NexusError(
+                "Error during creating nexus es view",
+                type=NexusErrorValue.CREATE_SP_VIEW,
             )
 
     async def create_nexus_es_aggregate_view(

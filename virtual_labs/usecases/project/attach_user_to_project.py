@@ -2,7 +2,7 @@ from http import HTTPStatus as status
 from json import loads
 
 from fastapi.responses import Response
-from keycloak import KeycloakError  # type: ignoregit
+from keycloak import KeycloakError  # type: ignore
 from loguru import logger
 from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
