@@ -1,6 +1,5 @@
 import uuid
 from http import HTTPStatus as status
-from typing import cast
 
 from fastapi.responses import Response
 from httpx import AsyncClient
@@ -98,13 +97,16 @@ async def create_new_project_use_case(
     #     pass
 
     try:
+        assert admin_group_id is not None
+        assert member_group_id is not None
+
         project = pr.create_new_project(
             id=project_id,
             payload=payload,
             virtual_lab_id=virtual_lab_id,
             nexus_project_id=nexus_project_id,
-            admin_group_id=cast(str, admin_group_id),
-            member_group_id=cast(str, member_group_id),
+            admin_group_id=admin_group_id,
+            member_group_id=member_group_id,
             # nexus_project_id=nexus_project.id,
         )
 
@@ -114,6 +116,12 @@ async def create_new_project_use_case(
             data={
                 "project": Project(**project.__dict__),
             },
+        )
+    except AssertionError:
+        raise VliError(
+            error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
+            http_status_code=status.BAD_REQUEST,
+            message="Admin or Member group_id failed to be generated",
         )
     except IntegrityError:
         raise VliError(
