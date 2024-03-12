@@ -10,9 +10,9 @@ class Pagination(TypedDict):
     total: int
 
 
-class User(Enum):
-    ADMIN = "ADMIN"
-    MEMBER = "MEMBER"
+class UserRoleEnum(Enum):
+    admin = "admin"
+    member = "member"
 
 
 T = TypeVar("T")
