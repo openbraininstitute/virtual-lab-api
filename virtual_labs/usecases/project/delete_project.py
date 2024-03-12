@@ -10,7 +10,6 @@ from sqlalchemy.orm import Session
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.response.api_response import VliResponse
-from virtual_labs.repositories.group_repo import GroupMutationRepository
 from virtual_labs.repositories.project_repo import (
     ProjectMutationRepository,
     ProjectQueryRepository,
@@ -22,7 +21,7 @@ def delete_project_use_case(
 ) -> Response | VliError:
     pqr = ProjectQueryRepository(session)
     pmr = ProjectMutationRepository(session)
-    gmr = GroupMutationRepository()
+
     # TODO: check the user group (if he is in the project group)
     # TODO: check the user permission (admin/member), only admin can trigger deletion
 
@@ -44,8 +43,8 @@ def delete_project_use_case(
             deleted,
             deleted_at,
         ) = pmr.delete_project(virtual_lab_id=virtual_lab_id, project_id=project_id)
-        gmr.delete_group(group_id=admin_group_id)
-        gmr.delete_group(group_id=member_group_id)
+
+        # TODO: deprecate nexus project
 
         return VliResponse.new(
             message="Project marked as deleted successfully",
@@ -63,7 +62,6 @@ def delete_project_use_case(
         )
     except KeycloakError as ex:
         logger.warning(f"project deletion from KC: {loads(ex.error_message)["error"]}")
-        pmr.un_delete_project(virtual_lab_id=virtual_lab_id, project_id=project_id)
         raise VliError(
             error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
             http_status_code=ex.response_code,
