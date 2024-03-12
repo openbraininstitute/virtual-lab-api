@@ -22,7 +22,7 @@ class NexusProject(NexusBase):
 
 
 class NexusApiMapping(TypedDict):
-    namespace: AnyUrl
+    namespace: str
     prefix: str
 
 
