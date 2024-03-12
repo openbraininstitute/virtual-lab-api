@@ -76,7 +76,7 @@ class Project(Base):
 
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, onupdate=func.now(), default=func.now())
-    deleted_at = Column(DateTime, nullable=True)
+    deleted_at = Column(DateTime)
 
     virtual_lab_id = Column(
         "virtual_lab_id", UUID(as_uuid=True), ForeignKey("virtual_lab.id")

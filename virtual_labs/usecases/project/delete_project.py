@@ -31,7 +31,7 @@ def delete_project_use_case(
     )
     if project and project.deleted:
         raise VliError(
-            error_code=VliErrorCode.ENTITY_ALREADY_UPDATED,
+            error_code=VliErrorCode.ENTITY_ALREADY_DELETED,
             http_status_code=status.BAD_REQUEST,
             message="Project already marked as 'deleted'",
         )

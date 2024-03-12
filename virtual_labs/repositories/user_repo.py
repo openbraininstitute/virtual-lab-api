@@ -3,14 +3,14 @@ from typing import Any, Dict, List
 from keycloak import KeycloakAdmin  # type: ignore
 from pydantic import UUID4
 
-from virtual_labs.infrastructure.kc.config import kc_realm_admin
+from virtual_labs.infrastructure.kc.config import kc_realm
 
 
 class UserQueryRepository:
     Kc: KeycloakAdmin
 
     def __init__(self) -> None:
-        self.Kc = kc_realm_admin
+        self.Kc = kc_realm
 
     def retrieve_user_from_kc(self, user_id: str) -> Any | Dict[str, str]:
         return self.Kc.get_user(user_id)
@@ -23,7 +23,7 @@ class UserMutationRepository:
     Kc: KeycloakAdmin
 
     def __init__(self) -> None:
-        self.Kc = kc_realm_admin
+        self.Kc = kc_realm
 
     def attach_user_to_group(
         self,
