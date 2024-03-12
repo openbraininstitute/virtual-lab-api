@@ -4,11 +4,11 @@ from typing import Annotated
 from fastapi import APIRouter, Body, Depends, Query
 from fastapi.responses import Response
 from httpx import AsyncClient
-from pydantic import UUID4, EmailStr
+from pydantic import UUID4
 from sqlalchemy.orm import Session
 
 from virtual_labs.core.exceptions.api_error import VliError
-from virtual_labs.core.types import VliAppResponse
+from virtual_labs.core.types import UserRoleEnum, VliAppResponse
 from virtual_labs.domain.project import (
     ProjectBudgetOut,
     ProjectCreationModel,
@@ -178,11 +178,14 @@ def update_project_budget(
     response_model=VliAppResponse[None],
 )
 def retrieve_project_users(
+    virtual_lab_id: UUID4,
     project_id: UUID4,
     session: Session = Depends(default_session_factory),
 ) -> Response | VliError:
     # TODO: need more work
-    return cases.retrieve_all_users_per_project_use_case(session, project_id)
+    return cases.retrieve_all_users_per_project_use_case(
+        session, virtual_lab_id, project_id
+    )
 
 
 @router.get(
@@ -210,7 +213,8 @@ def retrieve_project_users_count(
 def attach_user_to_project(
     virtual_lab_id: UUID4,
     project_id: UUID4,
-    user_email: Annotated[EmailStr, Body(embed=True)],
+    user_id: UUID4,
+    role: UserRoleEnum,
     session: Session = Depends(default_session_factory),
 ) -> Response | VliError:
     """
@@ -222,7 +226,8 @@ def attach_user_to_project(
         session,
         virtual_lab_id=virtual_lab_id,
         project_id=project_id,
-        user_email=user_email,
+        user_id=user_id,
+        role=role,
     )
 
 
@@ -236,7 +241,8 @@ def attach_user_to_project(
 def detach_user_to_project(
     virtual_lab_id: UUID4,
     project_id: UUID4,
-    user_email: Annotated[EmailStr, Body(embed=True)],
+    user_id: UUID4,
+    role: UserRoleEnum,
     session: Session = Depends(default_session_factory),
 ) -> Response | VliError:
     """
@@ -248,7 +254,8 @@ def detach_user_to_project(
         session,
         virtual_lab_id=virtual_lab_id,
         project_id=project_id,
-        user_email=user_email,
+        user_id=user_id,
+        role=role,
     )
 
 
