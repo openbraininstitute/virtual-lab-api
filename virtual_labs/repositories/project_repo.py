@@ -1,4 +1,6 @@
+from datetime import datetime
 from typing import Any, List, Tuple
+from uuid import UUID
 
 from pydantic import UUID4
 from sqlalchemy import Row, delete, func, update
@@ -25,13 +27,26 @@ class ProjectQueryRepository:
         )
         return data
 
-    def retrieve_one_project(self, virtual_lab_id: UUID4, project_id: UUID4) -> Project:
+    def retrieve_one_project_strict(
+        self, virtual_lab_id: UUID4, project_id: UUID4
+    ) -> Project:
         return (
             self.session.query(Project)
             .filter(
                 and_(Project.id == project_id, Project.virtual_lab_id == virtual_lab_id)
             )
             .one()
+        )
+
+    def retrieve_one_project(
+        self, virtual_lab_id: UUID4, project_id: UUID4
+    ) -> Project | None:
+        return (
+            self.session.query(Project)
+            .filter(
+                and_(Project.id == project_id, Project.virtual_lab_id == virtual_lab_id)
+            )
+            .first()
         )
 
     def retrieve_project_star(
@@ -110,6 +125,8 @@ class ProjectMutationRepository:
         id: UUID4,
         nexus_project_id: str,
         virtual_lab_id: UUID4,
+        admin_group_id: str,
+        member_group_id: str,
     ) -> Project:
         project = Project(
             id=id,
@@ -117,31 +134,59 @@ class ProjectMutationRepository:
             description=payload.description,
             nexus_project_id=nexus_project_id,
             virtual_lab_id=virtual_lab_id,
+            admin_group_id=admin_group_id,
+            member_group_id=member_group_id,
         )
         self.session.add(project)
         self.session.commit()
         self.session.refresh(project)
         return project
 
-    def update_project_attribute(self, project_id: UUID4, key: str, value: Any) -> None:
-        pass
+    def un_delete_project(
+        self, *, virtual_lab_id: UUID4, project_id: UUID4
+    ) -> Row[Tuple[UUID, str, str, bool, datetime]]:
+        stmt = (
+            update(Project)
+            .where(
+                and_(Project.id == project_id, Project.virtual_lab_id == virtual_lab_id)
+            )
+            .values(deleted=False, deleted_at=None)
+            .returning(
+                Project.id,
+                Project.admin_group_id,
+                Project.member_group_id,
+                Project.deleted,
+                Project.deleted_at,
+            )
+        )
+        result = self.session.execute(statement=stmt)
+        self.session.commit()
+        return result.one()
 
-    def delete_project(self, virtual_lab_id: UUID4, project_id: UUID4):  # type: ignore
+    def delete_project(
+        self, virtual_lab_id: UUID4, project_id: UUID4
+    ) -> Row[Tuple[UUID, str, str, bool, datetime]]:
         stmt = (
             update(Project)
             .where(
                 and_(Project.id == project_id, Project.virtual_lab_id == virtual_lab_id)
             )
             .values(deleted=True, deleted_at=func.now())
-            .returning(Project.id, Project.deleted, Project.deleted_at)
+            .returning(
+                Project.id,
+                Project.admin_group_id,
+                Project.member_group_id,
+                Project.deleted,
+                Project.deleted_at,
+            )
         )
         result = self.session.execute(statement=stmt)
         self.session.commit()
-        return result.fetchone()
+        return result.one()
 
-    def update_project_budget(  # type: ignore
+    def update_project_budget(
         self, virtual_lab_id: UUID4, project_id: UUID4, value: float
-    ):
+    ) -> Row[Tuple[UUID, Any, datetime]]:
         stmt = (
             update(Project)
             .where(
@@ -152,7 +197,7 @@ class ProjectMutationRepository:
         )
         result = self.session.execute(statement=stmt)
         self.session.commit()
-        return result.fetchone()
+        return result.one()
 
     def star_project(self, user_id: UUID4, project_id: UUID4) -> ProjectStar:
         project = ProjectStar(
@@ -164,7 +209,7 @@ class ProjectMutationRepository:
         self.session.refresh(project)
         return project
 
-    def unstar_project(self, *, project_id: UUID4, user_id: UUID4):  # type: ignore
+    def unstar_project(self, *, project_id: UUID4, user_id: UUID4) -> Row[Tuple[UUID]]:
         stmt = (
             delete(ProjectStar)
             .where(
@@ -176,4 +221,4 @@ class ProjectMutationRepository:
         )
         result = self.session.execute(statement=stmt)
         self.session.commit()
-        return result.fetchone()
+        return result.one()
