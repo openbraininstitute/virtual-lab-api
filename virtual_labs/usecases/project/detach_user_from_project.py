@@ -2,26 +2,35 @@ from http import HTTPStatus as status
 
 from fastapi.responses import Response
 from loguru import logger
-from pydantic import UUID4, EmailStr
+from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.response.api_response import VliResponse
-from virtual_labs.repositories.user_repo import UserRepository
+from virtual_labs.core.types import UserRoleEnum
+from virtual_labs.repositories.project_repo import ProjectQueryRepository
 
 
 def detach_user_from_project_use_case(
-    session: Session, virtual_lab_id: UUID4, project_id: UUID4, user_email: EmailStr
+    session: Session,
+    virtual_lab_id: UUID4,
+    project_id: UUID4,
+    user_id: UUID4,
+    role: UserRoleEnum,
 ) -> Response | VliError:
-    ur = UserRepository("master")
+    pr = ProjectQueryRepository(session)
+
     # validate the data
     # check the user group (if he is in the project group)
     # check the user permission (admin or member), only admins can do detach op
     try:
-        ur.detach_user_from_project(
-            virtual_lab_id=virtual_lab_id, project_id=project_id, user_email=user_email
+        pr.retrieve_one_project_strict(
+            virtual_lab_id=virtual_lab_id, project_id=project_id
         )
+
+        # umr.detach_user_from_group(group_id=str(project.group_id), user_id=user_id)
+        # TODO: get all user groups where group_id either in project_admin/project_member groups
 
         return VliResponse.new(
             message="User detached from the project successfully",
@@ -35,7 +44,7 @@ def detach_user_from_project_use_case(
         )
     except Exception as ex:
         logger.error(
-            f"Error during detaching user {user_email} from project: {virtual_lab_id}/{project_id} ({ex})"
+            f"Error during detaching user {user_id} from project: {virtual_lab_id}/{project_id} ({ex})"
         )
         raise VliError(
             error_code=VliErrorCode.SERVER_ERROR,
