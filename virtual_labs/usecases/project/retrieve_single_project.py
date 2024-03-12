@@ -18,7 +18,7 @@ def retrieve_single_project_use_case(
     pr = ProjectQueryRepository(session)
     # TODO: check the user access to the project
     try:
-        project = pr.retrieve_one_project(virtual_lab_id, project_id)
+        project = pr.retrieve_one_project_strict(virtual_lab_id, project_id)
 
         return VliResponse.new(
             message="Project found successfully",

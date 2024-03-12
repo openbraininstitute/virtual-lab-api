@@ -8,21 +8,38 @@ from sqlalchemy.orm import Session
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.response.api_response import VliResponse
-from virtual_labs.repositories.user_repo import UserRepository
+from virtual_labs.repositories.group_repo import GroupQueryRepository
+from virtual_labs.repositories.project_repo import ProjectQueryRepository
 
 
 def retrieve_all_users_per_project_use_case(
     session: Session,
+    virtual_lab_id: UUID4,
     project_id: UUID4,
 ) -> Response | VliError:
-    ur = UserRepository("master")
+    gqr = GroupQueryRepository()
+    pqr = ProjectQueryRepository(session)
+
+    try:
+        project = pqr.retrieve_one_project_strict(
+            virtual_lab_id=virtual_lab_id, project_id=project_id
+        )
+    except Exception:
+        raise VliError(
+            error_code=VliErrorCode.DATABASE_ERROR,
+            http_status_code=status.BAD_REQUEST,
+            message="Retrieving project failed",
+        )
+
     try:
         # TODO:
         # 1. fetch project group from kc
         # 2. get both members and admins
         # 3. consider pagination
         # 4. return the list + count
-        ur.retrieve_users_per_project(project_id)
+
+        gqr.retrieve_group_users(str(project.member_group_id))
+        gqr.retrieve_group_users(str(project.admin_group_id))
 
         return VliResponse.new(
             message="Users found successfully",

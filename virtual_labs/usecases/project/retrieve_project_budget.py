@@ -16,7 +16,7 @@ def retrieve_project_budget_use_case(
 ) -> Response | VliError:
     pr = ProjectQueryRepository(session)
     try:
-        budget = pr.retrieve_one_project(virtual_lab_id, project_id).budget
+        budget = pr.retrieve_one_project_strict(virtual_lab_id, project_id).budget
 
         return VliResponse.new(
             message="Project budget fetched successfully",

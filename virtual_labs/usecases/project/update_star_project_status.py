@@ -25,22 +25,22 @@ def update_star_project_status_use_case(
         project = pqr.retrieve_project_star(user_id=user_id, project_id=project_id)
 
         if project is not None:
-            result = pmr.unstar_project(project_id=project_id, user_id=user_id)
+            unstar_result = pmr.unstar_project(project_id=project_id, user_id=user_id)
 
             return VliResponse.new(
                 message=f"User unstar project {project_id} successfully",
                 data={
-                    "project_id": result[0],
+                    "project_id": unstar_result[0],
                 },
             )
         else:
-            result = pmr.star_project(project_id=project_id, user_id=user_id)
+            star_result = pmr.star_project(project_id=project_id, user_id=user_id)
 
             return VliResponse.new(
                 message=f"User star a new project {project_id} successfully",
                 data={
-                    "project_id": result.project_id,
-                    "stared_at": result.created_at,
+                    "project_id": star_result.project_id,
+                    "stared_at": star_result.created_at,
                 },
             )
 
