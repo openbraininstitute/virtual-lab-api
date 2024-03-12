@@ -9,15 +9,9 @@ from virtual_labs.infrastructure.settings import settings
     change realm_name depends on the user token for further ops
 """
 
-masterRealmAdmin = KeycloakAdmin(
+kc_realm_admin = KeycloakAdmin(
     server_url=settings.KC_SERVER_URI,
     client_id=settings.KC_CLIENT_ID,
     client_secret_key=settings.KC_CLIENT_SECRET,
     realm_name=settings.KC_REALM_NAME,
 )
-
-
-def get_realm_pool(realm: str) -> KeycloakAdmin | None:
-    if realm == "master":
-        return masterRealmAdmin
-    return None
