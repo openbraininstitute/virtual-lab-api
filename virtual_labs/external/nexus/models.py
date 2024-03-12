@@ -8,10 +8,10 @@ class NexusBase(BaseModel):
     context: Annotated[List[AnyUrl], Field(alias="@context")] = []
     id: Annotated[AnyUrl | str, Field(alias="@id")] = ""
     type: Annotated[str | List[str], Field(alias="@type")] = ""
-    _createdAt: datetime | None = None
-    _createdBy: datetime | None = None
-    _deprecated: bool | None = None
-    _self: AnyUrl | None = None
+    _createdAt: datetime | None
+    _createdBy: datetime | None
+    _deprecated: bool | None
+    _self: str | None
 
 
 class NexusProject(NexusBase):

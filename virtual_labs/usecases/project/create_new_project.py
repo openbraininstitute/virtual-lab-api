@@ -45,18 +45,7 @@ async def create_new_project_use_case(
     """
     project_id: UUID4 = uuid.uuid4()
     nexus_project_id = gen_random_string(10)  # grab it from nexus api
-    # nexus_project = await create_nexus_project(
-    #     httpx_clt=httpx_clt,
-    #     virtual_lab_id=virtual_lab_id,
-    #     project_id=project_id,
-    #     description=payload.description,
-    # )
-    # if nexus_project is None:
-    #     raise VliError(
-    #         error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
-    #         http_status_code=status.IM_A_TEAPOT,
-    #         message="Project creation failed by dependency service",
-    #     )
+
     try:
         admin_group_id = gmr.create_project_group(
             virtual_lab_id=virtual_lab_id,
@@ -78,24 +67,6 @@ async def create_new_project_use_case(
             http_status_code=status.BAD_REQUEST,
             message="Group creation failed",
         )
-
-    # TODO: add permissions to the groups
-    # TODO: use asyncio to gather both requests
-    # try:
-    #     create_project_permissions(
-    #         httpx_clt=httpx_clt,
-    #         virtual_lab_id=virtual_lab_id,
-    #         project_id=project_id,
-    #         group_id=group_admin_id,
-    #     )
-    #     create_project_permissions(
-    #         httpx_clt=httpx_clt,
-    #         virtual_lab_id=virtual_lab_id,
-    #         project_id=project_id,
-    #         group_id=group_member_id,
-    #     )
-    # except Exception:
-    #     pass
 
     try:
         assert admin_group_id is not None

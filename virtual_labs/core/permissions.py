@@ -1,6 +1,6 @@
 from typing import List
 
-project_member: List[str] = [
+project_member_acls: List[str] = [
     "files/write",
     "resources/write",
     "resources/read",
@@ -8,14 +8,14 @@ project_member: List[str] = [
     "views/write",
     "archives/write",
 ]
-project_admin: List[str] = [
-    *project_member,
+project_admin_acls: List[str] = [
+    *project_member_acls,
     "projects/write",
     "projects/read",
 ]
 
-virtual_lab_admin: List[str] = [
-    *project_admin,
+virtual_lab_admin_acls: List[str] = [
+    *project_admin_acls,
     "organizations/read" "organizations/write" "organizations/create",
 ]
-virtual_lab_member: List[str] = []
+virtual_lab_member_acls: List[str] = []
