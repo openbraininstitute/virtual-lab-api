@@ -8,3 +8,4 @@ class ErrorResponse(BaseModel):
 
     error_code: VliErrorCode
     message: str
+    details: str | None = None
