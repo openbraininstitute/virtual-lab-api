@@ -3,6 +3,7 @@ from typing import Generic, Optional, TypeVar
 
 from pydantic import UUID4, BaseModel, EmailStr, JsonValue, field_validator
 
+from virtual_labs.core.types import UserRoleEnum
 from virtual_labs.domain.project import ProjectStar
 
 T = TypeVar("T")
@@ -30,6 +31,11 @@ class VirtualLabBase(BaseModel):
 
 class VirtualLabCreate(VirtualLabBase):
     plan_id: int
+
+
+class AddUser(BaseModel):
+    role: UserRoleEnum
+    user_id: UUID4
 
 
 class VirtualLabUpdate(BaseModel):
@@ -106,6 +112,10 @@ class Labs(BaseModel):
 
 class VirtualLabUsers(BaseModel):
     users: list[str]  # TODO: Refine type
+
+
+class VirtualLabUser(BaseModel):
+    user: UUID4  # TODO: Refine type
 
 
 class Lab(BaseModel):

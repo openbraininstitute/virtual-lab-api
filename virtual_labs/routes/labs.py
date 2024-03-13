@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from virtual_labs.domain.common import PagedResponse, PageParams
 from virtual_labs.domain.labs import (
+    AddUser,
     Lab,
     LabResponse,
     Labs,
@@ -14,6 +15,7 @@ from virtual_labs.domain.labs import (
     VirtualLabDomain,
     VirtualLabDomainVerbose,
     VirtualLabUpdate,
+    VirtualLabUser,
     VirtualLabUsers,
     VirtualLabWithProject,
 )
@@ -111,6 +113,20 @@ def update_virtual_lab(
         )
     )
     return LabResponse[Lab](message="Updated virtual lab", data=udpated_lab)
+
+
+@router.post(
+    "/{lab_id}/users",
+    tags=["Not Yet Implemented"],
+    response_model=LabResponse[VirtualLabUser],
+)
+def add_user_to_virtual_lab(
+    lab_id: UUID4, user: AddUser, db: Session = Depends(default_session_factory)
+) -> LabResponse[VirtualLabUser]:
+    added_user = VirtualLabUser(user=usecases.add_user_to_lab(lab_id, user, db).user_id)
+    return LabResponse[VirtualLabUser](
+        message="Added user to virtual lab", data=added_user
+    )
 
 
 @router.delete("/{lab_id}", response_model=LabResponse[Lab])
