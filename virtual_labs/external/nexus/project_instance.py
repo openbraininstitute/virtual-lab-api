@@ -33,14 +33,23 @@ async def instantiate_nexus_project(
                 apiMapping=DEFAULT_API_MAPPING,
                 description=description,
             )
+            # find the last revision of project acl to delete it
+            last_acl = await nexus_interface.retrieve_project_acls(
+                virtual_lab_id=virtual_lab_id, project_id=project_id
+            )
+            # delete the default project acls
+            await nexus_interface.delete_project_acl_revision(
+                virtual_lab_id=virtual_lab_id, project_id=project_id, rev=last_acl._rev
+            )
+            # create new acls for the project for the two groups
             nexus_tasks = [
-                nexus_interface.create_project_acls(
+                nexus_interface.append_project_acls(
                     virtual_lab_id=virtual_lab_id,
                     project_id=project_id,
                     group_id=admin_group_id,
                     permissions=project_admin_acls,
                 ),
-                nexus_interface.create_project_acls(
+                nexus_interface.append_project_acls(
                     virtual_lab_id=virtual_lab_id,
                     project_id=project_id,
                     group_id=member_group_id,
@@ -54,8 +63,7 @@ async def instantiate_nexus_project(
                 ),
             ]
 
-            result = await asyncio.gather(*list(map(asyncio.create_task, nexus_tasks)))
-            print("result gather asyncio:", result)
+            await asyncio.gather(*list(map(asyncio.create_task, nexus_tasks)))
 
             return nexus_project._self
         except NexusError as ex:

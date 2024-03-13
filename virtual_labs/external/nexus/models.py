@@ -4,14 +4,18 @@ from typing import Annotated, Any, List, TypedDict
 from pydantic import UUID4, AnyUrl, BaseModel, Field
 
 
-class NexusBase(BaseModel):
+class NexusContext:
     context: Annotated[List[AnyUrl], Field(alias="@context")] = []
-    id: Annotated[AnyUrl | str, Field(alias="@id")] = ""
-    type: Annotated[str | List[str], Field(alias="@type")] = ""
+
+
+class NexusBase(BaseModel, NexusContext):
+    id: Annotated[AnyUrl | str, Field(alias="@id")]
+    type: Annotated[str | List[str], Field(alias="@type")]
     _createdAt: datetime
     _createdBy: datetime
     _deprecated: bool
     _self: str
+    _rev: str
 
 
 class NexusProject(NexusBase):
@@ -36,6 +40,28 @@ class NexusResource(NexusBase):
 
 class NexusAcls(NexusBase):
     type: Annotated[str | List[str], Field(alias="@type")] = "AccessControlList"
+
+
+class NexusAclResult(NexusBase):
+    id: Annotated[AnyUrl | str, Field(alias="@id")] = ""
+    type: Annotated[str | List[str], Field(alias="@type")] = "AccessControlList"
+
+
+class NexusAclIdentity:
+    id: Annotated[AnyUrl | str, Field(alias="@id")]
+    type: Annotated[str, Field(alias="@type")]
+    realm: str
+    group: str
+
+
+class NexusAcl:
+    identity: NexusAclIdentity
+    permissions: List[str]
+
+
+class NexusAclList(NexusBase, NexusContext):
+    _total: int
+    acl: List[NexusAcl]
 
 
 class NexusESViewMappingPropertyType(BaseModel):

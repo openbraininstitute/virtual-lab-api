@@ -15,6 +15,7 @@ from virtual_labs.external.nexus.defaults import (
     prep_project_base,
 )
 from virtual_labs.external.nexus.models import (
+    NexusAclList,
     NexusAcls,
     NexusApiMapping,
     NexusProject,
@@ -72,41 +73,86 @@ class NexusProjectInterface:
                 type=NexusErrorValue.CREATE_PROJECT_ERROR,
             )
 
-    async def create_project_acls(
+    async def retrieve_project_acls(
+        self,
+        *,
+        virtual_lab_id: UUID4,
+        project_id: UUID4,
+    ) -> NexusAclList:
+        nexus_acl_url = (
+            f"{settings.NEXUS_DELTA_URI}/acls/{str(virtual_lab_id)}/{str(project_id)}"
+        )
+
+        try:
+            response = await self.httpx_clt.get(
+                nexus_acl_url,
+            )
+            data = response.json()
+            return NexusAclList(**data)
+        except Exception as ex:
+            logger.error(f"Error during fetching nexus project acls {ex}")
+            raise NexusError(
+                message="Error during fetching nexus project acls",
+                type=NexusErrorValue.FETCH_PROJECT_ACL_ERROR,
+            )
+
+    async def append_project_acls(
         self,
         *,
         virtual_lab_id: UUID4,
         project_id: UUID4,
         group_id: str,
-        permissions: List[str] = ["projects/read", "projects/write"],
+        permissions: List[str] | None = None,
     ) -> NexusAcls:
         nexus_acl_url = (
             f"{settings.NEXUS_DELTA_URI}/acls/{str(virtual_lab_id)}/{str(project_id)}"
         )
 
         try:
-            response = await self.httpx_clt.put(
+            response = await self.httpx_clt.patch(
                 nexus_acl_url,
                 data={
+                    "@type": "Append",
                     "acl": [
                         {
-                            # TODO: get permission from core/permissions depends on the entity/role
                             "permissions": permissions,
                             "identity": {
                                 "realm": settings.KC_REALM_NAME,
                                 "group": group_id,
                             },
                         },
-                    ]
+                    ],
                 },
             )
             data = response.json()
             return NexusAcls(**data)
         except Exception as ex:
-            logger.error(f"Error during creating nexus project permissions {ex}")
+            logger.error(f"Error during creating nexus project acls {ex}")
             raise NexusError(
-                message="Error during creating nexus project permissions",
+                message="Error during creating nexus project acls",
                 type=NexusErrorValue.CREATE_PROJECT_ACL_ERROR,
+            )
+
+    async def delete_project_acl_revision(
+        self,
+        *,
+        virtual_lab_id: UUID4,
+        project_id: UUID4,
+        rev: str,
+    ) -> NexusAcls:
+        nexus_acl_url = f"{settings.NEXUS_DELTA_URI}/acls/{str(virtual_lab_id)}/{str(project_id)}?rev={rev}"
+
+        try:
+            response = await self.httpx_clt.delete(
+                nexus_acl_url,
+            )
+            data = response.json()
+            return NexusAcls(**data)
+        except Exception as ex:
+            logger.error(f"Error during deleting nexus acl list {ex}")
+            raise NexusError(
+                message="Error during deleting nexus project acl list",
+                type=NexusErrorValue.DELETE_PROJECT_ACL_ERROR,
             )
 
     async def deprecate_project(
