@@ -4,7 +4,7 @@ import httpx
 from pydantic import UUID4
 
 from virtual_labs.core.exceptions.nexus_error import NexusError
-from virtual_labs.core.permissions import project_admin_acls, project_member_acls
+from virtual_labs.external.nexus.acl_list import project_admin_acls, project_member_acls
 from virtual_labs.external.nexus.defaults import (
     DEFAULT_API_MAPPING,
     DEFAULT_PROJECT_VOCAB,
