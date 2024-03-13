@@ -1,0 +1,153 @@
+version: "3.9"
+
+volumes:
+  keycloak_data: {}
+  vlm_data: {}
+  delta_data: {}
+
+networks:
+  ls:
+    ipam:
+      config:
+        # Specify the subnet range for IP address allocation
+        - subnet: 10.0.2.0/24
+
+services:
+  keycloak-db:
+    image: postgres:latest
+    container_name: keycloak-db
+    environment:
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: keycloak
+      POSTGRES_DB: keycloak
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    volumes:
+      - keycloak_data:/var/lib/postgresql/data
+    networks:
+      - ls
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0
+    container_name: keycloak
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      DB_VENDOR: postgres
+      DB_ADDR: keycloak-db
+      DB_DATABASE: keycloak
+      DB_USER: keycloak
+      DB_PASSWORD: keycloak
+      KEYCLOAK_FRONTEND_URL: http://localhost:8080
+    depends_on:
+      - keycloak-db
+    command: 
+      - start-dev
+    ports:
+      - "9090:8080"
+    networks:
+      - ls
+
+  virtual-lab-db:
+    image: postgres:latest
+    container_name: vlm-db
+    environment:
+      POSTGRES_USER: vlm
+      POSTGRES_PASSWORD: vlm
+      PGDATA: vlm_data
+      POSTGRES_DB: vlm
+    ports:
+      - 15432:5432
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vlm"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    volumes:
+      - vlm_data:/var/lib/postgresql/data
+    networks:
+      - ls
+
+  delta:
+    depends_on:
+      keycloak:
+        condition: service_started
+      elasticsearch:
+        condition: service_healthy
+      blazegraph:
+        condition: service_started
+      postgres:
+        condition: service_started
+    environment:
+      - DELTA_PLUGINS
+      - DELTA_EXTERNAL_CONF
+      - KAMON_ENABLED
+    image: bluebrain/nexus-delta:latest
+    entrypoint:
+      - '/bin/bash'
+      - '-c'
+      - |
+        ln -sf /opt/docker/plugins/disabled/project-deletion.jar /opt/docker/plugins/project-deletion.jar &&
+        /opt/docker/bin/delta-app -Xmx4G
+    ports:
+      - 8080:8080
+    volumes:
+      - ./config:/config
+      - /tmp:/default-volume
+    dns:
+      # Set the DNS server to be the LocalStack container, for host resolution
+      - 10.0.2.20
+    networks:
+      - ls
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.12.1
+    environment:
+      ES_JAVA_OPTS: "-Xmx2G"
+      discovery.type: "single-node"
+      bootstrap.memory_lock: "true"
+      xpack.security.enabled: "true"
+      ingest.geoip.downloader.enabled: "false"
+      ELASTIC_PASSWORD: "password"
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://elastic:password@localhost:9200/" ]
+      interval: 1s
+      timeout: 2s
+      retries: 60
+    ports:
+      - 9200:9200
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+    networks:
+      - ls
+
+
+  blazegraph:
+    image: bluebrain/blazegraph-nexus:2.1.6-RC
+    environment:
+      JAVA_OPTS: "-DjettyXml=/config/jetty.xml -Djava.awt.headless=true -XX:MaxDirectMemorySize=300m -Xms4g -Xmx4g -XX:+UseG1GC"
+    ports:
+      - 9999:9999
+    volumes:
+      - ./config:/config
+    networks:
+      - ls
+
+  postgres:
+    image: library/postgres:15.6
+    environment:
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "postgres"
+    ports:
+      - 5432:5432
+    volumes:
+      - delta_data:/var/lib/postgresql/data
+    networks:
+      - ls
