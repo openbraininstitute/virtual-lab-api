@@ -145,7 +145,7 @@ async def create_new_project(
     virtual_lab_id: UUID4,
     payload: ProjectCreationBody,
     session: Session = Depends(default_session_factory),
-    httpx_clt: AsyncClient = Depends(httpx_factory),
+    httpx_clt: AsyncClient = Depends(default_session_factory),
 ) -> Response | VliError:
     # TODO: get user_id from token
     user_id: UUID4 = uuid.UUID("a188837d-19ac-4ebc-b14f-a90b663357b3")
@@ -172,10 +172,11 @@ async def create_new_project(
     ),
     response_model=VliAppResponse[ProjectDeletionOut],
 )
-def delete_project(
+async def delete_project(
     virtual_lab_id: UUID4,
     project_id: UUID4,
     session: Session = Depends(default_session_factory),
+    httpx_clt: AsyncClient = Depends(httpx_factory),
 ) -> Response | VliError:
     user_id: UUID4 = UUID4("33b376c9-b681-4357-8b0e-ee869e580034")
     return project_cases.delete_project_use_case(
