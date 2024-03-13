@@ -1,5 +1,5 @@
-import uuid
 from http import HTTPStatus as status
+from uuid import uuid4
 
 from fastapi.responses import Response
 from httpx import AsyncClient
@@ -15,7 +15,6 @@ from virtual_labs.domain.project import Project, ProjectCreationBody
 from virtual_labs.repositories.group_repo import GroupMutationRepository
 from virtual_labs.repositories.labs import get_virtual_lab
 from virtual_labs.repositories.project_repo import ProjectMutationRepository
-from virtual_labs.shared.utils.random_string import gen_random_string
 
 
 async def create_new_project_use_case(
@@ -43,8 +42,16 @@ async def create_new_project_use_case(
         TODO: 3. when create the groups, attach the list of the users (included_members) to the current member group,
         TODO: 4. when create the groups, attach the VL admin users list of current admin group,
     """
-    project_id: UUID4 = uuid.uuid4()
-    nexus_project_id = gen_random_string(10)  # grab it from nexus api
+
+    """
+    steps: 
+        > Create groups for the project (admin/member)
+        > Create Local Project
+        > Create Nexus Project
+        > if Nexus failed -> remove groups, and local project
+        > else return response
+    """
+    project_id: UUID4 = uuid4()
 
     try:
         admin_group_id = gmr.create_project_group(
@@ -76,7 +83,7 @@ async def create_new_project_use_case(
             id=project_id,
             payload=payload,
             virtual_lab_id=virtual_lab_id,
-            nexus_project_id=nexus_project_id,
+            nexus_project_id=str(uuid4()),
             admin_group_id=admin_group_id,
             member_group_id=member_group_id,
             owner_id=user_id,

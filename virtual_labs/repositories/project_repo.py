@@ -284,6 +284,21 @@ class ProjectMutationRepository:
         self.session.commit()
         return result.one()
 
+    def update_project_nexus_id(
+        self, virtual_lab_id: UUID4, project_id: UUID4, nexus_id: str
+    ) -> Row[Tuple[UUID, str, datetime]]:
+        stmt = (
+            update(Project)
+            .where(
+                and_(Project.id == project_id, Project.virtual_lab_id == virtual_lab_id)
+            )
+            .values(nexus_project_id=nexus_id)
+            .returning(Project.id, Project.nexus_project_id, Project.updated_at)
+        )
+        result = self.session.execute(statement=stmt)
+        self.session.commit()
+        return result.one()
+
     def star_project(self, user_id: UUID4, project_id: UUID4) -> ProjectStar:
         project = ProjectStar(
             project_id=project_id,

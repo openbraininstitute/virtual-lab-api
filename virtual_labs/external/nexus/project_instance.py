@@ -12,7 +12,6 @@ from virtual_labs.external.nexus.defaults import (
 from virtual_labs.external.nexus.project_interface import NexusProjectInterface
 
 
-# TODO: use asyncio to gather both requests
 async def instantiate_nexus_project(
     *,
     virtual_lab_id: UUID4,
@@ -37,7 +36,7 @@ async def instantiate_nexus_project(
             last_acl = await nexus_interface.retrieve_project_acls(
                 virtual_lab_id=virtual_lab_id, project_id=project_id
             )
-            # delete the default project acls
+            # delete the default project acls (last ACL revision)
             await nexus_interface.delete_project_acl_revision(
                 virtual_lab_id=virtual_lab_id, project_id=project_id, rev=last_acl._rev
             )
