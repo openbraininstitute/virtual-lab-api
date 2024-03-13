@@ -104,6 +104,10 @@ class Labs(BaseModel):
     virtual_labs: list[VirtualLabWithProject]
 
 
+class VirtualLabUsers(BaseModel):
+    users: list[str]  # TODO: Refine type
+
+
 class Lab(BaseModel):
     virtual_lab: VirtualLabDomain
 

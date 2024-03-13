@@ -14,6 +14,7 @@ from virtual_labs.domain.labs import (
     VirtualLabDomain,
     VirtualLabDomainVerbose,
     VirtualLabUpdate,
+    VirtualLabUsers,
     VirtualLabWithProject,
 )
 from virtual_labs.infrastructure.db.config import default_session_factory
@@ -76,6 +77,15 @@ def get_virtual_lab(
     )
 
 
+@router.get("/{lab_id}/users", response_model=LabResponse[VirtualLabUsers])
+async def get_virtual_lab_users(
+    lab_id: UUID4, db: Session = Depends(default_session_factory)
+) -> LabResponse[VirtualLabUsers]:
+    return LabResponse[VirtualLabUsers](
+        message="Users for virtual lab", data=usecases.get_virtual_lab_users(db, lab_id)
+    )
+
+
 @router.post("", response_model=LabResponse[Lab])
 async def create_virtual_lab(
     lab: VirtualLabCreate, db: Session = Depends(default_session_factory)
@@ -112,5 +122,4 @@ def delete_virtual_lab(
             usecases.delete_virtual_lab(db, lab_id)
         )
     )
-    return LabResponse[Lab](message="Deleted virtual lab", data=deleted_lab)
     return LabResponse[Lab](message="Deleted virtual lab", data=deleted_lab)

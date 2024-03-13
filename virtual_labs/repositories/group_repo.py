@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, cast
+from typing import Any, Dict, cast
 
 from keycloak import KeycloakAdmin  # type: ignore
 from loguru import logger
@@ -16,8 +16,16 @@ class GroupQueryRepository:
         self.Kc = kc_realm
 
     # TODO: the return type should be update, probably Keycloack will return UserRepresentation
-    def retrieve_group_users(self, group_id: str) -> Any | Dict[str, str] | List[str]:
-        return self.Kc.get_group_members(group_id=group_id)
+    def retrieve_group_users(self, group_id: str) -> list[str]:
+        users = self.Kc.get_group_members(group_id=group_id)
+
+        # TODO: We can also accept dicts later if need be.
+        if not isinstance(users, list):
+            raise ValueError(
+                f"Expected list of users for group {group_id} instead received {type(users)}"
+            )
+
+        return users
 
 
 class GroupMutationRepository:
