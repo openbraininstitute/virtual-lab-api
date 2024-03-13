@@ -249,6 +249,26 @@ class ProjectMutationRepository:
         self.session.commit()
         return result.one()
 
+    def delete_project_strict(
+        self, virtual_lab_id: UUID4, project_id: UUID4
+    ) -> Row[Tuple[UUID, str, str, bool, datetime]]:
+        stmt = (
+            delete(Project)
+            .where(
+                and_(Project.id == project_id, Project.virtual_lab_id == virtual_lab_id)
+            )
+            .returning(
+                Project.id,
+                Project.admin_group_id,
+                Project.member_group_id,
+                Project.deleted,
+                Project.deleted_at,
+            )
+        )
+        result = self.session.execute(statement=stmt)
+        self.session.commit()
+        return result.one()
+
     def update_project_budget(
         self, virtual_lab_id: UUID4, project_id: UUID4, value: float
     ) -> Row[Tuple[UUID, Any, datetime]]:
