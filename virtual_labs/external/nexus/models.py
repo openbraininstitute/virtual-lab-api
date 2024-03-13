@@ -8,10 +8,10 @@ class NexusBase(BaseModel):
     context: Annotated[List[AnyUrl], Field(alias="@context")] = []
     id: Annotated[AnyUrl | str, Field(alias="@id")] = ""
     type: Annotated[str | List[str], Field(alias="@type")] = ""
-    _createdAt: datetime | None
-    _createdBy: datetime | None
-    _deprecated: bool | None
-    _self: str | None
+    _createdAt: datetime
+    _createdBy: datetime
+    _deprecated: bool
+    _self: str
 
 
 class NexusProject(NexusBase):
@@ -38,7 +38,7 @@ class NexusAcls(NexusBase):
     type: Annotated[str | List[str], Field(alias="@type")] = "AccessControlList"
 
 
-class NexusESViewMappingPropertyType(TypeError):
+class NexusESViewMappingPropertyType(BaseModel):
     type: str
 
 
