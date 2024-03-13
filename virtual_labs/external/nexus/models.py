@@ -15,10 +15,10 @@ class NexusBase(BaseModel):
 
 
 class NexusProject(NexusBase):
-    _label: str | None = None
-    _uuid: UUID4 | None = None
-    vocab: str | None = None
-    base: AnyUrl | None = None
+    _label: str
+    _uuid: UUID4
+    vocab: str
+    base: str
 
 
 class NexusApiMapping(TypedDict):
