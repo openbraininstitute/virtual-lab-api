@@ -10,6 +10,12 @@ from virtual_labs.domain.common import PageParams
 from virtual_labs.infrastructure.db.models import Project, VirtualLab
 
 
+class VirtualLabDbCreate(labs.VirtualLabCreate):
+    id: UUID4
+    admin_group_id: str
+    member_group_id: str
+
+
 def get_all_virtual_lab_for_user(db: Session) -> List[VirtualLab]:
     return db.query(VirtualLab).filter(~VirtualLab.deleted).all()
 
@@ -34,8 +40,11 @@ def get_virtual_lab(db: Session, lab_id: UUID4) -> VirtualLab:
     )
 
 
-def create_virtual_lab(db: Session, lab: labs.VirtualLabCreate) -> VirtualLab:
+def create_virtual_lab(db: Session, lab: VirtualLabDbCreate) -> VirtualLab:
     db_lab = VirtualLab(
+        id=lab.id,
+        admin_group_id=lab.admin_group_id,
+        member_group_id=lab.member_group_id,
         name=lab.name,
         description=lab.description,
         reference_email=lab.reference_email,

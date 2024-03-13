@@ -1,6 +1,7 @@
 from typing import Any, Dict, List, cast
 
 from keycloak import KeycloakAdmin  # type: ignore
+from loguru import logger
 from pydantic import UUID4
 
 from virtual_labs.core.types import UserRoleEnum
@@ -28,28 +29,36 @@ class GroupMutationRepository:
     def create_virtual_lab_group(
         self,
         *,
-        virtual_lab_id: UUID4,
+        vl_id: UUID4,
         vl_name: str,
         role: UserRoleEnum,
-    ) -> str | None | Any:
+    ) -> str:
         """
         NOTE: you can not set the ID even in the docs says that is Optional
         virtual lab group must be following this format
         vlab/vl-app-id/role
         """
-        group_id = self.Kc.create_group(
-            {
-                "name": "vlab/{}/{}".format(virtual_lab_id, role.value),
-                "attributes": {
-                    "_name": [vl_name],
-                },
-            }
-        )
+        try:
+            group_id = self.Kc.create_group(
+                {
+                    "name": "vlab/{}/{}".format(vl_id, role.value),
+                    "attributes": {
+                        "_name": [vl_name],
+                    },
+                }
+            )
 
-        return cast(
-            str | None,
-            group_id,
-        )
+            return cast(
+                str,
+                group_id,
+            )
+        except Exception as error:
+            logger.error(
+                f"Error when creating {role} group for lab {vl_name} with id {vl_id}: ({error})"
+            )
+            raise Exception(
+                f"Error when creating {role} group for lab {vl_name} with id {vl_id}: ({error})"
+            )
 
     def create_project_group(
         self,

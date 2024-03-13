@@ -1,21 +1,22 @@
 import uuid
+
 from fastapi import APIRouter, Depends
 from pydantic import UUID4
 from sqlalchemy.orm import Session
-from virtual_labs.domain.common import PageParams, PagedResponse
 
-from virtual_labs.infrastructure.db.config import default_session_factory
+from virtual_labs.domain.common import PagedResponse, PageParams
 from virtual_labs.domain.labs import (
-    LabVerbose,
-    Labs,
     Lab,
     LabResponse,
+    Labs,
+    LabVerbose,
+    VirtualLabCreate,
     VirtualLabDomain,
     VirtualLabDomainVerbose,
-    VirtualLabCreate,
     VirtualLabUpdate,
     VirtualLabWithProject,
 )
+from virtual_labs.infrastructure.db.config import default_session_factory
 from virtual_labs.usecases import labs as usecases
 from virtual_labs.usecases.labs.check_virtual_lab_name_exists import LabExists
 
@@ -76,12 +77,12 @@ def get_virtual_lab(
 
 
 @router.post("", response_model=LabResponse[Lab])
-def create_virtual_lab(
+async def create_virtual_lab(
     lab: VirtualLabCreate, db: Session = Depends(default_session_factory)
 ) -> LabResponse[Lab]:
     created_lab = Lab(
         virtual_lab=VirtualLabDomain.model_validate(
-            usecases.create_virtual_lab(db, lab)
+            await usecases.create_virtual_lab(db, lab)
         )
     )
 
@@ -111,4 +112,5 @@ def delete_virtual_lab(
             usecases.delete_virtual_lab(db, lab_id)
         )
     )
+    return LabResponse[Lab](message="Deleted virtual lab", data=deleted_lab)
     return LabResponse[Lab](message="Deleted virtual lab", data=deleted_lab)
