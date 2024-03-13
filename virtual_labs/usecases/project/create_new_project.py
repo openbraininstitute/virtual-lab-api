@@ -38,10 +38,10 @@ async def create_new_project_use_case(
             message="Virtual lab not found",
         )
     """ 
-        TODO: 1. we should fetch all the vl admins
-        TODO: 2. when the user try to access the project we check the user id in the project or parent lab groups
-        TODO: 3. create a group in keycloak and attach vl admins, current user, to the group
-        TODO: 4. create a project in nexus
+        TODO: 1. check if the user in admin group of the virtual lab to allow him to create a project, (this can be a decorator)
+        TODO: 2. when create the groups, attach the current user to the group, 
+        TODO: 3. when create the groups, attach the list of the users (included_members) to the current member group,
+        TODO: 4. when create the groups, attach the VL admin users list of current admin group,
     """
     project_id: UUID4 = uuid.uuid4()
     nexus_project_id = gen_random_string(10)  # grab it from nexus api
@@ -65,7 +65,7 @@ async def create_new_project_use_case(
         raise VliError(
             error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
             http_status_code=status.BAD_REQUEST,
-            message="Group creation failed",
+            message="KC Group creation failed",
         )
 
     try:
@@ -88,7 +88,7 @@ async def create_new_project_use_case(
         raise VliError(
             error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
             http_status_code=status.BAD_REQUEST,
-            message="Admin or Member group_id failed to be generated",
+            message="Admin/Member group_id failed to be generated",
         )
     except IntegrityError:
         raise VliError(
