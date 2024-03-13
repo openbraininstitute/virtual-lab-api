@@ -5,11 +5,20 @@ from loguru import logger
 from pydantic import UUID4
 
 from virtual_labs.core.exceptions.nexus_error import NexusError, NexusErrorValue
-from virtual_labs.external.nexus.defaults import prep_project_base
+from virtual_labs.external.nexus.defaults import (
+    AGGREGATE_ELASTIC_SEARCH_VIEW,
+    AGGREGATE_SPARQL_VIEW,
+    ES_VIEW_ID,
+    ES_VIEWS,
+    SP_VIEW_ID,
+    SP_VIEWS,
+    prep_project_base,
+)
 from virtual_labs.external.nexus.models import (
     NexusAcls,
     NexusApiMapping,
     NexusProject,
+    NexusResource,
 )
 from virtual_labs.infrastructure.settings import settings
 
@@ -60,7 +69,7 @@ class NexusProjectInterface:
             logger.error(f"Error during creating nexus project {ex}")
             raise NexusError(
                 message="Error during creating nexus project",
-                type=NexusErrorValue.CREATE_PROJECT,
+                type=NexusErrorValue.CREATE_PROJECT_ERROR,
             )
 
     async def create_project_acls(
@@ -71,7 +80,9 @@ class NexusProjectInterface:
         group_id: str,
         permissions: List[str] = ["projects/read", "projects/write"],
     ) -> NexusAcls:
-        nexus_acl_url = f"{settings.NEXUS_DELTA_URI}/acls/{virtual_lab_id}/{project_id}"
+        nexus_acl_url = (
+            f"{settings.NEXUS_DELTA_URI}/acls/{str(virtual_lab_id)}/{str(project_id)}"
+        )
 
         try:
             response = await self.httpx_clt.put(
@@ -95,7 +106,85 @@ class NexusProjectInterface:
             logger.error(f"Error during creating nexus project permissions {ex}")
             raise NexusError(
                 message="Error during creating nexus project permissions",
-                type=NexusErrorValue.CREATE_PROJECT_ACL,
+                type=NexusErrorValue.CREATE_PROJECT_ACL_ERROR,
+            )
+
+    async def deprecate_project(
+        self,
+        *,
+        virtual_lab_id: UUID4,
+        project_id: UUID4,
+    ) -> NexusProject:
+        nexus_acl_url = f"{settings.NEXUS_DELTA_URI}/projects/{str(virtual_lab_id)}/{str(project_id)}"
+
+        try:
+            response = await self.httpx_clt.delete(
+                nexus_acl_url,
+            )
+            data = response.json()
+            return NexusProject(**data)
+        except Exception as ex:
+            logger.error(f"Error during deprecation of nexus project {ex}")
+            raise NexusError(
+                message="Error during deprecation of nexus project",
+                type=NexusErrorValue.DEPRECATE_PROJECT_ERROR,
+            )
+
+    async def create_nexus_es_aggregate_view(
+        self,
+        *,
+        virtual_lab_id: UUID4,
+        project_id: UUID4,
+        view_id: str = "https://bbp.epfl.ch/neurosciencegraph/data/views/es/dataset",
+    ) -> NexusResource:
+        nexus_es_view_url = f"{settings.NEXUS_DELTA_URI}/views/{str(virtual_lab_id)}/{str(project_id)}/{view_id}"
+        views = [
+            {
+                "project": f"{str(virtual_lab_id)}/{str(project_id)}",
+                "viewId": ES_VIEW_ID,
+            }
+        ] + ES_VIEWS
+
+        try:
+            response = await self.httpx_clt.put(
+                nexus_es_view_url,
+                data={"@type": AGGREGATE_ELASTIC_SEARCH_VIEW, "views": views},
+            )
+            data = response.json()
+
+            return NexusResource(**data)
+        except Exception as ex:
+            logger.error(f"Error during creating nexus es aggregate view {ex}")
+            raise NexusError(
+                message="Error during creating nexus es aggregate view",
+                type=NexusErrorValue.CREATE_ES_AGG_VIEW_ERROR,
+            )
+
+    async def create_nexus_sp_aggregate_view(
+        self,
+        *,
+        virtual_lab_id: UUID4,
+        project_id: UUID4,
+        view_id: str = "https://bbp.epfl.ch/neurosciencegraph/data/views/es/dataset",
+    ) -> NexusResource:
+        nexus_es_view_url = f"{settings.NEXUS_DELTA_URI}/views/{str(virtual_lab_id)}/{str(project_id)}/{view_id}"
+        views = [
+            {"project": f"{virtual_lab_id}/{project_id}", "viewId": SP_VIEW_ID}
+        ] + SP_VIEWS
+
+        try:
+            response = await self.httpx_clt.put(
+                nexus_es_view_url,
+                data={"@type": AGGREGATE_SPARQL_VIEW, "views": views},
+            )
+            data = response.json()
+
+            return NexusResource(**data)
+        except Exception as ex:
+            logger.error(f"Error during creating nexus sp aggregate view {ex}")
+            raise NexusError(
+                message="Error during creating nexus sp aggregate view",
+                type=NexusErrorValue.CREATE_SP_AGG_VIEW_ERROR,
             )
 
     # async def create_nexus_resource(
@@ -246,62 +335,4 @@ class NexusProjectInterface:
     #         raise NexusError(
     #             "Error during creating nexus es view",
     #             type=NexusErrorValue.CREATE_ES_VIEW,
-    #         )
-
-    # async def create_nexus_es_aggregate_view(
-    #     self,
-    #     *,
-    #     org_label: str,
-    #     project_label: str,
-    #     view_id: str = "https://bbp.epfl.ch/neurosciencegraph/data/views/es/dataset",
-    # ) -> NexusResource:
-    #     nexus_es_view_url = (
-    #         f"{settings.NEXUS_DELTA_URI}/views/{org_label}/{project_label}/{view_id}"
-    #     )
-    #     views = [
-    #         {"project": f"{org_label}/{project_label}", "viewId": ES_VIEW_ID}
-    #     ] + ES_VIEWS
-
-    #     try:
-    #         response = await self.httpx_clt.put(
-    #             nexus_es_view_url,
-    #             data={"@type": AGGREGATE_ELASTIC_SEARCH_VIEW, "views": views},
-    #         )
-    #         data = response.json()
-
-    #         return NexusResource(**data)
-    #     except Exception as ex:
-    #         logger.error(f"Error during creating nexus es aggregate view {ex}")
-    #         raise NexusError(
-    #             "Error during creating nexus es aggregate view",
-    #             type=NexusErrorValue.CREATE_ES_AGG_VIEW,
-    #         )
-
-    # async def create_nexus_sp_aggregate_view(
-    #     self,
-    #     *,
-    #     org_label: str,
-    #     project_label: str,
-    #     view_id: str = "https://bbp.epfl.ch/neurosciencegraph/data/views/es/dataset",
-    # ) -> NexusResource:
-    #     nexus_es_view_url = (
-    #         f"{settings.NEXUS_DELTA_URI}/views/{org_label}/{project_label}/{view_id}"
-    #     )
-    #     views = [
-    #         {"project": f"{org_label}/{project_label}", "viewId": SP_VIEW_ID}
-    #     ] + SP_VIEWS
-
-    #     try:
-    #         response = await self.httpx_clt.put(
-    #             nexus_es_view_url,
-    #             data={"@type": AGGREGATE_SPARQL_VIEW, "views": views},
-    #         )
-    #         data = response.json()
-
-    #         return NexusResource(**data)
-    #     except Exception as ex:
-    #         logger.error(f"Error during creating nexus sp aggregate view {ex}")
-    #         raise NexusError(
-    #             "Error during creating nexus sp aggregate view",
-    #             type=NexusErrorValue.CREATE_SP_AGG_VIEW,
     #         )
