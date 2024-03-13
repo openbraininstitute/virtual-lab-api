@@ -18,6 +18,10 @@ class UserQueryRepository:
     def retrieve_user_groups(self, user_id: UUID4) -> Any | Dict[str, str] | List[Any]:
         return self.Kc.get_user_groups(user_id=user_id)
 
+    def is_user_in_group(self, user_id: UUID4, group_id: str) -> bool:
+        current_groups = self.retrieve_user_groups(user_id)
+        return group_id in current_groups
+
 
 class UserMutationRepository:
     Kc: KeycloakAdmin

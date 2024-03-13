@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends
 from pydantic import UUID4
 from sqlalchemy.orm import Session
 
+from virtual_labs.core.types import UserRoleEnum
 from virtual_labs.domain.common import PagedResponse, PageParams
 from virtual_labs.domain.labs import (
     AddUser,
@@ -127,6 +128,20 @@ def add_user_to_virtual_lab(
     return LabResponse[VirtualLabUser](
         message="Added user to virtual lab", data=added_user
     )
+
+
+@router.patch(
+    "/{lab_id}/users/{user_id}",
+    tags=["Not Yet Implemented"],
+    response_model=LabResponse[VirtualLabUser],
+)
+def change_user_role_for_lab(
+    lab_id: UUID4,
+    user_id: UUID4,
+    new_role: UserRoleEnum,
+    db: Session = Depends(default_session_factory),
+) -> LabResponse[VirtualLabUser]:
+    return usecases.change_user_role_for_lab(lab_id, user_id, new_role, db)
 
 
 @router.delete(

@@ -1,5 +1,5 @@
 from http import HTTPStatus
-from typing import Literal, cast
+from typing import Literal
 from uuid import uuid4
 
 from loguru import logger
@@ -50,17 +50,11 @@ async def create_virtual_lab(
 
         group_ids = await create_keycloak_groups(new_lab_id, lab.name)
 
-        # TODO: Can this be simplified? I want to spread the props of lab and add the 3 new props
-        # TODO: Can I avoid the casting?
         lab_with_ids = repository.VirtualLabDbCreate(
             id=new_lab_id,
-            admin_group_id=cast("str", group_ids.get("admin_group_id")),
-            member_group_id=cast("str", group_ids.get("member_group_id")),
-            plan_id=lab.plan_id,
-            name=lab.name,
-            description=lab.description,
-            reference_email=lab.reference_email,
-            budget=lab.budget,
+            admin_group_id=group_ids["admin_group_id"],
+            member_group_id=group_ids["member_group_id"],
+            **lab.model_dump(),
         )
         return repository.create_virtual_lab(db, lab_with_ids)
     except IntegrityError as error:
