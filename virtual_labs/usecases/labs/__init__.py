@@ -6,6 +6,7 @@ from .create_virtual_lab import create_virtual_lab
 from .delete_virtual_lab import delete_virtual_lab
 from .get_virtual_lab import get_virtual_lab
 from .get_virtual_lab_users import get_virtual_lab_users
+from .remove_user_from_lab import remove_user_from_lab
 from .search_virtual_labs import search_virtual_labs_by_name
 from .update_virtual_lab import update_virtual_lab
 
@@ -20,4 +21,5 @@ __all__ = [
     "search_virtual_labs_by_name",
     "get_virtual_lab_users",
     "add_user_to_lab",
+    "remove_user_from_lab",
 ]

@@ -129,6 +129,17 @@ def add_user_to_virtual_lab(
     )
 
 
+@router.delete(
+    "/{lab_id}/users/{user_id}",
+    tags=["Not Yet Implemented"],
+    response_model=LabResponse[VirtualLabUser],
+)
+def remove_user_from_virtual_lab(
+    lab_id: UUID4, user_id: UUID4, db: Session = Depends(default_session_factory)
+) -> None:
+    usecases.remove_user_from_lab(lab_id, user_id, db)
+
+
 @router.delete("/{lab_id}", response_model=LabResponse[Lab])
 def delete_virtual_lab(
     lab_id: UUID4, db: Session = Depends(default_session_factory)
