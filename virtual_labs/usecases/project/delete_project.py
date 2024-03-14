@@ -10,8 +10,11 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
+from virtual_labs.core.exceptions.nexus_error import NexusError
 from virtual_labs.core.response.api_response import VliResponse
-from virtual_labs.external.nexus.project_interface import NexusProjectInterface
+from virtual_labs.external.nexus.project_interface import (
+    NexusProjectInterface,
+)
 from virtual_labs.repositories.project_repo import (
     ProjectMutationRepository,
     ProjectQueryRepository,
@@ -28,7 +31,7 @@ async def delete_project_use_case(
 ) -> Response | VliError:
     pqr = ProjectQueryRepository(session)
     pmr = ProjectMutationRepository(session)
-    NexusProjectInterface(httpx_clt)
+    nexus_interface = NexusProjectInterface(httpx_clt)
     """ 
         TODO: 1. check if the user in admin group of the virtual lab/project to allow him to delete the project, (this can be a decorator)
     """
@@ -80,20 +83,20 @@ async def delete_project_use_case(
             message="Error during deleting the project",
         )
 
-    # try:
-    #     await nexus_interface.deprecate_project(
-    #         virtual_lab_id=virtual_lab_id, project_id=project_id
-    #     )
-    # except NexusError as ex:
-    #     if deleted_project_id:
-    #         pmr.un_delete_project(virtual_lab_id=virtual_lab_id, project_id=project_id)
+    try:
+        await nexus_interface.deprecate_project(
+            virtual_lab_id=virtual_lab_id, project_id=project_id
+        )
+    except NexusError as ex:
+        if deleted_project_id:
+            pmr.un_delete_project(virtual_lab_id=virtual_lab_id, project_id=project_id)
 
-    #     raise VliError(
-    #         error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
-    #         http_status_code=status.BAD_REQUEST,
-    #         message="Project deprecation failed",
-    #         details=ex.type,
-    #     )
+        raise VliError(
+            error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
+            http_status_code=status.BAD_REQUEST,
+            message="Project deprecation failed",
+            details=ex.type,
+        )
     else:
         return VliResponse.new(
             message="Project marked as deleted successfully",

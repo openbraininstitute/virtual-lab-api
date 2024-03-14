@@ -63,6 +63,7 @@ class NexusProjectInterface:
                     "base": project_base,
                 },
             )
+            response.raise_for_status()
 
             data = response.json()
             return NexusProject(**data)
@@ -87,6 +88,8 @@ class NexusProjectInterface:
             response = await self.httpx_clt.get(
                 nexus_acl_url,
             )
+            response.raise_for_status()
+
             data = response.json()
             return NexusAclList(**data)
         except Exception as ex:
@@ -124,6 +127,8 @@ class NexusProjectInterface:
                     ],
                 },
             )
+            response.raise_for_status()
+
             data = response.json()
             return NexusAcls(**data)
         except Exception as ex:
@@ -146,6 +151,8 @@ class NexusProjectInterface:
             response = await self.httpx_clt.delete(
                 nexus_acl_url,
             )
+            response.raise_for_status()
+
             data = response.json()
             return NexusAcls(**data)
         except Exception as ex:
@@ -167,6 +174,8 @@ class NexusProjectInterface:
             response = await self.httpx_clt.delete(
                 nexus_acl_url,
             )
+            response.raise_for_status()
+
             data = response.json()
             return NexusProject(**data)
         except Exception as ex:
@@ -196,8 +205,9 @@ class NexusProjectInterface:
                 nexus_es_view_url,
                 data={"@type": AGGREGATE_ELASTIC_SEARCH_VIEW, "views": views},
             )
-            data = response.json()
+            response.raise_for_status()
 
+            data = response.json()
             return NexusResource(**data)
         except Exception as ex:
             logger.error(f"Error during creating nexus es aggregate view {ex}")
@@ -223,8 +233,9 @@ class NexusProjectInterface:
                 nexus_es_view_url,
                 data={"@type": AGGREGATE_SPARQL_VIEW, "views": views},
             )
-            data = response.json()
+            response.raise_for_status()
 
+            data = response.json()
             return NexusResource(**data)
         except Exception as ex:
             logger.error(f"Error during creating nexus sp aggregate view {ex}")
