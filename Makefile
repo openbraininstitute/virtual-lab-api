@@ -31,10 +31,10 @@ dev: init-db
 	poetry run uvicorn virtual_labs.api:app --reload
 
 init: 
-	cd env-prep && docker compose -f docker-compose-dev.yml --env-file ./.env -p vlm-project up
+	cd env-prep && docker compose -f docker-compose-dev.yml -p vlm-project up
 
 kill: 
-	docker compose -f docker-compose-dev.yml -p vlm-project down --remove-orphans
+	cd env-prep && docker compose -f docker-compose-dev.yml -p vlm-project down --remove-orphans
 
 build: 
 	docker build -t $(SERVICE_NAME) . --platform=linux/amd64
