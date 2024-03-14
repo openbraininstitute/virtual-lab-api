@@ -33,10 +33,9 @@ async def delete_project_use_case(
     pmr = ProjectMutationRepository(session)
     nexus_interface = NexusProjectInterface(httpx_clt)
     """ 
-        TODO: 1. check if the user in admin group of the virtual lab/project to allow him to delete the project, (this can be a decorator)
+        TODO: 1. check if the user in admin group of the virtual lab/project to allow him to delete the project, 
+        (this can be a decorator)
     """
-    # TODO: check the user group (if he is in the project group)
-    # TODO: check the user permission (admin/member), only admin can trigger deletion
 
     project = pqr.retrieve_one_project(
         virtual_lab_id=virtual_lab_id, project_id=project_id

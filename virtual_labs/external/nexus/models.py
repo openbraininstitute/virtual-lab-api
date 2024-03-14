@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated, Any, List, TypedDict
+from typing import Annotated, Any, Generic, List, TypedDict, TypeVar
 
 from pydantic import UUID4, BaseModel, Field
 
@@ -18,8 +18,8 @@ class NexusBase(BaseModel):
 class NexusProject(NexusBase):
     _label: str
     _uuid: UUID4
-    vocab: str
-    base: str
+    # vocab: str
+    # base: str
 
 
 class NexusApiMapping(TypedDict):
@@ -56,9 +56,18 @@ class NexusAcl(TypedDict):
     permissions: List[str]
 
 
+T = TypeVar("T")
+
+
+class NexusResultGeneric(BaseModel, Generic[T]):
+    context: Annotated[List[str], Field(alias="@context")] = []
+    _results: List[T] = []
+    _total: int
+
+
 class NexusAclList(NexusBase):
     _total: int
-    acl: List[NexusAcl]
+    acl: List[NexusAcl] = []
 
 
 class NexusESViewMappingPropertyType(BaseModel):

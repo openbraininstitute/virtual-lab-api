@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     KC_CLIENT_ID: str = "obpapp"
     KC_CLIENT_SECRET: str = "obp-secret"
     KC_REALM_NAME: str = "obp-realm"
-    DEPLOYMENT_NAMESPACE: str = "https://openbrainproject.org/"
+    DEPLOYMENT_NAMESPACE: str = "https://openbrainplatform.org/"
 
     @field_validator("DATABASE_URI", mode="before")
     @classmethod

@@ -56,9 +56,9 @@ class NexusProjectInterface:
         try:
             response = await self.httpx_clt.put(
                 nexus_project_url,
-                data={
+                json={
                     "description": description,
-                    "apiMapping": apiMapping,
+                    "apiMappings": apiMapping,
                     "vocab": vocab,
                     "base": project_base,
                 },
@@ -74,20 +74,15 @@ class NexusProjectInterface:
                 type=NexusErrorValue.CREATE_PROJECT_ERROR,
             )
 
-    async def retrieve_project_acls(
+    async def retrieve_project_latest_acls(
         self,
         *,
         virtual_lab_id: UUID4,
         project_id: UUID4,
     ) -> NexusAclList:
-        nexus_acl_url = (
-            f"{settings.NEXUS_DELTA_URI}/acls/{str(virtual_lab_id)}/{str(project_id)}"
-        )
-
+        nexus_acl_url = f"{settings.NEXUS_DELTA_URI}/acls/{str(virtual_lab_id)}/{str(project_id)}?ancestors=true"
         try:
-            response = await self.httpx_clt.get(
-                nexus_acl_url,
-            )
+            response = await self.httpx_clt.get(nexus_acl_url)
             response.raise_for_status()
 
             data = response.json()
@@ -114,14 +109,14 @@ class NexusProjectInterface:
         try:
             response = await self.httpx_clt.patch(
                 nexus_acl_url,
-                data={
+                json={
                     "@type": "Append",
                     "acl": [
                         {
                             "permissions": permissions,
                             "identity": {
                                 "realm": settings.KC_REALM_NAME,
-                                "group": group_id,
+                                "group": str(group_id),
                             },
                         },
                     ],
@@ -143,14 +138,13 @@ class NexusProjectInterface:
         *,
         virtual_lab_id: UUID4,
         project_id: UUID4,
-        rev: str,
     ) -> NexusAcls:
-        nexus_acl_url = f"{settings.NEXUS_DELTA_URI}/acls/{str(virtual_lab_id)}/{str(project_id)}?rev={rev}"
+        nexus_acl_url = (
+            f"{settings.NEXUS_DELTA_URI}/acls/{str(virtual_lab_id)}/{str(project_id)}"
+        )
 
         try:
-            response = await self.httpx_clt.delete(
-                nexus_acl_url,
-            )
+            response = await self.httpx_clt.delete(nexus_acl_url)
             response.raise_for_status()
 
             data = response.json()
@@ -203,7 +197,7 @@ class NexusProjectInterface:
         try:
             response = await self.httpx_clt.put(
                 nexus_es_view_url,
-                data={"@type": AGGREGATE_ELASTIC_SEARCH_VIEW, "views": views},
+                json={"@type": AGGREGATE_ELASTIC_SEARCH_VIEW, "views": views},
             )
             response.raise_for_status()
 
@@ -231,7 +225,7 @@ class NexusProjectInterface:
         try:
             response = await self.httpx_clt.put(
                 nexus_es_view_url,
-                data={"@type": AGGREGATE_SPARQL_VIEW, "views": views},
+                json={"@type": AGGREGATE_SPARQL_VIEW, "views": views},
             )
             response.raise_for_status()
 
@@ -243,153 +237,3 @@ class NexusProjectInterface:
                 message="Error during creating nexus sp aggregate view",
                 type=NexusErrorValue.CREATE_SP_AGG_VIEW_ERROR,
             )
-
-    # async def create_nexus_resource(
-    #     self, *, org_label: str, project_label: str, resource_id: str
-    # ) -> NexusResource:
-    #     nexus_resource_url = f"{settings.NEXUS_DELTA_URI}/resources/{org_label}/{project_label}/_/{resource_id}"
-    #     try:
-    #         response = await self.httpx_clt.get(nexus_resource_url)
-    #         data = response.json()
-
-    #         return NexusResource(**data)
-    #     except Exception as ex:
-    #         logger.error(f"Error during creating nexus resource {ex}")
-    #         raise NexusError(
-    #             "Error during creating nexus resource",
-    #             type=NexusErrorValue.CREATE_RESOURCE,
-    #         )
-
-    # async def fetch_nexus_resource(
-    #     self,
-    #     *,
-    #     org_label: str,
-    #     project_label: str,
-    #     resource_id: str,
-    #     payload: Dict[str, Any],
-    # ) -> NexusResource:
-    #     nexus_resource_url = f"{settings.NEXUS_DELTA_URI}/resources/{org_label}/{project_label}/_/{resource_id}"
-    #     try:
-    #         response = await self.httpx_clt.post(nexus_resource_url, data=payload)
-    #         data = response.json()
-
-    #         return NexusResource(**data)
-    #     except Exception as ex:
-    #         logger.error(f"Error during fetching nexus resource {ex}")
-    #         raise NexusError(
-    #             "Error during fetching nexus resource",
-    #             type=NexusErrorValue.FETCH_RESOURCE,
-    #         )
-
-    # async def create_nexus_resolver(
-    #     self,
-    #     *,
-    #     org_label: str,
-    #     project_label: str,
-    #     projects: List[str],
-    #     identities: List[NexusIdentity],
-    #     priority: int = 50,
-    # ) -> NexusResource:
-    #     nexus_resolver_url = (
-    #         f"{settings.NEXUS_DELTA_URI}/resolvers/{org_label}/{project_label}"
-    #     )
-    #     try:
-    #         response = await self.httpx_clt.post(
-    #             nexus_resolver_url,
-    #             data={
-    #                 "@type": ["CrossProject"],
-    #                 "projects": projects,
-    #                 "identities": identities,
-    #                 "priority": priority,
-    #             },
-    #         )
-    #         data = response.json()
-
-    #         return NexusResource(**data)
-    #     except Exception as ex:
-    #         logger.error(f"Error during fetching nexus resolver {ex}")
-    #         raise NexusError(
-    #             "Error during creating nexus resolver",
-    #             type=NexusErrorValue.CREATE_RESOLVER,
-    #         )
-
-    # async def create_nexus_es_view(
-    #     self,
-    #     *,
-    #     org_label: str,
-    #     project_label: str,
-    #     payload: NexusElasticSearchViewMapping,
-    #     source_as_text: Optional[bool] = False,
-    #     include_metadata: bool = True,
-    #     include_deprecated: bool = False,
-    #     resource_types: Optional[Set[str]] = None,
-    #     view_id: Optional[
-    #         str
-    #     ] = "https://bbp.epfl.ch/neurosciencegraph/data/views/es/dataset",
-    # ) -> NexusResource:
-    #     nexus_es_view_url = (
-    #         f"{settings.NEXUS_DELTA_URI}/views/{org_label}/{project_label}/{view_id}"
-    #     )
-    #     try:
-    #         updated_payload = payload.__dict__
-    #         updated_payload.update(
-    #             {
-    #                 "includeMetadata": include_metadata,
-    #                 "includeDeprecated": include_deprecated,
-    #             }
-    #         )
-    #         if resource_types:
-    #             updated_payload.update({"resourceTypes": resource_types})
-    #         if source_as_text:
-    #             updated_payload.update({"sourceAsText": source_as_text})
-
-    #         response = await self.httpx_clt.put(nexus_es_view_url, data=updated_payload)
-
-    #         data = response.json()
-
-    #         return NexusResource(**data)
-    #     except Exception as ex:
-    #         logger.error(f"Error during creating nexus es view {ex}")
-    #         raise NexusError(
-    #             "Error during creating nexus es view",
-    #             type=NexusErrorValue.CREATE_ES_VIEW,
-    #         )
-
-    # async def create_nexus_sp_view(
-    #     self,
-    #     *,
-    #     org_label: str,
-    #     project_label: str,
-    #     include_metadata: bool = True,
-    #     include_deprecated: bool = False,
-    #     resource_schemas: Optional[Set[str]] = None,
-    #     resource_types: Optional[Set[str]] = None,
-    #     view_id: Optional[
-    #         str
-    #     ] = "https://bbp.epfl.ch/neurosciencegraph/data/views/es/dataset",
-    # ) -> NexusResource:
-    #     nexus_es_view_url = (
-    #         f"{settings.NEXUS_DELTA_URI}/views/{org_label}/{project_label}/{view_id}"
-    #     )
-    #     try:
-    #         updated_payload = {
-    #             "includeMetadata": include_metadata,
-    #             "includeDeprecated": include_deprecated,
-    #             "@type": ["View", "SparqlView"],
-    #         }
-    #         if resource_types:
-    #             updated_payload.update({"resourceTypes": resource_types})
-    #         if resource_schemas:
-    #             updated_payload.update({"resourceSchemas": resource_schemas})
-
-    #         response = await self.httpx_clt.put(nexus_es_view_url, data=updated_payload)
-
-    #         data = response.json()
-
-    #         return NexusResource(**data)
-    #     except Exception as ex:
-    #         logger.error(f"Error during creating nexus es view {ex}")
-    #         raise NexusError(
-    #             "Error during creating nexus es view",
-    #             type=NexusErrorValue.CREATE_ES_VIEW,
-    #         )
