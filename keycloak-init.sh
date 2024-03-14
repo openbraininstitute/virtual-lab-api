@@ -1,6 +1,6 @@
 #!/bin/sh
 echo "get into the docker container"
-docker exec -ti $(docker ps -aqf "name=keycloak" | awk 'NR==1 {print}') bash
+docker exec -ti keycloak bash
 
 KC_CLIENT_ID="obpapp"
 KC_CLIENT_SECRET="obp-secret"

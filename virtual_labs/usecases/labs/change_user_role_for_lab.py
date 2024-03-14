@@ -10,18 +10,18 @@ from sqlalchemy.orm import Session
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.types import UserRoleEnum
 from virtual_labs.domain.labs import LabResponse, VirtualLabUser
+from virtual_labs.repositories import labs as lab_repository
 from virtual_labs.repositories.user_repo import (
     UserMutationRepository,
     UserQueryRepository,
 )
-from virtual_labs.usecases.labs.get_virtual_lab import get_virtual_lab
 
 
 def change_user_role_for_lab(
     lab_id: UUID4, user_id: UUID4, new_role: UserRoleEnum, db: Session
 ) -> LabResponse[VirtualLabUser]:
     try:
-        lab = get_virtual_lab(db, lab_id)
+        lab = lab_repository.get_virtual_lab(db, lab_id)
 
         new_group_id = (
             lab.admin_group_id
@@ -54,8 +54,6 @@ def change_user_role_for_lab(
         return LabResponse[VirtualLabUser](
             message="Successfully changed user role", data=VirtualLabUser(user=user_id)
         )
-    except VliError as error:
-        raise error
     except SQLAlchemyError as error:
         logger.error(
             f"Db error when retrieving virtual lab {lab_id} for removing user {user_id}. {error}"

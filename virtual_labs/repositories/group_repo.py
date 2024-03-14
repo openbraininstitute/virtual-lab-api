@@ -1,6 +1,7 @@
+from json import loads
 from typing import Any, Dict, cast
 
-from keycloak import KeycloakAdmin  # type: ignore
+from keycloak import KeycloakAdmin, KeycloakError  # type: ignore
 from loguru import logger
 from pydantic import UUID4
 
@@ -60,6 +61,7 @@ class GroupMutationRepository:
                 str,
                 group_id,
             )
+        # TODO: Add custom Keycloak error class to catch KeyClak errors from keycloak dependencies that are not type safe.
         except Exception as error:
             logger.error(
                 f"Error when creating {role} group for lab {vl_name} with id {vl_id}: ({error})"
@@ -101,4 +103,12 @@ class GroupMutationRepository:
         )
 
     def delete_group(self, *, group_id: str) -> Any | Dict[str, str]:
-        return self.Kc.delete_group(group_id=group_id)
+        try:
+            return self.Kc.delete_group(group_id=group_id)
+        except KeycloakError as error:
+            logger.error(
+                f"Group {group_id} could not be deleted.  {loads(error.error_message)["error"]}"
+            )
+            raise Exception(
+                f"Keycloak error when deleting group {group_id}: {loads(error.error_message)["error"]}"
+            )

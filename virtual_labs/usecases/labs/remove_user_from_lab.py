@@ -8,13 +8,13 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
+from virtual_labs.repositories import labs as lab_repository
 from virtual_labs.repositories.user_repo import UserMutationRepository
-from virtual_labs.usecases.labs.get_virtual_lab import get_virtual_lab
 
 
 def remove_user_from_lab(lab_id: UUID4, user_id: UUID4, db: Session) -> None:
     try:
-        lab = get_virtual_lab(db, lab_id)
+        lab = lab_repository.get_virtual_lab(db, lab_id)
 
         user_repository = UserMutationRepository()
 
@@ -26,8 +26,6 @@ def remove_user_from_lab(lab_id: UUID4, user_id: UUID4, db: Session) -> None:
         )
 
         return
-    except VliError as error:
-        raise error
     except SQLAlchemyError as error:
         logger.error(
             f"Db error when retrieving virtual lab {lab_id} for removing user {user_id}. {error}"

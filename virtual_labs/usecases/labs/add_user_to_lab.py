@@ -10,13 +10,13 @@ from sqlalchemy.orm import Session
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.types import UserRoleEnum
 from virtual_labs.domain.labs import AddUser
+from virtual_labs.repositories import labs as lab_repository
 from virtual_labs.repositories.user_repo import UserMutationRepository
-from virtual_labs.usecases.labs.get_virtual_lab import get_virtual_lab
 
 
 def add_user_to_lab(lab_id: UUID4, user: AddUser, db: Session) -> AddUser:
     try:
-        lab = get_virtual_lab(db, lab_id)
+        lab = lab_repository.get_virtual_lab(db, lab_id)
         user_repository = UserMutationRepository()
 
         group_id = (
@@ -30,8 +30,6 @@ def add_user_to_lab(lab_id: UUID4, user: AddUser, db: Session) -> AddUser:
         )
 
         return user
-    except VliError as error:
-        raise error
     except SQLAlchemyError as error:
         logger.error(
             f"Db error when retrieving virtual lab {lab_id} for adding user {user.user_id}. {error}"

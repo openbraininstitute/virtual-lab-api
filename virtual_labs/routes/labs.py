@@ -14,7 +14,6 @@ from virtual_labs.domain.labs import (
     LabVerbose,
     VirtualLabCreate,
     VirtualLabDomain,
-    VirtualLabDomainVerbose,
     VirtualLabUpdate,
     VirtualLabUser,
     VirtualLabUsers,
@@ -69,11 +68,7 @@ def search_virtual_lab_by_name(
 def get_virtual_lab(
     lab_id: UUID4, db: Session = Depends(default_session_factory)
 ) -> LabResponse[LabVerbose]:
-    lab_response = LabVerbose(
-        virtual_lab=VirtualLabDomainVerbose.model_validate(
-            usecases.get_virtual_lab(db, lab_id)
-        )
-    )
+    lab_response = LabVerbose(virtual_lab=usecases.get_virtual_lab(db, lab_id))
     return LabResponse[LabVerbose](
         message="Virtual lab resource for id {}".format(lab_id),
         data=lab_response,
