@@ -10,6 +10,7 @@ load_dotenv()
 
 class Settings(BaseSettings):
     APP_NAME: str = "virtual-lab-manager service"
+    BASE_PATH: str = ""
     DEBUG_DATABASE_ECHO: bool = False
     CORS_ORIGINS: str = ""
     POSTGRES_HOST: str = "localhost"

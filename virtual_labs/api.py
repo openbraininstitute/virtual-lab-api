@@ -4,6 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from fastapi.routing import APIRouter
 from loguru import logger
 from starlette.middleware.cors import CORSMiddleware
 
@@ -16,6 +17,7 @@ from virtual_labs.routes.projects import router as project_router
 from virtual_labs.routes.users import router as user_router
 
 app = FastAPI(title=settings.APP_NAME)
+base_router = APIRouter(prefix=settings.BASE_PATH)
 
 
 @app.exception_handler(VliError)
@@ -64,12 +66,21 @@ if settings.CORS_ORIGINS:
         allow_headers=["*"],
     )
 
-app.include_router(project_router)
-app.include_router(virtual_lab_router)
-app.include_router(user_router)
-app.include_router(plans_router)
 
-
-@app.get("/")
+@base_router.get("/")
 def root() -> str:
-    return "server is running."
+    return "Server is running."
+
+
+# TODO: add a proper health check logic, see https://pypi.org/project/fastapi-health/.
+@base_router.get("/health")
+def health() -> str:
+    return "OK"
+
+
+base_router.include_router(project_router)
+base_router.include_router(virtual_lab_router)
+base_router.include_router(user_router)
+base_router.include_router(plans_router)
+
+app.include_router(base_router)
