@@ -15,11 +15,11 @@ from virtual_labs.external.nexus.defaults import (
     prep_project_base,
 )
 from virtual_labs.external.nexus.models import (
-    NexusAclList,
     NexusAcls,
     NexusApiMapping,
     NexusProject,
     NexusResource,
+    NexusResultAcl,
 )
 from virtual_labs.infrastructure.settings import settings
 
@@ -29,6 +29,9 @@ def create_context(vocab: str) -> Dict[str, Any]:
         "@context": ["https://neuroshapes.org", {"@vocab": vocab}],
         "@id": "https://bbp.neuroshapes.org",
     }
+
+
+token = "bearer"
 
 
 class NexusProjectInterface:
@@ -56,6 +59,7 @@ class NexusProjectInterface:
         try:
             response = await self.httpx_clt.put(
                 nexus_project_url,
+                headers={"Content-Type": "application/json", "Authorization": token},
                 json={
                     "description": description,
                     "apiMappings": apiMapping,
@@ -79,14 +83,19 @@ class NexusProjectInterface:
         *,
         virtual_lab_id: UUID4,
         project_id: UUID4,
-    ) -> NexusAclList:
-        nexus_acl_url = f"{settings.NEXUS_DELTA_URI}/acls/{str(virtual_lab_id)}/{str(project_id)}?ancestors=true"
+    ) -> NexusResultAcl:
+        nexus_acl_url = (
+            f"{settings.NEXUS_DELTA_URI}/acls/{str(virtual_lab_id)}/{str(project_id)}"
+        )
         try:
-            response = await self.httpx_clt.get(nexus_acl_url)
+            response = await self.httpx_clt.get(
+                nexus_acl_url,
+                headers={"Content-Type": "application/json", "Authorization": token},
+            )
             response.raise_for_status()
 
             data = response.json()
-            return NexusAclList(**data)
+            return NexusResultAcl(**data)
         except Exception as ex:
             logger.error(f"Error during fetching nexus project acls {ex}")
             raise NexusError(
@@ -100,21 +109,22 @@ class NexusProjectInterface:
         virtual_lab_id: UUID4,
         project_id: UUID4,
         group_id: str,
+        rev: int,
         permissions: List[str] | None = None,
     ) -> NexusAcls:
-        nexus_acl_url = (
-            f"{settings.NEXUS_DELTA_URI}/acls/{str(virtual_lab_id)}/{str(project_id)}"
-        )
+        nexus_acl_url = f"{settings.NEXUS_DELTA_URI}/acls/{str(virtual_lab_id)}/{str(project_id)}?rev={rev}"
 
         try:
             response = await self.httpx_clt.patch(
                 nexus_acl_url,
+                headers={"Content-Type": "application/json", "Authorization": token},
                 json={
                     "@type": "Append",
                     "acl": [
                         {
                             "permissions": permissions,
                             "identity": {
+                                "@type": "Group",
                                 "realm": settings.KC_REALM_NAME,
                                 "group": str(group_id),
                             },
