@@ -31,18 +31,24 @@ async def instantiate_nexus_project(
             description=description,
         )
         # create new acls for the project for the two groups
+        last_acl = await nexus_interface.retrieve_project_latest_acls(
+            virtual_lab_id=virtual_lab_id, project_id=project_id
+        )
+        last_acl_rev = last_acl.results[0].rev
         nexus_tasks = [
             nexus_interface.append_project_acls(
                 virtual_lab_id=virtual_lab_id,
                 project_id=project_id,
                 group_id=admin_group_id,
                 permissions=project_admin_acls,
+                rev=last_acl_rev,
             ),
             nexus_interface.append_project_acls(
                 virtual_lab_id=virtual_lab_id,
                 project_id=project_id,
                 group_id=member_group_id,
                 permissions=project_member_acls,
+                rev=last_acl_rev,
             ),
             nexus_interface.create_nexus_es_aggregate_view(
                 virtual_lab_id=virtual_lab_id, project_id=project_id
@@ -54,4 +60,4 @@ async def instantiate_nexus_project(
 
         await asyncio.gather(*list(map(asyncio.create_task, nexus_tasks)))
 
-        return nexus_project._self
+        return nexus_project.self
