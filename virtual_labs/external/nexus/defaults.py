@@ -19,10 +19,10 @@ AG_ES_VIEW_ID = "https://bbp.epfl.ch/neurosciencegraph/data/views/aggreg-es/data
 AG_SP_VIEW_ID = "https://bbp.epfl.ch/neurosciencegraph/data/views/aggreg-sp/dataset"
 
 ES_VIEWS = [
-    {"_project": f"projects/{pr}", "@id": ES_VIEW_ID} for pr in PROJECTS_TO_AGGREGATE
+    {"project": f"projects/{pr}", "viewId": ES_VIEW_ID} for pr in PROJECTS_TO_AGGREGATE
 ]
 SP_VIEWS = [
-    {"_project": f"projects/{pr}", "@id": SP_VIEW_ID} for pr in PROJECTS_TO_AGGREGATE
+    {"project": f"projects/{pr}", "viewId": SP_VIEW_ID} for pr in PROJECTS_TO_AGGREGATE
 ]
 
 API_MAPPING: List[NexusApiMapping] = []
