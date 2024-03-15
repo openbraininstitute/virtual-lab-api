@@ -1,25 +1,23 @@
 from datetime import datetime
-from typing import Annotated, Any, Generic, List, TypedDict, TypeVar
+from typing import Annotated, Any, List, Optional, TypedDict
 
-from pydantic import UUID4, BaseModel, Field
+from pydantic import BaseModel, Field
 
 
 class NexusBase(BaseModel):
     context: Annotated[List[str], Field(alias="@context")] = []
     id: Annotated[str, Field(alias="@id")]
     type: Annotated[str | List[str], Field(alias="@type")]
-    _createdAt: datetime
-    _createdBy: datetime
-    _deprecated: bool
-    _self: str
-    _rev: str
+    createdAt: Annotated[datetime, Field(alias="_createdAt")]
+    createdBy: Annotated[str, Field(alias="_createdBy")]
+    deprecated: Annotated[bool, Field(alias="_deprecated")]
+    self: Annotated[str, Field(alias="_self")]
+    rev: Annotated[int, Field(alias="_rev")]
 
 
 class NexusProject(NexusBase):
-    _label: str
-    _uuid: UUID4
-    # vocab: str
-    # base: str
+    label: Annotated[str, Field(alias="_label")]
+    uuid: Annotated[int, Field(alias="_uuid")]
 
 
 class NexusApiMapping(TypedDict):
@@ -44,11 +42,11 @@ class NexusAclResult(NexusBase):
     type: Annotated[str | List[str], Field(alias="@type")] = "AccessControlList"
 
 
-class NexusAclIdentity(TypedDict):
-    id: Annotated[str, Field(alias="@id")]
-    type: Annotated[str, Field(alias="@type")]
-    realm: str
-    group: str
+class NexusAclIdentity(BaseModel):
+    id: Annotated[str, Field(alias="@id", default=None)]
+    type: Annotated[str, Field(alias="@type", default=None)]
+    realm: Optional[str] = None
+    # group: Optional[str] = Field(None)
 
 
 class NexusAcl(TypedDict):
@@ -56,18 +54,15 @@ class NexusAcl(TypedDict):
     permissions: List[str]
 
 
-T = TypeVar("T")
+class NexusAclList(BaseModel):
+    acl: List[NexusAcl]
+    rev: Annotated[int, Field(alias="_rev")]
 
 
-class NexusResultGeneric(BaseModel, Generic[T]):
+class NexusResultAcl(BaseModel):
     context: Annotated[List[str], Field(alias="@context")] = []
-    _results: List[T] = []
-    _total: int
-
-
-class NexusAclList(NexusBase):
-    _total: int
-    acl: List[NexusAcl] = []
+    results: Annotated[List[NexusAclList], Field(alias="_results")]
+    total: Annotated[int, Field(alias="_total")]
 
 
 class NexusESViewMappingPropertyType(BaseModel):
