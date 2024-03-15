@@ -67,6 +67,15 @@ async def create_new_project_use_case(
             payload=payload,
             role=UserRoleEnum.member,
         )
+        assert admin_group_id is not None
+        assert member_group_id is not None
+
+    except AssertionError:
+        raise VliError(
+            error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
+            http_status_code=status.BAD_REQUEST,
+            message="Admin/Member group_id failed to be generated",
+        )
     except Exception as ex:
         logger.error(f"Error during creating new group in KC: ({ex})")
         raise VliError(
@@ -76,9 +85,6 @@ async def create_new_project_use_case(
         )
 
     try:
-        assert admin_group_id is not None
-        assert member_group_id is not None
-
         project = pr.create_new_project(
             id=project_id,
             payload=payload,
