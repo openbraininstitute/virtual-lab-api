@@ -14,7 +14,9 @@ from virtual_labs.repositories.project_repo import ProjectQueryRepository
 
 
 def search_projects_by_name_use_case(
-    session: Session, user_id: UUID4, query_term: str | None
+    session: Session,
+    user_id: UUID4,
+    query_term: str | None,
 ) -> Response | VliError:
     pr = ProjectQueryRepository(session)
     gqr = GroupQueryRepository()

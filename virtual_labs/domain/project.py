@@ -3,6 +3,8 @@ from typing import List, Optional
 
 from pydantic import UUID4, BaseModel
 
+from virtual_labs.domain.user import ShortenedUser
+
 
 class VirtualLabModel(BaseModel):
     id: UUID4
@@ -13,7 +15,7 @@ class VirtualLabModel(BaseModel):
         from_attributes = True
 
 
-class ProjectCreationModel(BaseModel):
+class ProjectCreationBody(BaseModel):
     name: str
     description: Optional[str] = None
     include_members: Optional[list[UUID4]] = None
@@ -42,12 +44,7 @@ class ProjectExistenceOut(BaseModel):
     exist: bool
 
 
-class ProjectVLTuple(BaseModel):
-    project: Project
-    virtual_lab: VirtualLabModel
-
-
-class ProjectVLTupleOut(BaseModel):
+class ProjectWithVLOut(BaseModel):
     projects: List[ProjectVlOut]
     total: int
 
@@ -68,6 +65,7 @@ class ProjectDeletionOut(BaseModel):
 
 
 class ProjectBudgetOut(BaseModel):
+    project_id: UUID4
     budget: float
 
 
@@ -101,3 +99,18 @@ class ProjectStar(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class ProjectUsersOut(BaseModel):
+    users: List[ShortenedUser]
+    total: int
+
+
+class ProjectUsersCountOut(BaseModel):
+    project_id: UUID4
+    total: int
+
+
+class ProjectPerVLCountOut(BaseModel):
+    virtual_lab_id: UUID4
+    total: int
