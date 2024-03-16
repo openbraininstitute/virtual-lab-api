@@ -103,7 +103,9 @@ class ProjectStar(Base):
     __tablename__ = "project_star"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+
     created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, onupdate=func.now(), default=func.now())
 
     user_id = Column(UUID, nullable=False)
     project_id = Column(UUID, ForeignKey("project.id"))
@@ -124,14 +126,15 @@ class ProjectInvite(Base):
     __tablename__ = "project_invite"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    inviter_id = Column(UUID, nullable=False)
-    user_id = Column(UUID)
-    accepted = Column(Boolean, default=Null)
+    inviter_id = Column(UUID(as_uuid=True), nullable=False)
+    user_id = Column(UUID(as_uuid=True))
+    accepted = Column(Boolean)
+    role = Column(String)
 
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, onupdate=func.now(), default=func.now())
 
-    project_id = Column(UUID, ForeignKey("project.id"))
+    project_id = Column(UUID(as_uuid=True), ForeignKey("project.id"))
     project = relationship("Project", back_populates="invites")
 
 
@@ -139,39 +142,12 @@ class VirtualLabInvite(Base):
     __tablename__ = "virtual_lab_invite"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    inviter_id = Column(UUID, nullable=False)
-    user_id = Column(UUID)
+    inviter_id = Column(UUID(as_uuid=True), nullable=False)
+    user_id = Column(UUID(as_uuid=True))
     accepted = Column(Boolean, default=Null)
 
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, onupdate=func.now(), default=func.now())
 
-    virtual_lab_id = Column(UUID, ForeignKey("virtual_lab.id"))
+    virtual_lab_id = Column(UUID(as_uuid=True), ForeignKey("virtual_lab.id"))
     virtual_lab = relationship("VirtualLab", back_populates="invites")
-
-
-# class PaymentCard(Base):
-#     __tablename__ = "payment_card"
-
-#     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-#     cardNumber = Column(String(19))
-#     expiration_date = Column(DateTime)
-
-#     created_at = Column(DateTime, default=datetime.utcnow)
-#     updated_at = Column(DateTime, onupdate=datetime.utcnow)
-
-#     virtual_lab_id = Column(
-#         "virtual_lab_id", UUID(as_uuid=True), ForeignKey("virtual_lab.id")
-#     )
-#     virtual_lab = relationship("VirtualLab")
-
-
-# class Billing(Base):
-#     __tablename__ = "billing"
-
-#     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-
-#     payment_card_id = Column(
-#         "payment_card_id", UUID(as_uuid=True), ForeignKey("payment_card.id")
-#     )
-#     payment_card = relationship("PaymentCard")

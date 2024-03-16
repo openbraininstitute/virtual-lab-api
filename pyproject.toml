@@ -10,7 +10,7 @@ packages = [{include = "virtual_labs"}]
 python = "^3.11"
 fastapi = {extras = ["all"], version = "^0.110.0"}
 uvicorn = "^0.27.1"
-sqlalchemy = "^2.0.27"
+sqlalchemy = {extras = ["mypy"], version = "^2.0.28"}
 uuid = "^1.30"
 datetime = "^5.4"
 python-dotenv = "^1.0.1"
