@@ -1,13 +1,18 @@
-from json import loads
-from typing import Any, Dict, cast
+from typing import Any, Dict, List, cast
+from uuid import uuid4
 
-from keycloak import KeycloakAdmin, KeycloakError  # type: ignore
+from keycloak import KeycloakAdmin  # type: ignore
 from loguru import logger
 from pydantic import UUID4
 
+from virtual_labs.core.exceptions.generic_exceptions import UserNotInList
 from virtual_labs.core.types import UserRoleEnum
 from virtual_labs.domain.project import ProjectCreationModel
 from virtual_labs.infrastructure.kc.config import kc_realm
+from virtual_labs.infrastructure.kc.models import (
+    GroupRepresentation,
+    UserRepresentation,
+)
 
 
 class GroupQueryRepository:
@@ -16,17 +21,24 @@ class GroupQueryRepository:
     def __init__(self) -> None:
         self.Kc = kc_realm
 
-    # TODO: the return type should be update, probably Keycloack will return UserRepresentation
-    def retrieve_group_users(self, group_id: str) -> list[str]:
-        users = self.Kc.get_group_members(group_id=group_id)
+    def retrieve_group_users(self, group_id: str) -> List[UserRepresentation]:
+        members = self.Kc.get_group_members(group_id=group_id)
+        return cast(List[UserRepresentation], members)
 
-        # TODO: We can also accept dicts later if need be.
-        if not isinstance(users, list):
-            raise ValueError(
-                f"Expected list of users for group {group_id} instead received {type(users)}"
-            )
+    def retrieve_user_groups(self, user_id: str) -> List[GroupRepresentation]:
+        groups = self.Kc.get_user_groups(user_id=user_id)
+        return cast(List[GroupRepresentation], groups)
 
-        return users
+    def retrieve_group_by_id(self, group_id: str) -> GroupRepresentation:
+        group = self.Kc.get_group(group_id=group_id)
+        return cast(GroupRepresentation, group)
+
+    def check_user_in_group(self, group_id: str, user_id: str) -> bool:
+        group_users = self.retrieve_group_users(group_id=group_id)
+        if any([cast(Dict[str, object], u)["id"] == user_id for u in group_users]):
+            return True
+        else:
+            raise UserNotInList("User not found in the list")
 
 
 class GroupMutationRepository:
@@ -85,16 +97,12 @@ class GroupMutationRepository:
         """
         group_id = self.Kc.create_group(
             {
-                # TODO: if we will use flat structure then this one must be removed
-                # "parentId": f"vl/{virtual_lab_id}",
                 "name": "proj/{}/{}/{}".format(virtual_lab_id, project_id, role.value),
                 "attributes": {
                     "_name": [payload.name],
                     "_description": [payload.description],
                 },
             },
-            # TODO: if we will use flat structure then this one must be removed
-            # parent=f"vl/{virtual_lab_id}",
         )
 
         return cast(
@@ -103,12 +111,16 @@ class GroupMutationRepository:
         )
 
     def delete_group(self, *, group_id: str) -> Any | Dict[str, str]:
-        try:
-            return self.Kc.delete_group(group_id=group_id)
-        except KeycloakError as error:
-            logger.error(
-                f"Group {group_id} could not be deleted.  {loads(error.error_message)["error"]}"
-            )
-            raise Exception(
-                f"Keycloak error when deleting group {group_id}: {loads(error.error_message)["error"]}"
-            )
+        return self.Kc.delete_group(group_id=group_id)
+
+    def create_user(
+        self,
+        *,
+        user_email: str,
+    ) -> UUID4:
+        # TODO: change the format later, this must be unique for keycloak
+        username = user_email.split("@")[0] + "@" + uuid4().hex
+        user_id = self.Kc.create_user(
+            payload={"email": user_email, "username": username}
+        )
+        return cast(UUID4, user_id)
