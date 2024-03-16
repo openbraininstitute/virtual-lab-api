@@ -72,14 +72,15 @@ class Project(Base):
     nexus_project_id = Column(String, nullable=False, unique=True)
     admin_group_id = Column(String, nullable=False, unique=True)
     member_group_id = Column(String, nullable=False, unique=True)
+    owner_id = Column(UUID(as_uuid=True), nullable=False)
     name = Column(String(250), index=True)
     description = Column(Text)
     deleted = Column(Boolean, default=False)
     budget = Column(Float, default=None)
-
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, onupdate=func.now(), default=func.now())
     deleted_at = Column(DateTime)
+    deleted_by = Column(UUID(as_uuid=True))
 
     virtual_lab_id = Column(
         "virtual_lab_id", UUID(as_uuid=True), ForeignKey("virtual_lab.id")
