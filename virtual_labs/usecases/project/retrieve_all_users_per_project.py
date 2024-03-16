@@ -1,4 +1,5 @@
 from http import HTTPStatus as status
+from typing import List
 
 from fastapi.responses import Response
 from loguru import logger
@@ -8,6 +9,8 @@ from sqlalchemy.orm import Session
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.response.api_response import VliResponse
+from virtual_labs.domain.user import ShortenedUser
+from virtual_labs.infrastructure.kc.models import UserRepresentation
 from virtual_labs.repositories.group_repo import GroupQueryRepository
 from virtual_labs.repositories.project_repo import ProjectQueryRepository
 
@@ -21,7 +24,7 @@ def retrieve_all_users_per_project_use_case(
     pqr = ProjectQueryRepository(session)
 
     try:
-        project = pqr.retrieve_one_project_strict(
+        project, _ = pqr.retrieve_one_project_strict(
             virtual_lab_id=virtual_lab_id, project_id=project_id
         )
     except Exception:
@@ -32,18 +35,12 @@ def retrieve_all_users_per_project_use_case(
         )
 
     try:
-        # TODO:
-        # 1. fetch project group from kc
-        # 2. get both members and admins
-        # 3. consider pagination
-        # 4. return the list + count
-
-        gqr.retrieve_group_users(str(project.member_group_id))
-        gqr.retrieve_group_users(str(project.admin_group_id))
-
-        return VliResponse.new(
-            message="Users found successfully",
+        members = gqr.retrieve_group_users(str(project.member_group_id))
+        admins = gqr.retrieve_group_users(str(project.admin_group_id))
+        users: List[UserRepresentation] = list(
+            {v.id: v for v in admins + members}.values()
         )
+        shortened_users = [ShortenedUser(**u.__dict__) for u in users]
     except SQLAlchemyError:
         raise VliError(
             error_code=VliErrorCode.DATABASE_ERROR,
@@ -56,4 +53,9 @@ def retrieve_all_users_per_project_use_case(
             error_code=VliErrorCode.SERVER_ERROR,
             http_status_code=status.INTERNAL_SERVER_ERROR,
             message="Error during retrieving users per project",
+        )
+    else:
+        return VliResponse.new(
+            message="Users found successfully",
+            data={"users": shortened_users, "total": len(users)},
         )

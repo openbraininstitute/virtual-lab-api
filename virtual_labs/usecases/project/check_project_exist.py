@@ -27,7 +27,7 @@ def check_project_existence_use_case(
             message=(
                 f"Project with name {query_term} already exist"
                 if projects_count > 0
-                else f"No project was found by {query_term}"
+                else f"No project was found with keyword: '{query_term}'"
             ),
             data={"exist": projects_count != 0},
         )
@@ -38,7 +38,6 @@ def check_project_existence_use_case(
             message="Searching for projects failed",
         )
     except Exception as ex:
-        print(ex)
         logger.error(f"Error during searching for project existence ({ex})")
         raise VliError(
             error_code=VliErrorCode.SERVER_ERROR,

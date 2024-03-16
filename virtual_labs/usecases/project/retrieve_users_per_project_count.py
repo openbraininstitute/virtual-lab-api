@@ -8,22 +8,22 @@ from sqlalchemy.orm import Session
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.response.api_response import VliResponse
+from virtual_labs.repositories.group_repo import GroupQueryRepository
 from virtual_labs.repositories.project_repo import ProjectQueryRepository
+from virtual_labs.shared.utils.uniq_list import uniq_list
 
 
 def retrieve_users_per_project_count_use_case(
     session: Session, project_id: UUID4
 ) -> Response | VliError:
     pr = ProjectQueryRepository(session)
-    try:
-        # TODO:
-        # use kc instead of db
-        # fetch from keycloak the users (admin + members) of the project
-        pr.retrieve_project_users_count(project_id)
+    gqr = GroupQueryRepository()
 
-        return VliResponse.new(
-            message=f"Count users per project {project_id} fetched successfully",
-        )
+    try:
+        project = pr.retrieve_one_project_by_id(project_id)
+        admins = gqr.retrieve_group_users(group_id=str(project.admin_group_id))
+        members = gqr.retrieve_group_users(group_id=str(project.member_group_id))
+        users = uniq_list([u.id for u in admins + members])
 
     except SQLAlchemyError:
         raise VliError(
@@ -39,4 +39,9 @@ def retrieve_users_per_project_count_use_case(
             error_code=VliErrorCode.SERVER_ERROR,
             http_status_code=status.INTERNAL_SERVER_ERROR,
             message="Error during retrieving users per project",
+        )
+    else:
+        return VliResponse.new(
+            message=f"Count users per project {project_id} fetched successfully",
+            data={"total": len(users)},
         )

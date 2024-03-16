@@ -111,12 +111,6 @@ async def create_new_project_use_case(
         )
 
         # TODO: add include_members list to the group in KC
-        return VliResponse.new(
-            message="Project created successfully",
-            data={
-                "project": Project(**project.__dict__),
-            },
-        )
     except AssertionError:
         raise VliError(
             error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
@@ -141,4 +135,11 @@ async def create_new_project_use_case(
             error_code=VliErrorCode.SERVER_ERROR,
             http_status_code=status.INTERNAL_SERVER_ERROR,
             message="Error during creating a new project",
+        )
+    else:
+        return VliResponse.new(
+            message="Project created successfully",
+            data={
+                "project": Project(**project.__dict__),
+            },
         )

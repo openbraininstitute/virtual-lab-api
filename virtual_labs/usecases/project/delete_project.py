@@ -17,7 +17,7 @@ from virtual_labs.repositories.project_repo import (
 
 
 def delete_project_use_case(
-    session: Session, virtual_lab_id: UUID4, project_id: UUID4
+    session: Session, virtual_lab_id: UUID4, project_id: UUID4, user_id: UUID4
 ) -> Response | VliError:
     pqr = ProjectQueryRepository(session)
     pmr = ProjectMutationRepository(session)

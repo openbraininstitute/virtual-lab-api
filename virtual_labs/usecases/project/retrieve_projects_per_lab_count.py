@@ -18,11 +18,6 @@ def retrieve_projects_count_per_virtual_lab_use_case(
     try:
         count = pr.retrieve_projects_per_lab_count(virtual_lab_id)
 
-        return VliResponse.new(
-            message="Project count per virtual lab fetched successfully",
-            data={"count": count},
-        )
-
     except SQLAlchemyError:
         raise VliError(
             error_code=VliErrorCode.DATABASE_ERROR,
@@ -37,4 +32,12 @@ def retrieve_projects_count_per_virtual_lab_use_case(
             error_code=VliErrorCode.SERVER_ERROR,
             http_status_code=status.INTERNAL_SERVER_ERROR,
             message="Error during counting projects per virtual lab",
+        )
+    else:
+        return VliResponse.new(
+            message="Project count per virtual lab fetched successfully",
+            data={
+                "virtual_lab_id": virtual_lab_id,
+                "total": count,
+            },
         )

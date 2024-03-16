@@ -16,13 +16,7 @@ def retrieve_project_budget_use_case(
 ) -> Response | VliError:
     pr = ProjectQueryRepository(session)
     try:
-        budget = pr.retrieve_one_project_strict(virtual_lab_id, project_id).budget
-
-        return VliResponse.new(
-            message="Project budget fetched successfully",
-            data={"budget": budget},
-        )
-
+        project, _ = pr.retrieve_one_project_strict(virtual_lab_id, project_id)
     except SQLAlchemyError:
         raise VliError(
             error_code=VliErrorCode.DATABASE_ERROR,
@@ -37,4 +31,9 @@ def retrieve_project_budget_use_case(
             error_code=VliErrorCode.SERVER_ERROR,
             http_status_code=status.INTERNAL_SERVER_ERROR,
             message="Error during retrieving project budget",
+        )
+    else:
+        return VliResponse.new(
+            message="Project budget fetched successfully",
+            data={"budget": project.budget, "project_id": project_id},
         )

@@ -4,6 +4,15 @@ from typing import List, Optional
 from pydantic import UUID4, BaseModel
 
 
+class VirtualLabModel(BaseModel):
+    id: UUID4
+    name: str
+    description: str
+
+    class Config:
+        from_attributes = True
+
+
 class ProjectCreationModel(BaseModel):
     name: str
     description: Optional[str] = None
@@ -13,6 +22,8 @@ class ProjectCreationModel(BaseModel):
 class Project(BaseModel):
     id: UUID4
     nexus_project_id: str
+    admin_group_id: UUID4 | None
+    member_group_id: UUID4 | None
     name: str
     description: str | None
     budget: float | None
@@ -23,8 +34,22 @@ class Project(BaseModel):
         from_attributes = True
 
 
+class ProjectVlOut(Project):
+    virtual_lab: VirtualLabModel
+
+
 class ProjectExistenceOut(BaseModel):
     exist: bool
+
+
+class ProjectVLTuple(BaseModel):
+    project: Project
+    virtual_lab: VirtualLabModel
+
+
+class ProjectVLTupleOut(BaseModel):
+    projects: List[ProjectVlOut]
+    total: int
 
 
 class ProjectOut(BaseModel):
@@ -52,6 +77,7 @@ class ProjectCountOut(BaseModel):
 
 class ProjectWithStarredDateOut(Project):
     starred_at: datetime
+    starred: bool
 
 
 class StarProjectsOut(BaseModel):
