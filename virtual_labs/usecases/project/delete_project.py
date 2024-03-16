@@ -42,7 +42,9 @@ def delete_project_use_case(
             member_group_id,
             deleted,
             deleted_at,
-        ) = pmr.delete_project(virtual_lab_id=virtual_lab_id, project_id=project_id)
+        ) = pmr.delete_project(
+            virtual_lab_id=virtual_lab_id, project_id=project_id, user_id=user_id
+        )
 
         # TODO: deprecate nexus project
 

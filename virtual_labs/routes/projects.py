@@ -147,8 +147,14 @@ async def create_new_project(
     session: Session = Depends(default_session_factory),
     httpx_clt: AsyncClient = Depends(httpx_factory),
 ) -> Response | VliError:
+    # TODO: get user_id from token
+    user_id: UUID4 = uuid.UUID("a188837d-19ac-4ebc-b14f-a90b663357b3")
     return await project_cases.create_new_project_use_case(
-        session, virtual_lab_id=virtual_lab_id, payload=payload, httpx_clt=httpx_clt
+        session,
+        virtual_lab_id=virtual_lab_id,
+        user_id=user_id,
+        payload=payload,
+        httpx_clt=httpx_clt,
     )
 
 

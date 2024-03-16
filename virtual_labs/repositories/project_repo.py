@@ -186,6 +186,7 @@ class ProjectMutationRepository:
         *,
         payload: ProjectCreationBody,
         id: UUID4,
+        owner_id: UUID4,
         nexus_project_id: str,
         virtual_lab_id: UUID4,
         admin_group_id: str,
@@ -199,6 +200,7 @@ class ProjectMutationRepository:
             virtual_lab_id=virtual_lab_id,
             admin_group_id=admin_group_id,
             member_group_id=member_group_id,
+            owner_id=owner_id,
         )
         self.session.add(project)
         self.session.commit()
@@ -227,14 +229,14 @@ class ProjectMutationRepository:
         return result.one()
 
     def delete_project(
-        self, virtual_lab_id: UUID4, project_id: UUID4
+        self, virtual_lab_id: UUID4, project_id: UUID4, user_id: UUID4
     ) -> Row[Tuple[UUID, str, str, bool, datetime]]:
         stmt = (
             update(Project)
             .where(
                 and_(Project.id == project_id, Project.virtual_lab_id == virtual_lab_id)
             )
-            .values(deleted=True, deleted_at=func.now())
+            .values(deleted=True, deleted_at=func.now(), deleted_by=user_id)
             .returning(
                 Project.id,
                 Project.admin_group_id,

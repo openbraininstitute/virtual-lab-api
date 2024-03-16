@@ -22,6 +22,7 @@ async def create_new_project_use_case(
     session: Session,
     *,
     virtual_lab_id: UUID4,
+    user_id: UUID4,
     payload: ProjectCreationBody,
     httpx_clt: AsyncClient,
 ) -> Response | VliError:
@@ -107,6 +108,7 @@ async def create_new_project_use_case(
             nexus_project_id=nexus_project_id,
             admin_group_id=admin_group_id,
             member_group_id=member_group_id,
+            owner_id=user_id,
             # nexus_project_id=nexus_project.id,
         )
 
