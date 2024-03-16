@@ -15,9 +15,9 @@ def retrieve_projects_count_per_virtual_lab_use_case(
     session: Session, virtual_lab_id: UUID4
 ) -> Response | VliError:
     pr = ProjectQueryRepository(session)
+
     try:
         count = pr.retrieve_projects_per_lab_count(virtual_lab_id)
-
     except SQLAlchemyError:
         raise VliError(
             error_code=VliErrorCode.DATABASE_ERROR,

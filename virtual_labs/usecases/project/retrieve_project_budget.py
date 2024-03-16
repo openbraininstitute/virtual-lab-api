@@ -35,5 +35,8 @@ def retrieve_project_budget_use_case(
     else:
         return VliResponse.new(
             message="Project budget fetched successfully",
-            data={"budget": project.budget, "project_id": project_id},
+            data={
+                "project_id": project_id,
+                "budget": project.budget,
+            },
         )

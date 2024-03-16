@@ -1,5 +1,5 @@
 from http import HTTPStatus as status
-from typing import List
+from typing import Dict, List, cast
 
 from fastapi.responses import Response
 from loguru import logger
@@ -37,10 +37,11 @@ def retrieve_all_users_per_project_use_case(
     try:
         members = gqr.retrieve_group_users(str(project.member_group_id))
         admins = gqr.retrieve_group_users(str(project.admin_group_id))
+        # get unique list
         users: List[UserRepresentation] = list(
-            {v.id: v for v in admins + members}.values()
+            {cast(Dict[str, str], v)["id"]: v for v in admins + members}.values()
         )
-        shortened_users = [ShortenedUser(**u.__dict__) for u in users]
+        shortened_users = [ShortenedUser(**u) for u in users]
     except SQLAlchemyError:
         raise VliError(
             error_code=VliErrorCode.DATABASE_ERROR,

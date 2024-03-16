@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.core.types import UserRoleEnum
-from virtual_labs.domain.project import Project, ProjectCreationModel
+from virtual_labs.domain.project import Project, ProjectCreationBody
 from virtual_labs.repositories.group_repo import GroupMutationRepository
 from virtual_labs.repositories.labs import get_virtual_lab
 from virtual_labs.repositories.project_repo import ProjectMutationRepository
@@ -22,7 +22,7 @@ async def create_new_project_use_case(
     session: Session,
     *,
     virtual_lab_id: UUID4,
-    payload: ProjectCreationModel,
+    payload: ProjectCreationBody,
     httpx_clt: AsyncClient,
 ) -> Response | VliError:
     pr = ProjectMutationRepository(session)

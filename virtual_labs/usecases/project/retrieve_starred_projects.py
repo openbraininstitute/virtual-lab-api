@@ -18,21 +18,6 @@ def retrieve_starred_projects_use_case(
     pr = ProjectQueryRepository(session)
     try:
         projects = pr.retrieve_starred_projects_per_user(user_id)
-
-        return VliResponse.new(
-            message="Starred projects found successfully",
-            data={
-                "projects": [
-                    {
-                        **Project(**project.__dict__).__dict__,
-                        "starred_at": star.created_at,
-                    }
-                    for star, project in projects
-                ],
-                "total": len(projects),
-            },
-        )
-
     except SQLAlchemyError:
         raise VliError(
             error_code=VliErrorCode.DATABASE_ERROR,
@@ -47,4 +32,25 @@ def retrieve_starred_projects_use_case(
             error_code=VliErrorCode.SERVER_ERROR,
             http_status_code=status.INTERNAL_SERVER_ERROR,
             message="Error during retrieving starred projects",
+        )
+    else:
+        return VliResponse.new(
+            message="Starred projects found successfully",
+            data={
+                "projects": [
+                    {
+                        **Project(**project.__dict__).model_dump(
+                            exclude=[
+                                "admin_group_id",
+                                "member_group_id",
+                                "nexus_project_id",
+                                "created_at",
+                            ]
+                        ),
+                        "starred_at": star.created_at,
+                    }
+                    for star, project in projects
+                ],
+                "total": len(projects),
+            },
         )
