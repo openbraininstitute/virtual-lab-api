@@ -8,15 +8,16 @@ from pydantic import UUID4
 from sqlalchemy.orm import Session
 
 from virtual_labs.core.exceptions.api_error import VliError
-from virtual_labs.core.types import UserRoleEnum, VliAppResponse
+from virtual_labs.core.types import VliAppResponse
 from virtual_labs.domain.project import (
     ProjectBudgetOut,
     ProjectCreationModel,
     ProjectDeletionOut,
     ProjectExistenceOut,
     ProjectOut,
-    ProjectsOut,
     ProjectUpdateBudgetOut,
+    ProjectVlOut,
+    ProjectVLTupleOut,
     ProjectWithStarredDateOut,
     StarProjectsOut,
 )
@@ -32,23 +33,39 @@ router = APIRouter(
 
 @router.get(
     "/{virtual_lab_id}/projects",
-    operation_id="get_projects",
+    operation_id="get_all_user_projects_per_vl",
     summary="Retrieve projects per virtual lab for a specific user (only allowed projects)",
-    response_model=VliAppResponse[ProjectsOut],
+    response_model=VliAppResponse[ProjectVLTupleOut],
 )
 def retrieve_projects(
     virtual_lab_id: UUID4, session: Session = Depends(default_session_factory)
 ) -> Response | VliError:
     # TODO get it from token
-    user_id: UUID4 = uuid.uuid4()
-    return cases.retrieve_user_projects_use_case(session, virtual_lab_id, user_id)
+    user_id: UUID4 = UUID4("33b376c9-b681-4357-8b0e-ee869e580034")
+    return cases.retrieve_all_user_projects_per_vl_use_case(
+        session, virtual_lab_id, user_id
+    )
+
+
+@router.get(
+    "/projects",
+    operation_id="get_all_user_projects",
+    summary="Retrieve projects per virtual lab for a specific user (only allowed projects)",
+    response_model=VliAppResponse[ProjectVLTupleOut],
+)
+def retrieve_all_projects(
+    session: Session = Depends(default_session_factory),
+) -> Response | VliError:
+    # TODO get it from token
+    user_id: UUID4 = UUID4("33b376c9-b681-4357-8b0e-ee869e580034")
+    return cases.retrieve_all_user_projects_use_case(session, user_id)
 
 
 @router.get(
     "/{virtual_lab_id}/projects/_search",
-    operation_id="search_projects",
+    operation_id="search_projects_per_vl",
     summary="Fulltext search for only allowed projects per virtual lab for a specific user",
-    response_model=VliAppResponse[ProjectsOut],
+    response_model=VliAppResponse[ProjectVLTupleOut],
 )
 def search_projects_per_virtual_lab(
     virtual_lab_id: UUID4,
@@ -56,9 +73,26 @@ def search_projects_per_virtual_lab(
     session: Session = Depends(default_session_factory),
 ) -> Response | VliError:
     # TODO get it from token
-    user_id: UUID4 = uuid.uuid4()
+    user_id: UUID4 = UUID4("33b376c9-b681-4357-8b0e-ee869e580034")
     return cases.search_projects_per_virtual_lab_by_name_use_case(
         session, virtual_lab_id, user_id=user_id, query_term=q
+    )
+
+
+@router.get(
+    "/projects/_search",
+    operation_id="search_all_projects",
+    summary="Fulltext search for only allowed projects per virtual lab for a specific user",
+    response_model=VliAppResponse[ProjectVLTupleOut],
+)
+def search_projects(
+    q: str | None = Query(max_length=50, description="query string"),
+    session: Session = Depends(default_session_factory),
+) -> Response | VliError:
+    # TODO get it from token
+    user_id: UUID4 = UUID4("33b376c9-b681-4357-8b0e-ee869e580034")
+    return cases.search_projects_by_name_use_case(
+        session, user_id=user_id, query_term=q
     )
 
 
@@ -79,14 +113,17 @@ def check_project_existence(
     "/{virtual_lab_id}/projects/{project_id}",
     operation_id="get_project_by_id",
     summary="Retrieve single project detail per virtual lab",
-    response_model=VliAppResponse[ProjectOut],
+    response_model=VliAppResponse[ProjectVlOut],
 )
 def retrieve_project(
     virtual_lab_id: UUID4,
     project_id: UUID4,
     session: Session = Depends(default_session_factory),
 ) -> Response | VliError:
-    return cases.retrieve_single_project_use_case(session, virtual_lab_id, project_id)
+    user_id: UUID4 = UUID4("33b376c9-b681-4357-8b0e-ee869e580034")
+    return cases.retrieve_single_project_use_case(
+        session, virtual_lab_id, project_id, user_id=user_id
+    )
 
 
 @router.post(
@@ -127,8 +164,9 @@ def delete_project(
     The deletion is logic so the data will be preserved in the db and only
     the `deleted`, `deleted_at` properties will be updated
     """
+    user_id: UUID4 = UUID4("33b376c9-b681-4357-8b0e-ee869e580034")
     return cases.delete_project_use_case(
-        session, project_id=project_id, virtual_lab_id=virtual_lab_id
+        session, project_id=project_id, virtual_lab_id=virtual_lab_id, user_id=user_id
     )
 
 
@@ -165,8 +203,13 @@ def update_project_budget(
     to update the project budget from a specific virtual lab
     A check will be run to verify if the Virtual lab has the requested amount for the new budget
     """
+    user_id: UUID4 = UUID4("33b376c9-b681-4357-8b0e-ee869e580034")
     return cases.update_project_budget_use_case(
-        session, virtual_lab_id=virtual_lab_id, project_id=project_id, value=new_budget
+        session,
+        virtual_lab_id=virtual_lab_id,
+        project_id=project_id,
+        user_id=user_id,
+        value=new_budget,
     )
 
 
@@ -204,62 +247,6 @@ def retrieve_project_users_count(
 
 
 @router.patch(
-    "/{virtual_lab_id}/projects/{project_id}/attach",
-    operation_id="attach_user_to_project",
-    summary="Attach user to project",
-    tags=["Not Yet Implemented"],
-    response_model=VliAppResponse[None],
-)
-def attach_user_to_project(
-    virtual_lab_id: UUID4,
-    project_id: UUID4,
-    user_id: UUID4,
-    role: UserRoleEnum,
-    session: Session = Depends(default_session_factory),
-) -> Response | VliError:
-    """
-    Allow only the User that has the right role (based on KC groups "Virtual Lab Admin/Project Admin")
-    Attach a user to a project
-    """
-    # TODO: need more work
-    return cases.attach_user_to_project_use_case(
-        session,
-        virtual_lab_id=virtual_lab_id,
-        project_id=project_id,
-        user_id=user_id,
-        role=role,
-    )
-
-
-@router.patch(
-    "/{virtual_lab_id}/projects/{project_id}/detach",
-    operation_id="detach_user_to_project",
-    summary="Detach user to project",
-    tags=["Not Yet Implemented"],
-    response_model=VliAppResponse[None],
-)
-def detach_user_to_project(
-    virtual_lab_id: UUID4,
-    project_id: UUID4,
-    user_id: UUID4,
-    role: UserRoleEnum,
-    session: Session = Depends(default_session_factory),
-) -> Response | VliError:
-    """
-    Allow only the User that has the right role (based on KC groups "Virtual Lab Admin/Project Admin")
-    Detach a user from a project
-    """
-    # TODO: need more work
-    return cases.detach_user_from_project_use_case(
-        session,
-        virtual_lab_id=virtual_lab_id,
-        project_id=project_id,
-        user_id=user_id,
-        role=role,
-    )
-
-
-@router.patch(
     "/{virtual_lab_id}/projects/{project_id}/star-status",
     operation_id="star_or_unstar_project",
     summary="Star/Unstar (Pin/Unpin) project",
@@ -276,7 +263,7 @@ def update_project_star_status(
     Star or Unstar (Pin/Unpin) a project
     """
     # TODO get it from token
-    user_id: UUID4 = uuid.UUID("70d1de79-d4d1-4eba-a4c5-da016316b951", version=4)
+    user_id: UUID4 = uuid.UUID("a188837d-19ac-4ebc-b14f-a90b663357b3")
     return cases.update_star_project_status_use_case(
         session, virtual_lab_id=virtual_lab_id, project_id=project_id, user_id=user_id
     )
@@ -296,5 +283,5 @@ def retrieve_stars_project(
     Retrieve the star projects for a specific user
     """
     # TODO get it from token
-    user_id: UUID4 = uuid.UUID("70d1de79-d4d1-4eba-a4c5-da016316b951", version=4)
+    user_id: UUID4 = UUID4("33b376c9-b681-4357-8b0e-ee869e580034")
     return cases.retrieve_starred_projects_use_case(session, user_id=user_id)
