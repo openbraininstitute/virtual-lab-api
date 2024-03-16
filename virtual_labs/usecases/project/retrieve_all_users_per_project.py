@@ -41,7 +41,7 @@ def retrieve_all_users_per_project_use_case(
         users: List[UserRepresentation] = list(
             {cast(Dict[str, str], v)["id"]: v for v in admins + members}.values()
         )
-        shortened_users = [ShortenedUser(**u) for u in users]
+        shortened_users = [ShortenedUser(**u) for u in users]  # type: ignore[arg-type]
     except SQLAlchemyError:
         raise VliError(
             error_code=VliErrorCode.DATABASE_ERROR,

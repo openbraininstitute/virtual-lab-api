@@ -74,7 +74,6 @@ def update_star_project_status_use_case(
             message="Star/Unstar a project not allowed",
         )
     except Exception as ex:
-        print("ex", ex)
         logger.error(f"Error during staring user project: {project_id} ({ex})")
         raise VliError(
             error_code=VliErrorCode.SERVER_ERROR,

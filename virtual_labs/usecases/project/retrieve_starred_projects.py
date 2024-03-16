@@ -40,7 +40,7 @@ def retrieve_starred_projects_use_case(
                 "projects": [
                     {
                         **Project(**project.__dict__).model_dump(
-                            exclude=[
+                            exclude=[  # type: ignore[arg-type]
                                 "admin_group_id",
                                 "member_group_id",
                                 "nexus_project_id",

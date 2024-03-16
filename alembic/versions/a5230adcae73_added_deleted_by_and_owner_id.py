@@ -24,9 +24,7 @@ def upgrade() -> None:
     op.add_column("project", sa.Column("owner_id", sa.UUID(), nullable=True))
     op.add_column("project", sa.Column("deleted_by", sa.UUID(), nullable=True))
     project = sa.table("project", sa.column("owner_id", sa.UUID))
-    op.execute(
-        project.update().values({"owner_id": op.inline_literal(uuid.uuid4(), sa.UUID)})
-    )
+    op.execute(project.update().values({"owner_id": uuid.uuid4()}))
     op.alter_column("project", "owner_id", nullable=False)
     # ### end Alembic commands ###
 
