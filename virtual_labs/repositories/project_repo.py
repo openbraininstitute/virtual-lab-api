@@ -1,14 +1,14 @@
 from datetime import datetime
-from typing import Any, List, Tuple
+from typing import Any, List, Tuple, cast
 from uuid import UUID
 
 from pydantic import UUID4
-from sqlalchemy import Row, delete, func, update
+from sqlalchemy import Row, delete, func, or_, select, update
 from sqlalchemy.orm import Query, Session
 from sqlalchemy.sql import and_
 
 from ..domain.project import ProjectCreationModel
-from ..infrastructure.db.models import Project, ProjectStar
+from ..infrastructure.db.models import Project, ProjectStar, VirtualLab
 
 
 class ProjectQueryRepository:
@@ -17,37 +17,75 @@ class ProjectQueryRepository:
     def __init__(self, session: Session) -> None:
         self.session = session
 
-    def retrieve_projects_batch(self, virtual_lab_id: UUID4) -> List[Project]:
-        data = (
-            self.session.query(Project)
-            # TODO: for the moment just return everything until will have KC groups
-            # .filter(and_(Project.id in projects, Project.virtual_lab_id == virtual_lab_id))
-            .filter(~Project.deleted, Project.virtual_lab_id == virtual_lab_id)
-            .all()
+    def retrieve_projects_per_vl_batch(
+        self, virtual_lab_id: UUID4, groups: List[str]
+    ) -> List[Tuple[Project, VirtualLab]]:
+        stmt = (
+            select(Project, VirtualLab)
+            .join(VirtualLab)
+            .filter(
+                and_(
+                    or_(
+                        Project.admin_group_id.in_(groups),
+                        Project.member_group_id.in_(groups),
+                    ),
+                    Project.virtual_lab_id == virtual_lab_id,
+                    ~Project.deleted,
+                )
+            )
+            .order_by(Project.updated_at)
         )
-        return data
+        result = self.session.execute(statement=stmt)
+        return cast(List[Tuple[Project, VirtualLab]], result.all())
+
+    def retrieve_projects_batch(
+        self, groups: List[str]
+    ) -> List[Tuple[Project, VirtualLab]]:
+        stmt = (
+            select(Project, VirtualLab)
+            .join(VirtualLab)
+            .filter(
+                and_(
+                    or_(
+                        Project.admin_group_id.in_(groups),
+                        Project.member_group_id.in_(groups),
+                    ),
+                    ~Project.deleted,
+                )
+            )
+            .order_by(Project.updated_at)
+        )
+        result = self.session.execute(statement=stmt)
+        return cast(List[Tuple[Project, VirtualLab]], result.all())
 
     def retrieve_one_project_strict(
         self, virtual_lab_id: UUID4, project_id: UUID4
-    ) -> Project:
-        return (
-            self.session.query(Project)
+    ) -> Tuple[Project, VirtualLab]:
+        stmt = (
+            select(Project, VirtualLab)
+            .join(VirtualLab)
             .filter(
                 and_(Project.id == project_id, Project.virtual_lab_id == virtual_lab_id)
             )
-            .one()
         )
+        result = self.session.execute(statement=stmt)
+        return cast(Tuple[Project, VirtualLab], result.one())
 
     def retrieve_one_project(
         self, virtual_lab_id: UUID4, project_id: UUID4
-    ) -> Project | None:
-        return (
-            self.session.query(Project)
+    ) -> Row[Tuple[Project, VirtualLab]] | None:
+        stmt = (
+            select(Project, VirtualLab)
+            .join(VirtualLab)
             .filter(
                 and_(Project.id == project_id, Project.virtual_lab_id == virtual_lab_id)
             )
-            .first()
         )
+        result = self.session.execute(statement=stmt)
+        return result.first()
+
+    def retrieve_one_project_by_id(self, project_id: UUID4) -> Project:
+        return self.session.query(Project).where(Project.id == project_id).one()
 
     def retrieve_project_star(
         self, *, project_id: UUID4, user_id: UUID4
@@ -73,6 +111,13 @@ class ProjectQueryRepository:
         user_starred_projects = joined_query.all()
         return user_starred_projects
 
+    def retrieve_project_users_count(self, virtual_lab_id: UUID4) -> int:
+        return (
+            self.session.query(Project)
+            .filter(Project.virtual_lab_id == virtual_lab_id)
+            .count()
+        )
+
     def retrieve_projects_per_lab_count(self, virtual_lab_id: UUID4) -> int:
         return (
             self.session.query(Project)
@@ -80,13 +125,13 @@ class ProjectQueryRepository:
             .count()
         )
 
-    def retrieve_project_users_count(self, project_id: UUID4) -> None:
-        # TODO: this should be moved to user repository since the data will be gathered from the kc instance
-        return
-
     def search(
-        self, *, query_term: str, projects_ids: list[UUID4] | None = None
-    ) -> Query[Project]:
+        self,
+        *,
+        query_term: str,
+        virtual_lab_id: UUID4 | None = None,
+        groups_ids: list[str] | None = None,
+    ) -> List[Tuple[Project, VirtualLab]]:
         """
         the search fn can be used either for the full list of projects
         or provide list of projects for search within it
@@ -95,11 +140,33 @@ class ProjectQueryRepository:
             ~Project.deleted,
             func.lower(Project.name).like(f"%{query_term.lower()}%"),
         ]
+        if virtual_lab_id and groups_ids and (len(groups_ids) > 0):
+            conditions.append(
+                and_(
+                    Project.virtual_lab_id == virtual_lab_id,
+                    or_(
+                        Project.admin_group_id.in_(groups_ids),
+                        Project.admin_group_id.in_(groups_ids),
+                    ),
+                )
+            )
 
-        if projects_ids and (len(projects_ids) > 0):
-            conditions.append(Project.id.in_(projects_ids))
+        if groups_ids and (len(groups_ids) > 0):
+            conditions.append(
+                or_(
+                    Project.admin_group_id.in_(groups_ids),
+                    Project.admin_group_id.in_(groups_ids),
+                ),
+            )
 
-        return self.session.query(Project).filter(*conditions)
+        stmt = (
+            select(Project, VirtualLab)
+            .join(VirtualLab)
+            .filter(*conditions)
+            .order_by(Project.updated_at)
+        )
+        result = self.session.execute(statement=stmt)
+        return cast(List[Tuple[Project, VirtualLab]], result.all())
 
     def check(self, *, query_term: str) -> Query[Project]:
         """
@@ -209,7 +276,9 @@ class ProjectMutationRepository:
         self.session.refresh(project)
         return project
 
-    def unstar_project(self, *, project_id: UUID4, user_id: UUID4) -> Row[Tuple[UUID]]:
+    def unstar_project(
+        self, *, project_id: UUID4, user_id: UUID4
+    ) -> Row[Tuple[UUID, datetime]]:
         stmt = (
             delete(ProjectStar)
             .where(
@@ -217,7 +286,7 @@ class ProjectMutationRepository:
                     ProjectStar.project_id == project_id, ProjectStar.user_id == user_id
                 )
             )
-            .returning(ProjectStar.project_id)
+            .returning(ProjectStar.project_id, ProjectStar.updated_at)
         )
         result = self.session.execute(statement=stmt)
         self.session.commit()
