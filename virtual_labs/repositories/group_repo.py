@@ -7,7 +7,7 @@ from pydantic import UUID4
 
 from virtual_labs.core.exceptions.generic_exceptions import UserNotInList
 from virtual_labs.core.types import UserRoleEnum
-from virtual_labs.domain.project import ProjectCreationModel
+from virtual_labs.domain.project import ProjectCreationBody
 from virtual_labs.infrastructure.kc.config import kc_realm
 from virtual_labs.infrastructure.kc.models import (
     GroupRepresentation,
@@ -88,7 +88,7 @@ class GroupMutationRepository:
         virtual_lab_id: UUID4,
         project_id: UUID4,
         role: UserRoleEnum,
-        payload: ProjectCreationModel,
+        payload: ProjectCreationBody,
     ) -> str | None:
         """
         NOTE: you can not set the ID even in the docs says that is Optional

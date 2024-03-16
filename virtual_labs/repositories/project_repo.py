@@ -7,8 +7,8 @@ from sqlalchemy import Row, delete, func, or_, select, update
 from sqlalchemy.orm import Query, Session
 from sqlalchemy.sql import and_
 
-from ..domain.project import ProjectCreationModel
-from ..infrastructure.db.models import Project, ProjectStar, VirtualLab
+from virtual_labs.domain.project import ProjectCreationBody
+from virtual_labs.infrastructure.db.models import Project, ProjectStar, VirtualLab
 
 
 class ProjectQueryRepository:
@@ -121,7 +121,7 @@ class ProjectQueryRepository:
     def retrieve_projects_per_lab_count(self, virtual_lab_id: UUID4) -> int:
         return (
             self.session.query(Project)
-            .filter(Project.virtual_lab_id == virtual_lab_id)
+            .filter(and_(~Project.deleted, Project.virtual_lab_id == virtual_lab_id))
             .count()
         )
 
@@ -151,7 +151,7 @@ class ProjectQueryRepository:
                 )
             )
 
-        if groups_ids and (len(groups_ids) > 0):
+        elif groups_ids and (len(groups_ids) > 0):
             conditions.append(
                 or_(
                     Project.admin_group_id.in_(groups_ids),
@@ -169,12 +169,8 @@ class ProjectQueryRepository:
         return cast(List[Tuple[Project, VirtualLab]], result.all())
 
     def check(self, *, query_term: str) -> Query[Project]:
-        """
-        TODO: check the project for deleted projects
-        (depends on the discussion on how will handle deletion)
-        """
         query = self.session.query(Project).filter(
-            ~Project.deleted, func.lower(Project.name) == func.lower(query_term)
+            func.lower(Project.name) == func.lower(query_term)
         )
         return query
 
@@ -188,7 +184,7 @@ class ProjectMutationRepository:
     def create_new_project(
         self,
         *,
-        payload: ProjectCreationModel,
+        payload: ProjectCreationBody,
         id: UUID4,
         nexus_project_id: str,
         virtual_lab_id: UUID4,
