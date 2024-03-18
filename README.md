@@ -11,7 +11,11 @@
    ```sh
    make init # this is will start keycloak instance and local database
    ```
-3. Start the server. This will apply migrations and start the server.
+3. Run db migrations
+   ```
+   make init-db
+   ```
+4. Start the server. This will apply migrations and start the server.
 
    ```sh
    make dev

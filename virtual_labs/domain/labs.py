@@ -5,6 +5,8 @@ from pydantic import UUID4, BaseModel, EmailStr, JsonValue, field_validator
 
 from virtual_labs.core.types import UserRoleEnum
 from virtual_labs.domain.project import ProjectStar
+from virtual_labs.domain.user import ShortenedUser
+from virtual_labs.infrastructure.kc.models import UserRepresentation
 
 T = TypeVar("T")
 
@@ -111,11 +113,12 @@ class Labs(BaseModel):
 
 
 class VirtualLabUsers(BaseModel):
-    users: list[str]  # TODO: Refine type
+    added_users: list[ShortenedUser]
+    pending_users: list[ShortenedUser]
 
 
 class VirtualLabUser(BaseModel):
-    user: UUID4  # TODO: Refine type
+    user: UserRepresentation
 
 
 class Lab(BaseModel):
@@ -128,3 +131,12 @@ class LabVerbose(BaseModel):
 
 class AllPlans(BaseModel):
     all_plans: list[PlanDomain]
+
+
+class AddUserToVirtualLab(BaseModel):
+    email: EmailStr
+    role: UserRoleEnum
+
+
+class InviteSent(BaseModel):
+    invite_id: UUID4

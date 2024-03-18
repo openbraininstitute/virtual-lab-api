@@ -10,12 +10,21 @@ from sqlalchemy.orm import Session
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.repositories import labs as lab_repository
 from virtual_labs.repositories.user_repo import UserMutationRepository
+from virtual_labs.usecases.labs.lab_authorization import is_user_admin_of_lab
 
 
-def remove_user_from_lab(lab_id: UUID4, user_id: UUID4, db: Session) -> None:
+def remove_user_from_lab(
+    lab_id: UUID4, user_making_change: UUID4, user_id: UUID4, db: Session
+) -> None:
     try:
         lab = lab_repository.get_virtual_lab(db, lab_id)
 
+        if not is_user_admin_of_lab(user_id=user_making_change, lab=lab):
+            raise VliError(
+                message=f"Only admins of lab {lab.name} can remove other users from lab",
+                error_code=VliErrorCode.NOT_ALLOWED_OP,
+                http_status_code=HTTPStatus.FORBIDDEN,
+            )
         user_repository = UserMutationRepository()
 
         user_repository.detach_user_from_group(
@@ -44,6 +53,8 @@ def remove_user_from_lab(lab_id: UUID4, user_id: UUID4, db: Session) -> None:
             http_status_code=HTTPStatus.BAD_GATEWAY,
             message="Removing user from virtual lab failed due to a keycloak error",
         )
+    except VliError as error:
+        raise error
     except Exception as error:
         logger.warning(
             f"Unknown error when removing user {user_id} to lab {lab_id}: {error}"

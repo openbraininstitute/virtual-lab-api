@@ -4,6 +4,7 @@ from typing import List
 from pydantic import UUID4
 from sqlalchemy import func
 from sqlalchemy.orm import Session
+from sqlalchemy.sql import and_, or_
 
 from virtual_labs.domain import labs
 from virtual_labs.domain.common import PageParams
@@ -12,6 +13,7 @@ from virtual_labs.infrastructure.db.models import Project, VirtualLab
 
 class VirtualLabDbCreate(labs.VirtualLabCreate):
     id: UUID4
+    owner_id: UUID4
     admin_group_id: str
     member_group_id: str
 
@@ -21,11 +23,19 @@ def get_all_virtual_lab_for_user(db: Session) -> List[VirtualLab]:
 
 
 def get_paginated_virtual_labs(
-    db: Session, page_params: PageParams
+    db: Session, page_params: PageParams, group_ids: list[str]
 ) -> list[VirtualLab]:
     paginated_query = (
         db.query(VirtualLab)
-        .filter(~VirtualLab.deleted)
+        .filter(
+            and_(
+                ~VirtualLab.deleted,
+                or_(
+                    (VirtualLab.admin_group_id.in_(group_ids)),
+                    (VirtualLab.member_group_id.in_(group_ids)),
+                ),
+            )
+        )
         .offset((page_params.page - 1) * page_params.size)
         .limit(page_params.size)
         .all()
@@ -42,6 +52,7 @@ def get_virtual_lab(db: Session, lab_id: UUID4) -> VirtualLab:
 
 def create_virtual_lab(db: Session, lab: VirtualLabDbCreate) -> VirtualLab:
     db_lab = VirtualLab(
+        owner_id=lab.owner_id,
         id=lab.id,
         admin_group_id=lab.admin_group_id,
         member_group_id=lab.member_group_id,
@@ -53,7 +64,6 @@ def create_virtual_lab(db: Session, lab: VirtualLabDbCreate) -> VirtualLab:
         budget=lab.budget,
         plan_id=lab.plan_id,
     )
-
     db.add(db_lab)
     db.commit()
 

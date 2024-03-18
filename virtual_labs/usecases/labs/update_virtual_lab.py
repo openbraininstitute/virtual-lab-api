@@ -9,13 +9,23 @@ from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.domain import labs as domain
 from virtual_labs.infrastructure.db import models
 from virtual_labs.repositories import labs as repository
+from virtual_labs.usecases.labs.lab_authorization import is_user_admin_of_lab
 from virtual_labs.usecases.plans.verify_plan import verify_plan
 
 
 def update_virtual_lab(
-    db: Session, lab_id: UUID4, lab: domain.VirtualLabUpdate
+    db: Session, lab_id: UUID4, user_id: UUID4, lab: domain.VirtualLabUpdate
 ) -> models.VirtualLab:
     try:
+        db_lab = repository.get_virtual_lab(db, lab_id)
+
+        if not is_user_admin_of_lab(user_id, lab=db_lab):
+            raise VliError(
+                message=f"Only admins of lab can update labs and user {user_id} is not admin of lab {lab.name}",
+                error_code=VliErrorCode.NOT_ALLOWED_OP,
+                http_status_code=HTTPStatus.FORBIDDEN,
+            )
+
         if lab.plan_id is not None:
             verify_plan(db, lab.plan_id)
         return repository.update_virtual_lab(db, lab_id, lab)
@@ -54,6 +64,8 @@ def update_virtual_lab(
             error_code=VliErrorCode.DATABASE_ERROR,
             http_status_code=HTTPStatus.BAD_REQUEST,
         )
+    except VliError as error:
+        raise error
     except Exception as error:
         logger.error(
             "Virtual lab could not be saved due to an unknown error {}".format(error)

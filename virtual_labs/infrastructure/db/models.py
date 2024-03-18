@@ -10,7 +10,6 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
-    Null,
     String,
     Text,
     not_,
@@ -28,11 +27,13 @@ class VirtualLab(Base):
     __tablename__ = "virtual_lab"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    owner_id = Column(UUID(as_uuid=True), nullable=False)
+    admin_group_id = Column(String, nullable=False, unique=True)
+    member_group_id = Column(String, nullable=False, unique=True)
+
     nexus_organization_id = Column(
         String(255), nullable=False, unique=True
     )  # the string length may change in the future, when we know the structure of it
-    admin_group_id = Column(String, nullable=False, unique=True)
-    member_group_id = Column(String, nullable=False, unique=True)
 
     name = Column(String(250), index=True)
     description = Column(Text)
@@ -143,12 +144,64 @@ class VirtualLabInvite(Base):
     __tablename__ = "virtual_lab_invite"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    inviter_id = Column(UUID(as_uuid=True), nullable=False)
-    user_id = Column(UUID(as_uuid=True))
-    accepted = Column(Boolean, default=Null)
+    inviter_id = Column(UUID, nullable=False)
+    user_id = Column(UUID)
+    role = Column(String, nullable=False)
+    user_email = Column(String, nullable=False)
+    virtual_lab_id = Column(UUID, ForeignKey("virtual_lab.id"))
+    virtual_lab = relationship("VirtualLab", back_populates="invites")
+
+    accepted = Column(Boolean, default=False)
 
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, onupdate=func.now(), default=func.now())
 
-    virtual_lab_id = Column(UUID(as_uuid=True), ForeignKey("virtual_lab.id"))
-    virtual_lab = relationship("VirtualLab", back_populates="invites")
+
+# class VirtualLabInvite(Base):
+#     __tablename__ = "virtual_lab_invite"
+
+#     id: Mapped[UUID4] = mapped_column(
+#         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, init=False
+#     )
+#     inviter_id: Mapped[UUID4] = mapped_column(UUID, nullable=False)
+#     user_id: Mapped[UUID4 | None] = mapped_column(UUID)
+#     role: Mapped[UserRoleEnum] = mapped_column(String, nullable=False)
+#     user_email: Mapped[EmailStr] = mapped_column(String, nullable=False)
+#     virtual_lab_id: Mapped[UUID4] = mapped_column(UUID, ForeignKey("virtual_lab.id"))
+#     virtual_lab: Mapped[VirtualLab] = relationship(
+#         "VirtualLab", back_populates="invites", init=False
+#     )
+
+#     accepted: Mapped[UUID4] = mapped_column(Boolean, default=Null)
+
+#     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+#     updated_at: Mapped[datetime] = mapped_column(
+#         DateTime, onupdate=func.now(), default=func.now()
+#     )
+
+
+# class PaymentCard(Base):
+#     __tablename__ = "payment_card"
+
+#     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+#     cardNumber = Column(String(19))
+#     expiration_date = Column(DateTime)
+
+#     created_at = Column(DateTime, default=datetime.utcnow)
+#     updated_at = Column(DateTime, onupdate=datetime.utcnow)
+
+#     virtual_lab_id = Column(
+#         "virtual_lab_id", UUID(as_uuid=True), ForeignKey("virtual_lab.id")
+#     )
+#     virtual_lab = relationship("VirtualLab")
+
+
+# class Billing(Base):
+#     __tablename__ = "billing"
+
+#     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+
+#     payment_card_id = Column(
+#         "payment_card_id", UUID(as_uuid=True), ForeignKey("payment_card.id")
+#     )
+#     payment_card = relationship("PaymentCard")

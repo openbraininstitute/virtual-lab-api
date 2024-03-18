@@ -6,6 +6,7 @@ from loguru import logger
 from pydantic import UUID4
 
 from virtual_labs.core.exceptions.generic_exceptions import UserNotInList
+from virtual_labs.core.exceptions.identity_error import IdentityError
 from virtual_labs.core.types import UserRoleEnum
 from virtual_labs.domain.project import ProjectCreationBody
 from virtual_labs.infrastructure.kc.config import kc_realm
@@ -78,8 +79,9 @@ class GroupMutationRepository:
             logger.error(
                 f"Error when creating {role} group for lab {vl_name} with id {vl_id}: ({error})"
             )
-            raise Exception(
-                f"Error when creating {role} group for lab {vl_name} with id {vl_id}: ({error})"
+            raise IdentityError(
+                message=f"Error when creating {role} group for lab {vl_name} with id {vl_id}: ({error})",
+                detail=str(error),
             )
 
     def create_project_group(
