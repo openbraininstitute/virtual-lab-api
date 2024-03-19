@@ -16,11 +16,13 @@ def get_virtual_lab_users(db: Session, lab_id: UUID4) -> VirtualLabUsers:
 
     try:
         group_repository = GroupQueryRepository()
-
-        admins = group_repository.retrieve_group_users(str(lab.admin_group_id))
-        members = group_repository.retrieve_group_users(str(lab.member_group_id))
-
-        return VirtualLabUsers(users=admins + members)
+        # @dinika this has to be UserRepresentation
+        # admins group_repository.retrieve_group_users(str(lab.admin_group_id))
+        # members = group_repository.retrieve_group_users(str(lab.member_group_id))
+        group_repository.retrieve_group_users(str(lab.admin_group_id))
+        group_repository.retrieve_group_users(str(lab.member_group_id))
+        return VirtualLabUsers(users=[])
+        # return VirtualLabUsers(users=admins + members)
     except NoResultFound:
         raise VliError(
             message="Virtual lab not found",
