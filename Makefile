@@ -27,11 +27,11 @@ export HELPTEXT
 help:
 	@echo "$$HELPTEXT"
 
-dev: init-db 
+dev:
 	poetry run uvicorn virtual_labs.api:app --reload
 
 init: 
-	cd env-prep && docker compose -f docker-compose-dev.yml -p vlm-project up
+	./dev-init.sh
 
 kill: 
 	cd env-prep && docker compose -f docker-compose-dev.yml -p vlm-project down --remove-orphans

@@ -47,10 +47,13 @@ services:
       - keycloak-db
     command: 
       - start-dev
+      - --import-realm
     ports:
       - "9090:8080"
     networks:
       - ls
+    volumes:
+      - ./realm-export.json:/opt/keycloak/data/import/realm-import.json
 
   virtual-lab-db:
     image: postgres:latest
