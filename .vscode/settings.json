@@ -8,6 +8,7 @@
 "cSpell.words": [
   "autoflush",
   "DBAPI",
+  "disableable",
   "dotenv",
   "fastapi",
   "fulltext",
@@ -25,6 +26,7 @@
   "Sparql",
   "sqlalchemy",
   "starlette",
+  "totp",
   "tsvector",
   "unstar",
   "unstaring",

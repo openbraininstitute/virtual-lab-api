@@ -22,7 +22,6 @@ class GroupRepresentation(BaseModel):
     id: str
     name: str
     path: str
-    subGroups: List[Any]
 
     class Config:
         from_attributes = True

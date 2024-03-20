@@ -24,8 +24,6 @@ class ProjectCreationBody(BaseModel):
 class Project(BaseModel):
     id: UUID4
     nexus_project_id: str
-    admin_group_id: UUID4 | None
-    member_group_id: UUID4 | None
     name: str
     description: str | None
     budget: float | None
