@@ -112,6 +112,7 @@ async def create_new_project_use_case(
         nexus_project_id = await instantiate_nexus_project(
             virtual_lab_id=virtual_lab_id,
             project_id=project_id,
+            user_id=user_id,
             description=payload.description,
             admin_group_id=admin_group_id,
             member_group_id=member_group_id,

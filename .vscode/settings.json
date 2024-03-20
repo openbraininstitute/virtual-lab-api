@@ -7,6 +7,7 @@
 "editor.defaultFormatter": "charliermarsh.ruff",
 "cSpell.words": [
   "autoflush",
+  "datamodels",
   "DBAPI",
   "disableable",
   "dotenv",
@@ -19,6 +20,7 @@
   "Keycloack",
   "keycloak",
   "loguru",
+  "neurosciencegraph",
   "onupdate",
   "pydantic",
   "regconfig",
