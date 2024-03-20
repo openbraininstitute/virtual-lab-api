@@ -4,3 +4,7 @@ class UserNotInList(Exception):
 
 class BudgetExceedLimit(Exception):
     pass
+
+
+class ProjectAlreadyDeleted(Exception):
+    pass
