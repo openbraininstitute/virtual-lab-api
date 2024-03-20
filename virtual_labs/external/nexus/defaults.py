@@ -1,11 +1,12 @@
-from typing import List
+from typing import Any, Dict, List
 
-from virtual_labs.external.nexus.models import NexusApiMapping
+from virtual_labs.external.nexus.models import NexusApiMapping, NexusIdentity
 from virtual_labs.infrastructure.settings import settings
 
 AGGREGATE_SPARQL_VIEW = ["View", "AggregateSparqlView"]
 AGGREGATE_ELASTIC_SEARCH_VIEW = ["View", "AggregateElasticSearchView"]
 ELASTIC_SEARCH_VIEW = ["View", "ElasticSearchView"]
+CROSS_RESOLVER: List[str] = ["Resolver", "CrossProject"]
 PROJECTS_TO_AGGREGATE = ["bbp/atlas"]
 ES_RESOURCE_TYPE: List[str] = [
     "http://www.w3.org/ns/prov#Entity",
@@ -23,8 +24,10 @@ ES_VIEWS = [{"project": f"{pr}", "viewId": ES_VIEW_ID} for pr in PROJECTS_TO_AGG
 SP_VIEWS = [{"project": f"{pr}", "viewId": SP_VIEW_ID} for pr in PROJECTS_TO_AGGREGATE]
 
 API_MAPPING: List[NexusApiMapping] = []
-
+DEFAULT_CROSS_RESOLVER_PROJECTS = ["neurosciencegraph/datamodels"]
+DEFAULT_RESOLVER_PRIORITY = 50
 DEFAULT_PROJECT_VOCAB = "https://bbp.epfl.ch/ontologies/core/bmo/"
+DEFAULT_API_MAPPING_RESOURCE = "https://bbp.epfl.ch/nexus/v1/resources/neurosciencegraph/datamodels/_/nexus_api_mappings"
 DEFAULT_API_MAPPING: List[NexusApiMapping] = [
     {"namespace": "https://neuroshapes.org/dash/", "prefix": "datashapes"},
     {"namespace": "https://neuroshapes.org/dash/ontology", "prefix": "ontologies"},
@@ -96,3 +99,17 @@ DEFAULT_API_MAPPING: List[NexusApiMapping] = [
 
 def prep_project_base(virtual_lab_id: str, project_id: str) -> str:
     return f"{settings.DEPLOYMENT_NAMESPACE}/data/{virtual_lab_id}/{project_id}/"
+
+
+def prep_subtract_identity(
+    realm: str,
+    user: str,
+) -> NexusIdentity:
+    return {"realm": realm, "subject": user}
+
+
+def prep_default_local_context(vocab: str) -> Dict[str, Any]:
+    return {
+        "@context": ["https://neuroshapes.org", {"@vocab": vocab}],
+        "@id": "https://bbp.neuroshapes.org",
+    }
