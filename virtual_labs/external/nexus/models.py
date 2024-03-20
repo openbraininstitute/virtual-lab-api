@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Annotated, Any, List, Optional, TypedDict
 
-from pydantic import BaseModel, Field
+from pydantic import UUID4, BaseModel, Field
 
 
 class NexusBase(BaseModel):
@@ -17,7 +17,7 @@ class NexusBase(BaseModel):
 
 class NexusProject(NexusBase):
     label: Annotated[str, Field(alias="_label")]
-    uuid: Annotated[int, Field(alias="_uuid")]
+    uuid: Annotated[UUID4, Field(alias="_uuid")]
 
 
 class NexusApiMapping(TypedDict):
