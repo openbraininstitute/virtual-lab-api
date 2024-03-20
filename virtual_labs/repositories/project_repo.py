@@ -73,7 +73,7 @@ class ProjectQueryRepository:
 
     def retrieve_one_project(
         self, virtual_lab_id: UUID4, project_id: UUID4
-    ) -> Row[Tuple[Project, VirtualLab]] | None:
+    ) -> Tuple[Project, VirtualLab] | None:
         stmt = (
             select(Project, VirtualLab)
             .join(VirtualLab)
@@ -82,13 +82,13 @@ class ProjectQueryRepository:
             )
         )
         result = self.session.execute(statement=stmt)
-        return result.first()
+        return cast(Tuple[Project, VirtualLab], result.first())
 
     def retrieve_one_project_by_id(self, project_id: UUID4) -> Project:
         return self.session.query(Project).where(Project.id == project_id).one()
 
     def retrieve_one_project_by_name(self, name: str) -> Project | None:
-        return self.session.query(Project).filter(Project.name == name).one()
+        return self.session.query(Project).filter(Project.name == name).first()
 
     def retrieve_project_star(
         self, *, project_id: UUID4, user_id: UUID4
@@ -233,7 +233,7 @@ class ProjectMutationRepository:
 
     def delete_project(
         self, virtual_lab_id: UUID4, project_id: UUID4, user_id: UUID4
-    ) -> Row[Tuple[UUID, str, str, bool, datetime]]:
+    ) -> Row[Tuple[UUID, bool, datetime]]:
         stmt = (
             update(Project)
             .where(
@@ -242,8 +242,6 @@ class ProjectMutationRepository:
             .values(deleted=True, deleted_at=func.now(), deleted_by=user_id)
             .returning(
                 Project.id,
-                Project.admin_group_id,
-                Project.member_group_id,
                 Project.deleted,
                 Project.deleted_at,
             )
