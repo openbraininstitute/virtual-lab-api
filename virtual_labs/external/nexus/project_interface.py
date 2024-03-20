@@ -51,7 +51,30 @@ class NexusProjectInterface:
         self.httpx_clt = httpx_clt
         pass
 
-    async def create_nexus_project(
+    async def retrieve_project(
+        self,
+        *,
+        virtual_lab_id: UUID4,
+        project_id: UUID4,
+    ) -> NexusProject:
+        nexus_project_url = f"{settings.NEXUS_DELTA_URI}/projects/{str(virtual_lab_id)}/{str(project_id)}"
+        try:
+            response = await self.httpx_clt.get(
+                nexus_project_url,
+                headers=self.headers,
+            )
+            response.raise_for_status()
+
+            data = response.json()
+            return NexusProject(**data)
+        except Exception as ex:
+            logger.error(f"Error during fetching nexus project {ex}")
+            raise NexusError(
+                message="Error during fetching nexus project",
+                type=NexusErrorValue.FETCH_PROJECT_ERROR,
+            )
+
+    async def create_project(
         self,
         *,
         virtual_lab_id: UUID4,
@@ -181,12 +204,9 @@ class NexusProjectInterface:
             )
 
     async def deprecate_project(
-        self,
-        *,
-        virtual_lab_id: UUID4,
-        project_id: UUID4,
+        self, *, virtual_lab_id: UUID4, project_id: UUID4, revision: int
     ) -> NexusProject:
-        nexus_acl_url = f"{settings.NEXUS_DELTA_URI}/projects/{str(virtual_lab_id)}/{str(project_id)}"
+        nexus_acl_url = f"{settings.NEXUS_DELTA_URI}/projects/{str(virtual_lab_id)}/{str(project_id)}?rev={revision}"
 
         try:
             response = await self.httpx_clt.delete(
