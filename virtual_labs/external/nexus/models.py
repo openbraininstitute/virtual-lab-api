@@ -3,6 +3,8 @@ from typing import Annotated, Any, List, Optional, TypedDict
 
 from pydantic import UUID4, BaseModel, Field
 
+from virtual_labs.external.nexus.defaults import CROSS_RESOLVER
+
 
 class NexusBase(BaseModel):
     context: Annotated[List[str], Field(alias="@context")] = []
@@ -27,6 +29,7 @@ class NexusApiMapping(TypedDict):
 
 class NexusIdentity(TypedDict):
     realm: str
+    subject: str | None
 
 
 class NexusResource(NexusBase):
@@ -35,6 +38,10 @@ class NexusResource(NexusBase):
 
 class NexusAcls(NexusBase):
     type: Annotated[str | List[str], Field(alias="@type")] = "AccessControlList"
+
+
+class NexusCrossResolver(NexusBase):
+    type: Annotated[str | List[str], Field(alias="@type")] = CROSS_RESOLVER
 
 
 class NexusAclResult(NexusBase):
@@ -81,3 +88,7 @@ class NexusElasticSearchViewMapping(BaseModel):
     ]
     mapping: NexusESViewMappingProperty
     pipeline: Annotated[List[Any], Field(default=List)] = []
+
+
+class NexusPermissions(NexusBase):
+    permissions: List[str]
