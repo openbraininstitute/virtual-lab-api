@@ -45,4 +45,4 @@ class VliError(Exception):
 
     def __repr__(self) -> str:
         class_name = self.__class__.__name__
-        return f'{class_name}(message="{self.message}", error_code={self.error_code}, http_status_code={self.http_status_code})'
+        return f'{class_name}(message="{self.message}", error_code={self.error_code}, details={self.details}, http_status_code={self.http_status_code})'
