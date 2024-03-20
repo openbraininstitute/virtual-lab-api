@@ -14,7 +14,10 @@ from virtual_labs.core.types import UserRoleEnum
 from virtual_labs.domain.project import Project, ProjectCreationBody
 from virtual_labs.repositories.group_repo import GroupMutationRepository
 from virtual_labs.repositories.labs import get_virtual_lab
-from virtual_labs.repositories.project_repo import ProjectMutationRepository
+from virtual_labs.repositories.project_repo import (
+    ProjectMutationRepository,
+    ProjectQueryRepository,
+)
 
 
 async def create_new_project_use_case(
@@ -25,7 +28,9 @@ async def create_new_project_use_case(
     payload: ProjectCreationBody,
     httpx_clt: AsyncClient,
 ) -> Response | VliError:
-    pr = ProjectMutationRepository(session)
+    project_id: UUID4 = uuid4()
+    pmr = ProjectMutationRepository(session)
+    pqr = ProjectQueryRepository(session)
     gmr = GroupMutationRepository()
 
     try:
@@ -36,22 +41,16 @@ async def create_new_project_use_case(
             http_status_code=status.BAD_REQUEST,
             message="Virtual lab not found",
         )
-    """ 
-        TODO: 1. check if the user in admin group of the virtual lab to allow him to create a project, (this can be a decorator)
-        TODO: 2. when create the groups, attach the current user to the group, 
-        TODO: 3. when create the groups, attach the list of the users (included_members) to the current member group,
-        TODO: 4. when create the groups, attach the VL admin users list of current admin group,
-    """
 
-    """
-    steps: 
-        > Create groups for the project (admin/member)
-        > Create Local Project
-        > Create Nexus Project
-        > if Nexus failed -> remove groups, and local project
-        > else return response
-    """
-    project_id: UUID4 = uuid4()
+    try:
+        pqr.retrieve_one_project_by_name(name=payload.name)
+    except Exception as ex:
+        logger.error(f"Error during retrieving the project ({ex})")
+        raise VliError(
+            error_code=VliErrorCode.ENTITY_ALREADY_EXISTS,
+            http_status_code=status.BAD_REQUEST,
+            message="Another project with the same name already exists",
+        )
 
     try:
         admin_group_id = gmr.create_project_group(
@@ -67,6 +66,7 @@ async def create_new_project_use_case(
             payload=payload,
             role=UserRoleEnum.member,
         )
+
         assert admin_group_id is not None
         assert member_group_id is not None
 
@@ -85,11 +85,33 @@ async def create_new_project_use_case(
         )
 
     try:
-        project = pr.create_new_project(
+        nexus_project_id = await instantiate_nexus_project(
+            virtual_lab_id=virtual_lab_id,
+            project_id=project_id,
+            description=payload.description,
+            admin_group_id=admin_group_id,
+            member_group_id=member_group_id,
+        )
+        # TODO: add include_members list to the group in KC
+
+    except NexusError as ex:
+        logger.error(f"Error during reverting project instance due nexus error ({ex})")
+        gmr.delete_group(group_id=admin_group_id)
+        gmr.delete_group(group_id=member_group_id)
+
+        raise VliError(
+            error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
+            http_status_code=status.BAD_REQUEST,
+            message="Nexus Project creation failed",
+            details=ex.type,
+        )
+
+    try:
+        project = pmr.create_new_project(
             id=project_id,
             payload=payload,
             virtual_lab_id=virtual_lab_id,
-            nexus_project_id=str(uuid4()),
+            nexus_project_id=nexus_project_id,
             admin_group_id=admin_group_id,
             member_group_id=member_group_id,
             owner_id=user_id,

@@ -88,7 +88,7 @@ class ProjectQueryRepository:
         return self.session.query(Project).where(Project.id == project_id).one()
 
     def retrieve_one_project_by_name(self, name: str) -> Project | None:
-        return self.session.query(Project).filter(Project.name == name).first()
+        return self.session.query(Project).filter(Project.name == name).one()
 
     def retrieve_project_star(
         self, *, project_id: UUID4, user_id: UUID4
