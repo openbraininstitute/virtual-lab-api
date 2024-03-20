@@ -3,8 +3,9 @@ from typing import List
 from virtual_labs.external.nexus.models import NexusApiMapping
 from virtual_labs.infrastructure.settings import settings
 
-AGGREGATE_SPARQL_VIEW = "AggregateSparqlView"
-AGGREGATE_ELASTIC_SEARCH_VIEW = "AggregateElasticSearchView"
+AGGREGATE_SPARQL_VIEW = ["View", "AggregateSparqlView"]
+AGGREGATE_ELASTIC_SEARCH_VIEW = ["View", "AggregateElasticSearchView"]
+ELASTIC_SEARCH_VIEW = ["View", "ElasticSearchView"]
 PROJECTS_TO_AGGREGATE = ["bbp/atlas"]
 ES_RESOURCE_TYPE: List[str] = [
     "http://www.w3.org/ns/prov#Entity",
@@ -18,12 +19,8 @@ SP_VIEW_ID = "https://bluebrain.github.io/nexus/vocabulary/defaultSparqlIndex"
 AG_ES_VIEW_ID = "https://bbp.epfl.ch/neurosciencegraph/data/views/aggreg-es/dataset"
 AG_SP_VIEW_ID = "https://bbp.epfl.ch/neurosciencegraph/data/views/aggreg-sp/dataset"
 
-ES_VIEWS = [
-    {"project": f"projects/{pr}", "viewId": ES_VIEW_ID} for pr in PROJECTS_TO_AGGREGATE
-]
-SP_VIEWS = [
-    {"project": f"projects/{pr}", "viewId": SP_VIEW_ID} for pr in PROJECTS_TO_AGGREGATE
-]
+ES_VIEWS = [{"project": f"{pr}", "viewId": ES_VIEW_ID} for pr in PROJECTS_TO_AGGREGATE]
+SP_VIEWS = [{"project": f"{pr}", "viewId": SP_VIEW_ID} for pr in PROJECTS_TO_AGGREGATE]
 
 API_MAPPING: List[NexusApiMapping] = []
 
