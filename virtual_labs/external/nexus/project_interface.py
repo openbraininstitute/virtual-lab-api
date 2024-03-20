@@ -1,4 +1,5 @@
 from typing import Any, Dict, List, Optional, cast
+from urllib.parse import quote
 
 from httpx import AsyncClient
 from loguru import logger
@@ -10,6 +11,8 @@ from virtual_labs.external.nexus.defaults import (
     AG_SP_VIEW_ID,
     AGGREGATE_ELASTIC_SEARCH_VIEW,
     AGGREGATE_SPARQL_VIEW,
+    CROSS_RESOLVER,
+    DEFAULT_RESOLVER_PRIORITY,
     ELASTIC_SEARCH_VIEW,
     ES_VIEW_ID,
     ES_VIEWS,
@@ -20,6 +23,9 @@ from virtual_labs.external.nexus.defaults import (
 from virtual_labs.external.nexus.models import (
     NexusAcls,
     NexusApiMapping,
+    NexusCrossResolver,
+    NexusIdentity,
+    NexusPermissions,
     NexusProject,
     NexusResource,
     NexusResultAcl,
@@ -174,7 +180,7 @@ class NexusProjectInterface:
             logger.error(f"Error during creating nexus project acls {ex}")
             raise NexusError(
                 message="Error during creating nexus project acls",
-                type=NexusErrorValue.CREATE_PROJECT_ACL_ERROR,
+                type=NexusErrorValue.APPEND_ACL_ERROR,
             )
 
     async def delete_project_acl_revision(
@@ -337,4 +343,141 @@ class NexusProjectInterface:
             raise NexusError(
                 message="Error during creating nexus sp aggregate view",
                 type=NexusErrorValue.CREATE_SP_AGG_VIEW_ERROR,
+            )
+
+    async def retrieve_all_permissions(self) -> NexusPermissions:
+        nexus_permissions_url = f"{settings.NEXUS_DELTA_URI}/permissions"
+        try:
+            response = await self.httpx_clt.get(
+                nexus_permissions_url,
+                headers=self.headers,
+            )
+            response.raise_for_status()
+
+            data = response.json()
+            return NexusPermissions(**data)
+        except Exception as ex:
+            logger.error(f"Error during fetching nexus permissions {ex}")
+            raise NexusError(
+                message="Error during fetching nexus permissions",
+                type=NexusErrorValue.FETCH_NEXUS_PERMISSIONS_ERROR,
+            )
+
+    async def subtract_project_acls(
+        self,
+        *,
+        virtual_lab_id: UUID4,
+        project_id: UUID4,
+        permissions: List[str,],
+        identity: NexusIdentity,
+        revision: int,
+    ) -> NexusAcls:
+        nexus_acl_url = f"{settings.NEXUS_DELTA_URI}/acls/{str(virtual_lab_id)}/{str(project_id)}?rev={revision}"
+
+        try:
+            response = await self.httpx_clt.patch(
+                nexus_acl_url,
+                headers=self.headers,
+                json={
+                    "@type": "Subtract",
+                    "acl": [
+                        {
+                            "permissions": permissions,
+                            "identity": {
+                                "realm": identity["realm"],
+                                "subject": identity["subject"],
+                            },
+                        },
+                    ],
+                },
+            )
+            response.raise_for_status()
+
+            data = response.json()
+            return NexusAcls(**data)
+        except Exception as ex:
+            logger.error(f"Error during creating nexus project acls {ex}")
+            raise NexusError(
+                message="Error during creating nexus project acls",
+                type=NexusErrorValue.SUBTRACT_ACL_ERROR,
+            )
+
+    async def retrieve_resource(
+        self, *, virtual_lab_id: UUID4 | str, project_id: UUID4 | str, resource_id: str
+    ) -> NexusResource:
+        nexus_acl_url = f"{settings.NEXUS_DELTA_URI}/resources/{str(virtual_lab_id)}/{str(project_id)}/{quote(resource_id, safe='')}"
+
+        try:
+            response = await self.httpx_clt.get(
+                nexus_acl_url,
+                headers=self.headers,
+            )
+            response.raise_for_status()
+
+            data = response.json()
+            return NexusResource(**data)
+        except Exception as ex:
+            logger.error(f"Error during fetching of nexus resource {ex}")
+            raise NexusError(
+                message="Error during fetching of nexus resource",
+                type=NexusErrorValue.FETCH_RESOURCE_ERROR,
+            )
+
+    async def create_resolver(
+        self,
+        *,
+        virtual_lab_id: UUID4,
+        project_id: UUID4,
+        resolver_id: str | None = None,
+        type: List[str] = CROSS_RESOLVER,
+        projects: List[str],
+        identities: List[NexusIdentity],
+        priority: int = DEFAULT_RESOLVER_PRIORITY,
+    ) -> NexusCrossResolver:
+        nexus_resolver_url = f"{settings.NEXUS_DELTA_URI}/resolvers/{str(virtual_lab_id)}/{str(project_id)}"
+        payload = {
+            "@type": type,
+            "projects": projects,
+            "identities": identities,
+            "priority": priority,
+        }
+
+        if resolver_id:
+            payload["@id"] = resolver_id
+        try:
+            response = await self.httpx_clt.post(
+                nexus_resolver_url, headers=self.headers, json=payload
+            )
+            response.raise_for_status()
+
+            data = response.json()
+            return NexusCrossResolver(**data)
+        except Exception as ex:
+            logger.error(f"Error during creating nexus resolver {ex}")
+            raise NexusError(
+                message="Error during creating nexus resolver",
+                type=NexusErrorValue.CREATE_RESOLVER_ERROR,
+            )
+
+    async def create_resource(
+        self,
+        *,
+        virtual_lab_id: UUID4,
+        project_id: UUID4,
+        payload: Dict[str, Any],
+    ) -> NexusResource:
+        nexus_resource_url = f"{settings.NEXUS_DELTA_URI}/resources/{str(virtual_lab_id)}/{str(project_id)}"
+        try:
+            response = await self.httpx_clt.post(
+                nexus_resource_url, headers=self.headers, json=payload
+            )
+            response.raise_for_status()
+
+            data = response.json()
+            return NexusResource(**data)
+        except Exception as ex:
+            logger.error(f"Error during creating nexus resource {ex}")
+            raise NexusError(
+                message="Error during creating nexus resource",
+                type=NexusErrorValue.CREATE_RESOURCE_ERROR,
             )
