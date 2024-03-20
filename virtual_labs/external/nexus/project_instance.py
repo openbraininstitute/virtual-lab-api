@@ -26,7 +26,7 @@ async def instantiate_nexus_project(
 
     async with httpx.AsyncClient(transport=transport) as httpx_clt:
         nexus_interface = NexusProjectInterface(httpx_clt)
-        nexus_project = await nexus_interface.create_nexus_project(
+        nexus_project = await nexus_interface.create_project(
             virtual_lab_id=virtual_lab_id,
             project_id=project_id,
             vocab=DEFAULT_PROJECT_VOCAB,
@@ -63,15 +63,14 @@ async def instantiate_nexus_project(
             rev=last_acl_rev,
         )
 
-        await nexus_interface.append_project_acls(
-            virtual_lab_id=virtual_lab_id,
-            project_id=project_id,
-            group_id=member_group_id,
-            permissions=project_member_acls,
-            rev=appended_admin_group_acls.rev,
-        )
-
         nexus_tasks = [
+            nexus_interface.append_project_acls(
+                virtual_lab_id=virtual_lab_id,
+                project_id=project_id,
+                group_id=member_group_id,
+                permissions=project_member_acls,
+                rev=appended_admin_group_acls.rev,
+            ),
             nexus_interface.create_nexus_es_aggregate_view(
                 virtual_lab_id=virtual_lab_id, project_id=project_id
             ),
@@ -80,6 +79,13 @@ async def instantiate_nexus_project(
             ),
         ]
 
-        await asyncio.gather(*list(map(asyncio.create_task, nexus_tasks)))
+        await asyncio.gather(
+            *list(
+                map(
+                    asyncio.create_task,
+                    nexus_tasks,
+                )
+            )
+        )
 
         return nexus_project.self
