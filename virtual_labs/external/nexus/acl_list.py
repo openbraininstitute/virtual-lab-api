@@ -6,7 +6,6 @@ project_member_acls: List[str] = [
     "resources/read",
     "views/query",
     "views/write",
-    "archives/write",
 ]
 
 project_admin_acls: List[str] = [
@@ -26,3 +25,34 @@ virtual_lab_admin_acls: List[str] = [
 ]
 
 virtual_lab_member_acls: List[str] = []
+
+# TODO: to delete, just for info
+all_acls = [
+    "version/read",
+    "acls/read",
+    "acls/write",
+    "events/read",
+    "files/write",
+    "organizations/create",
+    "organizations/read",
+    "organizations/write",
+    "permissions/read",
+    "permissions/write",
+    "projects/create",
+    "projects/read",
+    "projects/write",
+    "projects/delete",
+    "realms/read",
+    "realms/write",
+    "resolvers/write",
+    "resources/read",
+    "resources/write",
+    "schemas/write",
+    "views/query",
+    "views/write",
+    "storages/write",
+    "quotas/read",
+    "supervision/read",
+    "typehierarchy/write",
+    "export/run",
+]
