@@ -3,7 +3,6 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, Query
 from fastapi.responses import Response
-from httpx import AsyncClient
 from pydantic import UUID4
 from sqlalchemy.orm import Session
 
@@ -25,7 +24,6 @@ from virtual_labs.domain.project import (
     StarProjectsOut,
 )
 from virtual_labs.infrastructure.db.config import default_session_factory
-from virtual_labs.infrastructure.transport.httpx import httpx_factory
 from virtual_labs.usecases import project as project_cases
 
 router = APIRouter(
@@ -174,14 +172,12 @@ async def delete_project(
     virtual_lab_id: UUID4,
     project_id: UUID4,
     session: Session = Depends(default_session_factory),
-    httpx_clt: AsyncClient = Depends(httpx_factory),
 ) -> Response | VliError:
-    user_id: UUID4 = uuid.UUID("33b376c9-b681-4357-8b0e-ee869e580034")
+    user_id: UUID4 = uuid.UUID("d2124b89-598e-4196-aaf6-80cfdd9673c8")
     return await project_cases.delete_project_use_case(
         session,
-        httpx_clt,
-        project_id=project_id,
         virtual_lab_id=virtual_lab_id,
+        project_id=project_id,
         user_id=user_id,
     )
 
