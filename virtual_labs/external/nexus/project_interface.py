@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 
 from httpx import AsyncClient
 from loguru import logger
@@ -6,8 +6,11 @@ from pydantic import UUID4
 
 from virtual_labs.core.exceptions.nexus_error import NexusError, NexusErrorValue
 from virtual_labs.external.nexus.defaults import (
+    AG_ES_VIEW_ID,
+    AG_SP_VIEW_ID,
     AGGREGATE_ELASTIC_SEARCH_VIEW,
     AGGREGATE_SPARQL_VIEW,
+    ELASTIC_SEARCH_VIEW,
     ES_VIEW_ID,
     ES_VIEWS,
     SP_VIEW_ID,
@@ -21,6 +24,7 @@ from virtual_labs.external.nexus.models import (
     NexusResource,
     NexusResultAcl,
 )
+from virtual_labs.infrastructure.kc.config import kc_auth
 from virtual_labs.infrastructure.settings import settings
 
 
@@ -31,13 +35,19 @@ def create_context(vocab: str) -> Dict[str, Any]:
     }
 
 
-token = "bearer"
+def auth() -> str:
+    token = kc_auth.token("test", "test")
+    return cast(str, token["access_token"])
 
 
 class NexusProjectInterface:
     httpx_clt: AsyncClient
 
     def __init__(self, httpx_clt: AsyncClient) -> None:
+        self.headers = {
+            "Content-Type": "application/json",
+            "Authorization": "bearer {}".format(auth()),
+        }
         self.httpx_clt = httpx_clt
         pass
 
@@ -56,10 +66,11 @@ class NexusProjectInterface:
         project_base = prep_project_base(
             virtual_lab_id=str(virtual_lab_id), project_id=str(project_id)
         )
+        print("self.headers", self.headers)
         try:
             response = await self.httpx_clt.put(
                 nexus_project_url,
-                headers={"Content-Type": "application/json", "Authorization": token},
+                headers=self.headers,
                 json={
                     "description": description,
                     "apiMappings": apiMapping,
@@ -90,7 +101,7 @@ class NexusProjectInterface:
         try:
             response = await self.httpx_clt.get(
                 nexus_acl_url,
-                headers={"Content-Type": "application/json", "Authorization": token},
+                headers=self.headers,
             )
             response.raise_for_status()
 
@@ -117,7 +128,7 @@ class NexusProjectInterface:
         try:
             response = await self.httpx_clt.patch(
                 nexus_acl_url,
-                headers={"Content-Type": "application/json", "Authorization": token},
+                headers=self.headers,
                 json={
                     "@type": "Append",
                     "acl": [
@@ -154,7 +165,10 @@ class NexusProjectInterface:
         )
 
         try:
-            response = await self.httpx_clt.delete(nexus_acl_url)
+            response = await self.httpx_clt.delete(
+                nexus_acl_url,
+                headers=self.headers,
+            )
             response.raise_for_status()
 
             data = response.json()
@@ -177,6 +191,7 @@ class NexusProjectInterface:
         try:
             response = await self.httpx_clt.delete(
                 nexus_acl_url,
+                headers=self.headers,
             )
             response.raise_for_status()
 
@@ -189,25 +204,74 @@ class NexusProjectInterface:
                 type=NexusErrorValue.DEPRECATE_PROJECT_ERROR,
             )
 
+    async def create_es_view(
+        self,
+        *,
+        virtual_lab_id: UUID4,
+        project_id: UUID4,
+        view_id: str = ES_VIEW_ID,
+        mapping: Dict[str, Any],
+        source_as_text: Optional[bool] = None,
+        resource_types: Optional[List[str]] = None,
+        include_metadata: bool = False,
+        include_deprecated: bool = False,
+    ) -> NexusResource:
+        nexus_es_view_url = (
+            f"{settings.NEXUS_DELTA_URI}/views/{str(virtual_lab_id)}/{str(project_id)}"
+        )
+        payload = {
+            "@id": view_id,
+            "@type": ELASTIC_SEARCH_VIEW,
+            "mapping": mapping,
+            "includeMetadata": include_metadata,
+            "includeDeprecated": include_deprecated,
+        }
+
+        if resource_types:
+            payload["resourceTypes"] = resource_types
+        if source_as_text is not None:
+            payload["sourceAsText"] = source_as_text
+
+        try:
+            response = await self.httpx_clt.post(
+                nexus_es_view_url, headers=self.headers, json=payload
+            )
+            response.raise_for_status()
+
+            data = response.json()
+            return NexusResource(**data)
+        except Exception as ex:
+            logger.error(f"Error during creating nexus es view {ex}")
+            raise NexusError(
+                message="Error during creating nexus es view",
+                type=NexusErrorValue.CREATE_ES_VIEW_ERROR,
+            )
+
     async def create_nexus_es_aggregate_view(
         self,
         *,
         virtual_lab_id: UUID4,
         project_id: UUID4,
-        view_id: str = "https://bbp.epfl.ch/neurosciencegraph/data/views/es/dataset",
+        view_id: str = AG_ES_VIEW_ID,
     ) -> NexusResource:
-        nexus_es_view_url = f"{settings.NEXUS_DELTA_URI}/views/{str(virtual_lab_id)}/{str(project_id)}/{view_id}"
+        nexus_es_view_url = (
+            f"{settings.NEXUS_DELTA_URI}/views/{str(virtual_lab_id)}/{str(project_id)}"
+        )
         views = [
             {
                 "project": f"{str(virtual_lab_id)}/{str(project_id)}",
                 "viewId": ES_VIEW_ID,
             }
         ] + ES_VIEWS
-
         try:
-            response = await self.httpx_clt.put(
+            response = await self.httpx_clt.post(
                 nexus_es_view_url,
-                json={"@type": AGGREGATE_ELASTIC_SEARCH_VIEW, "views": views},
+                headers=self.headers,
+                json={
+                    "@id": view_id,
+                    "@type": AGGREGATE_ELASTIC_SEARCH_VIEW,
+                    "views": views,
+                },
             )
             response.raise_for_status()
 
@@ -225,17 +289,24 @@ class NexusProjectInterface:
         *,
         virtual_lab_id: UUID4,
         project_id: UUID4,
-        view_id: str = "https://bbp.epfl.ch/neurosciencegraph/data/views/es/dataset",
+        view_id: str = AG_SP_VIEW_ID,
     ) -> NexusResource:
-        nexus_es_view_url = f"{settings.NEXUS_DELTA_URI}/views/{str(virtual_lab_id)}/{str(project_id)}/{view_id}"
+        nexus_es_view_url = (
+            f"{settings.NEXUS_DELTA_URI}/views/{str(virtual_lab_id)}/{str(project_id)}"
+        )
         views = [
             {"project": f"{virtual_lab_id}/{project_id}", "viewId": SP_VIEW_ID}
         ] + SP_VIEWS
 
         try:
-            response = await self.httpx_clt.put(
+            response = await self.httpx_clt.post(
                 nexus_es_view_url,
-                json={"@type": AGGREGATE_SPARQL_VIEW, "views": views},
+                headers=self.headers,
+                json={
+                    "@id": view_id,
+                    "@type": AGGREGATE_SPARQL_VIEW,
+                    "views": views,
+                },
             )
             response.raise_for_status()
 
