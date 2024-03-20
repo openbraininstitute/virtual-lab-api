@@ -32,21 +32,22 @@ def update_project_budget_use_case(
     pmr = ProjectMutationRepository(session)
     pqr = ProjectQueryRepository(session)
     gqr = GroupQueryRepository()
+
     try:
         project, virtual_lab = pqr.retrieve_one_project_strict(
             virtual_lab_id=virtual_lab_id, project_id=project_id
         )
-        print("", project, virtual_lab)
+
         users = gqr.retrieve_group_users(group_id=str(project.admin_group_id))
         uniq_users = uniq_list([cast(Dict[str, str], u)["id"] for u in users])
         is_user_in_list(list_=uniq_users, user_id=str(user_id))
 
+        if value > virtual_lab.budget:
+            raise BudgetExceedLimit("Project budget exceed max limit")
+
         updated_project_id, new_budget, updated_at = pmr.update_project_budget(
             virtual_lab_id=virtual_lab_id, project_id=project_id, value=value
         )
-
-        if value > virtual_lab.budget:
-            raise BudgetExceedLimit("Project budget exceed limit")
 
     except SQLAlchemyError:
         raise VliError(
