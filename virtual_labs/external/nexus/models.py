@@ -3,13 +3,11 @@ from typing import Annotated, Any, List, Optional, TypedDict
 
 from pydantic import UUID4, BaseModel, Field
 
-from virtual_labs.external.nexus.defaults import CROSS_RESOLVER
-
 
 class NexusBase(BaseModel):
-    context: Annotated[List[str], Field(alias="@context")] = []
+    context: Annotated[str | List[Any], Field(alias="@context")] = []
     id: Annotated[str, Field(alias="@id")]
-    type: Annotated[str | List[str], Field(alias="@type")]
+    type: Annotated[str | List[str] | None, Field(alias="@type")] = None
     createdAt: Annotated[datetime, Field(alias="_createdAt")]
     createdBy: Annotated[str, Field(alias="_createdBy")]
     deprecated: Annotated[bool, Field(alias="_deprecated")]
@@ -41,7 +39,10 @@ class NexusAcls(NexusBase):
 
 
 class NexusCrossResolver(NexusBase):
-    type: Annotated[str | List[str], Field(alias="@type")] = CROSS_RESOLVER
+    type: Annotated[str | List[str], Field(alias="@type")] = [
+        "Resolver",
+        "CrossProject",
+    ]
 
 
 class NexusAclResult(NexusBase):

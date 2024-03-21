@@ -1,5 +1,5 @@
 from typing import Any, Dict, List, Optional, cast
-from urllib.parse import quote
+from urllib.parse import quote_plus as url_encode
 
 from httpx import AsyncClient
 from loguru import logger
@@ -403,13 +403,22 @@ class NexusProjectInterface:
             )
 
     async def retrieve_resource(
-        self, *, virtual_lab_id: UUID4 | str, project_id: UUID4 | str, resource_id: str
+        self,
+        *,
+        virtual_lab_id: UUID4 | str,
+        project_id: UUID4 | str,
+        resource_id: str,
+        schema_id: str = "_",
+        revision: int | None = None,
     ) -> NexusResource:
-        nexus_acl_url = f"{settings.NEXUS_DELTA_URI}/resources/{str(virtual_lab_id)}/{str(project_id)}/{quote(resource_id, safe='')}"
+        nexus_resource_url = f"{settings.NEXUS_DELTA_URI}/resources/{str(virtual_lab_id)}/{str(project_id)}/{schema_id}/{url_encode(resource_id)}"
+
+        if revision is not None:
+            nexus_resource_url = nexus_resource_url + f"?rev={revision}"
 
         try:
             response = await self.httpx_clt.get(
-                nexus_acl_url,
+                nexus_resource_url,
                 headers=self.headers,
             )
             response.raise_for_status()

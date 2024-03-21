@@ -32,8 +32,9 @@ async def instantiate_nexus_project(
 
     async with httpx.AsyncClient(transport=transport) as httpx_clt:
         nexus_interface = NexusProjectInterface(httpx_clt)
+
         # get the latest api mapping
-        api_mappings = (
+        api_mappings_datamodels = (
             await nexus_interface.retrieve_resource(
                 virtual_lab_id="neurosciencegraph",
                 project_id="datamodels",
@@ -45,7 +46,7 @@ async def instantiate_nexus_project(
             virtual_lab_id=virtual_lab_id,
             project_id=project_id,
             vocab=DEFAULT_PROJECT_VOCAB,
-            apiMapping=api_mappings,
+            apiMapping=api_mappings_datamodels,
             description=description,
         )
 
@@ -60,11 +61,12 @@ async def instantiate_nexus_project(
                             project_id=project_id,
                             type=CROSS_RESOLVER,
                             projects=DEFAULT_CROSS_RESOLVER_PROJECTS,
+                            # TODO: use user_id from the token
                             identities=[
-                                {"realm": settings.KC_REALM_NAME, "subject": None}
+                                {"realm": settings.KC_REALM_NAME, "subject": "test"}
                             ],
                         ),
-                        # Add the local context resource to the project
+                        # # Add the local context resource to the project
                         nexus_interface.create_resource(
                             virtual_lab_id=virtual_lab_id,
                             project_id=project_id,
