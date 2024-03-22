@@ -1,4 +1,5 @@
 from http import HTTPStatus as status
+from typing import Tuple
 from uuid import uuid4
 
 from fastapi.responses import Response
@@ -14,6 +15,7 @@ from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.core.types import UserRoleEnum
 from virtual_labs.domain.project import Project, ProjectCreationBody
 from virtual_labs.external.nexus.project_instance import instantiate_nexus_project
+from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.repositories.group_repo import GroupMutationRepository
 from virtual_labs.repositories.labs import get_virtual_lab
 from virtual_labs.repositories.project_repo import (
@@ -27,8 +29,8 @@ async def create_new_project_use_case(
     session: Session,
     *,
     virtual_lab_id: UUID4,
-    user_id: UUID4,
     payload: ProjectCreationBody,
+    auth: Tuple[AuthUser, str],
 ) -> Response | VliError:
     pmr = ProjectMutationRepository(session)
     pqr = ProjectQueryRepository(session)
@@ -36,7 +38,8 @@ async def create_new_project_use_case(
     umr = UserMutationRepository()
 
     project_id: UUID4 = uuid4()
-
+    user, _ = auth
+    user_id = user.sub
     try:
         get_virtual_lab(session, virtual_lab_id)
 
@@ -77,7 +80,7 @@ async def create_new_project_use_case(
 
         # TODO: to asyncio need to run in parallel
         umr.attach_user_to_group(
-            user_id=user_id,
+            user_id=UUID4(user_id),
             group_id=admin_group_id,
         )
         if payload.include_members:
@@ -112,13 +115,13 @@ async def create_new_project_use_case(
         nexus_project_id = await instantiate_nexus_project(
             virtual_lab_id=virtual_lab_id,
             project_id=project_id,
-            user_id=user_id,
             description=payload.description,
             admin_group_id=admin_group_id,
             member_group_id=member_group_id,
+            auth=auth,
         )
     except NexusError as ex:
-        logger.error(f"Error during reverting project instance due nexus error ({ex})")
+        logger.error(f"Error during creating project instance due nexus error ({ex})")
         gmr.delete_group(group_id=admin_group_id)
         gmr.delete_group(group_id=member_group_id)
 
@@ -137,7 +140,7 @@ async def create_new_project_use_case(
             nexus_project_id=nexus_project_id,
             admin_group_id=admin_group_id,
             member_group_id=member_group_id,
-            owner_id=user_id,
+            owner_id=UUID4(user_id),
         )
     except AssertionError:
         raise VliError(

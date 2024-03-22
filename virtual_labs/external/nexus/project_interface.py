@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, cast
+from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import quote_plus as url_encode
 
 from httpx import AsyncClient
@@ -30,7 +30,7 @@ from virtual_labs.external.nexus.models import (
     NexusResource,
     NexusResultAcl,
 )
-from virtual_labs.infrastructure.kc.config import kc_auth
+from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.infrastructure.settings import settings
 
 
@@ -41,18 +41,13 @@ def create_context(vocab: str) -> Dict[str, Any]:
     }
 
 
-def auth() -> str:
-    token = kc_auth.token("test", "test")
-    return cast(str, token["access_token"])
-
-
 class NexusProjectInterface:
     httpx_clt: AsyncClient
 
-    def __init__(self, httpx_clt: AsyncClient) -> None:
+    def __init__(self, httpx_clt: AsyncClient, auth: Tuple[AuthUser, str]) -> None:
         self.headers = {
             "Content-Type": "application/json",
-            "Authorization": "bearer {}".format(auth()),
+            "Authorization": "bearer {}".format(auth[1]),
         }
         self.httpx_clt = httpx_clt
         pass
@@ -95,7 +90,6 @@ class NexusProjectInterface:
         project_base = prep_project_base(
             virtual_lab_id=str(virtual_lab_id), project_id=str(project_id)
         )
-        print("self.headers", self.headers)
         try:
             response = await self.httpx_clt.put(
                 nexus_project_url,

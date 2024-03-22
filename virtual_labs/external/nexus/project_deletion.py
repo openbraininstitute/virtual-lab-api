@@ -1,18 +1,22 @@
+from typing import Tuple
+
 import httpx
 from pydantic import UUID4
 
 from virtual_labs.external.nexus.project_interface import NexusProjectInterface
+from virtual_labs.infrastructure.kc.models import AuthUser
 
 
 async def delete_nexus_project(
-    *,
-    virtual_lab_id: UUID4,
-    project_id: UUID4,
+    *, virtual_lab_id: UUID4, project_id: UUID4, auth: Tuple[AuthUser, str]
 ) -> bool:
     transport = httpx.AsyncHTTPTransport(retries=3)
 
     async with httpx.AsyncClient(transport=transport) as httpx_clt:
-        nexus_interface = NexusProjectInterface(httpx_clt)
+        nexus_interface = NexusProjectInterface(
+            httpx_clt,
+            auth,
+        )
         revision = (
             await nexus_interface.retrieve_project(
                 virtual_lab_id=virtual_lab_id,

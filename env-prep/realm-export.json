@@ -483,7 +483,6 @@
       "groups": []
     },
     {
-      "id": "test",
       "username": "test",
       "firstName": "test",
       "lastName": "test",
@@ -494,7 +493,6 @@
       "totp": false,
       "credentials": [
         {
-          "id": "b7ceda53-625c-41ba-bce0-8c1e51bfaec7",
           "type": "password",
           "userLabel": "My password",
           "createdDate": 1710853579448,
@@ -512,18 +510,47 @@
       "groups": []
     },
     {
-      "id": "test-4",
-      "username": "test-4",
+      "username": "test-1",
+      "firstName": "test-1",
+      "lastName": "test-1",
+      "email": "test-1@test.com",
       "emailVerified": true,
       "createdTimestamp": 1578311988958,
       "enabled": true,
       "totp": false,
       "credentials": [
         {
-          "id": "b9483c46-5649-4ee8-8731-eb683d6b7401",
           "type": "password",
-          "createdDate": 1710853479363,
-          "secretData": "{\"value\":\"JiXA6TcnXsozkuID9/Rj7wwEELWBJ2hgLjWft9wZwTl7tOO2kqIOAVu8Vayi7uSP325A8P2fxiq8KfWdoDCo0A==\",\"salt\":\"FVgjBQuEh+oC84TBeDTicg==\",\"additionalParameters\":{}}",
+          "userLabel": "My password",
+          "createdDate": 1710853579448,
+          "secretData": "{\"value\":\"BwCJ4By3F46GmWtpJml6aLDTmIwBwaKYL1+q6ILRLUOMLzfk6P0PMkvbjyKMdfv+jBQ0czZuCZNFoIg+sAUE1A==\",\"salt\":\"k4IdhhKonpZ7slbuBjrHPw==\",\"additionalParameters\":{}}",
+          "credentialData": "{\"hashIterations\":210000,\"algorithm\":\"pbkdf2-sha512\",\"additionalParameters\":{}}"
+        }
+      ],
+      "disableableCredentialTypes": [],
+      "requiredActions": [],
+      "realmRoles": ["offline_access", "uma_authorization"],
+      "clientRoles": {
+        "account": ["view-profile", "manage-account"]
+      },
+      "notBefore": 0,
+      "groups": []
+    },
+    {
+      "username": "test-2",
+      "firstName": "test-2",
+      "lastName": "test-2",
+      "email": "test-2@test.com",
+      "emailVerified": true,
+      "createdTimestamp": 1578311988958,
+      "enabled": true,
+      "totp": false,
+      "credentials": [
+        {
+          "type": "password",
+          "userLabel": "My password",
+          "createdDate": 1710853579448,
+          "secretData": "{\"value\":\"BwCJ4By3F46GmWtpJml6aLDTmIwBwaKYL1+q6ILRLUOMLzfk6P0PMkvbjyKMdfv+jBQ0czZuCZNFoIg+sAUE1A==\",\"salt\":\"k4IdhhKonpZ7slbuBjrHPw==\",\"additionalParameters\":{}}",
           "credentialData": "{\"hashIterations\":210000,\"algorithm\":\"pbkdf2-sha512\",\"additionalParameters\":{}}"
         }
       ],

@@ -34,7 +34,7 @@ init:
 	./dev-init.sh
 
 kill: 
-	cd env-prep && docker compose -f docker-compose-dev.yml -p vlm-project down --remove-orphans
+	cd env-prep && docker compose -f docker-compose-dev.yml -p vlm-project down --remove-orphans --volumes
 
 build: 
 	docker build -t $(SERVICE_NAME) . --platform=linux/amd64

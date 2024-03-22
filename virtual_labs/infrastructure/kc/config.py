@@ -22,4 +22,5 @@ kc_auth = KeycloakOpenID(
     client_secret_key=settings.KC_CLIENT_SECRET,
     realm_name=settings.KC_REALM_NAME,
     server_url=settings.KC_SERVER_URI,
+    verify=True,
 )

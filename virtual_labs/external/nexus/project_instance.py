@@ -1,4 +1,5 @@
 import asyncio
+from typing import Tuple
 
 import httpx
 from pydantic import UUID4
@@ -15,6 +16,7 @@ from virtual_labs.external.nexus.defaults import (
     prep_default_local_context,
 )
 from virtual_labs.external.nexus.project_interface import NexusProjectInterface
+from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.infrastructure.settings import settings
 
 
@@ -23,17 +25,22 @@ async def instantiate_nexus_project(
     *,
     virtual_lab_id: UUID4,
     project_id: UUID4,
-    user_id: UUID4 | None,
     description: str | None,
     admin_group_id: str,
     member_group_id: str,
+    auth: Tuple[AuthUser, str],
 ) -> str:
     transport = httpx.AsyncHTTPTransport(retries=3)
 
     async with httpx.AsyncClient(transport=transport) as httpx_clt:
-        nexus_interface = NexusProjectInterface(httpx_clt)
+        nexus_interface = NexusProjectInterface(
+            httpx_clt,
+            auth,
+        )
+        user, _ = auth
 
         # get the latest api mapping
+        # TODO: to confirm if the api mapping has the full set
         api_mappings_datamodels = (
             await nexus_interface.retrieve_resource(
                 virtual_lab_id="neurosciencegraph",
@@ -49,24 +56,25 @@ async def instantiate_nexus_project(
             apiMapping=api_mappings_datamodels,
             description=description,
         )
-
+        # Add the CrossProject resolver pointing to the neurosciencegraph/datamodels project
+        await nexus_interface.create_resolver(
+            virtual_lab_id=virtual_lab_id,
+            project_id=project_id,
+            type=CROSS_RESOLVER,
+            projects=DEFAULT_CROSS_RESOLVER_PROJECTS,
+            identities=[
+                {
+                    "realm": settings.KC_REALM_NAME,
+                    "subject": user.username,
+                }
+            ],
+        )
         await asyncio.gather(
             *list(
                 map(
                     asyncio.create_task,
                     [
-                        # Add the CrossProject resolver pointing to the neurosciencegraph/datamodels project
-                        nexus_interface.create_resolver(
-                            virtual_lab_id=virtual_lab_id,
-                            project_id=project_id,
-                            type=CROSS_RESOLVER,
-                            projects=DEFAULT_CROSS_RESOLVER_PROJECTS,
-                            # TODO: use user_id from the token
-                            identities=[
-                                {"realm": settings.KC_REALM_NAME, "subject": "test"}
-                            ],
-                        ),
-                        # # Add the local context resource to the project
+                        # Add the local context resource to the project
                         nexus_interface.create_resource(
                             virtual_lab_id=virtual_lab_id,
                             project_id=project_id,

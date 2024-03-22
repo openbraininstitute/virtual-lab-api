@@ -16,7 +16,10 @@ from virtual_labs.routes.plans import router as plans_router
 from virtual_labs.routes.projects import router as project_router
 from virtual_labs.routes.users import router as user_router
 
-app = FastAPI(title=settings.APP_NAME)
+app = FastAPI(
+    title=settings.APP_NAME,
+    debug=settings.APP_DEBUG,
+)
 base_router = APIRouter(prefix=settings.BASE_PATH)
 
 

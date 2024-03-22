@@ -1,5 +1,5 @@
 import uuid
-from typing import Annotated
+from typing import Annotated, Tuple
 
 from fastapi import APIRouter, Body, Depends, Query
 from fastapi.responses import Response
@@ -24,6 +24,8 @@ from virtual_labs.domain.project import (
     StarProjectsOut,
 )
 from virtual_labs.infrastructure.db.config import default_session_factory
+from virtual_labs.infrastructure.kc.auth import verify_jwt
+from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.usecases import project as project_cases
 
 router = APIRouter(
@@ -143,14 +145,13 @@ async def create_new_project(
     virtual_lab_id: UUID4,
     payload: ProjectCreationBody,
     session: Session = Depends(default_session_factory),
+    auth: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> Response | VliError:
-    # TODO: get user_id from token
-    user_id: UUID4 = uuid.UUID("d2124b89-598e-4196-aaf6-80cfdd9673c8")
     return await project_cases.create_new_project_use_case(
         session,
         virtual_lab_id=virtual_lab_id,
-        user_id=user_id,
         payload=payload,
+        auth=auth,
     )
 
 
@@ -172,13 +173,13 @@ async def delete_project(
     virtual_lab_id: UUID4,
     project_id: UUID4,
     session: Session = Depends(default_session_factory),
+    auth: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> Response | VliError:
-    user_id: UUID4 = uuid.UUID("d2124b89-598e-4196-aaf6-80cfdd9673c8")
     return await project_cases.delete_project_use_case(
         session,
         virtual_lab_id=virtual_lab_id,
         project_id=project_id,
-        user_id=user_id,
+        auth=auth,
     )
 
 

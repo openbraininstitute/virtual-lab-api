@@ -42,11 +42,13 @@ services:
       DB_DATABASE: keycloak
       DB_USER: keycloak
       DB_PASSWORD: keycloak
-      KEYCLOAK_FRONTEND_URL: http://localhost:8080
     depends_on:
       - keycloak-db
     command: 
       - start-dev
+      - --hostname=keycloak
+      - --hostname-port=8080
+      - --hostname-strict-backchannel=true
       - --import-realm
     ports:
       - "9090:8080"

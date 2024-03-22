@@ -1,6 +1,7 @@
 from http import HTTPStatus as status
 from json import loads
-from typing import Dict, cast
+from typing import Dict, Tuple, cast
+from uuid import UUID
 
 from fastapi.responses import Response
 from keycloak import KeycloakError  # type: ignore
@@ -17,6 +18,7 @@ from virtual_labs.core.exceptions.generic_exceptions import (
 from virtual_labs.core.exceptions.nexus_error import NexusError
 from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.external.nexus.project_deletion import delete_nexus_project
+from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.repositories.group_repo import GroupQueryRepository
 from virtual_labs.repositories.project_repo import (
     ProjectMutationRepository,
@@ -31,12 +33,12 @@ async def delete_project_use_case(
     *,
     virtual_lab_id: UUID4,
     project_id: UUID4,
-    user_id: UUID4,
+    auth: Tuple[AuthUser, str],
 ) -> Response | VliError:
     pqr = ProjectQueryRepository(session)
     pmr = ProjectMutationRepository(session)
     gqr = GroupQueryRepository()
-
+    user, _ = auth
     try:
         project, _ = pqr.retrieve_one_project_strict(
             virtual_lab_id=virtual_lab_id,
@@ -48,7 +50,7 @@ async def delete_project_use_case(
 
         is_user_in_list(
             list_=uniq_users,
-            user_id=str(user_id),
+            user_id=user.sub,
         )
 
     except SQLAlchemyError:
@@ -94,7 +96,7 @@ async def delete_project_use_case(
         ) = pmr.delete_project(
             virtual_lab_id=virtual_lab_id,
             project_id=project_id,
-            user_id=user_id,
+            user_id=UUID(user.sub),
         )
 
     except SQLAlchemyError:
@@ -125,6 +127,7 @@ async def delete_project_use_case(
         await delete_nexus_project(
             virtual_lab_id=virtual_lab_id,
             project_id=project_id,
+            auth=auth,
         )
     except NexusError as ex:
         pmr.un_delete_project(
