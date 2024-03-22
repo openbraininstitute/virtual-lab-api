@@ -40,7 +40,6 @@ async def create_new_project_use_case(
     project_id: UUID4 = uuid4()
     user, _ = auth
     user_id = user.sub
-
     try:
         get_virtual_lab(session, virtual_lab_id)
 
