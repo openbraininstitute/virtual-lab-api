@@ -43,6 +43,7 @@ async def retrieve_all_user_projects_use_case(
             message="Retrieving projects failed",
         )
     except Exception as ex:
+        print("ec", ex)
         logger.error(f"Error during retrieving project for user {user_id}: ({ex})")
         raise VliError(
             error_code=VliErrorCode.SERVER_ERROR,
