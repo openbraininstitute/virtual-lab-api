@@ -3,6 +3,7 @@ from typing import List, Optional
 
 from pydantic import UUID4, BaseModel
 
+from virtual_labs.core.types import UserRoleEnum
 from virtual_labs.domain.user import ShortenedUser
 
 
@@ -15,9 +16,12 @@ class VirtualLabModel(BaseModel):
         from_attributes = True
 
 
-class ProjectCreationBody(BaseModel):
+class ProjectBody(BaseModel):
     name: str
     description: Optional[str] = None
+
+
+class ProjectCreationBody(ProjectBody):
     include_members: Optional[list[UUID4]] = None
 
 
@@ -86,6 +90,17 @@ class ProjectUpdateBudgetOut(BaseModel):
     project_id: UUID4
     new_budget: float
     updated_at: datetime
+
+
+class ProjectUpdateRoleOut(BaseModel):
+    project_id: UUID4
+    new_role: UserRoleEnum
+
+
+class ProjectUserDetachOut(BaseModel):
+    project_id: UUID4
+    detached: bool
+    detached_at: datetime
 
 
 class ProjectStarStatusUpdateOut(BaseModel):
