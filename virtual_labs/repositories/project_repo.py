@@ -7,7 +7,7 @@ from sqlalchemy import Row, delete, func, or_, select, update
 from sqlalchemy.orm import Query, Session
 from sqlalchemy.sql import and_
 
-from virtual_labs.domain.project import ProjectCreationBody
+from virtual_labs.domain.project import ProjectBody, ProjectCreationBody
 from virtual_labs.infrastructure.db.models import Project, ProjectStar, VirtualLab
 
 
@@ -329,6 +329,21 @@ class ProjectMutationRepository:
                 )
             )
             .returning(ProjectStar.project_id, ProjectStar.updated_at)
+        )
+        result = self.session.execute(statement=stmt)
+        self.session.commit()
+        return result.one()
+
+    def update_project_data(
+        self, virtual_lab_id: UUID4, project_id: UUID4, payload: ProjectBody
+    ) -> Row[Tuple[Project]]:
+        stmt = (
+            update(Project)
+            .where(
+                and_(Project.id == project_id, Project.virtual_lab_id == virtual_lab_id)
+            )
+            .values({"name": payload.name, "description": payload.description})
+            .returning(Project)
         )
         result = self.session.execute(statement=stmt)
         self.session.commit()
