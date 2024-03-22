@@ -36,8 +36,6 @@ async def retrieve_projects_count_per_virtual_lab_use_case(
             message="Error during counting projects per virtual lab",
         )
     else:
-        print("count", count)
-
         return VliResponse.new(
             message="Project count per virtual lab fetched successfully",
             data={
