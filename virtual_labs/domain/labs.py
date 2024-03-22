@@ -112,9 +112,13 @@ class Labs(BaseModel):
     virtual_labs: list[VirtualLabWithProject]
 
 
+class UserWithInviteStatus(ShortenedUser):
+    invite_accepted: bool
+    role: str
+
+
 class VirtualLabUsers(BaseModel):
-    added_users: list[ShortenedUser]
-    pending_users: list[ShortenedUser]
+    users: list[UserWithInviteStatus]
 
 
 class VirtualLabUser(BaseModel):

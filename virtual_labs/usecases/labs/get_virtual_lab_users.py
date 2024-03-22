@@ -6,8 +6,9 @@ from sqlalchemy.exc import NoResultFound, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
-from virtual_labs.domain.labs import VirtualLabUsers
-from virtual_labs.domain.user import ShortenedUser
+from virtual_labs.core.exceptions.generic_exceptions import UserNotInList
+from virtual_labs.core.types import UserRoleEnum
+from virtual_labs.domain.labs import UserWithInviteStatus, VirtualLabUsers
 from virtual_labs.infrastructure.kc.models import UserRepresentation
 from virtual_labs.repositories import labs as lab_repository
 from virtual_labs.repositories.group_repo import GroupQueryRepository
@@ -46,30 +47,42 @@ def get_virtual_lab_users(
     try:
         lab = lab_repository.get_virtual_lab(db, lab_id)
         if not is_user_in_lab(user_id, lab):
-            raise VliError(
-                message=f"User {user_id} is not member of lab {lab.name} and therefore cannot retrieve lab users",
-                error_code=VliErrorCode.NOT_ALLOWED_OP,
-                http_status_code=HTTPStatus.FORBIDDEN,
+            raise UserNotInList(
+                f"User {user_id} is not member of lab {lab.name} and therefore cannot retrieve lab users"
             )
         admins = [
-            ShortenedUser.model_validate(admin)
+            UserWithInviteStatus(
+                **admin.model_dump(),
+                invite_accepted=True,
+                role=UserRoleEnum.admin.value,
+            )
             for admin in group_repo.retrieve_group_users(str(lab.admin_group_id))
         ]
         members = [
-            ShortenedUser.model_validate(member)
+            UserWithInviteStatus(
+                **member.model_dump(),
+                invite_accepted=True,
+                role=UserRoleEnum.member.value,
+            )
             for member in group_repo.retrieve_group_users(str(lab.member_group_id))
         ]
         pending_users = [
-            ShortenedUser.model_validate(
-                get_pending_user(
+            UserWithInviteStatus(
+                **get_pending_user(
                     user=(user_repo.retrieve_user_by_email(str(invite.user_email))),
                     user_email=str(invite.user_email),
-                )
+                ).model_dump(),
+                invite_accepted=False,
+                role=str(invite.role),  # TODO: Convert to enum
             )
             for invite in invite_repo.get_pending_users_for_lab(lab_id)
         ]
-        return VirtualLabUsers(
-            added_users=admins + members, pending_users=pending_users
+        return VirtualLabUsers(users=admins + members + pending_users)
+    except UserNotInList:
+        raise VliError(
+            message=f"User {user_id} is not member of lab {lab.name} and therefore cannot retrieve lab users",
+            error_code=VliErrorCode.NOT_ALLOWED_OP,
+            http_status_code=HTTPStatus.FORBIDDEN,
         )
     except NoResultFound:
         raise VliError(
