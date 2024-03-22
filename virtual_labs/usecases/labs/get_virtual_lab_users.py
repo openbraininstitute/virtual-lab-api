@@ -113,4 +113,4 @@ def get_virtual_lab_users(
             message="Users could not be retrieved due to an unknown error",
             error_code=VliErrorCode.SERVER_ERROR,
             http_status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-        )
+        ) from error

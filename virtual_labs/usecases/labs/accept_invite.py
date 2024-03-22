@@ -32,7 +32,9 @@ def accept_invite(invite_id: UUID4, user_id: UUID4, db: Session) -> None:
         role = invite.role
 
         group_id = (
-            lab.admin_group_id if role == UserRoleEnum.admin else lab.member_group_id
+            lab.admin_group_id
+            if role == UserRoleEnum.admin.value
+            else lab.member_group_id
         )
         user_repo.attach_user_to_group(
             user_id=UUID(str(user_id)), group_id=str(group_id)

@@ -24,15 +24,15 @@ class GroupQueryRepository:
 
     def retrieve_group_users(self, group_id: str) -> List[UserRepresentation]:
         members = self.Kc.get_group_members(group_id=group_id)
-        return cast(List[UserRepresentation], members)
+        return [UserRepresentation(**member) for member in members]
 
     def retrieve_user_groups(self, user_id: str) -> List[GroupRepresentation]:
         groups = self.Kc.get_user_groups(user_id=user_id)
-        return cast(List[GroupRepresentation], groups)
+        return [GroupRepresentation(**group) for group in groups]
 
     def retrieve_group_by_id(self, group_id: str) -> GroupRepresentation:
         group = self.Kc.get_group(group_id=group_id)
-        return cast(GroupRepresentation, group)
+        return GroupRepresentation(**group)
 
     def check_user_in_group(self, group_id: str, user_id: str) -> bool:
         group_users = self.retrieve_group_users(group_id=group_id)
