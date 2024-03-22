@@ -15,8 +15,9 @@ from virtual_labs.core.authorization.verify_vlab_or_project_read import (
     verify_vlab_or_project_read,
 )
 from virtual_labs.core.exceptions.api_error import VliError
-from virtual_labs.core.types import VliAppResponse
+from virtual_labs.core.types import UserRoleEnum, VliAppResponse
 from virtual_labs.domain.project import (
+    ProjectBody,
     ProjectBudgetOut,
     ProjectCreationBody,
     ProjectDeletionOut,
@@ -24,6 +25,8 @@ from virtual_labs.domain.project import (
     ProjectOut,
     ProjectPerVLCountOut,
     ProjectUpdateBudgetOut,
+    ProjectUpdateRoleOut,
+    ProjectUserDetachOut,
     ProjectUsersCountOut,
     ProjectUsersOut,
     ProjectVlOut,
@@ -55,41 +58,6 @@ async def retrieve_all_projects(
     return await project_cases.retrieve_all_user_projects_use_case(
         session,
         auth,
-    )
-
-
-@router.get(
-    "/{virtual_lab_id}/projects/_search",
-    operation_id="search_projects_per_vl",
-    summary="Fulltext search for only allowed projects per virtual lab for the authenticated user",
-    response_model=VliAppResponse[ProjectWithVLOut],
-)
-@verify_vlab_read
-async def search_projects_per_virtual_lab(
-    virtual_lab_id: UUID4,
-    q: str = Query(max_length=50, description="query string"),
-    session: Session = Depends(default_session_factory),
-    auth: Tuple[AuthUser, str] = Depends(verify_jwt),
-) -> Response | VliError:
-    return await project_cases.search_projects_per_virtual_lab_by_name_use_case(
-        session, virtual_lab_id, auth=auth, query_term=q
-    )
-
-
-@router.get(
-    "/{virtual_lab_id}/projects/count",
-    operation_id="get_project_per_vl_count",
-    summary="Retrieve virtual lab projects count",
-    response_model=VliAppResponse[ProjectPerVLCountOut],
-)
-async def retrieve_projects_per_vl_count(
-    virtual_lab_id: UUID4,
-    session: Session = Depends(default_session_factory),
-    _: Tuple[AuthUser, str] = Depends(verify_jwt),
-) -> Response | VliError:
-    return await project_cases.retrieve_projects_count_per_virtual_lab_use_case(
-        session,
-        virtual_lab_id=virtual_lab_id,
     )
 
 
@@ -128,6 +96,41 @@ async def retrieve_stars_project(
     return await project_cases.retrieve_starred_projects_use_case(
         session,
         auth,
+    )
+
+
+@router.get(
+    "/{virtual_lab_id}/projects/_search",
+    operation_id="search_projects_per_vl",
+    summary="Fulltext search for only allowed projects per virtual lab for the authenticated user",
+    response_model=VliAppResponse[ProjectWithVLOut],
+)
+@verify_vlab_read
+async def search_projects_per_virtual_lab(
+    virtual_lab_id: UUID4,
+    q: str = Query(max_length=50, description="query string"),
+    session: Session = Depends(default_session_factory),
+    auth: Tuple[AuthUser, str] = Depends(verify_jwt),
+) -> Response | VliError:
+    return await project_cases.search_projects_per_virtual_lab_by_name_use_case(
+        session, virtual_lab_id, auth=auth, query_term=q
+    )
+
+
+@router.get(
+    "/{virtual_lab_id}/projects/count",
+    operation_id="get_project_per_vl_count",
+    summary="Retrieve virtual lab projects count",
+    response_model=VliAppResponse[ProjectPerVLCountOut],
+)
+async def retrieve_projects_per_vl_count(
+    virtual_lab_id: UUID4,
+    session: Session = Depends(default_session_factory),
+    _: Tuple[AuthUser, str] = Depends(verify_jwt),
+) -> Response | VliError:
+    return await project_cases.retrieve_projects_count_per_virtual_lab_use_case(
+        session,
+        virtual_lab_id=virtual_lab_id,
     )
 
 
@@ -190,6 +193,30 @@ async def retrieve_projects(
         session,
         virtual_lab_id,
         auth,
+    )
+
+
+@router.patch(
+    "/{virtual_lab_id}/projects/{project_id}",
+    operation_id="update_project_data",
+    summary="Update project data",
+    response_model=VliAppResponse[ProjectOut],
+    tags=["Not Yet Tested"],
+)
+@verify_vlab_or_project_write
+async def update_project_data(
+    virtual_lab_id: UUID4,
+    project_id: UUID4,
+    payload: ProjectBody,
+    session: Session = Depends(default_session_factory),
+    auth: Tuple[AuthUser, str] = Depends(verify_jwt),
+) -> Response | VliError:
+    return await project_cases.update_project_data(
+        session,
+        virtual_lab_id,
+        project_id,
+        payload=payload,
+        auth=auth,
     )
 
 
@@ -290,6 +317,36 @@ async def update_project_budget(
     )
 
 
+@router.patch(
+    "/{virtual_lab_id}/projects/{project_id}/star-status",
+    operation_id="star_or_unstar_project",
+    summary="Star/Unstar (Pin/Unpin) project",
+    tags=["Project Endpoints"],
+    description=(
+        """
+        Allow only the User that has the right role (be part of the project)
+        Star or Unstar (Pin/Unpin) a project
+        """
+    ),
+    response_model=VliAppResponse[ProjectWithStarredDateOut],
+)
+@verify_vlab_or_project_read
+async def update_project_star_status(
+    virtual_lab_id: UUID4,
+    project_id: UUID4,
+    value: Annotated[bool, Body(embed=True)],
+    session: Session = Depends(default_session_factory),
+    auth: Tuple[AuthUser, str] = Depends(verify_jwt),
+) -> Response | VliError:
+    return await project_cases.update_star_project_status_use_case(
+        session,
+        virtual_lab_id=virtual_lab_id,
+        project_id=project_id,
+        value=value,
+        auth=auth,
+    )
+
+
 @router.get(
     "/{virtual_lab_id}/projects/{project_id}/users",
     operation_id="get_project_users",
@@ -326,30 +383,62 @@ async def retrieve_project_users_count(
 
 
 @router.patch(
-    "/{virtual_lab_id}/projects/{project_id}/star-status",
-    operation_id="star_or_unstar_project",
-    summary="Star/Unstar (Pin/Unpin) project",
-    tags=["Project Endpoints"],
+    "/{virtual_lab_id}/projects/{project_id}/users/{user_id}/role",
+    operation_id="update_user_role_in_project",
+    summary="Update user role in the current project",
     description=(
         """
-        Allow only the User that has the right role (be part of the project)
-        Star or Unstar (Pin/Unpin) a project
+        Allow only the User that has the right role (based on KC groups "Virtual Lab Admin/Project Admin")
+        to update the selected user role for the selected project
         """
     ),
-    response_model=VliAppResponse[ProjectWithStarredDateOut],
+    response_model=VliAppResponse[ProjectUpdateRoleOut],
+    tags=["Not Yet Tested"],
 )
-@verify_vlab_or_project_read
-async def update_project_star_status(
+@verify_vlab_or_project_write
+async def update_user_role_in_project(
     virtual_lab_id: UUID4,
     project_id: UUID4,
-    value: Annotated[bool, Body(embed=True)],
+    user_id: UUID4,
+    new_role: Annotated[UserRoleEnum, Body(embed=True)],
     session: Session = Depends(default_session_factory),
     auth: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> Response | VliError:
-    return await project_cases.update_star_project_status_use_case(
+    return await project_cases.update_user_role_in_project(
         session,
         virtual_lab_id=virtual_lab_id,
         project_id=project_id,
-        value=value,
+        new_role=new_role,
+        user_id=user_id,
+        auth=auth,
+    )
+
+
+@router.delete(
+    "/{virtual_lab_id}/projects/{project_id}/users/{user_id}/detach",
+    operation_id="detach_user_from_project",
+    summary="Detach user from the project if the user has permission",
+    description=(
+        """
+        Allow only the User that has the right role (based on KC groups "Virtual Lab Admin/Project Admin")
+        to detach the selected user from the current project
+        """
+    ),
+    response_model=VliAppResponse[ProjectUserDetachOut],
+    tags=["Not Yet Tested"],
+)
+@verify_vlab_or_project_write
+async def detach_user_from_project(
+    virtual_lab_id: UUID4,
+    project_id: UUID4,
+    user_id: UUID4,
+    session: Session = Depends(default_session_factory),
+    auth: Tuple[AuthUser, str] = Depends(verify_jwt),
+) -> Response | VliError:
+    return await project_cases.detach_user_from_project(
+        session,
+        virtual_lab_id=virtual_lab_id,
+        project_id=project_id,
+        user_id=user_id,
         auth=auth,
     )
