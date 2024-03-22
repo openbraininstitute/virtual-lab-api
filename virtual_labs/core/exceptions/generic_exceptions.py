@@ -8,3 +8,7 @@ class BudgetExceedLimit(Exception):
 
 class ProjectAlreadyDeleted(Exception):
     pass
+
+
+class ForbiddenOperation(Exception):
+    pass
