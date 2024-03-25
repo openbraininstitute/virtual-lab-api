@@ -1,7 +1,7 @@
 from typing import Generic, TypeVar
-from typing_extensions import Annotated
 
 from pydantic import BaseModel, Field
+from typing_extensions import Annotated
 
 
 class PageParams(BaseModel):

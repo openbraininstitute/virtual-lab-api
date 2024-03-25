@@ -21,6 +21,7 @@
   "keycloak",
   "loguru",
   "neurosciencegraph",
+  "noload",
   "onupdate",
   "pydantic",
   "regconfig",

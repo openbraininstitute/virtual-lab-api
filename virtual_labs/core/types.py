@@ -1,13 +1,17 @@
 from enum import Enum
-from typing import Generic, TypedDict, TypeVar
+from typing import Generic, TypeVar
 
 from pydantic import BaseModel
 
+K = TypeVar("K")
 
-class Pagination(TypedDict):
-    page: int
-    size: int
-    total: int
+
+class PaginatedDbResult(BaseModel, Generic[K]):
+    count: int | None
+    rows: K
+
+    class Config:
+        arbitrary_types_allowed = True
 
 
 class UserRoleEnum(Enum):
