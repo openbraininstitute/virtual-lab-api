@@ -35,7 +35,16 @@ make init-db
 
 echo "get access token"
 
-if [ "$IS_CI" != "True" ]; then
+if [ "$IS_CI" == "True" ]; then
+    echo "start dev server"
+    PY_ENV=prod make dev &
+
+    echo "Checking that virtual lab server is ready to accept connections..."
+    curl --retry 30 -f --retry-all-errors --retry-delay 2 -s -o /dev/null "http://localhost:8000/health"
+    echo "Server is ready"
+  
+  else
+  
   # curl command to get the token
   TOKEN_RESPONSE=$(curl -s -X POST \
     "${KC_SERVER_URI}/realms/${KC_REALM_NAME}/protocol/openid-connect/token" \
@@ -64,12 +73,4 @@ if [ "$IS_CI" != "True" ]; then
 
   echo "start dev server"
   PY_ENV=prod make dev
-
-  else
-    echo "start dev server"
-    PY_ENV=prod make dev &
-
-    echo "Checking that virtual lab server is ready to accept connections..."
-    curl --retry 30 -f --retry-all-errors --retry-delay 2 -s -o /dev/null "http://localhost:8000/health"
-    echo "Server is ready"
 fi
