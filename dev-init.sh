@@ -68,4 +68,8 @@ if [ "$IS_CI" != "True" ]; then
   else
     echo "start dev server"
     PY_ENV=prod make dev &
+
+    echo "Checking that virtual lab server is ready to accept connections..."
+    curl --retry 30 -f --retry-all-errors --retry-delay 2 -s -o /dev/null "http://localhost:8000/health"
+    echo "Server is ready"
 fi
