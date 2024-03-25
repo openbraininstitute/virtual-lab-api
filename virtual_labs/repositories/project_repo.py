@@ -117,7 +117,12 @@ class ProjectQueryRepository:
         joined_query = (
             self.session.query(ProjectStar, Project)
             .join(Project, ProjectStar.project_id == Project.id)
-            .filter(ProjectStar.user_id == user_id)
+            .filter(
+                and_(
+                    ~Project.deleted,
+                    ProjectStar.user_id == user_id,
+                )
+            )
         )
         user_starred_projects = joined_query.all()
         return user_starred_projects
