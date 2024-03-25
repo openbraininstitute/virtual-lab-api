@@ -61,10 +61,11 @@ if [ "$IS_CI" != "True" ]; then
   else
     echo "Unsupported OS for clipboard operation: $OS"
   fi
+
+  echo "start dev server"
+  PY_ENV=prod make dev
+
+  else
+    echo "start dev server"
+    PY_ENV=prod make dev &
 fi
-
-echo "start dev server"
-PY_ENV=prod make dev
-
-
-

@@ -1,0 +1,24 @@
+name: Publish main
+
+on:
+    push:
+      branches:
+        - github-workflow # TODO: Change to main after testing
+
+jobs:
+  pull-request-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Setup python
+        uses: actions/setup-python@v3
+      - name: Install dependencies
+        run: pip install poetry && poetry install --sync
+      - name: Build
+        run: |
+          docker build -t bluebrain/obp-virtual-lab-api .
+      - name: Publish To DockerHub
+        run: |
+          echo ${{ secrets.BBPBUILDBOT_DOCKERHUB_PASSWORD }} | docker login --username ${{ vars.CI_DOCKERHUB_REGISTRY_AUTH }} --password-stdin
+          docker push bluebrain/obp-virtual-lab-api
