@@ -1,6 +1,6 @@
 from http import HTTPStatus
 from typing import Literal
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from loguru import logger
 from pydantic import UUID4
@@ -9,12 +9,16 @@ from sqlalchemy.orm import Session
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.exceptions.identity_error import IdentityError
+from virtual_labs.core.exceptions.nexus_error import NexusError
 from virtual_labs.core.types import UserRoleEnum
 from virtual_labs.domain import labs as domain
+from virtual_labs.external.nexus.create_organization import create_nexus_organization
 from virtual_labs.infrastructure.db import models
+from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.repositories import labs as repository
 from virtual_labs.repositories.group_repo import GroupMutationRepository
 from virtual_labs.repositories.user_repo import UserMutationRepository
+from virtual_labs.shared.utils.auth import get_user_id_from_auth
 from virtual_labs.usecases.plans.verify_plan import verify_plan
 
 GroupIds = dict[Literal["member_group_id"] | Literal["admin_group_id"], str]
@@ -46,12 +50,15 @@ async def create_keycloak_groups(lab_id: UUID4, lab_name: str) -> GroupIds:
 
 
 async def create_virtual_lab(
-    db: Session, lab: domain.VirtualLabCreate, owner_id: UUID4
+    db: Session, lab: domain.VirtualLabCreate, auth: tuple[AuthUser, str]
 ) -> models.VirtualLab:
+    group_repo = GroupMutationRepository()
+
+    # 1. Create kc groups and add user to adming group
     try:
         verify_plan(db, lab.plan_id)
         new_lab_id = uuid4()
-
+        owner_id = get_user_id_from_auth(auth)
         # Create admin & member groups
         group_ids = await create_keycloak_groups(new_lab_id, lab.name)
 
@@ -60,16 +67,12 @@ async def create_virtual_lab(
         user_repo.attach_user_to_group(
             user_id=owner_id, group_id=group_ids["admin_group_id"]
         )
-
-        # Save lab to db
-        lab_with_ids = repository.VirtualLabDbCreate(
-            id=new_lab_id,
-            owner_id=owner_id,
-            admin_group_id=group_ids["admin_group_id"],
-            member_group_id=group_ids["member_group_id"],
-            **lab.model_dump(),
+    except ValueError as error:
+        raise VliError(
+            message=str(error),
+            error_code=VliErrorCode.INVALID_REQUEST,
+            http_status_code=HTTPStatus.BAD_REQUEST,
         )
-        return repository.create_virtual_lab(db, lab_with_ids)
     except IdentityError as error:
         logger.error(
             f"Virtual lab could not be created because of idenity error {error}"
@@ -79,6 +82,40 @@ async def create_virtual_lab(
             error_code=VliErrorCode.NOT_ALLOWED_OP,
             http_status_code=HTTPStatus.FORBIDDEN,
         )
+
+    # 2. Create nexus org
+    try:
+        nexus_org = await create_nexus_organization(
+            nexus_org_id=new_lab_id,
+            description=lab.description,
+            admin_group_id=group_ids["admin_group_id"],
+            member_group_id=group_ids["member_group_id"],
+            auth=auth,
+        )
+        logger.info(f"Nexus org created {nexus_org}")
+    except NexusError as ex:
+        group_repo.delete_group(group_id=group_ids["admin_group_id"])
+        group_repo.delete_group(group_id=group_ids["member_group_id"])
+        logger.error(f"Error during reverting project instance due nexus error ({ex})")
+        raise VliError(
+            error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
+            http_status_code=HTTPStatus.BAD_GATEWAY,
+            message="Nexus organization creation failed",
+            details=ex.type,
+        )
+
+    # 3. Save lab to db
+    try:
+        # Save lab to db
+        lab_with_ids = repository.VirtualLabDbCreate(
+            id=new_lab_id,
+            owner_id=owner_id,
+            nexus_organization_id=UUID(nexus_org.label),
+            admin_group_id=group_ids["admin_group_id"],
+            member_group_id=group_ids["member_group_id"],
+            **lab.model_dump(),
+        )
+        return repository.create_virtual_lab(db, lab_with_ids)
     except IntegrityError as error:
         logger.error(
             "Virtual lab could not be created due to database error {}".format(error)
@@ -88,26 +125,18 @@ async def create_virtual_lab(
             error_code=VliErrorCode.ENTITY_ALREADY_EXISTS,
             http_status_code=HTTPStatus.CONFLICT,
         )
-    except ValueError as error:
-        raise VliError(
-            message=str(error),
-            error_code=VliErrorCode.INVALID_REQUEST,
-            http_status_code=HTTPStatus.BAD_REQUEST,
-        )
+
     except SQLAlchemyError as error:
         logger.error(
             "Virtual lab could not be created due to an unknown database error {}".format(
                 error
             )
         )
-
         raise VliError(
             message="Virtual lab could not be saved to the database",
             error_code=VliErrorCode.DATABASE_ERROR,
             http_status_code=HTTPStatus.BAD_REQUEST,
         )
-    except IdentityError as error:
-        raise error
     except VliError as error:
         raise error
     except Exception as error:

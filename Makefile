@@ -58,7 +58,7 @@ type-check:
 	poetry run mypy . --strict
 
 test:
-	poetry run pytest
+	PY_ENV=prod poetry run pytest
 
 init-db:
 	poetry run alembic upgrade head

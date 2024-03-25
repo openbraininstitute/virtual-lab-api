@@ -1,6 +1,12 @@
+# Prerequisites
+
+Make sure you have the following dependencies installed:
+- python (version 3.12)
+- poetry
+- docker - Add the docker group to your user to enable running docker without `sudo`. This can be done by running `sudo usermod -a -G <your username>` 
+
 # Development
 
-0. Make sure you have [poetry installed](https://python-poetry.org/docs/#installation)
 1. Install the dependencies
 
    ```sh
@@ -41,6 +47,13 @@ poetry run alembic upgrade head
 To check if migration is needed (same as above, alembic cannot check all schema changes):
 ```
 make check-db-schema
+```
+
+# Testing
+
+Tests can be run online using the following command
+```
+make test
 ```
 
 # IDE Setup

@@ -14,13 +14,13 @@ from virtual_labs.usecases.labs.lab_with_not_deleted_projects import (
 )
 
 
-def get_virtual_lab(
+async def get_virtual_lab(
     db: Session, lab_id: UUID4, user_id: UUID4
 ) -> VirtualLabDomainVerbose:
     try:
         db_lab = repository.get_virtual_lab(db, lab_id)
         if is_user_in_lab(user_id=user_id, lab=db_lab):
-            return lab_with_not_deleted_projects(db_lab)
+            return lab_with_not_deleted_projects(db_lab, user_id)
         raise UserNotInList(
             f"User {user_id} does not have read permissions for virtual lab {lab_id}"
         )

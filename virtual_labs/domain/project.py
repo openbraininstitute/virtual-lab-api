@@ -95,6 +95,7 @@ class ProjectStarStatusUpdateOut(BaseModel):
 
 class ProjectStar(BaseModel):
     id: UUID4
+    user_id: UUID4
 
     class Config:
         from_attributes = True

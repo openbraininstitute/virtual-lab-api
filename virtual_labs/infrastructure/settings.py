@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str = "vlm"
     POSTGRES_DB: str = "vlm"
     DATABASE_URI: PostgresDsn = MultiHostUrl("postgresql://vlm:vlm@localhost:15432/vlm")
-    NEXUS_DELTA_URI: Url = Url("https://dev.nise.bbp.epfl.ch/nexus/v1")
+    NEXUS_DELTA_URI: Url = Url("http://localhost:8080/v1")
 
     KC_SERVER_URI: str = "http://localhost:9090/"
     KC_USER_NAME: str = "admin"

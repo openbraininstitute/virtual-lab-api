@@ -1,4 +1,3 @@
-import uuid
 from typing import List
 
 from pydantic import UUID4
@@ -16,6 +15,7 @@ class VirtualLabDbCreate(labs.VirtualLabCreate):
     owner_id: UUID4
     admin_group_id: str
     member_group_id: str
+    nexus_organization_id: UUID4
 
 
 def get_all_virtual_lab_for_user(db: Session) -> List[VirtualLab]:
@@ -59,7 +59,7 @@ def create_virtual_lab(db: Session, lab: VirtualLabDbCreate) -> VirtualLab:
         name=lab.name,
         description=lab.description,
         reference_email=lab.reference_email,
-        nexus_organization_id=uuid.uuid4(),
+        nexus_organization_id=lab.nexus_organization_id,
         projects=[],
         budget=lab.budget,
         plan_id=lab.plan_id,

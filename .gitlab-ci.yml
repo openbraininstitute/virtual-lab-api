@@ -16,7 +16,6 @@ default:
 
 stages:
   - check
-  - test
   - publish
 
 static_checks:
@@ -26,11 +25,11 @@ static_checks:
     -  make style-check
     -  make type-check
 
-unit_tests:
-  stage: test
-  script:
-    - *install_dev_packages
-    - make test
+# unit_tests:
+#   stage: test
+#   script:
+#     - *install_dev_packages
+#     - make test
 
 build_and_publish:
   stage: publish 

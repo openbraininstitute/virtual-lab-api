@@ -15,6 +15,11 @@ class NexusBase(BaseModel):
     rev: Annotated[int, Field(alias="_rev")]
 
 
+class NexusOrganization(NexusBase):
+    label: Annotated[str, Field(alias="_label")]
+    uuid: Annotated[UUID4, Field(alias="_uuid")]
+
+
 class NexusProject(NexusBase):
     label: Annotated[str, Field(alias="_label")]
     uuid: Annotated[UUID4, Field(alias="_uuid")]

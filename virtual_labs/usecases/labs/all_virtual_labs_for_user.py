@@ -19,7 +19,9 @@ def paginated_labs_for_user(
         db, page_params, group_ids=group_ids
     )
     labs = [
-        VirtualLabWithProject.model_validate(lab_with_not_deleted_projects(lab))
+        VirtualLabWithProject.model_validate(
+            lab_with_not_deleted_projects(lab, user_id)
+        )
         for lab in paginated_results
     ]
     return PagedResponse(

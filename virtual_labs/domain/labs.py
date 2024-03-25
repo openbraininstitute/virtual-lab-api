@@ -4,7 +4,6 @@ from typing import Generic, Optional, TypeVar
 from pydantic import UUID4, BaseModel, EmailStr, JsonValue, field_validator
 
 from virtual_labs.core.types import UserRoleEnum
-from virtual_labs.domain.project import ProjectStar
 from virtual_labs.domain.user import ShortenedUser
 from virtual_labs.infrastructure.kc.models import UserRepresentation
 
@@ -68,11 +67,11 @@ class PlanDomain(BaseModel):
         from_attributes = True
 
 
-class VirtualLabProject(BaseModel):
+class VirtualLabProjectOut(BaseModel):
     id: UUID4
     name: str
     description: str | None
-    project_stars: list[ProjectStar] | None = None
+    starred: bool
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -90,7 +89,7 @@ class VirtualLabDomain(VirtualLabBase):
 
 
 class VirtualLabWithProject(VirtualLabDomain):
-    projects: list[VirtualLabProject] | None = None
+    projects: list[VirtualLabProjectOut] | None = None
 
     class Config:
         from_attributes = True
@@ -102,7 +101,7 @@ class VirtualLabDomainVerbose(VirtualLabDomain):
 
     updated_at: Optional[datetime] = None
     deleted_at: Optional[datetime] = None
-    projects: list[VirtualLabProject] | None = None
+    projects: list[VirtualLabProjectOut] | None = None
 
     class Config:
         from_attributes = True

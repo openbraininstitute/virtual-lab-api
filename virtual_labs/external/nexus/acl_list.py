@@ -24,7 +24,7 @@ virtual_lab_admin_acls: List[str] = [
     # TODO: also allow deprecation of an organization
 ]
 
-virtual_lab_member_acls: List[str] = []
+virtual_lab_member_acls: List[str] = [*project_member_acls]
 
 # TODO: to delete, just for info
 all_acls = [

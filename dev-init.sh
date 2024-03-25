@@ -7,6 +7,7 @@ KC_REALM_NAME="obp-realm"
 CLIENT_ID="obpapp"
 CLIENT_SECRET="obp-secret"
 
+
 # Start containers
 docker compose -f env-prep/docker-compose-dev.yml -p vlm-project up --wait
 
@@ -18,13 +19,13 @@ echo "Delta is ready! 🚀"
 
 # Register created realm on delta
 echo "Registering realm in delta"
-echo $(curl -XPUT \
+curl -XPUT \
   -H "Content-Type: application/json" \
   "http://localhost:8080/v1/realms/obp-realm" \
   -d '{
         "name":"obp-realm",
         "openIdConfig":"http://keycloak:8080/realms/obp-realm/.well-known/openid-configuration"
-      }')
+      }'
 
 echo "Initialize nexus"
 python3 env-prep/init/init.py
@@ -47,15 +48,15 @@ TOKEN_RESPONSE=$(curl -s -X POST \
   --data-urlencode 'scope=openid')
 
 # extracting the access token using jq
-ACCESS_TOKEN=$(echo $TOKEN_RESPONSE | jq -r '.access_token')
+ACCESS_TOKEN=$(echo "$TOKEN_RESPONSE" | jq -r '.access_token')
 
 # check the OS and copy the access token to the clipboard
 OS=$(uname)
 if [ "$OS" == "Linux" ]; then
-  echo $ACCESS_TOKEN | xclip -selection clipboard
+  echo "$ACCESS_TOKEN" | xclip -selection clipboard
   echo "Access token copied to clipboard (Linux)."
 elif [ "$OS" == "Darwin" ]; then
-  echo $ACCESS_TOKEN | pbcopy
+  echo "$ACCESS_TOKEN" | pbcopy
   echo "Access token copied to clipboard (macOS)."
 else
   echo "Unsupported OS for clipboard operation: $OS"

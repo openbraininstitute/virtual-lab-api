@@ -30,6 +30,10 @@ class GroupQueryRepository:
         groups = self.Kc.get_user_groups(user_id=user_id)
         return [GroupRepresentation(**group) for group in groups]
 
+    def retrieve_group_by_name(self, name: str) -> GroupRepresentation:
+        group = self.Kc.get_group_by_path(name)
+        return GroupRepresentation(**group)
+
     def retrieve_group_by_id(self, group_id: str) -> GroupRepresentation:
         group = self.Kc.get_group(group_id=group_id)
         return GroupRepresentation(**group)
