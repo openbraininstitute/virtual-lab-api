@@ -24,7 +24,7 @@ async def update_project_data(
     pmr = ProjectMutationRepository(session)
 
     try:
-        project = pmr.update_project_data(
+        (project,) = pmr.update_project_data(
             virtual_lab_id=virtual_lab_id,
             project_id=project_id,
             payload=payload,

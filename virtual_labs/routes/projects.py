@@ -201,7 +201,6 @@ async def retrieve_projects(
     operation_id="update_project_data",
     summary="Update project data",
     response_model=VliAppResponse[ProjectOut],
-    tags=["Not Yet Tested"],
 )
 @verify_vlab_or_project_write
 async def update_project_data(
@@ -390,10 +389,10 @@ async def retrieve_project_users_count(
         """
         Allow only the User that has the right role (based on KC groups "Virtual Lab Admin/Project Admin")
         to update the selected user role for the selected project
+        if the user not in the group already, then operation will not be allowed
         """
     ),
     response_model=VliAppResponse[ProjectUpdateRoleOut],
-    tags=["Not Yet Tested"],
 )
 @verify_vlab_or_project_write
 async def update_user_role_in_project(
@@ -425,7 +424,6 @@ async def update_user_role_in_project(
         """
     ),
     response_model=VliAppResponse[ProjectUserDetachOut],
-    tags=["Not Yet Tested"],
 )
 @verify_vlab_or_project_write
 async def detach_user_from_project(

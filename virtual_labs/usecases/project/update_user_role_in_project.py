@@ -1,6 +1,7 @@
 from http import HTTPStatus as status
 from json import loads
 from typing import Tuple
+from uuid import UUID
 
 from fastapi.responses import Response
 from keycloak import KeycloakError  # type: ignore
@@ -10,6 +11,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
+from virtual_labs.core.exceptions.generic_exceptions import UserNotInList
 from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.core.types import UserRoleEnum
 from virtual_labs.infrastructure.kc.models import AuthUser
@@ -34,11 +36,30 @@ async def update_user_role_in_project(
     uqr = UserQueryRepository()
     umr = UserMutationRepository()
 
+    user, _ = auth
+    user_req_id = user.sub
+
+    if UUID(user_req_id).int == user_id.int:
+        raise VliError(
+            error_code=VliErrorCode.NOT_ALLOWED_OP,
+            http_status_code=status.FORBIDDEN,
+            message="Update current user role is not allowed",
+        )
+
     try:
         project, _ = pqr.retrieve_one_project_strict(
             virtual_lab_id=virtual_lab_id,
             project_id=project_id,
         )
+
+        if not uqr.is_user_in_group(
+            user_id=user_id,
+            group_id=str(project.admin_group_id),
+        ) and not uqr.is_user_in_group(
+            user_id=user_id,
+            group_id=str(project.member_group_id),
+        ):
+            raise UserNotInList
 
         new_group_id = (
             project.admin_group_id
@@ -53,7 +74,7 @@ async def update_user_role_in_project(
 
         if uqr.is_user_in_group(user_id=user_id, group_id=str(new_group_id)):
             return VliResponse.new(
-                http_status_code=status.NOT_MODIFIED,
+                http_status_code=status.OK,
                 message="User already in this group",
             )
 
@@ -75,6 +96,12 @@ async def update_user_role_in_project(
             http_status_code=status.BAD_GATEWAY,
             message="Update user role in project failed",
         )
+    except UserNotInList:
+        raise VliError(
+            error_code=VliErrorCode.NOT_ALLOWED_OP,
+            http_status_code=status.FORBIDDEN,
+            message="Update user role not allowed user not in this project members",
+        )
     except Exception as ex:
         logger.error(
             f"Error during updating user role ({new_role.value}): {virtual_lab_id}/{project_id} ({ex})"
@@ -86,7 +113,7 @@ async def update_user_role_in_project(
         )
     else:
         return VliResponse.new(
-            message="Project new budget updated successfully",
+            message="Project new role updated successfully",
             data={
                 "project_id": project_id,
                 "new_role": new_role.value,

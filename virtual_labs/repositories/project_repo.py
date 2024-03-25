@@ -342,9 +342,15 @@ class ProjectMutationRepository:
             .where(
                 and_(Project.id == project_id, Project.virtual_lab_id == virtual_lab_id)
             )
-            .values({"name": payload.name, "description": payload.description})
+            .values(
+                {
+                    "name": payload.name,
+                    "description": payload.description,
+                }
+            )
             .returning(Project)
         )
         result = self.session.execute(statement=stmt)
         self.session.commit()
+
         return result.one()
