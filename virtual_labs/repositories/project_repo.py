@@ -84,8 +84,16 @@ class ProjectQueryRepository:
         result = self.session.execute(statement=stmt)
         return cast(Tuple[Project, VirtualLab], result.first())
 
-    def retrieve_one_project_by_id(self, project_id: UUID4) -> Project:
-        return self.session.query(Project).where(Project.id == project_id).one()
+    def retrieve_one_project_by_id(
+        self, project_id: UUID4
+    ) -> Tuple[Project, VirtualLab]:
+        stmt = (
+            select(Project, VirtualLab)
+            .join(VirtualLab)
+            .filter(and_(Project.id == project_id))
+        )
+        result = self.session.execute(statement=stmt)
+        return cast(Tuple[Project, VirtualLab], result.one())
 
     def retrieve_one_project_by_name(self, name: str) -> Project | None:
         return self.session.query(Project).filter(Project.name == name).first()

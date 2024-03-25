@@ -1,5 +1,4 @@
 from http import HTTPStatus as status
-from typing import Dict, cast
 
 from fastapi.responses import Response
 from loguru import logger
@@ -10,37 +9,27 @@ from sqlalchemy.orm import Session
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.exceptions.generic_exceptions import (
     BudgetExceedLimit,
-    UserNotInList,
 )
 from virtual_labs.core.response.api_response import VliResponse
-from virtual_labs.repositories.group_repo import GroupQueryRepository
 from virtual_labs.repositories.project_repo import (
     ProjectMutationRepository,
     ProjectQueryRepository,
 )
-from virtual_labs.shared.utils.is_user_in_list import is_user_in_list
-from virtual_labs.shared.utils.uniq_list import uniq_list
 
 
-def update_project_budget_use_case(
+async def update_project_budget_use_case(
     session: Session,
     virtual_lab_id: UUID4,
     project_id: UUID4,
-    user_id: UUID4,
     value: float,
 ) -> Response | VliError:
     pmr = ProjectMutationRepository(session)
     pqr = ProjectQueryRepository(session)
-    gqr = GroupQueryRepository()
 
     try:
-        project, virtual_lab = pqr.retrieve_one_project_strict(
+        _, virtual_lab = pqr.retrieve_one_project_strict(
             virtual_lab_id=virtual_lab_id, project_id=project_id
         )
-
-        users = gqr.retrieve_group_users(group_id=str(project.admin_group_id))
-        uniq_users = uniq_list([cast(Dict[str, str], u)["id"] for u in users])
-        is_user_in_list(list_=uniq_users, user_id=str(user_id))
 
         if value > virtual_lab.budget:
             raise BudgetExceedLimit("Project budget exceed max limit")
@@ -54,12 +43,6 @@ def update_project_budget_use_case(
             error_code=VliErrorCode.DATABASE_ERROR,
             http_status_code=status.BAD_REQUEST,
             message="Updating project budget failed",
-        )
-    except UserNotInList:
-        raise VliError(
-            error_code=VliErrorCode.NOT_ALLOWED_OP,
-            http_status_code=status.NOT_ACCEPTABLE,
-            message="Update project budget not allowed",
         )
     except BudgetExceedLimit:
         raise VliError(

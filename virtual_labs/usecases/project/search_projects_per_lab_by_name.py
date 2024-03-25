@@ -1,4 +1,5 @@
 from http import HTTPStatus as status
+from typing import Tuple
 
 from fastapi.responses import Response
 from loguru import logger
@@ -8,16 +9,26 @@ from sqlalchemy.orm import Session
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.response.api_response import VliResponse
-from virtual_labs.domain.project import VirtualLabModel
+from virtual_labs.domain.project import Project, VirtualLabModel
+from virtual_labs.domain.user import ShortenedUser
+from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.repositories.group_repo import GroupQueryRepository
 from virtual_labs.repositories.project_repo import ProjectQueryRepository
+from virtual_labs.repositories.user_repo import UserQueryRepository
 
 
-def search_projects_per_virtual_lab_by_name_use_case(
-    session: Session, virtual_lab_id: UUID4, user_id: UUID4, query_term: str | None
+async def search_projects_per_virtual_lab_by_name_use_case(
+    session: Session,
+    virtual_lab_id: UUID4,
+    query_term: str | None,
+    auth: Tuple[AuthUser, str],
 ) -> Response | VliError:
     pr = ProjectQueryRepository(session)
     gqr = GroupQueryRepository()
+    uqr = UserQueryRepository()
+
+    user, _ = auth
+    user_id = user.sub
 
     if not query_term:
         raise VliError(
@@ -26,7 +37,7 @@ def search_projects_per_virtual_lab_by_name_use_case(
             message="No search query provided",
         )
     try:
-        groups = gqr.retrieve_user_groups(user_id=str(user_id))
+        groups = gqr.retrieve_user_groups(user_id=user_id)
         group_ids = [g.id for g in groups]
 
         projects_vl_tuple = pr.search(
@@ -35,8 +46,11 @@ def search_projects_per_virtual_lab_by_name_use_case(
 
         projects = [
             {
-                **p.__dict__,
+                **Project(**p.__dict__).model_dump(),
                 "virtual_lab": VirtualLabModel(**v.__dict__),
+                "owner": ShortenedUser(
+                    **uqr.retrieve_user_from_kc(user_id=str(p.owner_id)).__dict__
+                ),
             }
             for p, v in projects_vl_tuple
         ]

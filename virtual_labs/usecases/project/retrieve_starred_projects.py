@@ -1,23 +1,29 @@
 from http import HTTPStatus as status
+from typing import Tuple
+from uuid import UUID
 
 from fastapi.responses import Response
 from loguru import logger
-from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.domain.project import Project
+from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.repositories.project_repo import ProjectQueryRepository
 
 
-def retrieve_starred_projects_use_case(
-    session: Session, user_id: UUID4
+async def retrieve_starred_projects_use_case(
+    session: Session, auth: Tuple[AuthUser, str]
 ) -> Response | VliError:
     pr = ProjectQueryRepository(session)
+
     try:
-        projects = pr.retrieve_starred_projects_per_user(user_id)
+        user, _ = auth
+        user_id = user.sub
+
+        projects = pr.retrieve_starred_projects_per_user(UUID(user_id))
     except SQLAlchemyError:
         raise VliError(
             error_code=VliErrorCode.DATABASE_ERROR,

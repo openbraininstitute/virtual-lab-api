@@ -6,6 +6,8 @@ from pydantic import UUID4, BaseModel, EmailStr, Field
 class UserRepresentation(BaseModel):
     id: str
     username: str
+    firstName: str | None = None
+    lastName: str | None = None
     emailVerified: bool
     createdTimestamp: int
     enabled: bool

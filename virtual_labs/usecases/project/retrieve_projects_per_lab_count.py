@@ -11,13 +11,15 @@ from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.repositories.project_repo import ProjectQueryRepository
 
 
-def retrieve_projects_count_per_virtual_lab_use_case(
+async def retrieve_projects_count_per_virtual_lab_use_case(
     session: Session, virtual_lab_id: UUID4
 ) -> Response | VliError:
     pr = ProjectQueryRepository(session)
 
     try:
-        count = pr.retrieve_projects_per_lab_count(virtual_lab_id)
+        count = pr.retrieve_projects_per_lab_count(
+            virtual_lab_id,
+        )
     except SQLAlchemyError:
         raise VliError(
             error_code=VliErrorCode.DATABASE_ERROR,

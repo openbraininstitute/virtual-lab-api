@@ -10,10 +10,11 @@ from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.repositories.project_repo import ProjectQueryRepository
 
 
-def check_project_existence_use_case(
+async def check_project_existence_use_case(
     session: Session, query_term: str | None
 ) -> Response | VliError:
     pr = ProjectQueryRepository(session)
+
     if not query_term:
         raise VliError(
             error_code=VliErrorCode.INVALID_PARAMETER,

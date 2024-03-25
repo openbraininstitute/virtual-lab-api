@@ -11,7 +11,7 @@ from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.repositories.project_repo import ProjectQueryRepository
 
 
-def retrieve_project_budget_use_case(
+async def retrieve_project_budget_use_case(
     session: Session, virtual_lab_id: UUID4, project_id: UUID4
 ) -> Response | VliError:
     pr = ProjectQueryRepository(session)

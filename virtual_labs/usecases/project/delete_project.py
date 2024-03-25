@@ -1,6 +1,6 @@
 from http import HTTPStatus as status
 from json import loads
-from typing import Dict, Tuple, cast
+from typing import Tuple
 from uuid import UUID
 
 from fastapi.responses import Response
@@ -13,19 +13,15 @@ from sqlalchemy.orm import Session
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.exceptions.generic_exceptions import (
     ProjectAlreadyDeleted,
-    UserNotInList,
 )
 from virtual_labs.core.exceptions.nexus_error import NexusError
 from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.external.nexus.project_deletion import delete_nexus_project
 from virtual_labs.infrastructure.kc.models import AuthUser
-from virtual_labs.repositories.group_repo import GroupQueryRepository
 from virtual_labs.repositories.project_repo import (
     ProjectMutationRepository,
     ProjectQueryRepository,
 )
-from virtual_labs.shared.utils.is_user_in_list import is_user_in_list
-from virtual_labs.shared.utils.uniq_list import uniq_list
 
 
 async def delete_project_use_case(
@@ -37,34 +33,7 @@ async def delete_project_use_case(
 ) -> Response | VliError:
     pqr = ProjectQueryRepository(session)
     pmr = ProjectMutationRepository(session)
-    gqr = GroupQueryRepository()
     user, _ = auth
-    try:
-        project, _ = pqr.retrieve_one_project_strict(
-            virtual_lab_id=virtual_lab_id,
-            project_id=project_id,
-        )
-
-        users = gqr.retrieve_group_users(group_id=str(project.admin_group_id))
-        uniq_users = uniq_list([cast(Dict[str, str], u)["id"] for u in users])
-
-        is_user_in_list(
-            list_=uniq_users,
-            user_id=user.sub,
-        )
-
-    except SQLAlchemyError:
-        raise VliError(
-            error_code=VliErrorCode.DATABASE_ERROR,
-            http_status_code=status.BAD_REQUEST,
-            message="Project not found",
-        )
-    except UserNotInList:
-        raise VliError(
-            error_code=VliErrorCode.NOT_ALLOWED_OP,
-            http_status_code=status.NOT_ACCEPTABLE,
-            message="Delete project not allowed",
-        )
 
     try:
         vl_project = pqr.retrieve_one_project(

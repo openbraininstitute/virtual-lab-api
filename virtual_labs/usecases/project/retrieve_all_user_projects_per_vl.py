@@ -1,4 +1,5 @@
 from http import HTTPStatus as status
+from typing import Tuple
 
 from fastapi.responses import Response
 from loguru import logger
@@ -8,26 +9,31 @@ from sqlalchemy.orm import Session
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.response.api_response import VliResponse
-from virtual_labs.domain.project import VirtualLabModel
+from virtual_labs.domain.project import Project, VirtualLabModel
+from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.repositories.group_repo import GroupQueryRepository
 from virtual_labs.repositories.project_repo import ProjectQueryRepository
 
 
-def retrieve_all_user_projects_per_vl_use_case(
-    session: Session, virtual_lab_id: UUID4, user_id: UUID4
+async def retrieve_all_user_projects_per_vl_use_case(
+    session: Session,
+    virtual_lab_id: UUID4,
+    auth: Tuple[AuthUser, str],
 ) -> Response | VliError:
     pr = ProjectQueryRepository(session)
     gqr = GroupQueryRepository()
+    user, _ = auth
+    user_id = user.sub
 
     try:
-        groups = gqr.retrieve_user_groups(user_id=str(user_id))
+        groups = gqr.retrieve_user_groups(user_id=user_id)
         group_ids = [g.id for g in groups]
         projects_vl_tuple = pr.retrieve_projects_per_vl_batch(
             virtual_lab_id=virtual_lab_id, groups=group_ids
         )
         projects = [
             {
-                **p.__dict__,
+                **Project(**p.__dict__).model_dump(),
                 "virtual_lab": VirtualLabModel(**v.__dict__),
             }
             for p, v in projects_vl_tuple

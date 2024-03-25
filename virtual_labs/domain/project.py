@@ -36,6 +36,7 @@ class Project(BaseModel):
 
 class ProjectVlOut(Project):
     virtual_lab: VirtualLabModel
+    owner: ShortenedUser
 
 
 class ProjectExistenceOut(BaseModel):
@@ -72,7 +73,7 @@ class ProjectCountOut(BaseModel):
 
 
 class ProjectWithStarredDateOut(Project):
-    starred_at: datetime
+    updated_at: datetime
     starred: bool
 
 

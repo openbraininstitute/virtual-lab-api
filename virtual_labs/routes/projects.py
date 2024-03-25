@@ -1,4 +1,3 @@
-import uuid
 from typing import Annotated, Tuple
 
 from fastapi import APIRouter, Body, Depends, Query
@@ -6,6 +5,15 @@ from fastapi.responses import Response
 from pydantic import UUID4
 from sqlalchemy.orm import Session
 
+from virtual_labs.core.authorization import (
+    verify_project_read,
+    verify_vlab_or_project_write,
+    verify_vlab_read,
+    verify_vlab_write,
+)
+from virtual_labs.core.authorization.verify_vlab_or_project_read import (
+    verify_vlab_or_project_read,
+)
 from virtual_labs.core.exceptions.api_error import VliError
 from virtual_labs.core.types import VliAppResponse
 from virtual_labs.domain.project import (
@@ -35,33 +43,19 @@ router = APIRouter(
 
 
 @router.get(
-    "/{virtual_lab_id}/projects",
-    operation_id="get_all_user_projects_per_vl",
-    summary="Retrieve all projects per virtual lab for the authenticated user (only allowed projects)",
-    response_model=VliAppResponse[ProjectWithVLOut],
-)
-def retrieve_projects(
-    virtual_lab_id: UUID4, session: Session = Depends(default_session_factory)
-) -> Response | VliError:
-    # TODO get it from token
-    user_id: UUID4 = UUID4("33b376c9-b681-4357-8b0e-ee869e580034")
-    return project_cases.retrieve_all_user_projects_per_vl_use_case(
-        session, virtual_lab_id, user_id
-    )
-
-
-@router.get(
     "/projects",
     operation_id="get_all_user_projects",
     summary="Retrieve all projects for the authenticated user (only allowed projects)",
     response_model=VliAppResponse[ProjectWithVLOut],
 )
-def retrieve_all_projects(
+async def retrieve_all_projects(
     session: Session = Depends(default_session_factory),
+    auth: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> Response | VliError:
-    # TODO get it from token
-    user_id: UUID4 = UUID4("33b376c9-b681-4357-8b0e-ee869e580034")
-    return project_cases.retrieve_all_user_projects_use_case(session, user_id)
+    return await project_cases.retrieve_all_user_projects_use_case(
+        session,
+        auth,
+    )
 
 
 @router.get(
@@ -70,15 +64,32 @@ def retrieve_all_projects(
     summary="Fulltext search for only allowed projects per virtual lab for the authenticated user",
     response_model=VliAppResponse[ProjectWithVLOut],
 )
-def search_projects_per_virtual_lab(
+@verify_vlab_read
+async def search_projects_per_virtual_lab(
     virtual_lab_id: UUID4,
     q: str = Query(max_length=50, description="query string"),
     session: Session = Depends(default_session_factory),
+    auth: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> Response | VliError:
-    # TODO get it from token
-    user_id: UUID4 = UUID4("33b376c9-b681-4357-8b0e-ee869e580034")
-    return project_cases.search_projects_per_virtual_lab_by_name_use_case(
-        session, virtual_lab_id, user_id=user_id, query_term=q
+    return await project_cases.search_projects_per_virtual_lab_by_name_use_case(
+        session, virtual_lab_id, auth=auth, query_term=q
+    )
+
+
+@router.get(
+    "/{virtual_lab_id}/projects/count",
+    operation_id="get_project_per_vl_count",
+    summary="Retrieve virtual lab projects count",
+    response_model=VliAppResponse[ProjectPerVLCountOut],
+)
+async def retrieve_projects_per_vl_count(
+    virtual_lab_id: UUID4,
+    session: Session = Depends(default_session_factory),
+    _: Tuple[AuthUser, str] = Depends(verify_jwt),
+) -> Response | VliError:
+    return await project_cases.retrieve_projects_count_per_virtual_lab_use_case(
+        session,
+        virtual_lab_id=virtual_lab_id,
     )
 
 
@@ -88,14 +99,35 @@ def search_projects_per_virtual_lab(
     summary="Fulltext search for all allowed projects for the authenticated user",
     response_model=VliAppResponse[ProjectWithVLOut],
 )
-def search_projects(
+async def search_projects(
     q: str = Query(max_length=50, description="query string"),
     session: Session = Depends(default_session_factory),
+    auth: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> Response | VliError:
-    # TODO get it from token
-    user_id: UUID4 = UUID4("33b376c9-b681-4357-8b0e-ee869e580034")
-    return project_cases.search_projects_by_name_use_case(
-        session, user_id=user_id, query_term=q
+    return await project_cases.search_projects_by_name_use_case(
+        session, auth=auth, query_term=q
+    )
+
+
+@router.get(
+    "/projects/stars",
+    operation_id="get_star_projects",
+    summary="Retrieve star projects",
+    description=(
+        """
+        Allow only the User that has the right role (be part of the project)
+        Retrieve the star projects for a specific user
+        """
+    ),
+    response_model=VliAppResponse[StarProjectsOut],
+)
+async def retrieve_stars_project(
+    session: Session = Depends(default_session_factory),
+    auth: Tuple[AuthUser, str] = Depends(verify_jwt),
+) -> Response | VliError:
+    return await project_cases.retrieve_starred_projects_use_case(
+        session,
+        auth,
     )
 
 
@@ -105,27 +137,14 @@ def search_projects(
     summary="Look for projects with the same name (case insensitive)",
     response_model=VliAppResponse[ProjectExistenceOut],
 )
-def check_project_existence(
+async def check_project_existence(
     q: str | None = Query(max_length=50, description="query string"),
     session: Session = Depends(default_session_factory),
+    _: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> Response | VliError:
-    return project_cases.check_project_existence_use_case(session, query_term=q)
-
-
-@router.get(
-    "/{virtual_lab_id}/projects/{project_id}",
-    operation_id="get_project_by_id",
-    summary="Retrieve single project detail per virtual lab",
-    response_model=VliAppResponse[ProjectVlOut],
-)
-def retrieve_project(
-    virtual_lab_id: UUID4,
-    project_id: UUID4,
-    session: Session = Depends(default_session_factory),
-) -> Response | VliError:
-    user_id: UUID4 = UUID4("33b376c9-b681-4357-8b0e-ee869e580034")
-    return project_cases.retrieve_single_project_use_case(
-        session, virtual_lab_id, project_id, user_id=user_id
+    return await project_cases.check_project_existence_use_case(
+        session,
+        query_term=q,
     )
 
 
@@ -141,6 +160,7 @@ def retrieve_project(
     ),
     response_model=VliAppResponse[ProjectOut],
 )
+@verify_vlab_write
 async def create_new_project(
     virtual_lab_id: UUID4,
     payload: ProjectCreationBody,
@@ -151,6 +171,45 @@ async def create_new_project(
         session,
         virtual_lab_id=virtual_lab_id,
         payload=payload,
+        auth=auth,
+    )
+
+
+@router.get(
+    "/{virtual_lab_id}/projects",
+    operation_id="get_all_user_projects_per_vl",
+    summary="Retrieve all projects per virtual lab for the authenticated user (only allowed projects)",
+    response_model=VliAppResponse[ProjectWithVLOut],
+)
+async def retrieve_projects(
+    virtual_lab_id: UUID4,
+    session: Session = Depends(default_session_factory),
+    auth: Tuple[AuthUser, str] = Depends(verify_jwt),
+) -> Response | VliError:
+    return await project_cases.retrieve_all_user_projects_per_vl_use_case(
+        session,
+        virtual_lab_id,
+        auth,
+    )
+
+
+@router.get(
+    "/{virtual_lab_id}/projects/{project_id}",
+    operation_id="get_project_by_id",
+    summary="Retrieve single project detail per virtual lab",
+    response_model=VliAppResponse[ProjectVlOut],
+)
+@verify_vlab_or_project_read
+async def retrieve_project(
+    virtual_lab_id: UUID4,
+    project_id: UUID4,
+    session: Session = Depends(default_session_factory),
+    auth: Tuple[AuthUser, str] = Depends(verify_jwt),
+) -> Response | VliError:
+    return await project_cases.retrieve_single_project_use_case(
+        session,
+        virtual_lab_id,
+        project_id,
         auth=auth,
     )
 
@@ -169,6 +228,7 @@ async def create_new_project(
     ),
     response_model=VliAppResponse[ProjectDeletionOut],
 )
+@verify_vlab_or_project_write
 async def delete_project(
     virtual_lab_id: UUID4,
     project_id: UUID4,
@@ -189,12 +249,14 @@ async def delete_project(
     summary="Retrieve project budget",
     response_model=VliAppResponse[ProjectBudgetOut],
 )
-def retrieve_project_budget(
+@verify_project_read
+async def retrieve_project_budget(
     virtual_lab_id: UUID4,
     project_id: UUID4,
     session: Session = Depends(default_session_factory),
+    auth: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> Response | VliError:
-    return project_cases.retrieve_project_budget_use_case(
+    return await project_cases.retrieve_project_budget_use_case(
         session, virtual_lab_id=virtual_lab_id, project_id=project_id
     )
 
@@ -212,18 +274,18 @@ def retrieve_project_budget(
     ),
     response_model=VliAppResponse[ProjectUpdateBudgetOut],
 )
-def update_project_budget(
+@verify_vlab_or_project_write
+async def update_project_budget(
     virtual_lab_id: UUID4,
     project_id: UUID4,
     new_budget: Annotated[float, Body(embed=True)],
     session: Session = Depends(default_session_factory),
+    auth: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> Response | VliError:
-    user_id: UUID4 = uuid.UUID("a188837d-19ac-4ebc-b14f-a90b663357b3")
-    return project_cases.update_project_budget_use_case(
+    return await project_cases.update_project_budget_use_case(
         session,
         virtual_lab_id=virtual_lab_id,
         project_id=project_id,
-        user_id=user_id,
         value=new_budget,
     )
 
@@ -234,12 +296,14 @@ def update_project_budget(
     summary="Retrieve users per project",
     response_model=VliAppResponse[ProjectUsersOut],
 )
-def retrieve_project_users(
+@verify_vlab_or_project_write
+async def retrieve_project_users(
     virtual_lab_id: UUID4,
     project_id: UUID4,
     session: Session = Depends(default_session_factory),
+    auth: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> Response | VliError:
-    return project_cases.retrieve_all_users_per_project_use_case(
+    return await project_cases.retrieve_all_users_per_project_use_case(
         session, virtual_lab_id, project_id
     )
 
@@ -250,25 +314,14 @@ def retrieve_project_users(
     summary="Retrieve users count per project",
     response_model=VliAppResponse[ProjectUsersCountOut],
 )
-def retrieve_project_users_count(
+async def retrieve_project_users_count(
     project_id: UUID4,
     session: Session = Depends(default_session_factory),
+    _: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> Response | VliError:
-    return project_cases.retrieve_users_per_project_count_use_case(session, project_id)
-
-
-@router.get(
-    "/{virtual_lab_id}/projects/count",
-    operation_id="get_project_per_vl_count",
-    summary="Retrieve virtual lab projects count",
-    response_model=VliAppResponse[ProjectPerVLCountOut],
-)
-def retrieve_projects_per_vl_count(
-    virtual_lab_id: UUID4,
-    session: Session = Depends(default_session_factory),
-) -> Response | VliError:
-    return project_cases.retrieve_projects_count_per_virtual_lab_use_case(
-        session, virtual_lab_id=virtual_lab_id
+    return await project_cases.retrieve_users_per_project_count_use_case(
+        session,
+        project_id,
     )
 
 
@@ -285,33 +338,18 @@ def retrieve_projects_per_vl_count(
     ),
     response_model=VliAppResponse[ProjectWithStarredDateOut],
 )
-def update_project_star_status(
+@verify_vlab_or_project_read
+async def update_project_star_status(
     virtual_lab_id: UUID4,
     project_id: UUID4,
+    value: Annotated[bool, Body(embed=True)],
     session: Session = Depends(default_session_factory),
+    auth: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> Response | VliError:
-    # TODO get it from token
-    user_id: UUID4 = uuid.UUID("a188837d-19ac-4ebc-b14f-a90b663357b3")
-    return project_cases.update_star_project_status_use_case(
-        session, virtual_lab_id=virtual_lab_id, project_id=project_id, user_id=user_id
+    return await project_cases.update_star_project_status_use_case(
+        session,
+        virtual_lab_id=virtual_lab_id,
+        project_id=project_id,
+        value=value,
+        auth=auth,
     )
-
-
-@router.get(
-    "/projects/stars",
-    operation_id="get_star_projects",
-    summary="Retrieve star projects",
-    description=(
-        """
-        Allow only the User that has the right role (be part of the project)
-        Retrieve the star projects for a specific user
-        """
-    ),
-    response_model=VliAppResponse[StarProjectsOut],
-)
-def retrieve_stars_project(
-    session: Session = Depends(default_session_factory),
-) -> Response | VliError:
-    # TODO get it from token
-    user_id: UUID4 = uuid.UUID("a188837d-19ac-4ebc-b14f-a90b663357b3")
-    return project_cases.retrieve_starred_projects_use_case(session, user_id=user_id)

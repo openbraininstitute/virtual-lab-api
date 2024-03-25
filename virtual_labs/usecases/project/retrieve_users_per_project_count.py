@@ -1,5 +1,4 @@
 from http import HTTPStatus as status
-from typing import Dict, cast
 
 from fastapi.responses import Response
 from loguru import logger
@@ -14,17 +13,18 @@ from virtual_labs.repositories.project_repo import ProjectQueryRepository
 from virtual_labs.shared.utils.uniq_list import uniq_list
 
 
-def retrieve_users_per_project_count_use_case(
+async def retrieve_users_per_project_count_use_case(
     session: Session, project_id: UUID4
 ) -> Response | VliError:
     pr = ProjectQueryRepository(session)
     gqr = GroupQueryRepository()
 
     try:
-        project = pr.retrieve_one_project_by_id(project_id)
+        project, _ = pr.retrieve_one_project_by_id(project_id)
         admins = gqr.retrieve_group_users(group_id=str(project.admin_group_id))
         members = gqr.retrieve_group_users(group_id=str(project.member_group_id))
-        users = uniq_list([cast(Dict[str, str], u)["id"] for u in admins + members])
+
+        users = uniq_list([u.id for u in admins + members])
 
     except SQLAlchemyError:
         raise VliError(
@@ -44,5 +44,8 @@ def retrieve_users_per_project_count_use_case(
     else:
         return VliResponse.new(
             message="Count users per project fetched successfully",
-            data={"project_id": project_id, "total": len(users)},
+            data={
+                "project_id": project_id,
+                "total": len(users),
+            },
         )
