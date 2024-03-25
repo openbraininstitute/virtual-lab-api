@@ -35,31 +35,32 @@ make init-db
 
 echo "get access token"
 
+if [ "$IS_CI" != "True" ]; then
+  # curl command to get the token
+  TOKEN_RESPONSE=$(curl -s -X POST \
+    "${KC_SERVER_URI}/realms/${KC_REALM_NAME}/protocol/openid-connect/token" \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data-urlencode "client_id=${CLIENT_ID}" \
+    --data-urlencode "client_secret=${CLIENT_SECRET}" \
+    --data-urlencode 'username=test' \
+    --data-urlencode 'password=test' \
+    --data-urlencode 'grant_type=password' \
+    --data-urlencode 'scope=openid')
 
-# curl command to get the token
-TOKEN_RESPONSE=$(curl -s -X POST \
-  "${KC_SERVER_URI}/realms/${KC_REALM_NAME}/protocol/openid-connect/token" \
-  -H 'Content-Type: application/x-www-form-urlencoded' \
-  --data-urlencode "client_id=${CLIENT_ID}" \
-  --data-urlencode "client_secret=${CLIENT_SECRET}" \
-  --data-urlencode 'username=test' \
-  --data-urlencode 'password=test' \
-  --data-urlencode 'grant_type=password' \
-  --data-urlencode 'scope=openid')
+  # extracting the access token using jq
+  ACCESS_TOKEN=$(echo "$TOKEN_RESPONSE" | jq -r '.access_token')
 
-# extracting the access token using jq
-ACCESS_TOKEN=$(echo "$TOKEN_RESPONSE" | jq -r '.access_token')
-
-# check the OS and copy the access token to the clipboard
-OS=$(uname)
-if [ "$OS" == "Linux" ]; then
-  echo "$ACCESS_TOKEN" | xclip -selection clipboard
-  echo "Access token copied to clipboard (Linux)."
-elif [ "$OS" == "Darwin" ]; then
-  echo "$ACCESS_TOKEN" | pbcopy
-  echo "Access token copied to clipboard (macOS)."
-else
-  echo "Unsupported OS for clipboard operation: $OS"
+  # check the OS and copy the access token to the clipboard
+  OS=$(uname)
+  if [ "$OS" == "Linux" ]; then
+    echo "$ACCESS_TOKEN" | xclip -selection clipboard
+    echo "Access token copied to clipboard (Linux)."
+  elif [ "$OS" == "Darwin" ]; then
+    echo "$ACCESS_TOKEN" | pbcopy
+    echo "Access token copied to clipboard (macOS)."
+  else
+    echo "Unsupported OS for clipboard operation: $OS"
+  fi
 fi
 
 echo "start dev server"

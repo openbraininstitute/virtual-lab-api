@@ -19,6 +19,6 @@ jobs:
       - name: Run type checks
         run: make type-check
       - name: Start services
-        run: make init
+        run: IS_CI="True" make init
       - name: Run tests
         run: make test
