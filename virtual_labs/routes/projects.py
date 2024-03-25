@@ -16,6 +16,7 @@ from virtual_labs.core.authorization.verify_vlab_or_project_read import (
 )
 from virtual_labs.core.exceptions.api_error import VliError
 from virtual_labs.core.types import UserRoleEnum, VliAppResponse
+from virtual_labs.domain.common import PageParams
 from virtual_labs.domain.project import (
     ProjectBody,
     ProjectBudgetOut,
@@ -52,12 +53,13 @@ router = APIRouter(
     response_model=VliAppResponse[ProjectWithVLOut],
 )
 async def retrieve_all_projects(
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=0),
     session: Session = Depends(default_session_factory),
     auth: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> Response | VliError:
     return await project_cases.retrieve_all_user_projects_use_case(
-        session,
-        auth,
+        session, auth, pagination=PageParams(page=page, size=size)
     )
 
 
@@ -186,13 +188,19 @@ async def create_new_project(
 )
 async def retrieve_projects(
     virtual_lab_id: UUID4,
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=0),
     session: Session = Depends(default_session_factory),
     auth: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> Response | VliError:
     return await project_cases.retrieve_all_user_projects_per_vl_use_case(
         session,
-        virtual_lab_id,
-        auth,
+        virtual_lab_id=virtual_lab_id,
+        auth=auth,
+        pagination=PageParams(
+            page=page,
+            size=size,
+        ),
     )
 
 

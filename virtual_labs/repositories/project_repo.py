@@ -4,9 +4,11 @@ from uuid import UUID
 
 from pydantic import UUID4
 from sqlalchemy import Row, delete, func, or_, select, update
-from sqlalchemy.orm import Query, Session
+from sqlalchemy.orm import Query, Session, noload
 from sqlalchemy.sql import and_
 
+from virtual_labs.core.types import PaginatedDbResult
+from virtual_labs.domain.common import PageParams
 from virtual_labs.domain.project import ProjectBody, ProjectCreationBody
 from virtual_labs.infrastructure.db.models import Project, ProjectStar, VirtualLab
 
@@ -18,10 +20,13 @@ class ProjectQueryRepository:
         self.session = session
 
     def retrieve_projects_per_vl_batch(
-        self, virtual_lab_id: UUID4, groups: List[str]
-    ) -> List[Tuple[Project, VirtualLab]]:
-        stmt = (
-            select(Project, VirtualLab)
+        self,
+        virtual_lab_id: UUID4,
+        groups: List[str],
+        pagination: PageParams,
+    ) -> PaginatedDbResult[List[Row[Tuple[Project, VirtualLab]]]]:
+        query = (
+            self.session.query(Project, VirtualLab)
             .join(VirtualLab)
             .filter(
                 and_(
@@ -33,16 +38,29 @@ class ProjectQueryRepository:
                     ~Project.deleted,
                 )
             )
-            .order_by(Project.updated_at)
         )
-        result = self.session.execute(statement=stmt)
-        return cast(List[Tuple[Project, VirtualLab]], result.all())
+        count = self.session.scalar(
+            select(func.count()).select_from(query.options(noload("*")).subquery())
+        )
+        result = (
+            query.order_by(Project.updated_at)
+            .offset((pagination.page - 1) * pagination.size)
+            .limit(pagination.size)
+            .all()
+        )
+
+        return PaginatedDbResult(
+            count=count,
+            rows=result,
+        )
 
     def retrieve_projects_batch(
-        self, groups: List[str]
-    ) -> List[Tuple[Project, VirtualLab]]:
-        stmt = (
-            select(Project, VirtualLab)
+        self,
+        groups: List[str],
+        pagination: PageParams,
+    ) -> PaginatedDbResult[List[Row[Tuple[Project, VirtualLab]]]]:
+        query = (
+            self.session.query(Project, VirtualLab)
             .join(VirtualLab)
             .filter(
                 and_(
@@ -53,10 +71,21 @@ class ProjectQueryRepository:
                     ~Project.deleted,
                 )
             )
-            .order_by(Project.updated_at)
         )
-        result = self.session.execute(statement=stmt)
-        return cast(List[Tuple[Project, VirtualLab]], result.all())
+        count = self.session.scalar(
+            select(func.count()).select_from(query.options(noload("*")).subquery())
+        )
+        result = (
+            query.order_by(Project.updated_at)
+            .offset((pagination.page - 1) * pagination.size)
+            .limit(pagination.size)
+            .all()
+        )
+
+        return PaginatedDbResult(
+            count=count,
+            rows=result,
+        )
 
     def retrieve_one_project_strict(
         self, virtual_lab_id: UUID4, project_id: UUID4
