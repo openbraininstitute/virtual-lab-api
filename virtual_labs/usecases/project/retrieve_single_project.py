@@ -5,7 +5,7 @@ from fastapi.responses import Response
 from loguru import logger
 from pydantic import UUID4
 from sqlalchemy.exc import MultipleResultsFound, NoResultFound, SQLAlchemyError
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.response.api_response import VliResponse
@@ -17,7 +17,7 @@ from virtual_labs.repositories.user_repo import UserQueryRepository
 
 
 async def retrieve_single_project_use_case(
-    session: Session,
+    session: AsyncSession,
     virtual_lab_id: UUID4,
     project_id: UUID4,
     auth: Optional[Tuple[AuthUser, str]],
@@ -25,7 +25,7 @@ async def retrieve_single_project_use_case(
     pr = ProjectQueryRepository(session)
     uqr = UserQueryRepository()
     try:
-        project, vl = pr.retrieve_one_project_strict(virtual_lab_id, project_id)
+        project, vl = await pr.retrieve_one_project_strict(virtual_lab_id, project_id)
         owner = uqr.retrieve_user_from_kc(user_id=str(project.owner_id))
 
         _project = ProjectVlOut(

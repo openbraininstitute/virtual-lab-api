@@ -7,7 +7,7 @@ from keycloak import KeycloakError  # type: ignore
 from loguru import logger
 from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.exceptions.generic_exceptions import UserNotInList
@@ -25,7 +25,7 @@ from virtual_labs.shared.utils.auth import get_user_id_from_auth
 
 
 async def update_user_role_in_project(
-    session: Session,
+    session: AsyncSession,
     virtual_lab_id: UUID4,
     project_id: UUID4,
     user_id: UUID4,
@@ -46,7 +46,7 @@ async def update_user_role_in_project(
         )
 
     try:
-        project, _ = pqr.retrieve_one_project_strict(
+        project, _ = await pqr.retrieve_one_project_strict(
             virtual_lab_id=virtual_lab_id,
             project_id=project_id,
         )
