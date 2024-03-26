@@ -26,6 +26,7 @@ client = TestClient(app, base_url="http://localhost:8000")
 
 def auth(username: str = "test") -> str:
     token = kc_auth.token(username=username, password="test")
+    print(f"TOKEN: {token["access_token"]}")
     return cast(str, token["access_token"])
 
 

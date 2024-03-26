@@ -1,5 +1,4 @@
 from http import HTTPStatus
-from typing import Any
 from uuid import UUID
 
 from loguru import logger
@@ -7,6 +6,7 @@ from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from virtual_labs.core.email.email_service import EmailSchema, send_email
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.exceptions.generic_exceptions import UserNotInList
 from virtual_labs.domain.labs import AddUserToVirtualLab
@@ -16,9 +16,9 @@ from virtual_labs.repositories.user_repo import UserQueryRepository
 from virtual_labs.usecases.labs.lab_authorization import is_user_admin_of_lab
 
 
-def invite_user_to_lab(
+async def invite_user_to_lab(
     lab_id: UUID4, inviter_id: UUID4, invite_details: AddUserToVirtualLab, db: Session
-) -> Any:
+) -> UUID4:
     user_repo = UserQueryRepository()
     invite_repo = InviteMutationRepository(db)
 
@@ -41,10 +41,9 @@ def invite_user_to_lab(
             invitee_email=invite_details.email,
         )
 
-        # TODO: Send invite to user
-        # user_repo.send_invite_to_user(invite.id, user_email)
-
-        return invite.id
+        response = await send_email(email=EmailSchema(email=[invite_details.email]))
+        assert response.status_code == 200
+        return UUID(str(invite.id))
     except UserNotInList:
         raise VliError(
             message=f"Only admins of lab can invite other users and user {inviter_id} is not admin of lab {lab.name}",
