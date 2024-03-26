@@ -308,4 +308,8 @@ pyrightconfig.json
 .history
 .ionide
 
+# Mock email data
+env-prep/email-data/ 
+
 # End of https://www.toptal.com/developers/gitignore/api/visualstudiocode,intellij,python
+

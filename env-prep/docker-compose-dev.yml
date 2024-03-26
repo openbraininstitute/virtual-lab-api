@@ -89,7 +89,7 @@ services:
       - 1025:1025 # smtp server
     environment:
       MP_MAX_MESSAGES: 5000
-      MP_DATA_FILE: /data/mailpit.db # TODO: Location might need changing. gitignore
+      MP_DATA_FILE: /email-data/mailpit.db # TODO: Location might need changing. gitignore
       MP_SMTP_AUTH_ACCEPT_ANY: 1
       MP_SMTP_AUTH_ALLOW_INSECURE: 1
 
