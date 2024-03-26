@@ -35,7 +35,7 @@ def verify_vlab_or_project_write(f: Callable[..., Any]) -> Callable[..., Any]:
 
             users = []
             if virtual_lab_id:
-                vlab = get_virtual_lab(
+                vlab = await get_virtual_lab(
                     session,
                     lab_id=virtual_lab_id,
                 )
@@ -44,7 +44,7 @@ def verify_vlab_or_project_write(f: Callable[..., Any]) -> Callable[..., Any]:
                 )
                 users += vlab_admins
             if project_id:
-                project, _ = pqr.retrieve_one_project_by_id(project_id=project_id)
+                project, _ = await pqr.retrieve_one_project_by_id(project_id=project_id)
                 project_admins = gqr.retrieve_group_users(
                     group_id=str(project.admin_group_id)
                 )
