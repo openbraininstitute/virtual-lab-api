@@ -25,7 +25,9 @@ class Settings(BaseSettings):
     POSTGRES_USER: str = "vlm"
     POSTGRES_PASSWORD: str = "vlm"
     POSTGRES_DB: str = "vlm"
-    DATABASE_URI: PostgresDsn = MultiHostUrl("postgresql://vlm:vlm@localhost:15432/vlm")
+    DATABASE_URI: PostgresDsn = MultiHostUrl(
+        "postgresql+asyncpg://vlm:vlm@localhost:15432/vlm"
+    )
     NEXUS_DELTA_URI: Url = Url("http://localhost:8080/v1")
 
     KC_SERVER_URI: str = "http://localhost:9090/"
@@ -58,7 +60,7 @@ class Settings(BaseSettings):
         if isinstance(v, str):
             return v
         return PostgresDsn.build(
-            scheme="postgresql",
+            scheme="postgresql+asyncpg",
             username=values.data.get("POSTGRES_USER"),
             password=values.data.get("POSTGRES_PASSWORD"),
             host=values.data.get("POSTGRES_HOST"),
