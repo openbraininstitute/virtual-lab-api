@@ -14,7 +14,6 @@ from virtual_labs.core.authorization import (
 from virtual_labs.core.authorization.verify_vlab_or_project_read import (
     verify_vlab_or_project_read,
 )
-from virtual_labs.core.dependencies.db import DBSessionDependency
 from virtual_labs.core.exceptions.api_error import VliError
 from virtual_labs.core.types import UserRoleEnum, VliAppResponse
 from virtual_labs.domain.common import PageParams, PaginatedResultsResponse
@@ -47,9 +46,6 @@ router = APIRouter(
     prefix="/virtual-labs",
     tags=["Project Endpoints"],
 )
-
-
-DBSessionDependency
 
 
 @router.get(

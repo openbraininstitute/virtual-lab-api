@@ -7,10 +7,11 @@ from keycloak import KeycloakError  # type: ignore
 from loguru import logger
 from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.exceptions.generic_exceptions import (
+    EntityNotFound,
     ProjectAlreadyDeleted,
 )
 from virtual_labs.core.exceptions.nexus_error import NexusError
@@ -25,7 +26,7 @@ from virtual_labs.shared.utils.auth import get_user_id_from_auth
 
 
 async def delete_project_use_case(
-    session: Session,
+    session: AsyncSession,
     *,
     virtual_lab_id: UUID4,
     project_id: UUID4,
@@ -36,15 +37,19 @@ async def delete_project_use_case(
     user_id = get_user_id_from_auth(auth)
 
     try:
-        vl_project = pqr.retrieve_one_project(
+        vl_project = await pqr.retrieve_one_project(
             virtual_lab_id=virtual_lab_id,
             project_id=project_id,
         )
+
+        if vl_project is None:
+            raise EntityNotFound
+
         assert vl_project is not None
         if vl_project[0] and vl_project[0].deleted:
             raise ProjectAlreadyDeleted
 
-    except AssertionError:
+    except EntityNotFound:
         raise VliError(
             error_code=VliErrorCode.ENTITY_NOT_FOUND,
             http_status_code=status.BAD_REQUEST,
@@ -62,7 +67,7 @@ async def delete_project_use_case(
             deleted_project_id,
             deleted,
             deleted_at,
-        ) = pmr.delete_project(
+        ) = await pmr.delete_project(
             virtual_lab_id=virtual_lab_id,
             project_id=project_id,
             user_id=user_id,
@@ -99,7 +104,7 @@ async def delete_project_use_case(
             auth=auth,
         )
     except NexusError as ex:
-        pmr.un_delete_project(
+        await pmr.un_delete_project(
             virtual_lab_id=virtual_lab_id,
             project_id=project_id,
         )

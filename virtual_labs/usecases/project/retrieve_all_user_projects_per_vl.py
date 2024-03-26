@@ -5,7 +5,7 @@ from fastapi.responses import Response
 from loguru import logger
 from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.response.api_response import VliResponse
@@ -20,7 +20,7 @@ from virtual_labs.shared.utils.auth import get_user_id_from_auth
 
 
 async def retrieve_all_user_projects_per_vl_use_case(
-    session: Session,
+    session: AsyncSession,
     *,
     virtual_lab_id: UUID4,
     pagination: PageParams,
@@ -35,7 +35,7 @@ async def retrieve_all_user_projects_per_vl_use_case(
         groups = gqr.retrieve_user_groups(user_id=str(user_id))
         group_ids = [g.id for g in groups]
 
-        results = pr.retrieve_projects_per_vl_batch(
+        results = await pr.retrieve_projects_per_vl_batch(
             virtual_lab_id=virtual_lab_id,
             groups=group_ids,
             pagination=pagination,

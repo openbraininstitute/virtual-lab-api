@@ -7,7 +7,7 @@ from keycloak import KeycloakError  # type: ignore
 from loguru import logger
 from pydantic import UUID4
 from sqlalchemy.exc import IntegrityError, NoResultFound, SQLAlchemyError
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.exceptions.nexus_error import NexusError
@@ -17,7 +17,6 @@ from virtual_labs.domain.project import Project, ProjectCreationBody
 from virtual_labs.external.nexus.project_instance import instantiate_nexus_project
 from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.repositories.group_repo import GroupMutationRepository
-from virtual_labs.repositories.labs import get_virtual_lab
 from virtual_labs.repositories.project_repo import (
     ProjectMutationRepository,
     ProjectQueryRepository,
@@ -27,7 +26,7 @@ from virtual_labs.shared.utils.auth import get_user_id_from_auth
 
 
 async def create_new_project_use_case(
-    session: Session,
+    session: AsyncSession,
     *,
     virtual_lab_id: UUID4,
     payload: ProjectCreationBody,
@@ -42,9 +41,14 @@ async def create_new_project_use_case(
     user_id = get_user_id_from_auth(auth)
 
     try:
-        get_virtual_lab(session, virtual_lab_id)
+        # TODO: returning it back when VL repo us Async
+        # get_virtual_lab(session, virtual_lab_id)
 
-        if pqr.retrieve_one_project_by_name(name=payload.name):
+        if bool(
+            await pqr.check_project_exists_by_name(
+                query_term=payload.name,
+            )
+        ):
             raise
 
     except NoResultFound:
@@ -135,7 +139,7 @@ async def create_new_project_use_case(
         )
 
     try:
-        project = pmr.create_new_project(
+        project = await pmr.create_new_project(
             id=project_id,
             payload=payload,
             virtual_lab_id=virtual_lab_id,

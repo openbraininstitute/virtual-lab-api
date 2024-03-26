@@ -4,7 +4,7 @@ from fastapi.responses import Response
 from loguru import logger
 from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.response.api_response import VliResponse
@@ -12,12 +12,12 @@ from virtual_labs.repositories.project_repo import ProjectQueryRepository
 
 
 async def retrieve_projects_count_per_virtual_lab_use_case(
-    session: Session, virtual_lab_id: UUID4
+    session: AsyncSession, virtual_lab_id: UUID4
 ) -> Response | VliError:
     pr = ProjectQueryRepository(session)
 
     try:
-        count = pr.retrieve_projects_per_lab_count(
+        count = await pr.retrieve_projects_per_lab_count(
             virtual_lab_id,
         )
     except SQLAlchemyError:

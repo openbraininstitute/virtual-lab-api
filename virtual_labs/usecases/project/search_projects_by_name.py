@@ -4,7 +4,7 @@ from typing import Tuple
 from fastapi.responses import Response
 from loguru import logger
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.response.api_response import VliResponse
@@ -18,7 +18,7 @@ from virtual_labs.shared.utils.auth import get_user_id_from_auth
 
 
 async def search_projects_by_name_use_case(
-    session: Session, query_term: str | None, auth: Tuple[AuthUser, str]
+    session: AsyncSession, query_term: str | None, auth: Tuple[AuthUser, str]
 ) -> Response | VliError:
     pr = ProjectQueryRepository(session)
     gqr = GroupQueryRepository()
@@ -35,7 +35,7 @@ async def search_projects_by_name_use_case(
     try:
         groups = gqr.retrieve_user_groups(user_id=str(user_id))
         group_ids = [g.id for g in groups]
-        projects_vl_tuple = pr.search(
+        projects_vl_tuple = await pr.search(
             query_term=query_term,
             groups_ids=group_ids,
         )

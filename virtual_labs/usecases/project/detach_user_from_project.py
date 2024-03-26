@@ -8,7 +8,7 @@ from keycloak import KeycloakError  # type: ignore
 from loguru import logger
 from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.exceptions.generic_exceptions import ForbiddenOperation
@@ -25,7 +25,7 @@ from virtual_labs.shared.utils.uniq_list import uniq_list
 
 
 async def detach_user_from_project(
-    session: Session,
+    session: AsyncSession,
     virtual_lab_id: UUID4,
     project_id: UUID4,
     user_id: UUID4,
@@ -36,7 +36,7 @@ async def detach_user_from_project(
     gqr = GroupQueryRepository()
 
     try:
-        project, vl = pqr.retrieve_one_project_strict(
+        project, vl = await pqr.retrieve_one_project_strict(
             virtual_lab_id=virtual_lab_id,
             project_id=project_id,
         )
