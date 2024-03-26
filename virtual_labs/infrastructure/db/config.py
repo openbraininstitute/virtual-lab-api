@@ -1,9 +1,11 @@
 import sys
 from contextlib import asynccontextmanager
-from typing import Any, AsyncIterator, Dict
+from typing import Any, AsyncIterator, Dict, Generator
 
+from loguru import logger
 from sqlalchemy.ext.asyncio import (
     AsyncConnection,
+    AsyncEngine,
     AsyncSession,
     async_sessionmaker,
     create_async_engine,
@@ -50,13 +52,17 @@ if settings.DATABASE_URI is None and "pytest" not in sys.modules:
 
 
 class DatabaseSessionPool:
+    _engine: AsyncEngine | None
+    _session_maker: async_sessionmaker[AsyncSession] | None
+
     def __init__(self, host: str, options: Dict[str, Any] = {}) -> None:
         self._engine = create_async_engine(host, **options)
         self._session_maker = async_sessionmaker(
             autoflush=False, autocommit=False, bind=self._engine
         )
+        logger.info("✅ DB connected")
 
-    async def close(self):
+    async def close(self) -> None:
         if (self._engine) is None:
             raise Exception("SessionPool not initialized")
         await self._engine.dispose()
@@ -99,6 +105,6 @@ session_pool = DatabaseSessionPool(
 )
 
 
-async def default_session_factory():
+async def default_session_factory() -> Generator[AsyncSession, Any, None]:  # type: ignore
     async with session_pool.session() as session:
         yield session
