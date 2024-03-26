@@ -3,7 +3,7 @@ from typing import Annotated, Tuple
 from fastapi import APIRouter, Body, Depends, Query
 from fastapi.responses import Response
 from pydantic import UUID4
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.authorization import (
     verify_project_read,
@@ -14,6 +14,7 @@ from virtual_labs.core.authorization import (
 from virtual_labs.core.authorization.verify_vlab_or_project_read import (
     verify_vlab_or_project_read,
 )
+from virtual_labs.core.dependencies.db import DBSessionDependency
 from virtual_labs.core.exceptions.api_error import VliError
 from virtual_labs.core.types import UserRoleEnum, VliAppResponse
 from virtual_labs.domain.common import PageParams, PaginatedResultsResponse
@@ -48,6 +49,9 @@ router = APIRouter(
 )
 
 
+DBSessionDependency
+
+
 @router.get(
     "/projects",
     operation_id="get_all_user_projects",
@@ -57,7 +61,7 @@ router = APIRouter(
 async def retrieve_all_projects(
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=0),
-    session: Session = Depends(default_session_factory),
+    session: AsyncSession = Depends(default_session_factory),
     auth: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> Response | VliError:
     return await project_cases.retrieve_all_user_projects_use_case(
@@ -73,7 +77,7 @@ async def retrieve_all_projects(
 )
 async def search_projects(
     q: str = Query(max_length=50, description="query string"),
-    session: Session = Depends(default_session_factory),
+    session: AsyncSession = Depends(default_session_factory),
     auth: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> Response | VliError:
     return await project_cases.search_projects_by_name_use_case(
@@ -89,7 +93,7 @@ async def search_projects(
 )
 async def check_project_existence(
     q: str | None = Query(max_length=50, description="query string"),
-    session: Session = Depends(default_session_factory),
+    session: AsyncSession = Depends(default_session_factory),
     _: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> Response | VliError:
     return await project_cases.check_project_existence_use_case(
@@ -111,12 +115,18 @@ async def check_project_existence(
     response_model=VliAppResponse[StarProjectsOut],
 )
 async def retrieve_stars_project(
-    session: Session = Depends(default_session_factory),
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=0),
+    session: AsyncSession = Depends(default_session_factory),
     auth: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> Response | VliError:
     return await project_cases.retrieve_starred_projects_use_case(
         session,
         auth,
+        pagination=PageParams(
+            page=page,
+            size=size,
+        ),
     )
 
 
@@ -130,7 +140,7 @@ async def retrieve_stars_project(
 async def search_projects_per_virtual_lab(
     virtual_lab_id: UUID4,
     q: str = Query(max_length=50, description="query string"),
-    session: Session = Depends(default_session_factory),
+    session: AsyncSession = Depends(default_session_factory),
     auth: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> Response | VliError:
     return await project_cases.search_projects_per_virtual_lab_by_name_use_case(
@@ -146,7 +156,7 @@ async def search_projects_per_virtual_lab(
 )
 async def retrieve_projects_per_vl_count(
     virtual_lab_id: UUID4,
-    session: Session = Depends(default_session_factory),
+    session: AsyncSession = Depends(default_session_factory),
     _: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> Response | VliError:
     return await project_cases.retrieve_projects_count_per_virtual_lab_use_case(
@@ -171,7 +181,7 @@ async def retrieve_projects_per_vl_count(
 async def create_new_project(
     virtual_lab_id: UUID4,
     payload: ProjectCreationBody,
-    session: Session = Depends(default_session_factory),
+    session: AsyncSession = Depends(default_session_factory),
     auth: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> Response | VliError:
     return await project_cases.create_new_project_use_case(
@@ -192,7 +202,7 @@ async def retrieve_projects(
     virtual_lab_id: UUID4,
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=0),
-    session: Session = Depends(default_session_factory),
+    session: AsyncSession = Depends(default_session_factory),
     auth: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> Response | VliError:
     return await project_cases.retrieve_all_user_projects_per_vl_use_case(
@@ -217,7 +227,7 @@ async def update_project_data(
     virtual_lab_id: UUID4,
     project_id: UUID4,
     payload: ProjectBody,
-    session: Session = Depends(default_session_factory),
+    session: AsyncSession = Depends(default_session_factory),
     auth: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> Response | VliError:
     return await project_cases.update_project_data(
@@ -239,7 +249,7 @@ async def update_project_data(
 async def retrieve_project(
     virtual_lab_id: UUID4,
     project_id: UUID4,
-    session: Session = Depends(default_session_factory),
+    session: AsyncSession = Depends(default_session_factory),
     auth: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> Response | VliError:
     return await project_cases.retrieve_single_project_use_case(
@@ -268,7 +278,7 @@ async def retrieve_project(
 async def delete_project(
     virtual_lab_id: UUID4,
     project_id: UUID4,
-    session: Session = Depends(default_session_factory),
+    session: AsyncSession = Depends(default_session_factory),
     auth: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> Response | VliError:
     return await project_cases.delete_project_use_case(
@@ -289,7 +299,7 @@ async def delete_project(
 async def retrieve_project_budget(
     virtual_lab_id: UUID4,
     project_id: UUID4,
-    session: Session = Depends(default_session_factory),
+    session: AsyncSession = Depends(default_session_factory),
     auth: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> Response | VliError:
     return await project_cases.retrieve_project_budget_use_case(
@@ -315,7 +325,7 @@ async def update_project_budget(
     virtual_lab_id: UUID4,
     project_id: UUID4,
     new_budget: Annotated[float, Body(embed=True)],
-    session: Session = Depends(default_session_factory),
+    session: AsyncSession = Depends(default_session_factory),
     auth: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> Response | VliError:
     return await project_cases.update_project_budget_use_case(
@@ -344,7 +354,7 @@ async def update_project_star_status(
     virtual_lab_id: UUID4,
     project_id: UUID4,
     value: Annotated[bool, Body(embed=True)],
-    session: Session = Depends(default_session_factory),
+    session: AsyncSession = Depends(default_session_factory),
     auth: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> Response | VliError:
     return await project_cases.update_star_project_status_use_case(
@@ -366,7 +376,7 @@ async def update_project_star_status(
 async def retrieve_project_users(
     virtual_lab_id: UUID4,
     project_id: UUID4,
-    session: Session = Depends(default_session_factory),
+    session: AsyncSession = Depends(default_session_factory),
     auth: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> Response | VliError:
     return await project_cases.retrieve_all_users_per_project_use_case(
@@ -382,7 +392,7 @@ async def retrieve_project_users(
 )
 async def retrieve_project_users_count(
     project_id: UUID4,
-    session: Session = Depends(default_session_factory),
+    session: AsyncSession = Depends(default_session_factory),
     _: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> Response | VliError:
     return await project_cases.retrieve_users_per_project_count_use_case(
@@ -410,7 +420,7 @@ async def update_user_role_in_project(
     project_id: UUID4,
     user_id: UUID4,
     new_role: Annotated[UserRoleEnum, Body(embed=True)],
-    session: Session = Depends(default_session_factory),
+    session: AsyncSession = Depends(default_session_factory),
     auth: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> Response | VliError:
     return await project_cases.update_user_role_in_project(
@@ -440,7 +450,7 @@ async def detach_user_from_project(
     virtual_lab_id: UUID4,
     project_id: UUID4,
     user_id: UUID4,
-    session: Session = Depends(default_session_factory),
+    session: AsyncSession = Depends(default_session_factory),
     auth: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> Response | VliError:
     return await project_cases.detach_user_from_project(
