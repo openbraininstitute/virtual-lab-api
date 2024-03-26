@@ -6,6 +6,7 @@
   },
 "editor.defaultFormatter": "charliermarsh.ruff",
 "cSpell.words": [
+  "asyncpg",
   "autoflush",
   "datamodels",
   "DBAPI",
