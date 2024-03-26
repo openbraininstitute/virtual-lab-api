@@ -51,7 +51,7 @@ make check-db-schema
 
 # Testing
 
-Tests can be run online using the following command
+Tests can be run using the following command:
 ```
 make test
 ```
