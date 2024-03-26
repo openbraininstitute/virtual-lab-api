@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from http import HTTPStatus
 
 from fastapi import FastAPI, Request
@@ -10,6 +11,7 @@ from starlette.middleware.cors import CORSMiddleware
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.schemas import api
+from virtual_labs.infrastructure.db.config import session_pool
 from virtual_labs.infrastructure.settings import settings
 from virtual_labs.routes.invites import router as invite_router
 from virtual_labs.routes.labs import router as virtual_lab_router
@@ -17,9 +19,18 @@ from virtual_labs.routes.plans import router as plans_router
 from virtual_labs.routes.projects import router as project_router
 from virtual_labs.routes.users import router as user_router
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    yield
+    if session_pool._engine is not None:
+        session_pool.close()
+
+
 app = FastAPI(
     title=settings.APP_NAME,
     debug=settings.APP_DEBUG,
+    lifespan=lifespan,
 )
 
 base_router = APIRouter(prefix=settings.BASE_PATH)
