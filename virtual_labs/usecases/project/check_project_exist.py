@@ -3,7 +3,7 @@ from http import HTTPStatus as status
 from fastapi.responses import Response
 from loguru import logger
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.response.api_response import VliResponse
@@ -11,7 +11,7 @@ from virtual_labs.repositories.project_repo import ProjectQueryRepository
 
 
 async def check_project_existence_use_case(
-    session: Session, query_term: str | None
+    session: AsyncSession, query_term: str | None
 ) -> Response | VliError:
     pr = ProjectQueryRepository(session)
 
@@ -22,15 +22,17 @@ async def check_project_existence_use_case(
             message="No search query provided",
         )
     try:
-        projects_count = pr.check(query_term=query_term).count()
+        projects_count = await pr.check_project_exists_by_name(query_term=query_term)
 
         return VliResponse.new(
             message=(
                 f"Project with name {query_term} already exist"
-                if projects_count > 0
+                if bool(projects_count)
                 else f"No project was found with keyword: '{query_term}'"
             ),
-            data={"exist": projects_count != 0},
+            data={
+                "exist": bool(projects_count),
+            },
         )
     except SQLAlchemyError:
         raise VliError(

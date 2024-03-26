@@ -52,13 +52,8 @@ class ProjectQueryRepository:
         ).all()
 
         return PaginatedDbResult(
-<<<<<<< HEAD
             count=count or 0,
-            rows=result,
-=======
-            count=count,
             rows=[row for row in result],
->>>>>>> 9933135 (update: use project repo)
         )
 
     async def retrieve_projects_batch(
@@ -188,7 +183,7 @@ class ProjectQueryRepository:
         ).all()
 
         return PaginatedDbResult(
-            count=count,
+            count=count or 0,
             rows=[row for row in result],
         )
 

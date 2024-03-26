@@ -4,7 +4,7 @@ from fastapi.responses import Response
 from loguru import logger
 from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.response.api_response import VliResponse
@@ -14,13 +14,13 @@ from virtual_labs.shared.utils.uniq_list import uniq_list
 
 
 async def retrieve_users_per_project_count_use_case(
-    session: Session, project_id: UUID4
+    session: AsyncSession, project_id: UUID4
 ) -> Response | VliError:
     pr = ProjectQueryRepository(session)
     gqr = GroupQueryRepository()
 
     try:
-        project, _ = pr.retrieve_one_project_by_id(project_id)
+        project, _ = await pr.retrieve_one_project_by_id(project_id)
         admins = gqr.retrieve_group_users(group_id=str(project.admin_group_id))
         members = gqr.retrieve_group_users(group_id=str(project.member_group_id))
 
