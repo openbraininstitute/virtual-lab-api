@@ -24,6 +24,7 @@
   "neurosciencegraph",
   "noload",
   "onupdate",
+  "poolclass",
   "pydantic",
   "regconfig",
   "sessionmaker",

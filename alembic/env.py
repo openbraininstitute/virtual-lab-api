@@ -1,8 +1,9 @@
 import asyncio
 from logging.config import fileConfig
 
-from asyncpg import Connection
+# from asyncpg import Connection
 from sqlalchemy import pool
+from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
@@ -49,7 +50,10 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations(connection: Connection) -> None:
-    context.configure(connection=connection, target_metadata=target_metadata)
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+    )
 
     with context.begin_transaction():
         context.run_migrations()
@@ -77,4 +81,4 @@ async def run_migrations_online() -> None:
 if context.is_offline_mode():
     run_migrations_offline()
 else:
-    asyncio.run(run_migrations_online)
+    asyncio.run(run_migrations_online())
