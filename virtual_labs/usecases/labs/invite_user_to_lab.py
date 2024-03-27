@@ -6,8 +6,9 @@ from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from virtual_labs.core.email.email_service import EmailSchema, send_email
+from virtual_labs.core.email.email_service import EmailDetails, send_invite
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
+from virtual_labs.core.exceptions.email_error import EmailError
 from virtual_labs.core.exceptions.generic_exceptions import UserNotInList
 from virtual_labs.domain.labs import AddUserToVirtualLab
 from virtual_labs.repositories import labs as lab_repo
@@ -41,8 +42,14 @@ async def invite_user_to_lab(
             invitee_email=invite_details.email,
         )
 
-        response = await send_email(email=EmailSchema(email=[invite_details.email]))
-        assert response.status_code == 200
+        await send_invite(
+            details=EmailDetails(
+                recipient=invite_details.email,
+                invite_id=UUID(str(invite.id)),
+                lab_id=lab_id,
+                lab_name=str(lab.name),
+            )
+        )
         return UUID(str(invite.id))
     except UserNotInList:
         raise VliError(
@@ -62,6 +69,13 @@ async def invite_user_to_lab(
         raise VliError(
             message=f"Invite to user could not be sent due to an error in database. {error}",
             error_code=VliErrorCode.DATABASE_ERROR,
+            http_status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+        )
+    except EmailError as error:
+        logger.error(f"Error when sending email invite {error.message} {error.detail}")
+        raise VliError(
+            message=f"There was an error while emailing the invite to user {invite_details.email}. Please try sending the invite again.",
+            error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
             http_status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
         )
     except VliError as error:
