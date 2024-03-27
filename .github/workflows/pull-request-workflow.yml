@@ -20,6 +20,8 @@ jobs:
         run: make type-check
       - name: Start services
         run: IS_CI="True" make init
+      - name: Check migration scripts are added for modified schemas
+        run: make check-db-schema
       - name: Run tests
         run: make test
       - name: cleanup

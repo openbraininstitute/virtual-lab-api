@@ -1,9 +1,12 @@
 from datetime import datetime, timedelta
+from typing import TypedDict, cast
 
 import jwt
 from pydantic import UUID4
 
 from virtual_labs.infrastructure.settings import settings
+
+InviteToken = TypedDict("InviteToken", {"invite_id": str, "expires_at": str})
 
 
 def get_expiration_time() -> str:
@@ -36,3 +39,13 @@ def get_invite_html(invite_link: str, lab_name: str, project_name: str | None) -
             You have been invited to project {project_name} within the {lab_name} virtual lab. Please click on the link below to accept the invite: <br />
             <a href="{invite_link}">{invite_link}</a>
         """
+
+
+def get_invite_details_from_token(invite_token: str) -> InviteToken:
+    decoded_token = jwt.decode(invite_token, settings.JWT_SECRET, algorithms=["HS256"])
+    return cast(InviteToken, decoded_token)
+
+
+def get_expiry_datetime_from_token(invite_token: InviteToken) -> datetime:
+    expiry = float(invite_token["expires_at"])
+    return datetime.fromtimestamp(expiry / 1000)

@@ -53,7 +53,7 @@ async def send_invite(details: EmailDetails) -> str:
 
         fm = FastMail(email_config)
         await fm.send_message(message)
-        logger.debug(f"Invite link {invite_link} emailed to users {details.recipient}")
+        logger.debug(f"Invite link {invite_link} emailed to user {details.recipient}")
         return invite_link
     except Exception as error:
         logger.error(
@@ -62,4 +62,4 @@ async def send_invite(details: EmailDetails) -> str:
         raise EmailError(
             message=f"Invite ID {details.invite_id} could not be emailed to user {details.recipient}",
             detail=str(error),
-        )
+        ) from error
