@@ -23,6 +23,8 @@ from virtual_labs.domain.project import (
     ProjectCreationBody,
     ProjectDeletionOut,
     ProjectExistenceOut,
+    ProjectInviteIn,
+    ProjectInviteOut,
     ProjectOut,
     ProjectPerVLCountOut,
     ProjectUpdateBudgetOut,
@@ -38,6 +40,7 @@ from virtual_labs.domain.project import (
 from virtual_labs.infrastructure.db.config import default_session_factory
 from virtual_labs.infrastructure.kc.auth import verify_jwt
 from virtual_labs.infrastructure.kc.models import AuthUser
+from virtual_labs.shared.utils.auth import get_user_id_from_auth
 from virtual_labs.usecases import project as project_cases
 
 router = APIRouter(
@@ -386,6 +389,31 @@ async def retrieve_project_users_count(
     return await project_cases.retrieve_users_per_project_count_use_case(
         session,
         project_id,
+    )
+
+
+@verify_vlab_or_project_write
+@router.post(
+    "/{virtual_lab_id}/projects/{project_id}/users",
+    summary="Invite user to project by email",
+    response_model=VliAppResponse[ProjectInviteOut],
+)
+async def invite_user_to_project(
+    lab_id: UUID4,
+    project_id: UUID4,
+    invite_details: ProjectInviteIn,
+    session: Session = Depends(default_session_factory),
+    auth: tuple[AuthUser, str] = Depends(verify_jwt),
+) -> VliAppResponse[ProjectInviteOut]:
+    invite_id = await project_cases.invite_user_to_project(
+        lab_id,
+        project_id,
+        inviter_id=get_user_id_from_auth(auth),
+        invite_details=invite_details,
+        session=session,
+    )
+    return VliAppResponse[ProjectInviteOut](
+        message="Invite sent to user", data=ProjectInviteOut(invite_id=invite_id)
     )
 
 

@@ -33,6 +33,6 @@ def get_invite_html(invite_link: str, lab_name: str, project_name: str | None) -
         """
     else:
         return f"""
-            You have been invited to project {lab_name} within the {lab_name} virtual lab. Please click on the link below to accept the invite:
-            {invite_link}
+            You have been invited to project {project_name} within the {lab_name} virtual lab. Please click on the link below to accept the invite: <br />
+            <a href="{invite_link}">{invite_link}</a>
         """

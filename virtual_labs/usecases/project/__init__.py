@@ -5,6 +5,7 @@ from .detach_user_from_project import detach_user_from_project
 from .retrieve_all_user_projects import (
     retrieve_all_user_projects_use_case,
 )
+from .invite_user_to_project import invite_user_to_project
 from .retrieve_all_user_projects_per_vl import (
     retrieve_all_user_projects_per_vl_use_case,
 )
@@ -44,4 +45,5 @@ __all__ = [
     "update_user_role_in_project",
     "detach_user_from_project",
     "update_project_data",
+    "invite_user_to_project",
 ]

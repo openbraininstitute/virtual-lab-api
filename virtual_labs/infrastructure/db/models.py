@@ -131,7 +131,8 @@ class ProjectInvite(Base):
     inviter_id = Column(UUID(as_uuid=True), nullable=False)
     user_id = Column(UUID(as_uuid=True))
     accepted = Column(Boolean)
-    role = Column(String)
+    user_email = Column(String, nullable=False)
+    role = Column(String, nullable=False)
 
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, onupdate=func.now(), default=func.now())

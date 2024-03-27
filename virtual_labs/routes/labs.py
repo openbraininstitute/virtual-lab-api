@@ -140,7 +140,6 @@ def update_virtual_lab(
     "/{lab_id}/users",
     summary="Invite user to lab by email",
     response_model=LabResponse[InviteSent],
-    tags=["Not Yet Implemented"],
 )
 async def invite_user_to_virtual_lab(
     lab_id: UUID4,
