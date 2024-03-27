@@ -12,8 +12,9 @@ class PageParams(BaseModel):
 T = TypeVar("T")
 
 
-class PagedResponse(BaseModel, Generic[T]):
+class PaginatedResultsResponse(BaseModel, Generic[T]):
     total: int
     page: int
     size: int
+    page_size: int
     results: list[T]
