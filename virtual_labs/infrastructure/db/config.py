@@ -21,36 +21,6 @@ if settings.DATABASE_URI is None and "pytest" not in sys.modules:
     )
 
 
-# def init_db() -> Engine:
-#     try:
-#         engine = create_engine(
-#             settings.DATABASE_URI.unicode_string(),
-#             echo=settings.DEBUG_DATABASE_ECHO,
-#         )
-
-#         logger.info("✅ DB connected")
-#         return engine
-#     except exc.ArgumentError:
-#         logger.error("⛔️ database connection failed, check the env variable")
-#         raise
-
-
-# # Populate Plan table with static content.
-
-# engine: Engine = init_db()
-# session_factory: sessionmaker[Session] = sessionmaker(
-#     autoflush=False, autocommit=False, bind=engine
-# )
-
-
-# def default_session_factory() -> Generator[Session, Any, None]:
-#     try:
-#         database = session_factory()
-#         yield database
-#     finally:
-#         database.close()
-
-
 class DatabaseSessionPool:
     _engine: AsyncEngine | None
     _session_maker: async_sessionmaker[AsyncSession] | None
