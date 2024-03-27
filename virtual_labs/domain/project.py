@@ -50,9 +50,6 @@ class ProjectExistenceOut(BaseModel):
 class ProjectWithVLOut(BaseModel):
     projects: List[ProjectVlOut]
     total: int
-    page: int | None
-    size: int | None
-    page_count: int | None
 
 
 class ProjectOut(BaseModel):

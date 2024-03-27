@@ -7,7 +7,7 @@ K = TypeVar("K")
 
 
 class PaginatedDbResult(BaseModel, Generic[K]):
-    count: int | None
+    count: int
     rows: K
 
     class Config:
