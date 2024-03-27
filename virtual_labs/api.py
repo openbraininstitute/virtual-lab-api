@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 from http import HTTPStatus
+from typing import Any, Generator
 
 from fastapi import FastAPI, Request
 from fastapi.encoders import jsonable_encoder
@@ -20,11 +21,11 @@ from virtual_labs.routes.projects import router as project_router
 from virtual_labs.routes.users import router as user_router
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
+@asynccontextmanager  # type: ignore
+async def lifespan(app: FastAPI) -> Generator[None, Any, None]:  # type: ignore
     yield
     if session_pool._engine is not None:
-        session_pool.close()
+        await session_pool.close()
 
 
 app = FastAPI(
