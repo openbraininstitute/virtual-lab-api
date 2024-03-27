@@ -1,10 +1,11 @@
 from typing import List
 
 from pydantic import UUID4
-from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session, noload
 from sqlalchemy.sql import and_, or_
 
+from virtual_labs.core.types import PaginatedDbResult
 from virtual_labs.domain import labs
 from virtual_labs.domain.common import PageParams
 from virtual_labs.infrastructure.db.models import Project, VirtualLab
@@ -24,24 +25,32 @@ def get_all_virtual_lab_for_user(db: Session) -> List[VirtualLab]:
 
 def get_paginated_virtual_labs(
     db: Session, page_params: PageParams, group_ids: list[str]
-) -> list[VirtualLab]:
-    paginated_query = (
-        db.query(VirtualLab)
-        .filter(
-            and_(
-                ~VirtualLab.deleted,
-                or_(
-                    (VirtualLab.admin_group_id.in_(group_ids)),
-                    (VirtualLab.member_group_id.in_(group_ids)),
-                ),
-            )
+) -> PaginatedDbResult[list[VirtualLab]]:
+    paginated_query = db.query(VirtualLab).filter(
+        and_(
+            ~VirtualLab.deleted,
+            or_(
+                (VirtualLab.admin_group_id.in_(group_ids)),
+                (VirtualLab.member_group_id.in_(group_ids)),
+            ),
         )
-        .offset((page_params.page - 1) * page_params.size)
+    )
+    count = db.scalar(
+        select(func.count()).select_from(
+            paginated_query.options(noload("*")).subquery()
+        )
+    )
+
+    result = (
+        paginated_query.offset((page_params.page - 1) * page_params.size)
         .limit(page_params.size)
         .all()
     )
 
-    return paginated_query
+    return PaginatedDbResult(
+        count=count or 0,
+        rows=result,
+    )
 
 
 def get_virtual_lab(db: Session, lab_id: UUID4) -> VirtualLab:
