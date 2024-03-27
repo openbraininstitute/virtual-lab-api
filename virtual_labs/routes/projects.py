@@ -16,7 +16,7 @@ from virtual_labs.core.authorization.verify_vlab_or_project_read import (
 )
 from virtual_labs.core.exceptions.api_error import VliError
 from virtual_labs.core.types import UserRoleEnum, VliAppResponse
-from virtual_labs.domain.common import PageParams
+from virtual_labs.domain.common import PageParams, PaginatedResultsResponse
 from virtual_labs.domain.project import (
     ProjectBody,
     ProjectBudgetOut,
@@ -50,7 +50,7 @@ router = APIRouter(
     "/projects",
     operation_id="get_all_user_projects",
     summary="Retrieve all projects for the authenticated user (only allowed projects)",
-    response_model=VliAppResponse[ProjectWithVLOut],
+    response_model=VliAppResponse[PaginatedResultsResponse[ProjectVlOut]],
 )
 async def retrieve_all_projects(
     page: int = Query(1, ge=1),
@@ -184,7 +184,7 @@ async def create_new_project(
     "/{virtual_lab_id}/projects",
     operation_id="get_all_user_projects_per_vl",
     summary="Retrieve all projects per virtual lab for the authenticated user (only allowed projects)",
-    response_model=VliAppResponse[ProjectWithVLOut],
+    response_model=VliAppResponse[PaginatedResultsResponse[ProjectVlOut]],
 )
 async def retrieve_projects(
     virtual_lab_id: UUID4,

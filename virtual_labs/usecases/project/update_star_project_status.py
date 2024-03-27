@@ -1,6 +1,5 @@
 from http import HTTPStatus as status
 from typing import Tuple
-from uuid import UUID
 
 from fastapi.responses import Response
 from loguru import logger
@@ -16,6 +15,7 @@ from virtual_labs.repositories.project_repo import (
     ProjectMutationRepository,
     ProjectQueryRepository,
 )
+from virtual_labs.shared.utils.auth import get_user_id_from_auth
 
 
 async def update_star_project_status_use_case(
@@ -28,18 +28,14 @@ async def update_star_project_status_use_case(
 ) -> Response | VliError:
     pmr = ProjectMutationRepository(session)
     pqr = ProjectQueryRepository(session)
+    user_id = get_user_id_from_auth(auth)
 
     try:
-        user, _ = auth
-        user_id = user.sub
-
-        _project = pqr.retrieve_project_star(
-            user_id=UUID(user_id), project_id=project_id
-        )
+        _project = pqr.retrieve_project_star(user_id=user_id, project_id=project_id)
 
         if _project is not None and value is False:
             project_id, updated_at = pmr.unstar_project(
-                project_id=project_id, user_id=UUID(user_id)
+                project_id=project_id, user_id=user_id
             )
 
             return VliResponse.new(
@@ -51,7 +47,7 @@ async def update_star_project_status_use_case(
                 },
             )
         else:
-            star_result = pmr.star_project(project_id=project_id, user_id=UUID(user_id))
+            star_result = pmr.star_project(project_id=project_id, user_id=user_id)
 
             return VliResponse.new(
                 message="User star a new project successfully",

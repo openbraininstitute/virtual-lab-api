@@ -10,9 +10,11 @@ from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.domain.common import PageParams
 from virtual_labs.domain.project import Project, VirtualLabModel
+from virtual_labs.domain.user import ShortenedUser
 from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.repositories.group_repo import GroupQueryRepository
 from virtual_labs.repositories.project_repo import ProjectQueryRepository
+from virtual_labs.repositories.user_repo import UserQueryRepository
 from virtual_labs.shared.utils.auth import get_user_id_from_auth
 
 
@@ -21,6 +23,7 @@ async def retrieve_all_user_projects_use_case(
 ) -> Response | VliError:
     pr = ProjectQueryRepository(session)
     gqr = GroupQueryRepository()
+    uqr = UserQueryRepository()
 
     user_id = get_user_id_from_auth(auth)
 
@@ -37,6 +40,9 @@ async def retrieve_all_user_projects_use_case(
             {
                 **Project(**p.__dict__).model_dump(),
                 "virtual_lab": VirtualLabModel(**v.__dict__),
+                "owner": ShortenedUser(
+                    **uqr.retrieve_user_from_kc(user_id=str(p.owner_id)).__dict__
+                ),
             }
             for p, v in results.rows
         ]
@@ -60,10 +66,10 @@ async def retrieve_all_user_projects_use_case(
             if len(projects) > 0
             else "No projects was found",
             data={
-                "projects": projects,
+                "results": projects,
                 "page": pagination.page,
                 "size": pagination.size,
-                "page_count": len(projects),
+                "page_size": len(projects),
                 "total": results.count,
             },
         )

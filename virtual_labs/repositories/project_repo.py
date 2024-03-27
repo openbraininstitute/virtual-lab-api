@@ -50,7 +50,7 @@ class ProjectQueryRepository:
         )
 
         return PaginatedDbResult(
-            count=count,
+            count=count or 0,
             rows=result,
         )
 
@@ -83,7 +83,7 @@ class ProjectQueryRepository:
         )
 
         return PaginatedDbResult(
-            count=count,
+            count=count or 0,
             rows=result,
         )
 

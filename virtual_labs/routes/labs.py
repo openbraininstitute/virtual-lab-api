@@ -3,7 +3,7 @@ from pydantic import UUID4
 from sqlalchemy.orm import Session
 
 from virtual_labs.core.types import UserRoleEnum
-from virtual_labs.domain.common import PagedResponse, PageParams
+from virtual_labs.domain.common import PageParams, PaginatedResultsResponse
 from virtual_labs.domain.labs import (
     AddUserToVirtualLab,
     InviteSent,
@@ -25,7 +25,7 @@ from virtual_labs.shared.utils.auth import get_user_id_from_auth
 from virtual_labs.usecases import labs as usecases
 from virtual_labs.usecases.labs.check_virtual_lab_name_exists import LabExists
 
-PaginatedLabs = LabResponse[PagedResponse[VirtualLabWithProject]]
+PaginatedLabs = LabResponse[PaginatedResultsResponse[VirtualLabWithProject]]
 router = APIRouter(prefix="/virtual-labs", tags=["Virtual Labs Endpoints"])
 
 
