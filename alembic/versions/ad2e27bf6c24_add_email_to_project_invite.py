@@ -22,13 +22,11 @@ def upgrade() -> None:
     op.add_column(
         "project_invite", sa.Column("user_email", sa.String(), nullable=False)
     )
-    op.alter_column(
-        "project_invite", "role", existing_type=sa.VARCHAR(), nullable=False
-    )
+    op.alter_column("project_invite", "role", nullable=False)
     # ### end Alembic commands ###
 
 
 def downgrade() -> None:
-    op.alter_column("project_invite", "role", existing_type=sa.VARCHAR(), nullable=True)
+    op.alter_column("project_invite", "role", nullable=True)
     op.drop_column("project_invite", "user_email")
     # ### end Alembic commands ###

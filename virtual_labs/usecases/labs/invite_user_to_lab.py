@@ -6,11 +6,11 @@ from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from virtual_labs.core.email.email_service import EmailDetails, send_invite
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.exceptions.email_error import EmailError
 from virtual_labs.core.exceptions.generic_exceptions import UserNotInList
 from virtual_labs.domain.labs import AddUserToVirtualLab
+from virtual_labs.infrastructure.email.email_service import EmailDetails, send_invite
 from virtual_labs.repositories import labs as lab_repo
 from virtual_labs.repositories.invite_repo import InviteMutationRepository
 from virtual_labs.repositories.user_repo import UserQueryRepository
@@ -51,6 +51,14 @@ async def invite_user_to_lab(
             )
         )
         return UUID(str(invite.id))
+    except EmailError as error:
+        logger.error(f"Error when sending email invite {error.message} {error.detail}")
+        invite_repo.delete_invite(invite_id=UUID(str(invite.id)))
+        raise VliError(
+            message=f"There was an error while emailing virtual lab the invite to user {invite_details.email}. Please try sending the invite again.",
+            error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
+            http_status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+        )
     except UserNotInList:
         raise VliError(
             message=f"Only admins of lab can invite other users and user {inviter_id} is not admin of lab {lab.name}",
@@ -69,13 +77,6 @@ async def invite_user_to_lab(
         raise VliError(
             message=f"Invite to user could not be sent due to an error in database. {error}",
             error_code=VliErrorCode.DATABASE_ERROR,
-            http_status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-        )
-    except EmailError as error:
-        logger.error(f"Error when sending email invite {error.message} {error.detail}")
-        raise VliError(
-            message=f"There was an error while emailing virtual lab the invite to user {invite_details.email}. Please try sending the invite again.",
-            error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
             http_status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
         )
     except VliError as error:

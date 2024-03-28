@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from enum import Enum
 from typing import TypedDict, cast
 
 import jwt
@@ -6,29 +7,39 @@ from pydantic import UUID4
 
 from virtual_labs.infrastructure.settings import settings
 
-InviteToken = TypedDict("InviteToken", {"invite_id": str, "expires_at": str})
+InviteToken = TypedDict(
+    "InviteToken", {"invite_id": str, "expires_at": str, "origin": str}
+)
 
 
-def get_expiration_time() -> str:
+class InviteOrigin(Enum):
+    LAB = "Lab"
+    PROJECT = "Project"
+
+
+def generate_expiration_time() -> str:
     "Returns epoch timestamp for seven days from now as a str. Example: '1712131180000'"
-    seven_days = datetime.now() + timedelta(7)
+    seven_days = datetime.now() + timedelta(settings.INVITE_EXPIRES_IN_DAYS)
     return seven_days.strftime("%s000")
 
 
-def get_encrypted_invite_token(invite_id: UUID4) -> str:
-    invite_data = {"invite_id": str(invite_id), "expires_at": get_expiration_time()}
-    return jwt.encode(invite_data, settings.JWT_SECRET, algorithm="HS256")
+def generate_encrypted_invite_token(invite_id: UUID4, origin: InviteOrigin) -> str:
+    invite_data = {
+        "invite_id": str(invite_id),
+        "expires_at": generate_expiration_time(),
+        "origin": origin.value,
+    }
+    return jwt.encode(invite_data, settings.INVITE_JWT_SECRET, algorithm="HS256")
 
 
 # TODO: The links here might need updating depending on the actual lab/project details page where the user should be redirected to.
-def get_invite_link(invite_token: str, lab_id: UUID4, project_id: UUID4 | None) -> str:
-    if project_id is None:
-        return f"https://openbrainplatform.org/mmb-beta/lab/{str(lab_id)}?invite_token={invite_token}"
-    else:
-        return f"https://openbrainplatform.org/mmb-beta/lab/{str(lab_id)}/project/{str(project_id)}?invite_token={invite_token}"
+def generate_invite_link(invite_token: str) -> str:
+    return f"{settings.INVITE_LINK_BASE}?invite={invite_token}"
 
 
-def get_invite_html(invite_link: str, lab_name: str, project_name: str | None) -> str:
+def generate_invite_html(
+    invite_link: str, lab_name: str, project_name: str | None
+) -> str:
     if project_name is None:
         return f"""
             You have been invited to virtual lab {lab_name}. Please click on the link below to accept the invite:
@@ -42,7 +53,9 @@ def get_invite_html(invite_link: str, lab_name: str, project_name: str | None) -
 
 
 def get_invite_details_from_token(invite_token: str) -> InviteToken:
-    decoded_token = jwt.decode(invite_token, settings.JWT_SECRET, algorithms=["HS256"])
+    decoded_token = jwt.decode(
+        invite_token, settings.INVITE_JWT_SECRET, algorithms=["HS256"]
+    )
     return cast(InviteToken, decoded_token)
 
 

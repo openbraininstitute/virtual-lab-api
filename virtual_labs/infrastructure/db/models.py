@@ -158,29 +158,6 @@ class VirtualLabInvite(Base):
     updated_at = Column(DateTime, onupdate=func.now(), default=func.now())
 
 
-# class VirtualLabInvite(Base):
-#     __tablename__ = "virtual_lab_invite"
-
-#     id: Mapped[UUID4] = mapped_column(
-#         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, init=False
-#     )
-#     inviter_id: Mapped[UUID4] = mapped_column(UUID, nullable=False)
-#     user_id: Mapped[UUID4 | None] = mapped_column(UUID)
-#     role: Mapped[UserRoleEnum] = mapped_column(String, nullable=False)
-#     user_email: Mapped[EmailStr] = mapped_column(String, nullable=False)
-#     virtual_lab_id: Mapped[UUID4] = mapped_column(UUID, ForeignKey("virtual_lab.id"))
-#     virtual_lab: Mapped[VirtualLab] = relationship(
-#         "VirtualLab", back_populates="invites", init=False
-#     )
-
-#     accepted: Mapped[UUID4] = mapped_column(Boolean, default=Null)
-
-#     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
-#     updated_at: Mapped[datetime] = mapped_column(
-#         DateTime, onupdate=func.now(), default=func.now()
-#     )
-
-
 # class PaymentCard(Base):
 #     __tablename__ = "payment_card"
 

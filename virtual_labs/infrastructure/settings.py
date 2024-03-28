@@ -41,7 +41,11 @@ class Settings(BaseSettings):
     USE_CREDENTIALS: bool = True
     VALIDATE_CERTS: bool = False
 
-    JWT_SECRET: str = "TEST_JWT_SECRET"
+    INVITE_JWT_SECRET: str = "TEST_JWT_SECRET"
+    INVITE_EXPIRES_IN_DAYS: int = 7
+    INVITE_LINK_BASE: str = (
+        DEPLOYMENT_NAMESPACE + "mmb-beta"
+    )  # TODO: This might need to be changed
 
     @field_validator("DATABASE_URI", mode="before")
     @classmethod

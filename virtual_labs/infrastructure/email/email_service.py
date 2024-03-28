@@ -2,12 +2,13 @@ from fastapi_mail import ConnectionConfig, FastMail, MessageSchema, MessageType
 from loguru import logger
 from pydantic import UUID4, BaseModel, EmailStr
 
-from virtual_labs.core.email.email_utils import (
-    get_encrypted_invite_token,
-    get_invite_html,
-    get_invite_link,
-)
 from virtual_labs.core.exceptions.email_error import EmailError
+from virtual_labs.infrastructure.email.email_utils import (
+    InviteOrigin,
+    generate_encrypted_invite_token,
+    generate_invite_html,
+    generate_invite_link,
+)
 from virtual_labs.infrastructure.settings import settings
 
 email_config = ConnectionConfig(
@@ -36,11 +37,12 @@ class EmailDetails(BaseModel):
 
 async def send_invite(details: EmailDetails) -> str:
     try:
-        invite_token = get_encrypted_invite_token(details.invite_id)
-        invite_link = get_invite_link(
-            invite_token, lab_id=details.lab_id, project_id=details.project_id
+        origin = (
+            InviteOrigin.LAB if details.project_id is None else InviteOrigin.PROJECT
         )
-        invite_html = get_invite_html(
+        invite_token = generate_encrypted_invite_token(details.invite_id, origin)
+        invite_link = generate_invite_link(invite_token)
+        invite_html = generate_invite_html(
             invite_link, lab_name=details.lab_name, project_name=details.project_name
         )
 

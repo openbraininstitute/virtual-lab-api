@@ -90,3 +90,9 @@ class InviteMutationRepository:
         self.session.execute(statement=statement)
         self.session.commit()
         return
+
+    def delete_invite(self, invite_id: UUID4) -> VirtualLabInvite:
+        invite = self.get_invite(invite_id)
+        self.session.delete(invite)
+        self.session.commit()
+        return invite

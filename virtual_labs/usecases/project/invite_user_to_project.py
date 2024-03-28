@@ -6,10 +6,11 @@ from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from virtual_labs.core.email.email_service import EmailDetails, send_invite
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.exceptions.email_error import EmailError
-from virtual_labs.domain.project import ProjectInviteIn
+from virtual_labs.core.types import VliAppResponse
+from virtual_labs.domain.project import ProjectInviteIn, ProjectInviteOut
+from virtual_labs.infrastructure.email.email_service import EmailDetails, send_invite
 from virtual_labs.repositories import labs as lab_repo
 from virtual_labs.repositories.invite_repo import InviteMutationRepository
 from virtual_labs.repositories.project_repo import ProjectQueryRepository
@@ -22,7 +23,7 @@ async def invite_user_to_project(
     inviter_id: UUID4,
     invite_details: ProjectInviteIn,
     session: Session,
-) -> UUID4:
+) -> VliAppResponse[ProjectInviteOut]:
     pr = ProjectQueryRepository(session)
     user_repo = UserQueryRepository()
     invite_repo = InviteMutationRepository(session)
@@ -56,7 +57,18 @@ async def invite_user_to_project(
                 project_name=str(project.name),
             )
         )
-        return UUID(str(invite.id))
+        return VliAppResponse[ProjectInviteOut](
+            message="Invite sent to user",
+            data=ProjectInviteOut(invite_id=UUID(str(invite.id))),
+        )
+    except EmailError as error:
+        logger.error(f"Error when sending email invite {error.message} {error.detail}")
+        invite_repo.delete_invite(invite_id=UUID(str(invite.id)))
+        raise VliError(
+            message=f"There was an error while emailing the project invite to user {invite_details.email}. Please try sending the invite again.",
+            error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
+            http_status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+        )
     except ValueError as error:
         logger.error(f"ValueError when inviting user {invite_details.email} {error}")
         raise VliError(
@@ -71,13 +83,6 @@ async def invite_user_to_project(
         raise VliError(
             message=f"Invite to user could not be sent due to an error in database. {error}",
             error_code=VliErrorCode.DATABASE_ERROR,
-            http_status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-        )
-    except EmailError as error:
-        logger.error(f"Error when sending email invite {error.message} {error.detail}")
-        raise VliError(
-            message=f"There was an error while emailing the project invite to user {invite_details.email}. Please try sending the invite again.",
-            error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
             http_status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
         )
     except VliError as error:
