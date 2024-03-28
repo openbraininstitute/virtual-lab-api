@@ -81,14 +81,6 @@ class ProjectWithStarredDateOut(Project):
     starred: bool
 
 
-class StarProjectsOut(BaseModel):
-    projects: List[ProjectWithStarredDateOut]
-    total: int
-    page: int | None
-    size: int | None
-    page_count: int | None
-
-
 class ProjectUpdateBudgetOut(BaseModel):
     project_id: UUID4
     new_budget: float

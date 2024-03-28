@@ -32,7 +32,7 @@ def verify_vlab_or_project_read(f: Callable[..., Any]) -> Callable[..., Any]:
             pqr = ProjectQueryRepository(session)
             gqr = GroupQueryRepository()
 
-            vlab = get_virtual_lab(
+            vlab = await get_virtual_lab(
                 session,
                 lab_id=virtual_lab_id,
             )
