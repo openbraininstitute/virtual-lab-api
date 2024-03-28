@@ -35,7 +35,6 @@ from virtual_labs.domain.project import (
     ProjectVlOut,
     ProjectWithStarredDateOut,
     ProjectWithVLOut,
-    StarProjectsOut,
 )
 from virtual_labs.infrastructure.db.config import default_session_factory
 from virtual_labs.infrastructure.kc.auth import verify_jwt
@@ -108,7 +107,7 @@ async def check_project_existence(
         Retrieve the star projects for a specific user
         """
     ),
-    response_model=VliAppResponse[StarProjectsOut],
+    response_model=VliAppResponse[PaginatedResultsResponse[ProjectWithStarredDateOut]],
 )
 async def retrieve_stars_project(
     page: int = Query(1, ge=1),
