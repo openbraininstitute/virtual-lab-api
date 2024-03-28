@@ -54,10 +54,10 @@ async def retrieve_starred_projects_use_case(
         return VliResponse.new(
             message="Starred projects found successfully",
             data={
-                "projects": projects,
+                "results": projects,
                 "page": pagination.page,
                 "size": pagination.size,
-                "page_count": len(projects),
+                "page_size": len(projects),
                 "total": results.count,
             },
         )
