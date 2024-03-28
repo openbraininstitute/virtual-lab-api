@@ -5,7 +5,7 @@ from keycloak import KeycloakError  # type: ignore
 from loguru import logger
 from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.exceptions.generic_exceptions import UserNotInList
@@ -14,11 +14,11 @@ from virtual_labs.repositories.user_repo import UserMutationRepository
 from virtual_labs.usecases.labs.lab_authorization import is_user_admin_of_lab
 
 
-def remove_user_from_lab(
-    lab_id: UUID4, user_making_change: UUID4, user_id: UUID4, db: Session
+async def remove_user_from_lab(
+    lab_id: UUID4, user_making_change: UUID4, user_id: UUID4, db: AsyncSession
 ) -> None:
     try:
-        lab = lab_repository.get_virtual_lab(db, lab_id)
+        lab = await lab_repository.get_undeleted_virtual_lab(db, lab_id)
 
         if not is_user_admin_of_lab(user_id=user_making_change, lab=lab):
             raise UserNotInList(

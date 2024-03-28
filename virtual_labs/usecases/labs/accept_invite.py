@@ -6,16 +6,19 @@ from keycloak import KeycloakError  # type: ignore
 from loguru import logger
 from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.types import UserRoleEnum
 from virtual_labs.repositories import labs as lab_repo
-from virtual_labs.repositories.invite_repo import InviteMutationRepository
+from virtual_labs.repositories.invite_repo import (
+    InviteMutationRepository,
+    InviteQueryRepository,
+)
 from virtual_labs.repositories.user_repo import UserMutationRepository
 
 
-def accept_invite(invite_id: UUID4, user_id: UUID4, db: Session) -> None:
+async def accept_invite(invite_id: UUID4, user_id: UUID4, db: AsyncSession) -> None:
     """Called by the invited member when they click on the "accept invite" link.
     This function does the following:
 
@@ -24,11 +27,14 @@ def accept_invite(invite_id: UUID4, user_id: UUID4, db: Session) -> None:
     """
 
     try:
+        invite_query_repo = InviteQueryRepository(db)
         invite_repo = InviteMutationRepository(db)
         user_repo = UserMutationRepository()
 
-        invite = invite_repo.get_invite(invite_id)
-        lab = lab_repo.get_virtual_lab(db, lab_id=UUID(str(invite.virtual_lab_id)))
+        invite = await invite_query_repo.get_lab_invite(invite_id)
+        lab = await lab_repo.get_undeleted_virtual_lab(
+            db, lab_id=UUID(str(invite.virtual_lab_id))
+        )
         role = invite.role
 
         group_id = (
@@ -39,7 +45,7 @@ def accept_invite(invite_id: UUID4, user_id: UUID4, db: Session) -> None:
         user_repo.attach_user_to_group(
             user_id=UUID(str(user_id)), group_id=str(group_id)
         )
-        invite_repo.update_vlab_invite(invite_id=invite_id, accepted=True)
+        await invite_repo.update_lab_invite(invite_id=invite_id, accepted=True)
     except SQLAlchemyError as error:  # noqa: F821
         logger.error(f"Invitation acceptance failed due to db error: {error}")
         raise VliError(

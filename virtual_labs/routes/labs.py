@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 from pydantic import UUID4
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.types import UserRoleEnum
 from virtual_labs.domain.common import PageParams, PaginatedResultsResponse
@@ -30,15 +30,15 @@ router = APIRouter(prefix="/virtual-labs", tags=["Virtual Labs Endpoints"])
 
 
 @router.get("", response_model=PaginatedLabs)
-def get_paginated_virtual_labs_for_user(
+async def get_paginated_virtual_labs_for_user(
     page: int = 1,
     size: int = 50,
-    db: Session = Depends(default_session_factory),
+    db: AsyncSession = Depends(default_session_factory),
     auth: tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> PaginatedLabs:
     return LabResponse(
         message="Paginated virtual labs for user",
-        data=usecases.paginated_labs_for_user(
+        data=await usecases.paginated_labs_for_user(
             db,
             page_params=PageParams(page=page, size=size),
             user_id=get_user_id_from_auth(auth),
@@ -47,10 +47,10 @@ def get_paginated_virtual_labs_for_user(
 
 
 @router.get("/_check", response_model=LabResponse[LabExists])
-def check_if_virtual_lab_name_exists(
-    q: str, db: Session = Depends(default_session_factory)
+async def check_if_virtual_lab_name_exists(
+    q: str, db: AsyncSession = Depends(default_session_factory)
 ) -> LabResponse[LabExists]:
-    response = usecases.check_virtual_lab_name_exists(db, q)
+    response = await usecases.check_virtual_lab_name_exists(db, q)
     return LabResponse[LabExists](
         message=f"Virtual lab with name {q} already exists"
         if response["exists"] > 0
@@ -60,12 +60,12 @@ def check_if_virtual_lab_name_exists(
 
 
 @router.get("/_search", response_model=LabResponse[Labs])
-def search_virtual_lab_by_name(
-    q: str, db: Session = Depends(default_session_factory)
+async def search_virtual_lab_by_name(
+    q: str, db: AsyncSession = Depends(default_session_factory)
 ) -> LabResponse[Labs]:
     return LabResponse[Labs](
         message=f"All labs with names matching {q} for user",
-        data=usecases.search_virtual_labs_by_name(q, db),
+        data=await usecases.search_virtual_labs_by_name(q, db),
     )
 
 
@@ -76,7 +76,7 @@ def search_virtual_lab_by_name(
 )
 async def get_virtual_lab(
     lab_id: UUID4,
-    db: Session = Depends(default_session_factory),
+    db: AsyncSession = Depends(default_session_factory),
     auth: tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> LabResponse[LabVerbose]:
     lab_response = LabVerbose(
@@ -93,12 +93,12 @@ async def get_virtual_lab(
 @router.get("/{lab_id}/users", response_model=LabResponse[VirtualLabUsers])
 async def get_virtual_lab_users(
     lab_id: UUID4,
-    db: Session = Depends(default_session_factory),
+    db: AsyncSession = Depends(default_session_factory),
     auth: tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> LabResponse[VirtualLabUsers]:
     return LabResponse[VirtualLabUsers](
         message="Users for virtual lab",
-        data=usecases.get_virtual_lab_users(
+        data=await usecases.get_virtual_lab_users(
             db, lab_id, user_id=get_user_id_from_auth(auth)
         ),
     )
@@ -107,7 +107,7 @@ async def get_virtual_lab_users(
 @router.post("", response_model=LabResponse[Lab])
 async def create_virtual_lab(
     lab: VirtualLabCreate,
-    db: Session = Depends(default_session_factory),
+    db: AsyncSession = Depends(default_session_factory),
     auth: tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> LabResponse[Lab]:
     created_lab = Lab(
@@ -120,15 +120,15 @@ async def create_virtual_lab(
 
 
 @router.patch("/{lab_id}", response_model=LabResponse[Lab])
-def update_virtual_lab(
+async def update_virtual_lab(
     lab_id: UUID4,
     lab: VirtualLabUpdate,
-    db: Session = Depends(default_session_factory),
+    db: AsyncSession = Depends(default_session_factory),
     auth: tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> LabResponse[Lab]:
     udpated_lab = Lab(
         virtual_lab=VirtualLabDomain.model_validate(
-            usecases.update_virtual_lab(
+            await usecases.update_virtual_lab(
                 db, lab_id, user_id=get_user_id_from_auth(auth), lab=lab
             )
         )
@@ -137,14 +137,14 @@ def update_virtual_lab(
 
 
 @router.post(
-    "/{lab_id}/users",
+    "/{lab_id}/invites",
     summary="Invite user to lab by email",
     response_model=LabResponse[InviteSent],
 )
 async def invite_user_to_virtual_lab(
     lab_id: UUID4,
     invite_details: AddUserToVirtualLab,
-    db: Session = Depends(default_session_factory),
+    db: AsyncSession = Depends(default_session_factory),
     auth: tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> LabResponse[InviteSent]:
     invite_id = await usecases.invite_user_to_lab(
@@ -163,12 +163,12 @@ async def invite_user_to_virtual_lab(
     tags=["Not Yet Implemented"],
     summary="Accept invite to virtual lab",
 )
-def accept_invite_to_lab(
+async def accept_invite_to_lab(
     invite_id: UUID4,
     user_id: UUID4,
-    db: Session = Depends(default_session_factory),
+    db: AsyncSession = Depends(default_session_factory),
 ) -> LabResponse[None]:
-    usecases.accept_invite(invite_id=invite_id, user_id=user_id, db=db)
+    await usecases.accept_invite(invite_id=invite_id, user_id=user_id, db=db)
     return LabResponse[None](
         message="Invitation to virtual lab successfully accepted", data=None
     )
@@ -178,14 +178,14 @@ def accept_invite_to_lab(
     "/{lab_id}/users/{user_id}",
     response_model=LabResponse[VirtualLabUser],
 )
-def change_user_role_for_lab(
+async def change_user_role_for_lab(
     lab_id: UUID4,
     user_id: UUID4,
     new_role: UserRoleEnum,
-    db: Session = Depends(default_session_factory),
+    db: AsyncSession = Depends(default_session_factory),
     auth: tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> LabResponse[VirtualLabUser]:
-    return usecases.change_user_role_for_lab(
+    return await usecases.change_user_role_for_lab(
         lab_id,
         user_making_change_id=get_user_id_from_auth(auth),
         user_id=user_id,
@@ -198,13 +198,13 @@ def change_user_role_for_lab(
     "/{lab_id}/users/{user_id}",
     response_model=LabResponse[None],
 )
-def remove_user_from_virtual_lab(
+async def remove_user_from_virtual_lab(
     lab_id: UUID4,
     user_id: UUID4,
-    db: Session = Depends(default_session_factory),
+    db: AsyncSession = Depends(default_session_factory),
     auth: tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> LabResponse[None]:
-    usecases.remove_user_from_lab(
+    await usecases.remove_user_from_lab(
         lab_id, user_making_change=get_user_id_from_auth(auth), user_id=user_id, db=db
     )
     return LabResponse[None](message="User removed from virtual lab", data=None)
@@ -213,7 +213,7 @@ def remove_user_from_virtual_lab(
 @router.delete("/{lab_id}", response_model=LabResponse[Lab])
 async def delete_virtual_lab(
     lab_id: UUID4,
-    db: Session = Depends(default_session_factory),
+    db: AsyncSession = Depends(default_session_factory),
     auth: tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> LabResponse[Lab]:
     deleted_lab = Lab(

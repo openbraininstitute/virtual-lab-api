@@ -1,33 +1,38 @@
 from typing import Any, Dict
 
 from pydantic import UUID4, EmailStr
-from sqlalchemy import func, update
-from sqlalchemy.orm import Session
-from sqlalchemy.sql import and_
+from sqlalchemy import func, select, update
+from sqlalchemy.exc import NoResultFound
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.types import UserRoleEnum
 from virtual_labs.infrastructure.db.models import ProjectInvite, VirtualLabInvite
 
 
 class InviteQueryRepository:
-    session: Session
+    session: AsyncSession
 
-    def __init__(self, session: Session) -> None:
+    def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
-    def get_project_invite_by_id(self, invite_id: UUID4) -> ProjectInvite:
-        return (
-            self.session.query(ProjectInvite)
-            .filter(ProjectInvite.id == invite_id)
-            .one()
+    async def get_pending_users_for_lab(self, lab_id: UUID4) -> list[VirtualLabInvite]:
+        query = select(VirtualLabInvite).filter(
+            VirtualLabInvite.virtual_lab_id == lab_id, ~VirtualLabInvite.accepted
         )
+        invites = (await self.session.execute(query)).scalars().all()
+        return list(invites)
 
-    def get_vlab_invite_by_id(self, invite_id: UUID4) -> VirtualLabInvite:
-        return (
-            self.session.query(VirtualLabInvite)
-            .filter(VirtualLabInvite.id == invite_id)
-            .one()
-        )
+    async def get_vlab_invite_by_id(self, invite_id: UUID4) -> VirtualLabInvite:
+        invite = await self.session.get(VirtualLabInvite, invite_id)
+        if invite is None:
+            raise NoResultFound
+        return invite
+
+    async def get_project_invite_by_id(self, invite_id: UUID4) -> ProjectInvite:
+        invite = await self.session.get(ProjectInvite, invite_id)
+        if invite is None:
+            raise NoResultFound
+        return invite
 
     def get_project_invite_by_params(
         self,
@@ -48,33 +53,13 @@ class InviteQueryRepository:
             .first()
         )
 
-    def get_pending_users_for_lab(self, lab_id: UUID4) -> list[VirtualLabInvite]:
-        return (
-            self.session.query(VirtualLabInvite)
-            .filter(
-                and_(
-                    VirtualLabInvite.virtual_lab_id == lab_id,
-                    ~VirtualLabInvite.accepted,
-                )
-            )
-            .all()
-        )
-
-
 class InviteMutationRepository:
-    session: Session
+    session: AsyncSession
 
-    def __init__(self, session: Session) -> None:
+    def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
-    def get_invite(self, invite_id: UUID4) -> VirtualLabInvite:
-        return (
-            self.session.query(VirtualLabInvite)
-            .filter(VirtualLabInvite.id == invite_id)
-            .one()
-        )
-
-    def add_lab_invite(
+    async def add_lab_invite(
         self,
         *,
         virtual_lab_id: UUID4,
@@ -91,11 +76,11 @@ class InviteMutationRepository:
             user_email=invitee_email,
         )
         self.session.add(invite)
-        self.session.commit()
-        self.session.refresh(invite)
+        await self.session.commit()
+        await self.session.refresh(invite)
         return invite
 
-    def add_project_invite(
+    async def add_project_invite(
         self,
         *,
         project_id: UUID4,
@@ -112,9 +97,19 @@ class InviteMutationRepository:
             user_email=invitee_email,
         )
         self.session.add(invite)
-        self.session.commit()
-        self.session.refresh(invite)
+        await self.session.commit()
+        await self.session.refresh(invite)
         return invite
+
+    async def update_lab_invite(self, invite_id: UUID4, accepted: bool) -> None:
+        statement = (
+            update(VirtualLabInvite)
+            .where(VirtualLabInvite.id == invite_id)
+            .values(accepted=accepted, updated_at=func.now())
+        )
+        await self.session.execute(statement=statement)
+        await self.session.commit()
+        return
 
     def update_project_invite(
         self, invite_id: UUID4, properties: Dict[str, Any]
@@ -137,18 +132,16 @@ class InviteMutationRepository:
         self.session.commit()
         return
 
-    def update_vlab_invite(self, invite_id: UUID4, accepted: bool) -> None:
-        statement = (
-            update(VirtualLabInvite)
-            .where(VirtualLabInvite.id == invite_id)
-            .values(accepted=accepted, updated_at=func.now())
-        )
-        self.session.execute(statement=statement)
-        self.session.commit()
-        return
+    async def delete_lab_invite(self, invite_id: UUID4) -> VirtualLabInvite:
+        query_repo = InviteQueryRepository(session=self.session)
+        invite = await query_repo.get_lab_invite(invite_id)
+        await self.session.delete(invite)
+        await self.session.commit()
+        return invite
 
-    def delete_invite(self, invite_id: UUID4) -> VirtualLabInvite:
-        invite = self.get_invite(invite_id)
-        self.session.delete(invite)
-        self.session.commit()
+    async def delete_project_invite(self, invite_id: UUID4) -> ProjectInvite:
+        query_repo = InviteQueryRepository(session=self.session)
+        invite = await query_repo.get_project_invite(invite_id)
+        await self.session.delete(invite)
+        await self.session.commit()
         return invite

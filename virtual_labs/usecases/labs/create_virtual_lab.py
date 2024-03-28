@@ -5,7 +5,7 @@ from uuid import UUID, uuid4
 from loguru import logger
 from pydantic import UUID4
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.exceptions.identity_error import IdentityError
@@ -50,13 +50,13 @@ async def create_keycloak_groups(lab_id: UUID4, lab_name: str) -> GroupIds:
 
 
 async def create_virtual_lab(
-    db: Session, lab: domain.VirtualLabCreate, auth: tuple[AuthUser, str]
+    db: AsyncSession, lab: domain.VirtualLabCreate, auth: tuple[AuthUser, str]
 ) -> models.VirtualLab:
     group_repo = GroupMutationRepository()
 
     # 1. Create kc groups and add user to adming group
     try:
-        verify_plan(db, lab.plan_id)
+        await verify_plan(db, lab.plan_id)
         new_lab_id = uuid4()
         owner_id = get_user_id_from_auth(auth)
         # Create admin & member groups
@@ -115,7 +115,7 @@ async def create_virtual_lab(
             member_group_id=group_ids["member_group_id"],
             **lab.model_dump(),
         )
-        return repository.create_virtual_lab(db, lab_with_ids)
+        return await repository.create_virtual_lab(db, lab_with_ids)
     except IntegrityError as error:
         logger.error(
             "Virtual lab could not be created due to database error {}".format(error)

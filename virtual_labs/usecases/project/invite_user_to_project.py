@@ -7,13 +7,14 @@ from loguru import logger
 from pydantic import UUID4
 from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.exceptions.email_error import EmailError
 from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.domain.project import ProjectInviteIn, ProjectInviteOut
 from virtual_labs.infrastructure.email.email_service import EmailDetails, send_invite
+from virtual_labs.repositories.invite_repo import InviteMutationRepository
 from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.repositories import labs as lab_repo
 from virtual_labs.repositories.invite_repo import (
@@ -31,6 +32,8 @@ async def invite_user_to_project(
     virtual_lab_id: UUID4,
     project_id: UUID4,
     invite_details: ProjectInviteIn,
+    session: AsyncSession,
+) -> VliAppResponse[ProjectInviteOut]:
     auth: Tuple[AuthUser, str],
 ) -> Response | VliError:
     pr = ProjectQueryRepository(session)
@@ -50,6 +53,7 @@ async def invite_user_to_project(
             email=invite_details.email,
             role=invite_details.role,
         )
+        lab = lab_repo.get_virtual_lab(session, lab_id)
 
         if invite is None:
             user_to_invite = user_repo.retrieve_user_by_email(invite_details.email)
@@ -96,7 +100,7 @@ async def invite_user_to_project(
     except EmailError as error:
         logger.error(f"Error when sending email invite {error.message} {error.detail}")
         if invite:
-            invite_repo.delete_invite(invite_id=UUID(str(invite.id)))
+           await invite_repo.delete_project_invite(invite_id=UUID(str(invite.id)))
         raise VliError(
             message=f"There was an error while emailing the project invite to user {invite_details.email}. Please try sending the invite again.",
             error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,

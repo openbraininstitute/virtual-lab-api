@@ -3,7 +3,7 @@ from http import HTTPStatus
 from loguru import logger
 from pydantic import UUID4, EmailStr
 from sqlalchemy.exc import NoResultFound, SQLAlchemyError
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.exceptions.generic_exceptions import UserNotInList
@@ -17,7 +17,6 @@ from virtual_labs.repositories.user_repo import UserQueryRepository
 from virtual_labs.usecases.labs.lab_authorization import is_user_in_lab
 
 
-# TODO: !36 If we create a temporary User in KC for unregistered users then this function will not be needed
 def get_pending_user(
     user: UserRepresentation | None, user_email: EmailStr
 ) -> UserRepresentation:
@@ -38,15 +37,15 @@ def get_pending_user(
     return user
 
 
-def get_virtual_lab_users(
-    db: Session, lab_id: UUID4, user_id: UUID4
+async def get_virtual_lab_users(
+    db: AsyncSession, lab_id: UUID4, user_id: UUID4
 ) -> VirtualLabUsers:
     invite_repo = InviteQueryRepository(db)
     group_repo = GroupQueryRepository()
     user_repo = UserQueryRepository()
 
     try:
-        lab = lab_repository.get_virtual_lab(db, lab_id)
+        lab = await lab_repository.get_undeleted_virtual_lab(db, lab_id)
         if not is_user_in_lab(user_id, lab):
             raise UserNotInList(
                 f"User {user_id} is not member of lab {lab.name} and therefore cannot retrieve lab users"
@@ -67,6 +66,7 @@ def get_virtual_lab_users(
             )
             for member in group_repo.retrieve_group_users(str(lab.member_group_id))
         ]
+        invites = await invite_repo.get_pending_users_for_lab(lab_id)
         pending_users = [
             UserWithInviteStatus(
                 **get_pending_user(
@@ -76,7 +76,7 @@ def get_virtual_lab_users(
                 invite_accepted=False,
                 role=str(invite.role),  # TODO: Convert to enum
             )
-            for invite in invite_repo.get_pending_users_for_lab(lab_id)
+            for invite in invites
         ]
         return VirtualLabUsers(users=admins + members + pending_users)
     except UserNotInList:
