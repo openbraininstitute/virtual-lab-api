@@ -1,7 +1,7 @@
 from typing import Any, Optional
 
 from dotenv import load_dotenv
-from pydantic import PostgresDsn, ValidationInfo, field_validator
+from pydantic import EmailStr, PostgresDsn, ValidationInfo, field_validator
 from pydantic_core import MultiHostUrl, Url
 from pydantic_settings import BaseSettings
 
@@ -30,6 +30,22 @@ class Settings(BaseSettings):
     KC_CLIENT_SECRET: str = "obp-secret"
     KC_REALM_NAME: str = "obp-realm"
     DEPLOYMENT_NAMESPACE: str = "https://openbrainplatform.org/"
+
+    MAIL_USERNAME: str = "dummyusername"
+    MAIL_PASSWORD: str = "dummypassword"
+    MAIL_FROM: EmailStr = "obp@bbp.org"
+    MAIL_PORT: int = 1025
+    MAIL_SERVER: str = "localhost"
+    MAIL_STARTTLS: bool = False
+    MAIL_SSL_TLS: bool = False
+    USE_CREDENTIALS: bool = True
+    VALIDATE_CERTS: bool = False
+
+    INVITE_JWT_SECRET: str = "TEST_JWT_SECRET"
+    INVITE_EXPIRES_IN_DAYS: int = 7
+    INVITE_LINK_BASE: str = (
+        DEPLOYMENT_NAMESPACE + "mmb-beta"
+    )  # TODO: This might need to be changed
 
     @field_validator("DATABASE_URI", mode="before")
     @classmethod

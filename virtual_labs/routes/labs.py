@@ -140,15 +140,14 @@ def update_virtual_lab(
     "/{lab_id}/users",
     summary="Invite user to lab by email",
     response_model=LabResponse[InviteSent],
-    tags=["Not Yet Implemented"],
 )
-def invite_user_to_virtual_lab(
+async def invite_user_to_virtual_lab(
     lab_id: UUID4,
     invite_details: AddUserToVirtualLab,
     db: Session = Depends(default_session_factory),
     auth: tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> LabResponse[InviteSent]:
-    invite_id = usecases.invite_user_to_lab(
+    invite_id = await usecases.invite_user_to_lab(
         lab_id,
         inviter_id=get_user_id_from_auth(auth),
         invite_details=invite_details,

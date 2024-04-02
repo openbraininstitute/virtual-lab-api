@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List, Optional
 
-from pydantic import UUID4, BaseModel
+from pydantic import UUID4, BaseModel, EmailStr
 
 from virtual_labs.core.types import UserRoleEnum
 from virtual_labs.domain.user import ShortenedUser
@@ -129,3 +129,12 @@ class ProjectUsersCountOut(BaseModel):
 class ProjectPerVLCountOut(BaseModel):
     virtual_lab_id: UUID4
     total: int
+
+
+class ProjectInviteIn(BaseModel):
+    email: EmailStr
+    role: UserRoleEnum
+
+
+class ProjectInviteOut(BaseModel):
+    invite_id: UUID4

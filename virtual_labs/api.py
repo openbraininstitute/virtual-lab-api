@@ -20,6 +20,7 @@ app = FastAPI(
     title=settings.APP_NAME,
     debug=settings.APP_DEBUG,
 )
+
 base_router = APIRouter(prefix=settings.BASE_PATH)
 
 

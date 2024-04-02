@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.sql import and_
 
 from virtual_labs.core.types import UserRoleEnum
-from virtual_labs.infrastructure.db.models import VirtualLabInvite
+from virtual_labs.infrastructure.db.models import ProjectInvite, VirtualLabInvite
 
 
 class InviteQueryRepository:
@@ -60,6 +60,27 @@ class InviteMutationRepository:
         self.session.refresh(invite)
         return invite
 
+    def add_project_invite(
+        self,
+        *,
+        project_id: UUID4,
+        inviter_id: UUID4,
+        invitee_role: UserRoleEnum,
+        invitee_email: EmailStr,
+        invitee_id: UUID4 | None,
+    ) -> ProjectInvite:
+        invite = ProjectInvite(
+            inviter_id=inviter_id,
+            user_id=invitee_id,
+            project_id=project_id,
+            role=invitee_role.value,
+            user_email=invitee_email,
+        )
+        self.session.add(invite)
+        self.session.commit()
+        self.session.refresh(invite)
+        return invite
+
     def update_invite(self, invite_id: UUID4, accepted: bool) -> None:
         statement = (
             update(VirtualLabInvite)
@@ -69,3 +90,9 @@ class InviteMutationRepository:
         self.session.execute(statement=statement)
         self.session.commit()
         return
+
+    def delete_invite(self, invite_id: UUID4) -> VirtualLabInvite:
+        invite = self.get_invite(invite_id)
+        self.session.delete(invite)
+        self.session.commit()
+        return invite
