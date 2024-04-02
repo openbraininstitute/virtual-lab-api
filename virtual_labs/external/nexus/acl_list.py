@@ -6,25 +6,27 @@ project_member_acls: List[str] = [
     "resources/read",
     "views/query",
     "views/write",
+    "projects/read",
 ]
 
 project_admin_acls: List[str] = [
     *project_member_acls,
     "projects/write",  # this will allow deprecation too (which is deletion in our case)
-    "projects/read",
     "projects/delete",  # this will allow strict deletion
 ]
 
+virtual_lab_member_acls: List[str] = [
+    *project_member_acls,
+]
+
 virtual_lab_admin_acls: List[str] = [
-    *project_admin_acls,
-    "organizations/read",
+    *virtual_lab_member_acls,
     "organizations/write",
     "organizations/create",
     # TODO: we should also request delta to add "organizations/delete"
     # TODO: also allow deprecation of an organization
 ]
 
-virtual_lab_member_acls: List[str] = [*project_member_acls]
 
 # TODO: to delete, just for info
 all_acls = [
