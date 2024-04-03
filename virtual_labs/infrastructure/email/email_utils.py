@@ -65,5 +65,5 @@ def get_invite_details_from_token(invite_token: str) -> InviteToken:
 
 
 def get_expiry_datetime_from_token(invite_token: InviteToken) -> datetime:
-    expiry = float(invite_token["expires_at"])
+    expiry = float(invite_token["exp"])
     return datetime.fromtimestamp(expiry / 1000)
