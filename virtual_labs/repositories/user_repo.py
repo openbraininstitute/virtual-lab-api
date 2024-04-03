@@ -30,7 +30,9 @@ class UserQueryRepository:
     def retrieve_user_by_email_soft(
         self, email: str
     ) -> List[UserRepresentation] | None:
-        return self.Kc.get_users({"email": email})
+        return [
+            UserRepresentation(**user) for user in self.Kc.get_users({"email": email})
+        ]
 
     def retrieve_user_by_email(self, email: str) -> UserRepresentation | None:
         users = self.Kc.get_users({"email": email})

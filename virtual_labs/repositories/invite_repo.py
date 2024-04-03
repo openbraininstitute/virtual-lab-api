@@ -15,14 +15,14 @@ class InviteQueryRepository:
     def __init__(self, session: Session) -> None:
         self.session = session
 
-    def get_project_invite_by_id(self, invite_id: UUID4):
+    def get_project_invite_by_id(self, invite_id: UUID4) -> ProjectInvite:
         return (
             self.session.query(ProjectInvite)
             .filter(ProjectInvite.id == invite_id)
             .one()
         )
 
-    def get_vlab_invite_by_id(self, invite_id: UUID4):
+    def get_vlab_invite_by_id(self, invite_id: UUID4) -> VirtualLabInvite:
         return (
             self.session.query(VirtualLabInvite)
             .filter(VirtualLabInvite.id == invite_id)

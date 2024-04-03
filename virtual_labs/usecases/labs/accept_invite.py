@@ -39,7 +39,7 @@ def accept_invite(invite_id: UUID4, user_id: UUID4, db: Session) -> None:
         user_repo.attach_user_to_group(
             user_id=UUID(str(user_id)), group_id=str(group_id)
         )
-        invite_repo.update_invite(invite_id=invite_id, accepted=True)
+        invite_repo.update_vlab_invite(invite_id=invite_id, accepted=True)
     except SQLAlchemyError as error:  # noqa: F821
         logger.error(f"Invitation acceptance failed due to db error: {error}")
         raise VliError(
