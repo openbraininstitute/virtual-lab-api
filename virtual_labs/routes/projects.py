@@ -23,6 +23,8 @@ from virtual_labs.domain.project import (
     ProjectCreationBody,
     ProjectDeletionOut,
     ProjectExistenceOut,
+    ProjectInviteIn,
+    ProjectInviteOut,
     ProjectOut,
     ProjectPerVLCountOut,
     ProjectUpdateBudgetOut,
@@ -446,5 +448,34 @@ async def detach_user_from_project(
         virtual_lab_id=virtual_lab_id,
         project_id=project_id,
         user_id=user_id,
+        auth=auth,
+    )
+
+
+@router.post(
+    "/{virtual_lab_id}/projects/{project_id}/invites",
+    operation_id="invite_user_to_project",
+    summary="invite a user to a project if the inviter has permission",
+    description=(
+        """
+        Allow only the User that has the right role (based on KC groups "Virtual Lab Admin/Project Admin")
+        to invite a new user by email or user_id if the user already an OBP user
+        """
+    ),
+    response_model=VliAppResponse[ProjectInviteOut],
+)
+@verify_vlab_or_project_write
+async def invite_user_to_project(
+    virtual_lab_id: UUID4,
+    project_id: UUID4,
+    invite: ProjectInviteIn,
+    session: Session = Depends(default_session_factory),
+    auth: Tuple[AuthUser, str] = Depends(verify_jwt),
+) -> Response | VliError:
+    return await project_cases.invite_user_to_project(
+        session,
+        virtual_lab_id=virtual_lab_id,
+        project_id=project_id,
+        invite_details=invite,
         auth=auth,
     )
