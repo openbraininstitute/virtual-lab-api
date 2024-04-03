@@ -23,7 +23,10 @@ from virtual_labs.repositories.user_repo import (
 
 
 async def invitation_handler_test(
-    session: Session, *, invite_id: UUID, origin: InviteOrigin
+    session: Session,
+    *,
+    invite_id: UUID,
+    origin: InviteOrigin,
 ) -> Response | VliError:
     project_query_repo = ProjectQueryRepository(session)
     invite_mut_repo = InviteMutationRepository(session)
