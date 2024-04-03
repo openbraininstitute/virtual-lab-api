@@ -2,6 +2,7 @@ from http import HTTPStatus
 from typing import Tuple
 from uuid import UUID
 
+from fastapi import Response
 from loguru import logger
 from pydantic import UUID4
 from sqlalchemy import func
@@ -10,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.exceptions.email_error import EmailError
-from virtual_labs.core.types import VliAppResponse
+from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.domain.project import ProjectInviteIn, ProjectInviteOut
 from virtual_labs.infrastructure.email.email_service import EmailDetails, send_invite
 from virtual_labs.infrastructure.kc.models import AuthUser
@@ -31,7 +32,7 @@ async def invite_user_to_project(
     project_id: UUID4,
     invite_details: ProjectInviteIn,
     auth: Tuple[AuthUser, str],
-) -> VliAppResponse[ProjectInviteOut]:
+) -> Response | VliError:
     pr = ProjectQueryRepository(session)
     user_repo = UserQueryRepository()
     invite_repo = InviteMutationRepository(session)
@@ -74,7 +75,7 @@ async def invite_user_to_project(
             )
         else:
             invite_repo.update_project_invite(
-                invite_id=invite.id,
+                invite_id=UUID(str(invite.id)),
                 properties={"updated_at": func.now()},
             )
             await send_invite(
@@ -88,13 +89,14 @@ async def invite_user_to_project(
                 )
             )
 
-        return VliAppResponse[ProjectInviteOut](
-            message="Invite sent to user",
+        return VliResponse.new(
+            message="User invited successfully",
             data=ProjectInviteOut(invite_id=UUID(str(invite.id))),
         )
     except EmailError as error:
         logger.error(f"Error when sending email invite {error.message} {error.detail}")
-        invite_repo.delete_invite(invite_id=UUID(str(invite.id)))
+        if invite:
+            invite_repo.delete_invite(invite_id=UUID(str(invite.id)))
         raise VliError(
             message=f"There was an error while emailing the project invite to user {invite_details.email}. Please try sending the invite again.",
             error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,

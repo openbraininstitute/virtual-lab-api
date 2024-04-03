@@ -26,6 +26,7 @@ def get_pending_user(
         return UserRepresentation(
             id="unknown",
             username=user_email,
+            email=user_email,
             emailVerified=False,
             createdTimestamp=0,
             enabled=False,
