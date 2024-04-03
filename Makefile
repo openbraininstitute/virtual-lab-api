@@ -28,7 +28,7 @@ help:
 	@echo "$$HELPTEXT"
 
 dev:
-	DEPLOYMENT_ENV=env && poetry run uvicorn virtual_labs.api:app --reload
+	DEPLOYMENT_ENV=dev && poetry run uvicorn virtual_labs.api:app --reload
 
 init: 
 	./dev-init.sh
