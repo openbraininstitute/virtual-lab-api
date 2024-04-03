@@ -33,16 +33,23 @@ def verify_vlab_or_project_write(f: Callable[..., Any]) -> Callable[..., Any]:
             pqr = ProjectQueryRepository(session)
             gqr = GroupQueryRepository()
 
-            vlab = get_virtual_lab(
-                session,
-                lab_id=virtual_lab_id,
-            )
-            project, _ = pqr.retrieve_one_project_by_id(project_id=project_id)
-            vlab_admins = gqr.retrieve_group_users(group_id=str(vlab.admin_group_id))
-            project_admins = gqr.retrieve_group_users(
-                group_id=str(project.admin_group_id)
-            )
-            users = vlab_admins + project_admins
+            users = []
+            if virtual_lab_id:
+                vlab = get_virtual_lab(
+                    session,
+                    lab_id=virtual_lab_id,
+                )
+                vlab_admins = gqr.retrieve_group_users(
+                    group_id=str(vlab.admin_group_id)
+                )
+                users += vlab_admins
+            if project_id:
+                project, _ = pqr.retrieve_one_project_by_id(project_id=project_id)
+                project_admins = gqr.retrieve_group_users(
+                    group_id=str(project.admin_group_id)
+                )
+                users += project_admins
+
             uniq_users = uniq_list([u.id for u in users])
 
             is_user_in_list(list_=uniq_users, user_id=user_id)
