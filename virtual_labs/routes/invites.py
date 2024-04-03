@@ -10,6 +10,7 @@ from virtual_labs.infrastructure.db.config import default_session_factory
 from virtual_labs.infrastructure.email.email_utils import InviteOrigin
 from virtual_labs.infrastructure.kc.auth import verify_jwt
 from virtual_labs.infrastructure.kc.models import AuthUser
+from virtual_labs.infrastructure.settings import settings
 from virtual_labs.usecases import invites as invite_cases
 
 router = APIRouter(
@@ -23,6 +24,7 @@ router = APIRouter(
     operation_id="invite_handler",
     summary="This will process the invite (add users to groups, update the invite status)",
     response_model=None,
+    include_in_schema=settings.DEPLOYMENT_ENV != "production",
 )
 async def handle_test_invite(
     invite_id: UUID,
