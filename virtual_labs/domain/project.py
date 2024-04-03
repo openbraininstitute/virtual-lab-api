@@ -137,4 +137,5 @@ class ProjectInviteIn(BaseModel):
 
 
 class ProjectInviteOut(BaseModel):
+    origin: str = "Project"
     invite_id: UUID4
