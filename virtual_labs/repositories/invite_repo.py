@@ -1,3 +1,5 @@
+from typing import Any, Dict
+
 from pydantic import UUID4, EmailStr
 from sqlalchemy import func, update
 from sqlalchemy.orm import Session
@@ -12,6 +14,25 @@ class InviteQueryRepository:
 
     def __init__(self, session: Session) -> None:
         self.session = session
+
+    def get_project_invite_by_params(
+        self,
+        *,
+        project_id: UUID4,
+        email: EmailStr,
+        role: UserRoleEnum,
+    ) -> ProjectInvite | None:
+        return (
+            self.session.query(ProjectInvite)
+            .filter(
+                and_(
+                    ProjectInvite.project_id == project_id,
+                    ProjectInvite.user_email == email,
+                    ProjectInvite.role == role.value,
+                )
+            )
+            .first()
+        )
 
     def get_pending_users_for_lab(self, lab_id: UUID4) -> list[VirtualLabInvite]:
         return (
@@ -80,6 +101,27 @@ class InviteMutationRepository:
         self.session.commit()
         self.session.refresh(invite)
         return invite
+
+    def update_project_invite(
+        self, invite_id: UUID4, properties: Dict[str, Any]
+    ) -> None:
+        columns = ProjectInvite.__table__.columns.keys()
+        values = {}
+
+        for k, v in properties.items():
+            if k in columns:
+                values.update({k: v})
+
+        statement = (
+            update(ProjectInvite)
+            .where(ProjectInvite.id == invite_id)
+            .values(
+                values,
+            )
+        )
+        self.session.execute(statement=statement)
+        self.session.commit()
+        return
 
     def update_invite(self, invite_id: UUID4, accepted: bool) -> None:
         statement = (
