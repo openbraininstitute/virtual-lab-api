@@ -11,6 +11,7 @@ from starlette.middleware.cors import CORSMiddleware
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.schemas import api
 from virtual_labs.infrastructure.settings import settings
+from virtual_labs.routes.invites import router as invite_router
 from virtual_labs.routes.labs import router as virtual_lab_router
 from virtual_labs.routes.plans import router as plans_router
 from virtual_labs.routes.projects import router as project_router
@@ -86,5 +87,6 @@ base_router.include_router(project_router)
 base_router.include_router(virtual_lab_router)
 base_router.include_router(user_router)
 base_router.include_router(plans_router)
+base_router.include_router(invite_router)
 
 app.include_router(base_router)
