@@ -5,3 +5,7 @@ from dataclasses import dataclass
 class IdentityError(Exception):
     message: str
     detail: str | None
+
+
+class UserMismatch(Exception):
+    pass

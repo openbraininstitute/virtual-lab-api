@@ -7,9 +7,7 @@ from pydantic import UUID4
 
 from virtual_labs.infrastructure.settings import settings
 
-InviteToken = TypedDict(
-    "InviteToken", {"invite_id": str, "expires_at": str, "origin": str}
-)
+InviteToken = TypedDict("InviteToken", {"invite_id": str, "exp": str, "origin": str})
 
 
 class InviteOrigin(Enum):
@@ -26,10 +24,14 @@ def generate_expiration_time() -> str:
 def generate_encrypted_invite_token(invite_id: UUID4, origin: InviteOrigin) -> str:
     invite_data = {
         "invite_id": str(invite_id),
-        "expires_at": generate_expiration_time(),
+        "exp": generate_expiration_time(),
         "origin": origin.value,
     }
-    return jwt.encode(invite_data, settings.INVITE_JWT_SECRET, algorithm="HS256")
+    return jwt.encode(
+        invite_data,
+        settings.INVITE_JWT_SECRET,
+        algorithm="HS256",
+    )
 
 
 # TODO: The links here might need updating depending on the actual lab/project details page where the user should be redirected to.
@@ -54,7 +56,10 @@ def generate_invite_html(
 
 def get_invite_details_from_token(invite_token: str) -> InviteToken:
     decoded_token = jwt.decode(
-        invite_token, settings.INVITE_JWT_SECRET, algorithms=["HS256"]
+        invite_token,
+        settings.INVITE_JWT_SECRET,
+        algorithms=["HS256"],
+        options={"verify_exp": True},
     )
     return cast(InviteToken, decoded_token)
 
