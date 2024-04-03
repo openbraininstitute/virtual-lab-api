@@ -34,6 +34,17 @@ class InviteQueryRepository:
             raise NoResultFound
         return invite
 
+    async def get_lab_invite_by_params(
+        self, lab_id: UUID4, email: str, role: UserRoleEnum
+    ) -> VirtualLabInvite | None:
+        statement = select(VirtualLabInvite).filter(
+            VirtualLabInvite.virtual_lab_id == lab_id,
+            VirtualLabInvite.user_email == email,
+            VirtualLabInvite.role == role.value,
+        )
+        invite = (await self.session.execute(statement)).scalar()
+        return invite
+
     async def get_project_invite_by_params(
         self,
         *,
@@ -100,7 +111,7 @@ class InviteMutationRepository:
         await self.session.refresh(invite)
         return invite
 
-    async def update_lab_invite(self, invite_id: UUID4, accepted: bool) -> None:
+    async def update_lab_invite(self, invite_id: UUID4, accepted: bool = False) -> None:
         statement = (
             update(VirtualLabInvite)
             .where(VirtualLabInvite.id == invite_id)

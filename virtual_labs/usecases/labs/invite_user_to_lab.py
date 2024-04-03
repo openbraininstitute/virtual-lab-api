@@ -2,7 +2,7 @@ from http import HTTPStatus
 from uuid import UUID
 
 from loguru import logger
-from pydantic import UUID4
+from pydantic import UUID4, EmailStr
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,9 +12,38 @@ from virtual_labs.core.exceptions.generic_exceptions import UserNotInList
 from virtual_labs.domain.labs import AddUserToVirtualLab
 from virtual_labs.infrastructure.email.email_service import EmailDetails, send_invite
 from virtual_labs.repositories import labs as lab_repo
-from virtual_labs.repositories.invite_repo import InviteMutationRepository
+from virtual_labs.repositories.invite_repo import (
+    InviteMutationRepository,
+    InviteQueryRepository,
+)
 from virtual_labs.repositories.user_repo import UserQueryRepository
 from virtual_labs.usecases.labs.lab_authorization import is_user_admin_of_lab
+
+
+async def send_email_to_user_or_rollback(
+    invite_id: UUID,
+    email: EmailStr,
+    lab_name: str,
+    lab_id: UUID,
+    invite_repo: InviteMutationRepository,
+) -> None:
+    try:
+        await send_invite(
+            details=EmailDetails(
+                recipient=email,
+                invite_id=invite_id,
+                lab_id=lab_id,
+                lab_name=lab_name,
+            )
+        )
+    except EmailError as error:
+        logger.error(f"Error when sending email invite {error.message} {error.detail}")
+        await invite_repo.delete_lab_invite(invite_id=UUID(str(invite_id)))
+        raise VliError(
+            message=f"There was an error while emailing virtual lab invite to {email}. Please try sending the invite again.",
+            error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
+            http_status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+        )
 
 
 async def invite_user_to_lab(
@@ -24,7 +53,8 @@ async def invite_user_to_lab(
     db: AsyncSession,
 ) -> UUID4:
     user_repo = UserQueryRepository()
-    invite_repo = InviteMutationRepository(db)
+    invite_query_repo = InviteQueryRepository(db)
+    invite_mutation_repo = InviteMutationRepository(db)
 
     try:
         lab = await lab_repo.get_undeleted_virtual_lab(db, lab_id)
@@ -34,37 +64,51 @@ async def invite_user_to_lab(
             )
 
         user_to_invite = user_repo.retrieve_user_by_email(invite_details.email)
-
         user_id = UUID(user_to_invite.id) if user_to_invite is not None else None
 
-        invite = await invite_repo.add_lab_invite(
-            virtual_lab_id=lab_id,
-            # Inviter details
-            inviter_id=inviter_id,
-            # Invitee details
-            invitee_id=user_id,
-            invitee_role=invite_details.role,
-            invitee_email=invite_details.email,
+        existing_invite = await invite_query_repo.get_lab_invite_by_params(
+            lab_id=UUID(str(lab.id)),
+            email=invite_details.email,
+            role=invite_details.role,
         )
-        # Need to refresh the lab because the invite is commited inside the repo.
-        await db.refresh(lab)
-        await send_invite(
-            details=EmailDetails(
-                recipient=invite_details.email,
-                invite_id=UUID(str(invite.id)),
-                lab_id=lab_id,
-                lab_name=str(lab.name),
+
+        if existing_invite is None:
+            invite = await invite_mutation_repo.add_lab_invite(
+                virtual_lab_id=lab_id,
+                # Inviter details
+                inviter_id=inviter_id,
+                # Invitee details
+                invitee_id=user_id,
+                invitee_role=invite_details.role,
+                invitee_email=invite_details.email,
             )
-        )
-        return UUID(str(invite.id))
-    except EmailError as error:
-        logger.error(f"Error when sending email invite {error.message} {error.detail}")
-        await invite_repo.delete_lab_invite(invite_id=UUID(str(invite.id)))
-        raise VliError(
-            message=f"There was an error while emailing virtual lab the invite to user {invite_details.email}. Please try sending the invite again.",
-            error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
-            http_status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-        )
+            # Need to refresh the lab because the invite is commited inside the repo.
+            await db.refresh(lab)
+            await send_email_to_user_or_rollback(
+                invite_id=UUID(str(invite.id)),
+                email=invite_details.email,
+                lab_name=str(lab.name),
+                lab_id=UUID(str(lab.id)),
+                invite_repo=invite_mutation_repo,
+            )
+            return UUID(str(invite.id))
+        else:
+            logger.debug(
+                f"Invite {existing_invite.id} for user already exists. Updating the invite and sending refreshed link"
+            )
+            await invite_mutation_repo.update_lab_invite(UUID(str(existing_invite.id)))
+            # Need to refresh the lab because the invite is commited inside the repo.
+            await db.refresh(lab)
+            await db.refresh(existing_invite)
+
+            await send_email_to_user_or_rollback(
+                invite_id=UUID(str(existing_invite.id)),
+                email=invite_details.email,
+                lab_name=str(lab.name),
+                lab_id=UUID(str(lab.id)),
+                invite_repo=invite_mutation_repo,
+            )
+            return UUID(str(existing_invite.id))
     except UserNotInList:
         raise VliError(
             message=f"Only admins of lab can invite other users and user {inviter_id} is not admin of lab {lab.name}",
