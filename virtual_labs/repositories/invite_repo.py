@@ -15,6 +15,20 @@ class InviteQueryRepository:
     def __init__(self, session: Session) -> None:
         self.session = session
 
+    def get_project_invite_by_id(self, invite_id: UUID4):
+        return (
+            self.session.query(ProjectInvite)
+            .filter(ProjectInvite.id == invite_id)
+            .one()
+        )
+
+    def get_vlab_invite_by_id(self, invite_id: UUID4):
+        return (
+            self.session.query(VirtualLabInvite)
+            .filter(VirtualLabInvite.id == invite_id)
+            .one()
+        )
+
     def get_project_invite_by_params(
         self,
         *,
@@ -123,7 +137,7 @@ class InviteMutationRepository:
         self.session.commit()
         return
 
-    def update_invite(self, invite_id: UUID4, accepted: bool) -> None:
+    def update_vlab_invite(self, invite_id: UUID4, accepted: bool) -> None:
         statement = (
             update(VirtualLabInvite)
             .where(VirtualLabInvite.id == invite_id)
