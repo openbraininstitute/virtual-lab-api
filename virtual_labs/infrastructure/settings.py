@@ -1,4 +1,4 @@
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 from dotenv import load_dotenv
 from pydantic import EmailStr, PostgresDsn, ValidationInfo, field_validator
@@ -11,7 +11,7 @@ load_dotenv()
 class Settings(BaseSettings):
     APP_NAME: str = "virtual-lab-manager service"
     APP_DEBUG: bool = False
-    DEPLOYMENT_ENV: str = "dev"
+    DEPLOYMENT_ENV: Literal["dev", "test", "production"] = "dev"
     BASE_PATH: str = ""
     DEBUG_DATABASE_ECHO: bool = False
     CORS_ORIGINS: str = ""
