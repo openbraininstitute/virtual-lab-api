@@ -33,19 +33,3 @@ async def handle_test_invite(
     return await invite_cases.invitation_handler_test(
         session, invite_id=invite_id, origin=origin
     )
-
-
-# @router.post(
-#     "",
-#     operation_id="invite_handler",
-#     summary="This will do the checking for the invite token and the status of the user",
-# )
-# async def handle_invite(
-#     page: int = Query(1, ge=1),
-#     size: int = Query(20, ge=0),
-#     session: Session = Depends(default_session_factory),
-#     auth: Tuple[AuthUser, str] = Depends(verify_jwt),
-# ) -> Response | VliError:
-#     return await invite_cases.retrieve_all_user_projects_use_case(
-#         session, auth, pagination=PageParams(page=page, size=size)
-#     )
