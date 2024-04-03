@@ -8,6 +8,7 @@ class UserRepresentation(BaseModel):
     username: str
     firstName: str | None = None
     lastName: str | None = None
+    email: EmailStr | None
     emailVerified: bool
     createdTimestamp: int
     enabled: bool
