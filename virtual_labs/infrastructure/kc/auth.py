@@ -16,7 +16,7 @@ from .config import kc_auth
 
 auth_header: HTTPBearer | OAuth2AuthorizationCodeBearer = HTTPBearer(auto_error=False)
 
-if settings.PY_ENV == "dev":
+if settings.DEPLOYMENT_ENV == "test":
     auth_header = OAuth2AuthorizationCodeBearer(
         authorizationUrl=f"{settings.KC_SERVER_URI}realms/{settings.KC_REALM_NAME}/protocol/openid-connect/auth",
         tokenUrl=f"{settings.KC_SERVER_URI}realms/{settings.KC_REALM_NAME}/protocol/openid-connect/token",

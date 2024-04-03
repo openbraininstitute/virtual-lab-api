@@ -28,7 +28,7 @@ help:
 	@echo "$$HELPTEXT"
 
 dev:
-	poetry run uvicorn virtual_labs.api:app --reload
+	DEPLOYMENT_ENV=env && poetry run uvicorn virtual_labs.api:app --reload
 
 init: 
 	./dev-init.sh
@@ -58,7 +58,7 @@ type-check:
 	poetry run mypy . --strict
 
 test:
-	PY_ENV=prod poetry run pytest
+	DEPLOYMENT_ENV=env poetry run pytest
 
 init-db:
 	poetry run alembic upgrade head

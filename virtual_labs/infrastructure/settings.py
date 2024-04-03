@@ -11,7 +11,7 @@ load_dotenv()
 class Settings(BaseSettings):
     APP_NAME: str = "virtual-lab-manager service"
     APP_DEBUG: bool = False
-    PY_ENV: str = "dev"
+    DEPLOYMENT_ENV: str = "dev"
     BASE_PATH: str = ""
     DEBUG_DATABASE_ECHO: bool = False
     CORS_ORIGINS: str = ""
