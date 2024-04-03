@@ -80,6 +80,7 @@ async def create_new_project_use_case(
         assert member_group_id is not None
 
         # TODO: to asyncio need to run in parallel
+        # TODO: IMPORTANT invite users to the project
         umr.attach_user_to_group(
             user_id=user_id,
             group_id=admin_group_id,
