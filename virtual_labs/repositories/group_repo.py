@@ -1,5 +1,4 @@
 from typing import Any, Dict, List, cast
-from uuid import uuid4
 
 from keycloak import KeycloakAdmin  # type: ignore
 from loguru import logger
@@ -118,15 +117,3 @@ class GroupMutationRepository:
 
     def delete_group(self, *, group_id: str) -> Any | Dict[str, str]:
         return self.Kc.delete_group(group_id=group_id)
-
-    def create_user(
-        self,
-        *,
-        user_email: str,
-    ) -> UUID4:
-        # TODO: change the format later, this must be unique for keycloak
-        username = user_email.split("@")[0] + "@" + uuid4().hex
-        user_id = self.Kc.create_user(
-            payload={"email": user_email, "username": username}
-        )
-        return cast(UUID4, user_id)

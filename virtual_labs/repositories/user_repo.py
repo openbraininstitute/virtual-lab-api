@@ -1,4 +1,5 @@
-from typing import Any, Dict, List
+from typing import Any, Dict, List, cast
+from uuid import uuid4
 
 from keycloak import KeycloakAdmin  # type: ignore
 from loguru import logger
@@ -25,6 +26,11 @@ class UserQueryRepository:
             raise IdentityError(
                 message=f"User with id {user_id} not found", detail=str(error)
             )
+
+    def retrieve_user_by_email_soft(
+        self, email: str
+    ) -> List[UserRepresentation] | None:
+        return self.Kc.get_users({"email": email})
 
     def retrieve_user_by_email(self, email: str) -> UserRepresentation | None:
         users = self.Kc.get_users({"email": email})
@@ -109,3 +115,33 @@ class UserMutationRepository:
         group_id: str,
     ) -> Any | Dict[str, str]:
         return self.Kc.group_user_remove(user_id=user_id, group_id=group_id)
+
+    def create_user(
+        self,
+        *,
+        user_email: str,
+    ) -> UUID4:
+        # TODO: change the format later, this must be unique for keycloak
+        username = user_email.split("@")[0] + "@" + uuid4().hex
+        user_id = self.Kc.create_user(
+            payload={"email": user_email, "username": username}
+        )
+        return cast(UUID4, user_id)
+
+    def create_test_user(
+        self,
+        *,
+        user_email: str,
+    ) -> UUID4:
+        # TODO: change the format later, this must be unique for keycloak
+        username = user_email.split("@")[0] + "@" + uuid4().hex
+        user_id = self.Kc.create_user(
+            payload={
+                "email": user_email,
+                "username": username,
+                "emailVerified": True,
+                "enabled": True,
+                "requiredActions": [],
+            }
+        )
+        return cast(UUID4, user_id)
