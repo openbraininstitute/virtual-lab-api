@@ -1,5 +1,5 @@
 from typing import Any, Dict, List, cast
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from keycloak import KeycloakAdmin  # type: ignore
 from loguru import logger
@@ -128,7 +128,7 @@ class UserMutationRepository:
         user_id = self.Kc.create_user(
             payload={"email": user_email, "username": username}
         )
-        return cast(UUID4, user_id)
+        return UUID(user_id)
 
     def create_test_user(
         self,

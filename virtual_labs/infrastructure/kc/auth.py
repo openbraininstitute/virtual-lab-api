@@ -16,7 +16,7 @@ from .config import kc_auth
 
 auth_header: HTTPBearer | OAuth2AuthorizationCodeBearer = HTTPBearer(auto_error=False)
 
-if settings.DEPLOYMENT_ENV == "test":
+if settings.DEPLOYMENT_ENV == "dev":
     auth_header = OAuth2AuthorizationCodeBearer(
         authorizationUrl=f"{settings.KC_SERVER_URI}realms/{settings.KC_REALM_NAME}/protocol/openid-connect/auth",
         tokenUrl=f"{settings.KC_SERVER_URI}realms/{settings.KC_REALM_NAME}/protocol/openid-connect/token",
@@ -40,7 +40,7 @@ def verify_jwt(
         raise VliError(
             error_code=VliErrorCode.AUTHORIZATION_ERROR,
             http_status_code=status.UNAUTHORIZED,
-            message="Invalid authentication credentials",
+            message="No Authentication was provided",
             details="The supplied authentication is not authorized to access",
         )
 
@@ -68,6 +68,6 @@ def verify_jwt(
         raise VliError(
             error_code=VliErrorCode.INVALID_REQUEST,
             http_status_code=status.BAD_REQUEST,
-            message="Invalid authentication credentials",
+            message="Generating authentication details failed",
             details="The user details is not correct",
         )
