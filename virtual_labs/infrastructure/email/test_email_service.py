@@ -18,7 +18,7 @@ email_server_baseurl = "http://localhost:8025"
 
 
 def get_invite_token_from_email_body(email_body: str) -> str:
-    return email_body.split("?invite=")[2].split("</a>\n")[0]
+    return email_body.split("?token=")[2].split("</a>\n")[0]
 
 
 def assert_time_is_in_future(d: datetime) -> None:
@@ -47,8 +47,8 @@ async def test_email_invite_sent_for_virtual_lab() -> None:
     encoded_invite_token = get_invite_token_from_email_body(email_body)
     decoded_token = get_invite_details_from_token(invite_token=encoded_invite_token)
 
-    assert "?invite=" in invite_link
-    assert "?invite=" in email_body
+    assert "?token=" in invite_link
+    assert "?token=" in email_body
     assert mock_lab_name in email_body
 
     assert decoded_token["invite_id"] == str(mock_invite_id)
@@ -81,8 +81,8 @@ async def test_email_invite_sent_for_project() -> None:
     encoded_invite_token = get_invite_token_from_email_body(email_body)
     decoded_token = get_invite_details_from_token(invite_token=encoded_invite_token)
 
-    assert "?invite=" in invite_link
-    assert "?invite=" in email_body
+    assert "?token=" in invite_link
+    assert "?token=" in email_body
     assert mock_lab_name in email_body
     assert mock_project_name in email_body
 
