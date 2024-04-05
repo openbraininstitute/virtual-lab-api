@@ -5,7 +5,7 @@ from keycloak import KeycloakError  # type: ignore
 from loguru import logger
 from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.exceptions.identity_error import IdentityError
@@ -19,18 +19,18 @@ from virtual_labs.repositories.user_repo import (
 from virtual_labs.usecases.labs.lab_authorization import is_user_admin_of_lab
 
 
-def change_user_role_for_lab(
+async def change_user_role_for_lab(
     lab_id: UUID4,
     user_making_change_id: UUID4,
     user_id: UUID4,
     new_role: UserRoleEnum,
-    db: Session,
+    db: AsyncSession,
 ) -> LabResponse[VirtualLabUser]:
     user_mutation_repo = UserMutationRepository()
     user_query_repo = UserQueryRepository()
 
     try:
-        lab = lab_repository.get_virtual_lab(db, lab_id)
+        lab = await lab_repository.get_undeleted_virtual_lab(db, lab_id)
         if not is_user_admin_of_lab(user_id=user_making_change_id, lab=lab):
             raise VliError(
                 message=f"Only admins of lab {lab.name} can change roles for other users",

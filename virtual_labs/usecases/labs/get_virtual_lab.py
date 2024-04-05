@@ -2,7 +2,7 @@ from http import HTTPStatus
 
 from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.exceptions.generic_exceptions import UserNotInList
@@ -15,10 +15,10 @@ from virtual_labs.usecases.labs.lab_with_not_deleted_projects import (
 
 
 async def get_virtual_lab(
-    db: Session, lab_id: UUID4, user_id: UUID4
+    db: AsyncSession, lab_id: UUID4, user_id: UUID4
 ) -> VirtualLabDomainVerbose:
     try:
-        db_lab = repository.get_virtual_lab(db, lab_id)
+        db_lab = await repository.get_undeleted_virtual_lab(db, lab_id)
         if is_user_in_lab(user_id=user_id, lab=db_lab):
             return lab_with_not_deleted_projects(db_lab, user_id)
         raise UserNotInList(
@@ -30,11 +30,11 @@ async def get_virtual_lab(
             error_code=VliErrorCode.NOT_ALLOWED_OP,
             http_status_code=HTTPStatus.FORBIDDEN,
         )
-    except SQLAlchemyError:
+    except SQLAlchemyError as error:
         raise VliError(
             message="Virtual lab not found",
             error_code=VliErrorCode.ENTITY_NOT_FOUND,
             http_status_code=HTTPStatus.NOT_FOUND,
-        )
+        ) from error
     except VliError as error:
         raise error

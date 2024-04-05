@@ -18,7 +18,6 @@ from virtual_labs.routes.invites import router as invite_router
 from virtual_labs.routes.labs import router as virtual_lab_router
 from virtual_labs.routes.plans import router as plans_router
 from virtual_labs.routes.projects import router as project_router
-from virtual_labs.routes.users import router as user_router
 
 
 @asynccontextmanager  # type: ignore
@@ -97,7 +96,6 @@ def health() -> str:
 
 base_router.include_router(project_router)
 base_router.include_router(virtual_lab_router)
-base_router.include_router(user_router)
 base_router.include_router(plans_router)
 base_router.include_router(invite_router)
 

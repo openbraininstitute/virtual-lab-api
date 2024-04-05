@@ -1,8 +1,10 @@
 from typing import List
 
 from pydantic import UUID4
-from sqlalchemy import func, select
-from sqlalchemy.orm import Session, noload
+from sqlalchemy import func, select, update
+from sqlalchemy.exc import NoResultFound
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session, noload, subqueryload
 from sqlalchemy.sql import and_, or_
 
 from virtual_labs.core.types import PaginatedDbResult
@@ -23,10 +25,10 @@ def get_all_virtual_lab_for_user(db: Session) -> List[VirtualLab]:
     return db.query(VirtualLab).filter(~VirtualLab.deleted).all()
 
 
-def get_paginated_virtual_labs(
-    db: Session, page_params: PageParams, group_ids: list[str]
+async def get_paginated_virtual_labs(
+    db: AsyncSession, page_params: PageParams, group_ids: list[str]
 ) -> PaginatedDbResult[list[VirtualLab]]:
-    paginated_query = db.query(VirtualLab).filter(
+    count_query = paginated_query = select(VirtualLab).where(
         and_(
             ~VirtualLab.deleted,
             or_(
@@ -35,31 +37,67 @@ def get_paginated_virtual_labs(
             ),
         )
     )
-    count = db.scalar(
-        select(func.count()).select_from(
-            paginated_query.options(noload("*")).subquery()
+    count = await db.scalar(
+        select(func.count()).select_from(count_query.options(noload("*")).subquery())
+    )
+    paginated_query = (
+        select(VirtualLab)
+        .options(
+            subqueryload(VirtualLab.projects).subqueryload(Project.project_stars),
+        )
+        .where(
+            and_(
+                ~VirtualLab.deleted,
+                or_(
+                    (VirtualLab.admin_group_id.in_(group_ids)),
+                    (VirtualLab.member_group_id.in_(group_ids)),
+                ),
+            )
         )
     )
 
     result = (
-        paginated_query.offset((page_params.page - 1) * page_params.size)
-        .limit(page_params.size)
+        (
+            await db.execute(
+                statement=paginated_query.order_by(VirtualLab.updated_at)
+                .offset((page_params.page - 1) * page_params.size)
+                .limit(page_params.size)
+            )
+        )
+        .unique()
+        .scalars()
         .all()
     )
 
     return PaginatedDbResult(
         count=count or 0,
-        rows=result,
+        rows=list(result),
     )
 
 
-def get_virtual_lab(db: Session, lab_id: UUID4) -> VirtualLab:
-    return (
-        db.query(VirtualLab).filter(~VirtualLab.deleted, VirtualLab.id == lab_id).one()
+async def get_undeleted_virtual_lab(db: AsyncSession, lab_id: UUID4) -> VirtualLab:
+    """Returns non-deleted virtual lab by id. Raises an exception if the lab by id is not found or if it is deleted."""
+    query = (
+        select(VirtualLab)
+        .options(
+            subqueryload(VirtualLab.projects).subqueryload(Project.project_stars),
+        )
+        .where(VirtualLab.id == lab_id, ~VirtualLab.deleted)
     )
+    return (await db.execute(statement=query)).unique().scalar_one()
 
 
-def create_virtual_lab(db: Session, lab: VirtualLabDbCreate) -> VirtualLab:
+async def get_virtual_lab_async(db: AsyncSession, lab_id: UUID4) -> VirtualLab:
+    """Returns irtual lab by id. Raises an exception if the lab by id is not found.
+    The returned virtual lab might be deleted (i.e. Virtual.deleted might be True).
+    """
+    lab = await db.get(VirtualLab, lab_id)
+    if lab is None:
+        raise NoResultFound
+    return lab
+
+
+async def create_virtual_lab(db: AsyncSession, lab: VirtualLabDbCreate) -> VirtualLab:
     db_lab = VirtualLab(
         owner_id=lab.owner_id,
         id=lab.id,
@@ -68,72 +106,88 @@ def create_virtual_lab(db: Session, lab: VirtualLabDbCreate) -> VirtualLab:
         name=lab.name,
         description=lab.description,
         reference_email=lab.reference_email,
-        nexus_organization_id=lab.nexus_organization_id,
+        nexus_organization_id=str(lab.nexus_organization_id),
         projects=[],
         budget=lab.budget,
         plan_id=lab.plan_id,
     )
     db.add(db_lab)
-    db.commit()
-
+    await db.commit()
+    await db.refresh(db_lab)
     return db_lab
 
 
-def update_virtual_lab(
-    db: Session, lab_id: UUID4, lab: labs.VirtualLabUpdate
+async def update_virtual_lab(
+    db: AsyncSession, lab_id: UUID4, lab: labs.VirtualLabUpdate
 ) -> VirtualLab:
-    query = db.query(VirtualLab).filter(~VirtualLab.deleted, VirtualLab.id == lab_id)
-    current = query.one()
-
+    current = await get_undeleted_virtual_lab(db, lab_id)
     data_to_update = lab.model_dump(exclude_unset=True)
-    query.update(
-        {
-            "name": data_to_update.get("name", current.name),
-            "description": data_to_update.get("description", current.description),
-            "reference_email": data_to_update.get(
-                "reference_email", current.reference_email
-            ),
-            "updated_at": func.now(),
-            "budget": data_to_update.get("budget", current.budget),
-            "plan_id": data_to_update.get("plan_id", current.plan_id),
-        }
+    query = (
+        update(VirtualLab)
+        .where(VirtualLab.id == lab_id)
+        .values(
+            {
+                "name": data_to_update.get("name", current.name),
+                "description": data_to_update.get("description", current.description),
+                "reference_email": data_to_update.get(
+                    "reference_email", current.reference_email
+                ),
+                "updated_at": func.now(),
+                "budget": data_to_update.get("budget", current.budget),
+                "plan_id": data_to_update.get("plan_id", current.plan_id),
+            }
+        )
     )
-    db.commit()
-    return current
+    await db.execute(statement=query)
+    await db.commit()
+    return await get_undeleted_virtual_lab(db, lab_id)
 
 
-def delete_virtual_lab(db: Session, lab_id: UUID4) -> VirtualLab:
-    lab = get_virtual_lab(db, lab_id)
+async def delete_virtual_lab(db: AsyncSession, lab_id: UUID4) -> VirtualLab:
     now = func.now()
-
     # Mark virtual lab as deleted
-    db.query(VirtualLab).where(VirtualLab.id == lab_id).update(
-        {"deleted": True, "deleted_at": now}
+    await db.execute(
+        update(VirtualLab)
+        .where(VirtualLab.id == lab_id)
+        .values(deleted=True, deleted_at=now)
     )
-
     # Mark projects for the virtual lab as deleted
-    db.query(Project).where(Project.virtual_lab_id == lab_id).update(
-        {"deleted": True, "deleted_at": now}
+    await db.execute(
+        update(Project)
+        .where(VirtualLab.id == lab_id)
+        .values(deleted=True, deleted_at=now)
     )
 
-    db.commit()
-    return lab
+    await db.commit()
+
+    return await get_virtual_lab_async(db, lab_id)
 
 
-def count_virtual_labs_with_name(db: Session, name: str) -> int:
-    return (
-        db.query(VirtualLab)
-        .filter(~VirtualLab.deleted, func.lower(VirtualLab.name) == func.lower(name))
-        .count()
+async def count_virtual_labs_with_name(db: AsyncSession, name: str) -> int:
+    query = select(VirtualLab).filter(
+        ~VirtualLab.deleted,
+        func.lower(VirtualLab.name) == func.lower(name),
     )
+    count = await db.scalar(
+        select(func.count()).select_from(query.options(noload("*")).subquery())
+    )
+    if count is None:
+        return 0
+    return count
 
 
-def get_virtual_labs_with_matching_name(db: Session, term: str) -> list[VirtualLab]:
-    return (
-        db.query(VirtualLab)
+async def get_virtual_labs_with_matching_name(
+    db: AsyncSession, term: str
+) -> list[VirtualLab]:
+    query = (
+        select(VirtualLab)
+        .options(
+            subqueryload(VirtualLab.projects).subqueryload(Project.project_stars),
+        )
         .filter(
             ~VirtualLab.deleted,
             func.lower(VirtualLab.name).like(f"%{term.strip().lower()}%"),
         )
-        .all()
     )
+    result = (await db.execute(statement=query)).unique().scalars().all()
+    return list(result)
