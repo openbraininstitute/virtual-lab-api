@@ -7,7 +7,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.exceptions.generic_exceptions import UserNotInList
 from virtual_labs.repositories.group_repo import GroupQueryRepository
-from virtual_labs.repositories.labs import get_virtual_lab
+from virtual_labs.repositories.labs import get_undeleted_virtual_lab
 from virtual_labs.repositories.project_repo import ProjectQueryRepository
 from virtual_labs.shared.utils.is_user_in_list import is_user_in_list
 from virtual_labs.shared.utils.uniq_list import uniq_list
@@ -35,7 +35,7 @@ def verify_vlab_or_project_write(f: Callable[..., Any]) -> Callable[..., Any]:
 
             users = []
             if virtual_lab_id:
-                vlab = await get_virtual_lab(
+                vlab = await get_undeleted_virtual_lab(
                     session,
                     lab_id=virtual_lab_id,
                 )

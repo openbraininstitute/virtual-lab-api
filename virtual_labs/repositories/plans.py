@@ -1,10 +1,18 @@
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.exc import NoResultFound
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from virtual_labs.infrastructure.db.models import Plan
 
 
-def get_plan(db: Session, plan_id: int) -> Plan:
-    return db.query(Plan).filter(Plan.id == plan_id).one()
+async def get_plan(db: AsyncSession, plan_id: int) -> Plan:
+    plan = await db.get(Plan, plan_id)
+    # TODO: Check if this will automatically be raise or not
+    if plan is None:
+        raise NoResultFound
+    return plan
 
 
-def get_all_plans(db: Session) -> list[Plan]:
-    return db.query(Plan).all()
+async def get_all_plans(db: AsyncSession) -> list[Plan]:
+    result = (await db.execute(select(Plan))).scalars().all()
+    return list(result)

@@ -52,7 +52,6 @@ async def send_invite(details: EmailDetails) -> str:
             body=invite_html,
             subtype=MessageType.html,
         )
-
         fm = FastMail(email_config)
         await fm.send_message(message)
         logger.debug(f"Invite link {invite_link} emailed to user {details.recipient}")

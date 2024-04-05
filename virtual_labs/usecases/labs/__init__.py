@@ -1,5 +1,4 @@
 # ruff: noqa
-from .accept_invite import accept_invite
 from .all_virtual_labs_for_user import paginated_labs_for_user
 from .change_user_role_for_lab import change_user_role_for_lab
 from .check_virtual_lab_name_exists import check_virtual_lab_name_exists
@@ -25,7 +24,6 @@ __all__ = [
     "invite_user_to_lab",
     "remove_user_from_lab",
     "change_user_role_for_lab",
-    "accept_invite",
     "is_user_admin_of_lab",
     "is_user_in_lab",
 ]
