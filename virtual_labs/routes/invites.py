@@ -3,7 +3,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import Response
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError
 from virtual_labs.core.types import VliAppResponse
@@ -31,7 +31,7 @@ router = APIRouter(
 async def handle_test_invite(
     invite_id: UUID,
     origin: InviteOrigin,
-    session: Session = Depends(default_session_factory),
+    session: AsyncSession = Depends(default_session_factory),
     auth: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> Response | VliError:
     return await invite_cases.invitation_handler_test(
@@ -46,7 +46,7 @@ async def handle_test_invite(
     response_model=VliAppResponse[InviteOut],
 )
 async def handle_invite(
-    session: Session = Depends(default_session_factory),
+    session: AsyncSession = Depends(default_session_factory),
     token: str = Query("", description="invitation token"),
     auth: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> Response | VliError:

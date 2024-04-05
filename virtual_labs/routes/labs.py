@@ -158,22 +158,6 @@ async def invite_user_to_virtual_lab(
     )
 
 
-@router.post(
-    "/{lab_id}/accept-invite/{invite_id}",
-    tags=["Not Yet Implemented"],
-    summary="Accept invite to virtual lab",
-)
-async def accept_invite_to_lab(
-    invite_id: UUID4,
-    user_id: UUID4,
-    db: AsyncSession = Depends(default_session_factory),
-) -> LabResponse[None]:
-    await usecases.accept_invite(invite_id=invite_id, user_id=user_id, db=db)
-    return LabResponse[None](
-        message="Invitation to virtual lab successfully accepted", data=None
-    )
-
-
 @router.patch(
     "/{lab_id}/users/{user_id}",
     response_model=LabResponse[VirtualLabUser],

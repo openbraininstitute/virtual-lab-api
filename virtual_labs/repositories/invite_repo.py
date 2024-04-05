@@ -34,7 +34,7 @@ class InviteQueryRepository:
             raise NoResultFound
         return invite
 
-    def get_project_invite_by_params(
+    async def get_project_invite_by_params(
         self,
         *,
         project_id: UUID4,
@@ -42,16 +42,15 @@ class InviteQueryRepository:
         role: UserRoleEnum,
     ) -> ProjectInvite | None:
         return (
-            self.session.query(ProjectInvite)
-            .filter(
-                and_(
+            await self.session.execute(
+                select(ProjectInvite).filter(
                     ProjectInvite.project_id == project_id,
                     ProjectInvite.user_email == email,
                     ProjectInvite.role == role.value,
                 )
             )
-            .first()
-        )
+        ).scalar()
+
 
 class InviteMutationRepository:
     session: AsyncSession
@@ -111,7 +110,7 @@ class InviteMutationRepository:
         await self.session.commit()
         return
 
-    def update_project_invite(
+    async def update_project_invite(
         self, invite_id: UUID4, properties: Dict[str, Any]
     ) -> None:
         columns = ProjectInvite.__table__.columns.keys()
@@ -128,20 +127,20 @@ class InviteMutationRepository:
                 values,
             )
         )
-        self.session.execute(statement=statement)
-        self.session.commit()
+        await self.session.execute(statement=statement)
+        await self.session.commit()
         return
 
     async def delete_lab_invite(self, invite_id: UUID4) -> VirtualLabInvite:
         query_repo = InviteQueryRepository(session=self.session)
-        invite = await query_repo.get_lab_invite(invite_id)
+        invite = await query_repo.get_vlab_invite_by_id(invite_id)
         await self.session.delete(invite)
         await self.session.commit()
         return invite
 
     async def delete_project_invite(self, invite_id: UUID4) -> ProjectInvite:
         query_repo = InviteQueryRepository(session=self.session)
-        invite = await query_repo.get_project_invite(invite_id)
+        invite = await query_repo.get_project_invite_by_id(invite_id)
         await self.session.delete(invite)
         await self.session.commit()
         return invite
