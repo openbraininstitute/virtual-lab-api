@@ -52,9 +52,17 @@ class ProjectWithVLOut(BaseModel):
     total: int
 
 
+class FailedInvite(BaseModel):
+    user_id: UUID4
+    first_name: str | None = None
+    last_name: str | None = None
+    exists: bool = True
+
+
 class ProjectOut(BaseModel):
     project: Project
     virtual_lab_id: UUID4
+    failed_invites: List[FailedInvite]
 
 
 class ProjectsOut(BaseModel):
