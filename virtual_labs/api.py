@@ -24,6 +24,11 @@ app = FastAPI(
 
 base_router = APIRouter(prefix=settings.BASE_PATH)
 
+origins = []
+if settings.CORS_ORIGINS:
+    for origin in settings.CORS_ORIGINS.split(","):
+        origins.append(str(origin))
+
 
 @app.exception_handler(VliError)
 async def vli_exception_handler(request: Request, exception: VliError) -> JSONResponse:
@@ -62,14 +67,13 @@ async def validation_exception_handler(
     )
 
 
-if settings.CORS_ORIGINS:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=[str(origin) for origin in settings.CORS_ORIGINS.split(",")],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @base_router.get("/")
