@@ -10,18 +10,10 @@ from fastapi.security import (
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.infrastructure.kc.models import AuthUser
-from virtual_labs.infrastructure.settings import settings
 
 from .config import kc_auth
 
 auth_header: HTTPBearer | OAuth2AuthorizationCodeBearer = HTTPBearer(auto_error=False)
-
-if settings.DEPLOYMENT_ENV == "dev":
-    auth_header = OAuth2AuthorizationCodeBearer(
-        authorizationUrl=f"{settings.KC_SERVER_URI}realms/{settings.KC_REALM_NAME}/protocol/openid-connect/auth",
-        tokenUrl=f"{settings.KC_SERVER_URI}realms/{settings.KC_REALM_NAME}/protocol/openid-connect/token",
-        auto_error=False,
-    )
 
 
 def get_public_key() -> str:
