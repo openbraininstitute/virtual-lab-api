@@ -1,5 +1,5 @@
 from pydantic import UUID4
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.domain.common import PageParams, PaginatedResultsResponse
 from virtual_labs.domain.labs import VirtualLabWithProject
@@ -10,12 +10,12 @@ from virtual_labs.usecases.labs.lab_with_not_deleted_projects import (
 )
 
 
-def paginated_labs_for_user(
-    db: Session, page_params: PageParams, user_id: UUID4
+async def paginated_labs_for_user(
+    db: AsyncSession, page_params: PageParams, user_id: UUID4
 ) -> PaginatedResultsResponse[VirtualLabWithProject]:
     user_repo = UserQueryRepository()
     group_ids = [group.id for group in user_repo.retrieve_user_groups(user_id)]
-    paginated_results = repository.get_paginated_virtual_labs(
+    paginated_results = await repository.get_paginated_virtual_labs(
         db, page_params, group_ids=group_ids
     )
     labs = [
@@ -27,7 +27,6 @@ def paginated_labs_for_user(
     return PaginatedResultsResponse(
         total=paginated_results.count,
         page=page_params.page,
-        size=page_params.size,
         page_size=len(paginated_results.rows),
         results=labs,
     )

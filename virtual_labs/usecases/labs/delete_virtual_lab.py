@@ -3,7 +3,7 @@ from http import HTTPStatus
 from loguru import logger
 from pydantic import UUID4, BaseModel
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.exceptions.generic_exceptions import UserNotInList
@@ -28,17 +28,19 @@ class ProjectWithIds(BaseModel):
 
 
 async def delete_virtual_lab(
-    db: Session, lab_id: UUID4, auth: tuple[AuthUser, str]
+    db: AsyncSession, lab_id: UUID4, auth: tuple[AuthUser, str]
 ) -> models.VirtualLab:
     try:
-        lab = repository.get_virtual_lab(db, lab_id)
+        lab = await repository.get_virtual_lab_async(db, lab_id)
         if not is_user_admin_of_lab(user_id=get_user_id_from_auth(auth), lab=lab):
             raise UserNotInList(
                 f"Only admins of virtual lab {lab.name} are authorized to delete virtual lab."
             )
+        if lab.deleted is True:
+            return lab
         nexus_org = await deprecate_nexus_organization(lab_id, auth)
         logger.debug(f"Deprecated nexus organization {nexus_org.label}")
-        return repository.delete_virtual_lab(db, lab_id)
+        return await repository.delete_virtual_lab(db, lab_id)
     except UserNotInList:
         raise VliError(
             message=f"Only admins of virtual lab {lab.name} are authorized to delete virtual lab.",
@@ -54,9 +56,9 @@ async def delete_virtual_lab(
     except VliError as error:
         raise error
     except Exception as error:
-        logger.warning(f"Deleting virtual lab groups failed  failed: {error}")
+        logger.warning(f"Deleting virtual lab failed  failed: {error}")
         raise VliError(
             error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
             http_status_code=HTTPStatus.BAD_GATEWAY,
-            message=f"Virtual lab deletion could not be completed due to a keycloak error: {error}",
+            message=f"Virtual lab deletion could not be completed due to an unknown error: {error}",
         )

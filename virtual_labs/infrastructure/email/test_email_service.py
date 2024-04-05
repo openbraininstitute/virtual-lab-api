@@ -6,19 +6,17 @@ import pytest
 from requests import get
 
 from virtual_labs.core.exceptions.email_error import EmailError
-from virtual_labs.infrastructure.email.email_service import EmailDetails, send_invite
+from virtual_labs.infrastructure.email.email_service import EmailDetails
 from virtual_labs.infrastructure.email.email_service import __name__ as EmailService
+from virtual_labs.infrastructure.email.email_service import send_invite
 from virtual_labs.infrastructure.email.email_utils import (
     InviteOrigin,
     get_expiry_datetime_from_token,
     get_invite_details_from_token,
 )
+from virtual_labs.tests.utils import get_invite_token_from_email_body
 
 email_server_baseurl = "http://localhost:8025"
-
-
-def get_invite_token_from_email_body(email_body: str) -> str:
-    return email_body.split("?token=")[2].split("</a>\n")[0]
 
 
 def assert_time_is_in_future(d: datetime) -> None:

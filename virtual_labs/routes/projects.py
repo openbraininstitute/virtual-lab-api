@@ -474,7 +474,7 @@ async def invite_user_to_project(
     virtual_lab_id: UUID4,
     project_id: UUID4,
     invite: ProjectInviteIn,
-    session: Session = Depends(default_session_factory),
+    session: AsyncSession = Depends(default_session_factory),
     auth: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> Response | VliError:
     return await project_cases.invite_user_to_project(

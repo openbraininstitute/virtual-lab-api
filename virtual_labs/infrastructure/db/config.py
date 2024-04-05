@@ -1,6 +1,6 @@
 import sys
 from contextlib import asynccontextmanager
-from typing import Any, AsyncIterator, Dict, Generator,AsyncGenerator,
+from typing import Any, AsyncGenerator, AsyncIterator, Dict
 
 from loguru import logger
 from sqlalchemy.ext.asyncio import (
@@ -75,6 +75,6 @@ session_pool = DatabaseSessionPool(
 )
 
 
-async def default_session_factory() -> AsyncGenerator[AsyncSession, Any]:
+async def default_session_factory() -> AsyncGenerator[AsyncSession, None]:
     async with session_pool.session() as session:
         yield session

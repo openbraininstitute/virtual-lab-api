@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import Response
 from loguru import logger
 from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.response.api_response import VliResponse
@@ -14,7 +14,7 @@ from virtual_labs.repositories.invite_repo import (
     InviteMutationRepository,
     InviteQueryRepository,
 )
-from virtual_labs.repositories.labs import get_virtual_lab
+from virtual_labs.repositories.labs import get_undeleted_virtual_lab
 from virtual_labs.repositories.project_repo import ProjectQueryRepository
 from virtual_labs.repositories.user_repo import (
     UserMutationRepository,
@@ -23,7 +23,7 @@ from virtual_labs.repositories.user_repo import (
 
 
 async def invitation_handler_test(
-    session: Session,
+    session: AsyncSession,
     *,
     invite_id: UUID,
     origin: InviteOrigin,
@@ -36,10 +36,10 @@ async def invitation_handler_test(
 
     try:
         if origin == InviteOrigin.PROJECT:
-            project_invite = invite_query_repo.get_project_invite_by_id(
+            project_invite = await invite_query_repo.get_project_invite_by_id(
                 invite_id=invite_id
             )
-            project, _ = project_query_repo.retrieve_one_project_by_id(
+            project, _ = await project_query_repo.retrieve_one_project_by_id(
                 project_id=UUID(str(project_invite.project_id))
             )
             users = user_query_repo.retrieve_user_by_email_soft(
@@ -58,13 +58,15 @@ async def invitation_handler_test(
                 else project.member_group_id
             )
             user_mut_repo.attach_user_to_group(user_id=user_id, group_id=str(group_id))
-            invite_mut_repo.update_project_invite(
+            await invite_mut_repo.update_project_invite(
                 invite_id=UUID(str(project_invite.id)),
                 properties={"accepted": True, "updated_at": func.now()},
             )
         elif origin == InviteOrigin.LAB:
-            vlab_invite = invite_query_repo.get_vlab_invite_by_id(invite_id=invite_id)
-            vlab = get_virtual_lab(
+            vlab_invite = await invite_query_repo.get_vlab_invite_by_id(
+                invite_id=invite_id
+            )
+            vlab = await get_undeleted_virtual_lab(
                 db=session, lab_id=UUID(str(vlab_invite.virtual_lab_id))
             )
             users = user_query_repo.retrieve_user_by_email_soft(
@@ -84,7 +86,7 @@ async def invitation_handler_test(
             )
             user_mut_repo.attach_user_to_group(user_id=user_id, group_id=str(group_id))
 
-            invite_mut_repo.update_vlab_invite(
+            await invite_mut_repo.update_lab_invite(
                 invite_id=UUID(str(vlab_invite.id)),
                 accepted=True,
             )

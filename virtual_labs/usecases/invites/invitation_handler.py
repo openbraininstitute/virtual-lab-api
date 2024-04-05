@@ -6,7 +6,7 @@ from fastapi import Response
 from jwt import ExpiredSignatureError
 from loguru import logger
 from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.exceptions.identity_error import IdentityError, UserMismatch
@@ -21,7 +21,7 @@ from virtual_labs.repositories.invite_repo import (
     InviteMutationRepository,
     InviteQueryRepository,
 )
-from virtual_labs.repositories.labs import get_virtual_lab
+from virtual_labs.repositories.labs import get_undeleted_virtual_lab
 from virtual_labs.repositories.project_repo import ProjectQueryRepository
 from virtual_labs.repositories.user_repo import (
     UserMutationRepository,
@@ -30,7 +30,7 @@ from virtual_labs.repositories.user_repo import (
 
 
 async def invitation_handler(
-    session: Session,
+    session: AsyncSession,
     *,
     invite_token: str,
     auth: Tuple[AuthUser, str],
@@ -50,7 +50,7 @@ async def invitation_handler(
         virtual_lab_id, project_id = None, None
 
         if origin == InviteOrigin.LAB.value:
-            vlab_invite = invite_query_repo.get_vlab_invite_by_id(
+            vlab_invite = await invite_query_repo.get_vlab_invite_by_id(
                 invite_id=UUID(invite_id)
             )
             if vlab_invite.accepted:
@@ -63,7 +63,7 @@ async def invitation_handler(
                     "Invite email not match the authenticated user email"
                 )
 
-            vlab = get_virtual_lab(
+            vlab = await get_undeleted_virtual_lab(
                 db=session,
                 lab_id=UUID(str(vlab_invite.virtual_lab_id)),
             )
@@ -81,13 +81,14 @@ async def invitation_handler(
                 group_id=str(group_id),
             )
 
-            invite_mut_repo.update_vlab_invite(
+            await invite_mut_repo.update_lab_invite(
                 invite_id=UUID(str(vlab_invite.id)),
                 accepted=True,
             )
+            await session.refresh(vlab)
             virtual_lab_id = vlab.id
         elif origin == InviteOrigin.PROJECT.value:
-            project_invite = invite_query_repo.get_project_invite_by_id(
+            project_invite = await invite_query_repo.get_project_invite_by_id(
                 invite_id=UUID(invite_id)
             )
             if project_invite.accepted:
@@ -107,7 +108,7 @@ async def invitation_handler(
             )
             assert user is not None
 
-            project, _ = project_query_repo.retrieve_one_project_by_id(
+            project, _ = await project_query_repo.retrieve_one_project_by_id(
                 project_id=UUID(str(project_invite.project_id))
             )
 
@@ -121,10 +122,11 @@ async def invitation_handler(
                 user_id=UUID(user.id),
                 group_id=str(group_id),
             )
-            invite_mut_repo.update_project_invite(
+            await invite_mut_repo.update_project_invite(
                 invite_id=UUID(str(project_invite.id)),
                 properties={"accepted": True, "updated_at": func.now()},
             )
+            await session.refresh(project)
             virtual_lab_id = project.virtual_lab_id
             project_id = project.id
 
