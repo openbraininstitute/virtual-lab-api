@@ -1,6 +1,6 @@
 from http import HTTPStatus as status
-from typing import Tuple
-from uuid import uuid4
+from typing import List, Tuple
+from uuid import UUID, uuid4
 
 from fastapi.responses import Response
 from keycloak import KeycloakError  # type: ignore
@@ -10,19 +10,85 @@ from sqlalchemy.exc import IntegrityError, NoResultFound, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
+from virtual_labs.core.exceptions.email_error import EmailError
+from virtual_labs.core.exceptions.identity_error import IdentityError
 from virtual_labs.core.exceptions.nexus_error import NexusError
 from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.core.types import UserRoleEnum
-from virtual_labs.domain.project import Project, ProjectCreationBody
+from virtual_labs.domain.project import FailedInvite, Project, ProjectCreationBody
 from virtual_labs.external.nexus.project_instance import instantiate_nexus_project
+from virtual_labs.infrastructure.db.models import Project as DbProject
+from virtual_labs.infrastructure.db.models import VirtualLab
+from virtual_labs.infrastructure.email.email_service import EmailDetails, send_invite
 from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.repositories.group_repo import GroupMutationRepository
+from virtual_labs.repositories.invite_repo import InviteMutationRepository
+from virtual_labs.repositories.labs import get_undeleted_virtual_lab
 from virtual_labs.repositories.project_repo import (
     ProjectMutationRepository,
     ProjectQueryRepository,
 )
-from virtual_labs.repositories.user_repo import UserMutationRepository
+from virtual_labs.repositories.user_repo import (
+    UserMutationRepository,
+    UserQueryRepository,
+)
 from virtual_labs.shared.utils.auth import get_user_id_from_auth
+from virtual_labs.shared.utils.uniq_list import uniq_list
+
+
+async def invite_project_members(
+    user_query_repo: UserQueryRepository,
+    invite_repo: InviteMutationRepository,
+    members: List[UUID4],
+    virtual_lab: VirtualLab,
+    project: DbProject,
+    inviter_id: UUID4,
+) -> List[FailedInvite]:
+    failed_invites: List[FailedInvite] = []
+    for member in uniq_list(members):
+        try:
+            user = user_query_repo.retrieve_user_from_kc(str(member))
+            try:
+                invite = invite_repo.add_project_invite(
+                    project_id=UUID(str(project.id)),
+                    inviter_id=inviter_id,
+                    invitee_role=UserRoleEnum.member,
+                    invitee_id=UUID(user.id),
+                    invitee_email=str(user.email),
+                )
+                await send_invite(
+                    details=EmailDetails(
+                        recipient=str(user.email),
+                        invite_id=UUID(str(invite.id)),
+                        lab_id=UUID(str(virtual_lab.id)),
+                        lab_name=str(virtual_lab.name),
+                        project_id=UUID(str(project.id)),
+                        project_name=str(project.name),
+                    )
+                )
+            except EmailError as ex:
+                logger.error(f"Error during sending invite to {member}: ({ex})")
+                if invite:
+                    invite_repo.delete_invite(invite_id=UUID(str(invite.id)))
+                if user:
+                    failed_invites.append(
+                        FailedInvite(
+                            user_id=member,
+                            first_name=user.firstName,
+                            last_name=user.lastName,
+                        )
+                    )
+                pass
+        except IdentityError:
+            failed_invites.append(
+                FailedInvite(
+                    user_id=member,
+                    exists=False,
+                )
+            )
+            pass
+
+    return failed_invites
 
 
 async def create_new_project_use_case(
@@ -36,13 +102,14 @@ async def create_new_project_use_case(
     pqr = ProjectQueryRepository(session)
     gmr = GroupMutationRepository()
     umr = UserMutationRepository()
+    uqr = UserQueryRepository()
+    imr = InviteMutationRepository(session)
 
     project_id: UUID4 = uuid4()
     user_id = get_user_id_from_auth(auth)
 
     try:
-        # TODO: returning it back when VL repo us Async
-        # get_virtual_lab(session, virtual_lab_id)
+        vlab = await get_undeleted_virtual_lab(session, virtual_lab_id)
 
         if bool(
             await pqr.check_project_exists_by_name(
@@ -83,18 +150,10 @@ async def create_new_project_use_case(
         assert admin_group_id is not None
         assert member_group_id is not None
 
-        # TODO: to asyncio need to run in parallel
-        # TODO: IMPORTANT invite users to the project
         umr.attach_user_to_group(
             user_id=user_id,
             group_id=admin_group_id,
         )
-        if payload.include_members:
-            for member in payload.include_members:
-                umr.attach_user_to_group(
-                    user_id=member,
-                    group_id=member_group_id,
-                )
 
     except AssertionError:
         raise VliError(
@@ -148,6 +207,15 @@ async def create_new_project_use_case(
             member_group_id=member_group_id,
             owner_id=user_id,
         )
+        if payload.include_members:
+            failed_invites = await invite_project_members(
+                invite_repo=imr,
+                user_query_repo=uqr,
+                inviter_id=user_id,
+                members=payload.include_members,
+                virtual_lab=vlab,
+                project=project,
+            )
     except AssertionError:
         raise VliError(
             error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
@@ -179,5 +247,6 @@ async def create_new_project_use_case(
             data={
                 "project": Project(**project.__dict__),
                 "virtual_lab_id": virtual_lab_id,
+                "failed_invites": failed_invites,
             },
         )
