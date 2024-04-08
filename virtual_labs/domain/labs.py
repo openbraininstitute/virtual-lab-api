@@ -124,8 +124,16 @@ class VirtualLabUser(BaseModel):
     user: UserRepresentation
 
 
+class VirtualLabWithUsers(VirtualLabDomainVerbose):
+    users: list[UserWithInviteStatus]
+
+
 class Lab(BaseModel):
     virtual_lab: VirtualLabDomain
+
+
+class LabByIdOut(BaseModel):
+    virtual_lab: VirtualLabWithUsers
 
 
 class LabVerbose(BaseModel):

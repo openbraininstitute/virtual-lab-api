@@ -13,8 +13,8 @@ from virtual_labs.domain.labs import (
     AddUserToVirtualLab,
     InviteSent,
     Lab,
+    LabByIdOut,
     LabResponse,
-    LabVerbose,
     SearchLabResponse,
     VirtualLabCreate,
     VirtualLabDomain,
@@ -85,7 +85,7 @@ async def search_virtual_lab_by_name(
 
 @router.get(
     "/{virtual_lab_id}",
-    response_model=LabResponse[LabVerbose],
+    response_model=LabResponse[LabByIdOut],
     summary="Get non deleted virtual lab by id",
 )
 @verify_vlab_read
@@ -93,13 +93,11 @@ async def get_virtual_lab(
     virtual_lab_id: UUID4,
     session: AsyncSession = Depends(default_session_factory),
     auth: tuple[AuthUser, str] = Depends(verify_jwt),
-) -> LabResponse[LabVerbose]:
-    lab_response = LabVerbose(
-        virtual_lab=await usecases.get_virtual_lab(
-            session, virtual_lab_id, user_id=get_user_id_from_auth(auth)
-        )
+) -> LabResponse[LabByIdOut]:
+    lab_response = await usecases.get_virtual_lab(
+        session, virtual_lab_id, user_id=get_user_id_from_auth(auth)
     )
-    return LabResponse[LabVerbose](
+    return LabResponse[LabByIdOut](
         message="Virtual lab resource for id {}".format(virtual_lab_id),
         data=lab_response,
     )
