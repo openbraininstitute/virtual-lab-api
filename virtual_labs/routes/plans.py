@@ -1,12 +1,13 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
+
 from virtual_labs.infrastructure.db.config import default_session_factory
+from virtual_labs.usecases.plans.all_plans import all_plans
 from virtual_labs.domain.labs import (
     AllPlans,
     LabResponse,
     PlanDomain,
 )
-from virtual_labs.usecases.plans.all_plans import all_plans
 
 router = APIRouter(prefix="/plans", tags=["Plans Endpoints"])
 

@@ -3,18 +3,23 @@ from typing import Any, Literal, Optional
 from dotenv import load_dotenv
 from pydantic import EmailStr, PostgresDsn, ValidationInfo, field_validator
 from pydantic_core import MultiHostUrl, Url
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
-load_dotenv()
+load_dotenv("")
 
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        # `.env.local` takes priority over `.env`
+        env_file=(".env", ".env.local")
+    )
+
     APP_NAME: str = "virtual-lab-manager service"
     APP_DEBUG: bool = False
     DEPLOYMENT_ENV: Literal["dev", "test", "production"] = "dev"
     BASE_PATH: str = ""
     DEBUG_DATABASE_ECHO: bool = False
-    CORS_ORIGINS: str = ""
+    CORS_ORIGINS: list[str] = []
     POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: int = 15432
     POSTGRES_USER: str = "vlm"
