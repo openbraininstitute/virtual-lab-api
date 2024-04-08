@@ -6,15 +6,12 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
-from virtual_labs.core.exceptions.generic_exceptions import UserNotInList
 from virtual_labs.external.nexus.deprecate_organization import (
     deprecate_nexus_organization,
 )
 from virtual_labs.infrastructure.db import models
 from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.repositories import labs as repository
-from virtual_labs.shared.utils.auth import get_user_id_from_auth
-from virtual_labs.usecases.labs.lab_authorization import is_user_admin_of_lab
 
 
 class ProjectWithIds(BaseModel):
@@ -32,21 +29,11 @@ async def delete_virtual_lab(
 ) -> models.VirtualLab:
     try:
         lab = await repository.get_virtual_lab_async(db, lab_id)
-        if not is_user_admin_of_lab(user_id=get_user_id_from_auth(auth), lab=lab):
-            raise UserNotInList(
-                f"Only admins of virtual lab {lab.name} are authorized to delete virtual lab."
-            )
         if lab.deleted is True:
             return lab
         nexus_org = await deprecate_nexus_organization(lab_id, auth)
         logger.debug(f"Deprecated nexus organization {nexus_org.label}")
         return await repository.delete_virtual_lab(db, lab_id)
-    except UserNotInList:
-        raise VliError(
-            message=f"Only admins of virtual lab {lab.name} are authorized to delete virtual lab.",
-            error_code=VliErrorCode.NOT_ALLOWED_OP,
-            http_status_code=HTTPStatus.FORBIDDEN,
-        )
     except SQLAlchemyError:
         raise VliError(
             message="Virtual lab not found",

@@ -59,7 +59,9 @@ async def get_paginated_virtual_labs(
     result = (
         (
             await db.execute(
-                statement=paginated_query.order_by(VirtualLab.updated_at)
+                statement=paginated_query.order_by(
+                    VirtualLab.created_at.desc(), VirtualLab.updated_at.desc()
+                )
                 .offset((page_params.page - 1) * page_params.size)
                 .limit(page_params.size)
             )
@@ -182,16 +184,16 @@ async def count_virtual_labs_with_name(db: AsyncSession, name: str) -> int:
 
 
 async def get_virtual_labs_with_matching_name(
-    db: AsyncSession, term: str
+    db: AsyncSession, term: str, group_ids: list[str]
 ) -> list[VirtualLab]:
-    query = (
-        select(VirtualLab)
-        .options(
-            subqueryload(VirtualLab.projects).subqueryload(Project.project_stars),
-        )
-        .filter(
+    query = select(VirtualLab).filter(
+        and_(
             ~VirtualLab.deleted,
             func.lower(VirtualLab.name).like(f"%{term.strip().lower()}%"),
+            or_(
+                (VirtualLab.admin_group_id.in_(group_ids)),
+                (VirtualLab.member_group_id.in_(group_ids)),
+            ),
         )
     )
     result = (await db.execute(statement=query)).unique().scalars().all()

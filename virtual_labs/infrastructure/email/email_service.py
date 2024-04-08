@@ -47,7 +47,7 @@ async def send_invite(details: EmailDetails) -> str:
         )
 
         message = MessageSchema(
-            subject="Fastapi-Mail module",
+            subject=f"Invitation to OBP {origin.value}",
             recipients=[details.recipient],
             body=invite_html,
             subtype=MessageType.html,

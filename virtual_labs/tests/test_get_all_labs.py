@@ -40,6 +40,7 @@ async def create_mock_lab(
         json=project_body,
         headers=headers,
     )
+    assert project_response.status_code == 200
     project_id = cast("str", project_response.json()["data"]["project"]["id"])
     return (lab_id, project_id)
 
@@ -83,11 +84,11 @@ async def test_paginated_labs(
 
     data = response.json()["data"]
     assert data["total"] >= len(mock_labs)
-    assert data["page_size"] < 5
-    assert data["page_size"] > 0
+    assert data["page_size"] <= 5
+    assert data["page_size"] >= len(mock_labs)
     assert data["page"] == 1
     assert len(data["results"]) >= 1
-    assert len(data["results"]) >= data["page_size"]
+    assert len(data["results"]) == data["page_size"]
 
     lab_with_project = [
         lab for lab in data["results"] if lab["id"] == lab_id_with_project[0]

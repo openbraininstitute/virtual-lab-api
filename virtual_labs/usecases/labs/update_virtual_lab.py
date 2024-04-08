@@ -6,33 +6,20 @@ from sqlalchemy.exc import IntegrityError, NoResultFound, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
-from virtual_labs.core.exceptions.generic_exceptions import UserNotInList
 from virtual_labs.domain import labs as domain
 from virtual_labs.infrastructure.db import models
 from virtual_labs.repositories import labs as repository
-from virtual_labs.usecases.labs.lab_authorization import is_user_admin_of_lab
 from virtual_labs.usecases.plans.verify_plan import verify_plan
 
 
 async def update_virtual_lab(
-    db: AsyncSession, lab_id: UUID4, user_id: UUID4, lab: domain.VirtualLabUpdate
+    db: AsyncSession, lab_id: UUID4, lab: domain.VirtualLabUpdate
 ) -> models.VirtualLab:
     try:
-        db_lab = await repository.get_undeleted_virtual_lab(db, lab_id)
-
-        if not is_user_admin_of_lab(user_id, lab=db_lab):
-            raise UserNotInList(
-                f"Only admins of lab can update labs and user {user_id} is not admin of lab {lab.name}"
-            )
         if lab.plan_id is not None:
             await verify_plan(db, lab.plan_id)
         return await repository.update_virtual_lab(db, lab_id, lab)
-    except UserNotInList:
-        raise VliError(
-            message=f"Only admins of lab can update labs and user {user_id} is not admin of lab {lab.name}",
-            error_code=VliErrorCode.NOT_ALLOWED_OP,
-            http_status_code=HTTPStatus.FORBIDDEN,
-        )
+
     except IntegrityError as error:
         logger.error(
             "Virtual lab {} update could not be processed for unknown database error {}".format(
