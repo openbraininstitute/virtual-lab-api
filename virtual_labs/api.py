@@ -26,8 +26,8 @@ base_router = APIRouter(prefix=settings.BASE_PATH)
 
 origins = []
 if settings.CORS_ORIGINS:
-    for origin in settings.CORS_ORIGINS.split(","):
-        origins.append(str(origin))
+    for origin in settings.CORS_ORIGINS:
+        origins.append(origin)
 
 
 @app.exception_handler(VliError)
