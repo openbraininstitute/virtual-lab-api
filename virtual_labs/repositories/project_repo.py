@@ -129,6 +129,7 @@ class ProjectQueryRepository:
             .join(VirtualLab)
             .filter(and_(Project.id == project_id))
         )
+
         result = await self.session.execute(statement=stmt)
         return cast(Tuple[Project, VirtualLab], result.one())
 
@@ -418,12 +419,18 @@ class ProjectMutationRepository:
         return result.one()
 
     async def update_project_data(
-        self, virtual_lab_id: UUID4, project_id: UUID4, payload: ProjectBody
-    ) -> Row[Tuple[Project]]:
+        self,
+        virtual_lab_id: UUID4,
+        project_id: UUID4,
+        payload: ProjectBody,
+    ) -> Project | None:
         stmt = (
             update(Project)
             .where(
-                and_(Project.id == project_id, Project.virtual_lab_id == virtual_lab_id)
+                and_(
+                    Project.id == project_id,
+                    Project.virtual_lab_id == virtual_lab_id,
+                )
             )
             .values(
                 {
@@ -433,7 +440,6 @@ class ProjectMutationRepository:
             )
             .returning(Project)
         )
-        result = await self.session.execute(statement=stmt)
+        await self.session.execute(statement=stmt)
         await self.session.commit()
-
-        return result.one()
+        return await self.session.get(Project, project_id)

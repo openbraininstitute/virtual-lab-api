@@ -178,5 +178,6 @@ async def create_new_project_use_case(
             message="Project created successfully",
             data={
                 "project": Project(**project.__dict__),
+                "virtual_lab_id": virtual_lab_id,
             },
         )

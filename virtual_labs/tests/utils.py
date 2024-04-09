@@ -10,7 +10,7 @@ email_server_baseurl = "http://localhost:8025"
 
 def auth(username: str = "test") -> str:
     token = kc_auth.token(username=username, password="test")
-    print("TOKEN", token)
+    # print("TOKEN", token)
     return cast(str, token["access_token"])
 
 

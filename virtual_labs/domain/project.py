@@ -54,6 +54,7 @@ class ProjectWithVLOut(BaseModel):
 
 class ProjectOut(BaseModel):
     project: Project
+    virtual_lab_id: UUID4
 
 
 class ProjectsOut(BaseModel):

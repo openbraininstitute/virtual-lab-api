@@ -6,6 +6,7 @@ from loguru import logger
 from pydantic import UUID4
 
 from virtual_labs.core.exceptions.nexus_error import NexusError, NexusErrorValue
+from virtual_labs.domain.project import ProjectBody
 from virtual_labs.external.nexus.defaults import (
     AG_ES_VIEW_ID,
     AG_SP_VIEW_ID,
@@ -483,4 +484,37 @@ class NexusProjectInterface:
             raise NexusError(
                 message="Error during creating nexus resource",
                 type=NexusErrorValue.CREATE_RESOURCE_ERROR,
+            )
+
+    async def update_project(
+        self,
+        *,
+        virtual_lab_id: UUID4,
+        project_id: UUID4,
+        payload: ProjectBody,
+    ) -> NexusProject:
+        project = await self.retrieve_project(
+            virtual_lab_id=virtual_lab_id, project_id=project_id
+        )
+        print("project", project)
+
+        nexus_project_url = f"{settings.NEXUS_DELTA_URI}/projects/{virtual_lab_id}/{project_id}?rev={project.rev}"
+        try:
+            response = await self.httpx_clt.put(
+                nexus_project_url,
+                headers=self.headers,
+                json={
+                    "description": payload.description,
+                },
+            )
+            # response.raise_for_status()
+
+            data = response.json()
+            print("da", data)
+            return NexusProject(**data)
+        except Exception as ex:
+            logger.error(f"Error during update nexus project {ex}")
+            raise NexusError(
+                message="Error during update nexus project",
+                type=NexusErrorValue.UPDATE_PROJECT_ERROR,
             )
