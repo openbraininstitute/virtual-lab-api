@@ -55,9 +55,14 @@ async def invitation_handler(
             )
             if vlab_invite.accepted:
                 return VliResponse.new(
-                    http_status_code=status.NO_CONTENT,
                     message=f"Invite for vlab: {vlab_invite.virtual_lab_id} already accepted",
-                    data=None,
+                    data={
+                        "origin": origin,
+                        "invite_id": invite_id,
+                        "virtual_lab_id": virtual_lab_id,
+                        "project_id": project_id,
+                        "status": "already_accepted",
+                    },
                 )
             if vlab_invite.user_email != auth[0].email:
                 raise UserMismatch(
@@ -88,18 +93,24 @@ async def invitation_handler(
             )
             await session.refresh(vlab)
             virtual_lab_id = vlab.id
+
         elif origin == InviteOrigin.PROJECT.value:
             project_invite = await invite_query_repo.get_project_invite_by_id(
                 invite_id=UUID(invite_id)
             )
             if project_invite.accepted:
                 return VliResponse.new(
-                    http_status_code=status.NO_CONTENT,
                     message="Invite for project: {}/{} already accepted".format(
                         project_invite.project.virtual_lab_id,
                         project_invite.project_id,
                     ),
-                    data=None,
+                    data={
+                        "origin": origin,
+                        "invite_id": invite_id,
+                        "virtual_lab_id": virtual_lab_id,
+                        "project_id": project_id,
+                        "status": "already_accepted",
+                    },
                 )
             if project_invite.user_email != auth[0].email:
                 raise UserMismatch(
@@ -142,6 +153,7 @@ async def invitation_handler(
                 "invite_id": invite_id,
                 "virtual_lab_id": virtual_lab_id,
                 "project_id": project_id,
+                "status": "accepted",
             },
         )
 
@@ -164,7 +176,7 @@ async def invitation_handler(
     except (ValueError, AssertionError) as ex:
         logger.error(f"Could not retrieve users from keycloak: ({ex})")
         raise VliError(
-            error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
+            error_code=VliErrorCode.INVALID_REQUEST,
             http_status_code=status.BAD_REQUEST,
             message=str(ex),
         )
