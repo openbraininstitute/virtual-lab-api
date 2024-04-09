@@ -4,8 +4,11 @@ from uuid import uuid4
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient, Response
+from requests import get
 
 from virtual_labs.tests.utils import get_headers
+
+email_server_baseurl = "http://localhost:8025"
 
 
 @pytest_asyncio.fixture
@@ -73,3 +76,31 @@ async def test_invite_user_to_lab(
         f"/virtual-labs/{lab_id}/users", headers=headers
     )
     assert_right_users_in_lab(lab_users_response)
+
+
+@pytest.mark.asyncio
+async def test_existing_invite_is_updated_when_user_invited_again(
+    mock_lab_create: tuple[AsyncClient, str, dict[str, str]],
+) -> None:
+    client, lab_id, headers = mock_lab_create
+    recipient = f"test-{uuid4()}@test.com"
+    invite = {"email": recipient, "role": "admin"}
+
+    # Invited first time
+    invite_response = await client.post(
+        f"/virtual-labs/{lab_id}/invites", headers=headers, json=invite
+    )
+    first_invite_id = invite_response.json()["data"]["invite_id"]
+
+    # Invited second time
+    reinvitation_response = await client.post(
+        f"/virtual-labs/{lab_id}/invites", headers=headers, json=invite
+    )
+    second_invite_id = reinvitation_response.json()["data"]["invite_id"]
+
+    # Invite id is same
+    assert first_invite_id == second_invite_id
+
+    # 2 emails are sent
+    emails_sent = get(f"{email_server_baseurl}/api/v1/search?query=to:{recipient}")
+    assert len(emails_sent.json()["messages"]) == 2
