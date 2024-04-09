@@ -7,8 +7,9 @@ from sqlalchemy.exc import SQLAlchemyError
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.exceptions.generic_exceptions import UserNotInList
 from virtual_labs.repositories.group_repo import GroupQueryRepository
-from virtual_labs.repositories.labs import get_undeleted_virtual_lab
+from virtual_labs.repositories.labs import get_virtual_lab_soft
 from virtual_labs.repositories.project_repo import ProjectQueryRepository
+from virtual_labs.shared.utils.auth import get_user_id_from_auth
 from virtual_labs.shared.utils.is_user_in_list import is_user_in_list
 from virtual_labs.shared.utils.uniq_list import uniq_list
 
@@ -27,22 +28,23 @@ def verify_vlab_or_project_write(f: Callable[..., Any]) -> Callable[..., Any]:
             session = kwargs["session"]
             auth = kwargs["auth"]
 
-            user, _ = auth
-            user_id = user.sub
+            user_id = get_user_id_from_auth(auth)
 
             pqr = ProjectQueryRepository(session)
             gqr = GroupQueryRepository()
 
             users = []
             if virtual_lab_id:
-                vlab = await get_undeleted_virtual_lab(
+                vlab = await get_virtual_lab_soft(
                     session,
                     lab_id=virtual_lab_id,
                 )
-                vlab_admins = gqr.retrieve_group_users(
-                    group_id=str(vlab.admin_group_id)
-                )
-                users += vlab_admins
+                if vlab:
+                    vlab_admins = gqr.retrieve_group_users(
+                        group_id=str(vlab.admin_group_id)
+                    )
+                    users += vlab_admins
+
             if project_id:
                 project, _ = await pqr.retrieve_one_project_by_id(project_id=project_id)
                 project_admins = gqr.retrieve_group_users(
@@ -51,8 +53,7 @@ def verify_vlab_or_project_write(f: Callable[..., Any]) -> Callable[..., Any]:
                 users += project_admins
 
             uniq_users = uniq_list([u.id for u in users])
-
-            is_user_in_list(list_=uniq_users, user_id=user_id)
+            is_user_in_list(list_=uniq_users, user_id=str(user_id))
 
         except SQLAlchemyError:
             raise VliError(

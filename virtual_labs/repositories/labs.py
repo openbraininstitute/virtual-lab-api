@@ -87,6 +87,11 @@ async def get_undeleted_virtual_lab(db: AsyncSession, lab_id: UUID4) -> VirtualL
     return (await db.execute(statement=query)).unique().scalar_one()
 
 
+async def get_virtual_lab_soft(db: AsyncSession, lab_id: UUID4) -> VirtualLab | None:
+    query = select(VirtualLab).where(VirtualLab.id == lab_id)
+    return (await db.execute(statement=query)).scalar()
+
+
 async def get_virtual_lab_async(db: AsyncSession, lab_id: UUID4) -> VirtualLab:
     """Returns irtual lab by id. Raises an exception if the lab by id is not found.
     The returned virtual lab might be deleted (i.e. Virtual.deleted might be True).

@@ -2,29 +2,39 @@ from http import HTTPStatus as status
 from typing import Tuple
 
 from fastapi.responses import Response
+from httpx import AsyncClient
 from loguru import logger
 from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
+from virtual_labs.core.exceptions.nexus_error import NexusError
 from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.domain.project import Project, ProjectBody
+from virtual_labs.external.nexus.project_interface import NexusProjectInterface
 from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.repositories.project_repo import ProjectMutationRepository
 
 
 async def update_project_data(
     session: AsyncSession,
+    httpx_client: AsyncClient,
+    *,
     virtual_lab_id: UUID4,
     project_id: UUID4,
     payload: ProjectBody,
     auth: Tuple[AuthUser, str],
 ) -> Response | VliError:
     pmr = ProjectMutationRepository(session)
-
+    nexus = NexusProjectInterface(httpx_clt=httpx_client, auth=auth)
     try:
-        (project,) = await pmr.update_project_data(
+        project = await pmr.update_project_data(
+            virtual_lab_id=virtual_lab_id,
+            project_id=project_id,
+            payload=payload,
+        )
+        await nexus.update_project(
             virtual_lab_id=virtual_lab_id,
             project_id=project_id,
             payload=payload,
@@ -34,6 +44,13 @@ async def update_project_data(
             error_code=VliErrorCode.DATABASE_ERROR,
             http_status_code=status.BAD_REQUEST,
             message="Updating project failed",
+        )
+    except NexusError as ex:
+        raise VliError(
+            error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
+            http_status_code=status.BAD_REQUEST,
+            message="Nexus Project update failed",
+            details=ex.type,
         )
     except Exception as ex:
         logger.error(
@@ -49,5 +66,6 @@ async def update_project_data(
             message="Project data updated successfully",
             data={
                 "project": Project(**project.__dict__),
+                "virtual_lab_id": virtual_lab_id,
             },
         )

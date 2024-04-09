@@ -2,6 +2,7 @@ from typing import Annotated, Tuple
 
 from fastapi import APIRouter, Body, Depends, Query
 from fastapi.responses import Response
+from httpx import AsyncClient
 from pydantic import UUID4
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -39,6 +40,7 @@ from virtual_labs.domain.project import (
 from virtual_labs.infrastructure.db.config import default_session_factory
 from virtual_labs.infrastructure.kc.auth import verify_jwt
 from virtual_labs.infrastructure.kc.models import AuthUser
+from virtual_labs.infrastructure.transport.httpx import httpx_factory
 from virtual_labs.usecases import project as project_cases
 
 router = APIRouter(
@@ -222,13 +224,15 @@ async def update_project_data(
     virtual_lab_id: UUID4,
     project_id: UUID4,
     payload: ProjectBody,
+    httpx_client: AsyncClient = Depends(httpx_factory),
     session: AsyncSession = Depends(default_session_factory),
     auth: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> Response | VliError:
     return await project_cases.update_project_data(
         session,
-        virtual_lab_id,
-        project_id,
+        httpx_client,
+        virtual_lab_id=virtual_lab_id,
+        project_id=project_id,
         payload=payload,
         auth=auth,
     )
