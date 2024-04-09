@@ -1,6 +1,6 @@
 import asyncio
-from typing import Any, AsyncGenerator
-from uuid import uuid4
+from typing import Any, AsyncGenerator, cast
+from uuid import UUID, uuid4
 
 import pytest_asyncio
 from httpx import AsyncClient, Response
@@ -32,7 +32,7 @@ async def mock_lab_create(
         "name": f"Test Lab {uuid4()}",
         "description": "Test",
         "reference_email": "user@test.org",
-        "budget": 10,
+        "budget": 10000,
         "plan_id": 1,
     }
     headers = get_headers()
@@ -73,3 +73,45 @@ async def mock_create_project(
     )
 
     yield response, headers
+
+
+@pytest_asyncio.fixture
+async def mock_create_projects(
+    async_test_client: AsyncClient,
+    mock_lab_create: tuple[Response, dict[str, str]],
+) -> AsyncGenerator[tuple[UUID, float, list[UUID], dict[str, str]], None]:
+    client = async_test_client
+    vl_response, _ = mock_lab_create
+    virtual_lab_id = vl_response.json()["data"]["virtual_lab"]["id"]
+    virtual_lab_budget = vl_response.json()["data"]["virtual_lab"]["budget"]
+
+    projects: list[UUID] = []
+
+    for i in range(3):
+        payload = {
+            "name": f"Test Project {i} {uuid4()}",
+            "description": f"Test Project description {i}",
+        }
+        headers = get_headers()
+        response = await client.post(
+            f"/virtual-labs/{virtual_lab_id}/projects",
+            json=payload,
+            headers=headers,
+        )
+        project_id = response.json()["data"]["project"]["id"]
+
+        response = await client.patch(
+            f"/virtual-labs/{virtual_lab_id}/projects/{project_id}/budget",
+            json={"new_budget": float(virtual_lab_budget) / 3},
+            headers=headers,
+        )
+
+        projects.append(project_id)
+
+    yield cast(UUID, virtual_lab_id), cast(float, virtual_lab_budget), projects, headers
+
+    for id in projects:
+        response = await client.delete(
+            f"/virtual-labs/{virtual_lab_id}/projects/{id}",
+            headers=headers,
+        )

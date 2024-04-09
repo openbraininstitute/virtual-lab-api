@@ -11,6 +11,7 @@ from virtual_labs.core.exceptions.generic_exceptions import (
     BudgetExceedLimit,
 )
 from virtual_labs.core.response.api_response import VliResponse
+from virtual_labs.repositories.labs import retrieve_lab_distributed_budget
 from virtual_labs.repositories.project_repo import (
     ProjectMutationRepository,
     ProjectQueryRepository,
@@ -25,13 +26,19 @@ async def update_project_budget_use_case(
 ) -> Response | VliError:
     pmr = ProjectMutationRepository(session)
     pqr = ProjectQueryRepository(session)
+    pqr = ProjectQueryRepository(session)
 
     try:
         _, virtual_lab = await pqr.retrieve_one_project_strict(
             virtual_lab_id=virtual_lab_id, project_id=project_id
         )
+        sum_budget_projects = await retrieve_lab_distributed_budget(
+            session=session,
+            virtual_lab_id=virtual_lab_id,
+            current_project_id=project_id,
+        )
 
-        if value > virtual_lab.budget:
+        if (value + sum_budget_projects) > virtual_lab.budget:
             raise BudgetExceedLimit("Project budget exceed max limit")
 
         updated_project_id, new_budget, updated_at = await pmr.update_project_budget(

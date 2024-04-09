@@ -89,7 +89,7 @@ async def search_projects(
     response_model=VliAppResponse[ProjectExistenceOut],
 )
 async def check_project_existence(
-    q: str | None = Query(max_length=50, description="query string"),
+    q: str | None = Query("", description="query string"),
     session: AsyncSession = Depends(default_session_factory),
     _: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> Response | VliError:
@@ -136,7 +136,7 @@ async def retrieve_stars_project(
 @verify_vlab_read
 async def search_projects_per_virtual_lab(
     virtual_lab_id: UUID4,
-    q: str = Query(max_length=50, description="query string"),
+    q: str = Query("", description="query string"),
     session: AsyncSession = Depends(default_session_factory),
     auth: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> Response | VliError:
