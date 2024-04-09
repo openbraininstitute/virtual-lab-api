@@ -37,25 +37,29 @@ from virtual_labs.shared.utils.uniq_list import uniq_list
 
 
 async def invite_project_members(
-    user_query_repo: UserQueryRepository,
-    invite_repo: InviteMutationRepository,
+    session: AsyncSession,
     members: List[UUID4],
     virtual_lab: VirtualLab,
     project: DbProject,
     inviter_id: UUID4,
 ) -> List[FailedInvite]:
+    invite_repo = InviteMutationRepository(session)
+    user_query_repo = UserQueryRepository()
     failed_invites: List[FailedInvite] = []
+
     for member in uniq_list(members):
         try:
             user = user_query_repo.retrieve_user_from_kc(str(member))
             try:
-                invite = invite_repo.add_project_invite(
-                    project_id=UUID(str(project.id)),
+                invite = await invite_repo.add_project_invite(
                     inviter_id=inviter_id,
+                    project_id=UUID(str(project.id)),
                     invitee_role=UserRoleEnum.member,
                     invitee_id=UUID(user.id),
                     invitee_email=str(user.email),
                 )
+                await session.refresh(project)
+                await session.refresh(virtual_lab)
                 await send_invite(
                     details=EmailDetails(
                         recipient=str(user.email),
@@ -66,10 +70,12 @@ async def invite_project_members(
                         project_name=str(project.name),
                     )
                 )
-            except EmailError as ex:
+            except (EmailError, Exception) as ex:
                 logger.error(f"Error during sending invite to {member}: ({ex})")
                 if invite:
-                    invite_repo.delete_invite(invite_id=UUID(str(invite.id)))
+                    await invite_repo.delete_project_invite(
+                        invite_id=UUID(str(invite.id))
+                    )
                 if user:
                     failed_invites.append(
                         FailedInvite(
@@ -102,8 +108,6 @@ async def create_new_project_use_case(
     pqr = ProjectQueryRepository(session)
     gmr = GroupMutationRepository()
     umr = UserMutationRepository()
-    uqr = UserQueryRepository()
-    imr = InviteMutationRepository(session)
 
     project_id: UUID4 = uuid4()
     user_id = get_user_id_from_auth(auth)
@@ -125,11 +129,13 @@ async def create_new_project_use_case(
             message="Virtual lab not found",
         )
     except Exception as ex:
-        logger.error(f"Error during retrieving the project ({ex})")
+        logger.error(
+            f"Error during retrieving the Virtual lab or Project with same name exist ({ex})"
+        )
         raise VliError(
             error_code=VliErrorCode.ENTITY_ALREADY_EXISTS,
             http_status_code=status.BAD_REQUEST,
-            message="Another project with the same name already exists",
+            message="Virtual lab not found or Another project with the same name already exists",
         )
 
     try:
@@ -207,21 +213,15 @@ async def create_new_project_use_case(
             member_group_id=member_group_id,
             owner_id=user_id,
         )
+
         if payload.include_members:
             failed_invites = await invite_project_members(
-                invite_repo=imr,
-                user_query_repo=uqr,
+                session=session,
                 inviter_id=user_id,
                 members=payload.include_members,
                 virtual_lab=vlab,
                 project=project,
             )
-    except AssertionError:
-        raise VliError(
-            error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
-            http_status_code=status.BAD_REQUEST,
-            message="Admin/Member group_id failed to be generated",
-        )
     except IntegrityError:
         raise VliError(
             error_code=VliErrorCode.ENTITY_ALREADY_EXISTS,
