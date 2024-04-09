@@ -196,3 +196,27 @@ async def get_virtual_labs_with_matching_name(
     )
     result = (await db.execute(statement=query)).unique().scalars().all()
     return list(result)
+
+
+async def retrieve_lab_distributed_budget(
+    session: AsyncSession,
+    *,
+    current_project_id: UUID4,
+    virtual_lab_id: UUID4,
+) -> float:
+    stmt = (
+        select(
+            func.coalesce(func.sum(Project.budget), 0).label("sum_budget_projects"),
+        )
+        .where(
+            and_(
+                Project.id != current_project_id,
+                Project.budget.isnot(None),
+                Project.virtual_lab_id == virtual_lab_id,
+            )
+        )
+        .group_by(Project.virtual_lab_id)
+    )
+    result = await session.execute(stmt)
+    sum_budget_projects = result.t.scalar()
+    return sum_budget_projects if sum_budget_projects else 0

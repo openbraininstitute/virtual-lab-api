@@ -496,7 +496,6 @@ class NexusProjectInterface:
         project = await self.retrieve_project(
             virtual_lab_id=virtual_lab_id, project_id=project_id
         )
-        print("project", project)
 
         nexus_project_url = f"{settings.NEXUS_DELTA_URI}/projects/{virtual_lab_id}/{project_id}?rev={project.rev}"
         try:

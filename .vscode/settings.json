@@ -16,6 +16,7 @@
   "fulltext",
   "httpx",
   "ilike",
+  "isnot",
   "jdbc",
   "jsonable",
   "Keycloack",

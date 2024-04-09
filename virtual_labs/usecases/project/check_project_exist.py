@@ -26,7 +26,7 @@ async def check_project_existence_use_case(
 
         return VliResponse.new(
             message=(
-                f"Project with name {query_term} already exist"
+                f"Project with name '{query_term}' already exist"
                 if bool(projects_count)
                 else f"No project was found with keyword: '{query_term}'"
             ),

@@ -37,6 +37,7 @@ async def invite_user_to_project(
     invite_repo = InviteMutationRepository(session)
     invite_query_repo = InviteQueryRepository(session)
     inviter_id = get_user_id_from_auth(auth)
+    user, _ = auth
 
     try:
         project, lab = await pr.retrieve_one_project_strict(
@@ -48,9 +49,10 @@ async def invite_user_to_project(
             email=invite_details.email,
             role=invite_details.role,
         )
+        if user.email == invite_details.email:
+            raise ValueError("Self invite is forbidden")
 
         if invite is None:
-            print("ADD_INVITE")
             user_to_invite = user_repo.retrieve_user_by_email(invite_details.email)
             user_id = UUID(user_to_invite.id) if user_to_invite is not None else None
 
@@ -61,7 +63,6 @@ async def invite_user_to_project(
                 invitee_role=invite_details.role,
                 invitee_email=invite_details.email,
             )
-            # Need to refresh the lab & project before re-accessing them because the invite is commited inside the repo.
             await session.refresh(project)
             await session.refresh(lab)
             await send_invite(
@@ -75,12 +76,10 @@ async def invite_user_to_project(
                 )
             )
         else:
-            print("UPDATE_INVITE")
             await invite_repo.update_project_invite(
                 invite_id=UUID(str(invite.id)),
                 properties={"updated_at": func.now()},
             )
-            # Need to refresh entities before accessing them because the session commited inside invite_repo.
             await session.refresh(invite)
             await session.refresh(project)
             await session.refresh(lab)
@@ -111,8 +110,8 @@ async def invite_user_to_project(
         logger.error(f"ValueError when inviting user {invite_details.email} {error}")
         raise VliError(
             message=str(error),
-            error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
-            http_status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            error_code=VliErrorCode.INVALID_REQUEST,
+            http_status_code=HTTPStatus.BAD_REQUEST,
         )
     except SQLAlchemyError as error:
         logger.error(
@@ -123,8 +122,6 @@ async def invite_user_to_project(
             error_code=VliErrorCode.DATABASE_ERROR,
             http_status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
         )
-    except VliError as error:
-        raise error
     except Exception as error:
         logger.error(
             f"Invite could not be sent to user due to an unknown error {error}"
