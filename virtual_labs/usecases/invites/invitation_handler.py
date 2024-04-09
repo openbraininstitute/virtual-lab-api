@@ -3,7 +3,7 @@ from typing import Tuple
 from uuid import UUID
 
 from fastapi import Response
-from jwt import ExpiredSignatureError
+from jwt import ExpiredSignatureError, PyJWTError
 from loguru import logger
 from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -55,6 +55,7 @@ async def invitation_handler(
             )
             if vlab_invite.accepted:
                 return VliResponse.new(
+                    http_status_code=status.NO_CONTENT,
                     message=f"Invite for vlab: {vlab_invite.virtual_lab_id} already accepted",
                     data=None,
                 )
@@ -93,6 +94,7 @@ async def invitation_handler(
             )
             if project_invite.accepted:
                 return VliResponse.new(
+                    http_status_code=status.NO_CONTENT,
                     message="Invite for project: {}/{} already accepted".format(
                         project_invite.project.virtual_lab_id,
                         project_invite.project_id,
@@ -146,9 +148,18 @@ async def invitation_handler(
     except ExpiredSignatureError as ex:
         logger.error(f"Error during processing the invite: ({ex})")
         raise VliError(
-            error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
+            error_code=VliErrorCode.TOKEN_EXPIRED,
             http_status_code=status.BAD_REQUEST,
             message="Invite Token is not valid",
+            details="Invitation is expired",
+        )
+    except PyJWTError as ex:
+        logger.error(f"Error during processing the invite: ({ex})")
+        raise VliError(
+            error_code=VliErrorCode.INVALID_PARAMETER,
+            http_status_code=status.BAD_REQUEST,
+            message="Invite Token is not valid",
+            details="Invitation token is malformed",
         )
     except (ValueError, AssertionError) as ex:
         logger.error(f"Could not retrieve users from keycloak: ({ex})")
