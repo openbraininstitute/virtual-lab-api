@@ -80,3 +80,31 @@ async def test_invite_user_to_lab(
         f"/virtual-labs/{lab_id}/users", headers=get_headers(invitee_username)
     )
     assert_right_users_in_lab(lab_users_response)
+
+
+@pytest.mark.asyncio
+async def test_re_acceptance_of_invite_sends_right_response(
+    mock_lab_invite: tuple[AsyncClient, str, str, str],
+) -> None:
+    client, lab_id, invitee_username, invitee_email = mock_lab_invite
+    invite_token = get_invite_token_from_email(invitee_email)
+    invite_accept_response = await client.post(
+        f"/invites?token={invite_token}", headers=get_headers(username=invitee_username)
+    )
+    assert invite_accept_response.status_code == 200
+
+    re_invite_accept_response = await client.post(
+        f"/invites?token={invite_token}", headers=get_headers(username=invitee_username)
+    )
+    assert re_invite_accept_response.status_code == 200
+    actual_data = re_invite_accept_response.json()["data"]
+
+    assert actual_data["origin"] == "Lab"
+    assert actual_data["status"] == "already_accepted"
+    assert actual_data["virtual_lab_id"] == lab_id
+    assert actual_data["project_id"] is None
+
+    lab_users_response = await client.get(
+        f"/virtual-labs/{lab_id}/users", headers=get_headers(invitee_username)
+    )
+    assert_right_users_in_lab(lab_users_response)
