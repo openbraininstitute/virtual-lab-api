@@ -18,5 +18,4 @@ async def search_virtual_labs_by_name(
             db, term, group_ids
         )
     ]
-    # TODO: Filter labs for user
     return SearchLabResponse(virtual_labs=matching_labs)

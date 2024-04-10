@@ -59,7 +59,7 @@ async def invitation_handler(
                     data={
                         "origin": origin,
                         "invite_id": invite_id,
-                        "virtual_lab_id": virtual_lab_id,
+                        "virtual_lab_id": vlab_invite.virtual_lab_id,
                         "project_id": project_id,
                         "status": "already_accepted",
                     },
@@ -98,6 +98,9 @@ async def invitation_handler(
             project_invite = await invite_query_repo.get_project_invite_by_id(
                 invite_id=UUID(invite_id)
             )
+            project, _ = await project_query_repo.retrieve_one_project_by_id(
+                project_id=UUID(str(project_invite.project_id))
+            )
             if project_invite.accepted:
                 return VliResponse.new(
                     message="Invite for project: {}/{} already accepted".format(
@@ -107,8 +110,8 @@ async def invitation_handler(
                     data={
                         "origin": origin,
                         "invite_id": invite_id,
-                        "virtual_lab_id": virtual_lab_id,
-                        "project_id": project_id,
+                        "virtual_lab_id": project.virtual_lab_id,
+                        "project_id": project.id,
                         "status": "already_accepted",
                     },
                 )
@@ -120,10 +123,6 @@ async def invitation_handler(
                 email=str(project_invite.user_email)
             )
             assert user is not None
-
-            project, _ = await project_query_repo.retrieve_one_project_by_id(
-                project_id=UUID(str(project_invite.project_id))
-            )
 
             group_id = (
                 project.admin_group_id
