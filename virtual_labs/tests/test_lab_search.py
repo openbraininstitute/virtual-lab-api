@@ -14,7 +14,7 @@ async def mock_lab_create(
 ) -> AsyncGenerator[tuple[AsyncClient, str, str, dict[str, str]], None]:
     client = async_test_client
     body = {
-        "name": f"Test Lab {uuid4()}",
+        "name": f"Search Test Lab {uuid4()}",
         "description": "Test",
         "reference_email": "user@test.org",
         "budget": 10,
@@ -41,7 +41,7 @@ async def test_searching_by_partial_lab_name(
     mock_lab_create: tuple[AsyncClient, str, str, dict[str, str]],
 ) -> None:
     client, lab_name, lab_id, headers = mock_lab_create
-    query = "lab"
+    query = "search test"
 
     response = await client.get(f"/virtual-labs/_search?q={query}", headers=headers)
     assert response.status_code == 200
@@ -82,3 +82,27 @@ async def test_check_lab_does_not_exist(
         == f"No virtual lab with name {non_existing_lab_name} was found"
     )
     assert response.json()["data"]["exists"] is False
+
+
+@pytest.mark.asyncio
+async def test_search_labs_only_include_users_lab(
+    mock_lab_create: tuple[AsyncClient, str, str, dict[str, str]],
+) -> None:
+    client, lab_name, lab_id, headers = mock_lab_create
+    query = "Search Test"
+
+    test_user_1_response = await client.get(
+        f"/virtual-labs/_search?q={query}", headers=headers
+    )
+    test_user_1_labs = cast(
+        list[Any], test_user_1_response.json()["data"]["virtual_labs"]
+    )
+    assert len(test_user_1_labs) >= 1
+
+    test_user_2_response = await client.get(
+        f"/virtual-labs/_search?q={query}", headers=get_headers("test-2")
+    )
+    test_user_2_labs = cast(
+        list[Any], test_user_2_response.json()["data"]["virtual_labs"]
+    )
+    assert len(test_user_2_labs) == 0

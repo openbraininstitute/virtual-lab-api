@@ -25,6 +25,7 @@ def verify_vlab_read(f: Callable[..., Any]) -> Callable[..., Any]:
             virtual_lab_id = kwargs["virtual_lab_id"]
             session = kwargs["session"]
             auth = kwargs["auth"]
+
             user_id = get_user_id_from_auth(auth)
 
             gqr = GroupQueryRepository()
@@ -44,8 +45,8 @@ def verify_vlab_read(f: Callable[..., Any]) -> Callable[..., Any]:
         except SQLAlchemyError:
             raise VliError(
                 error_code=VliErrorCode.DATABASE_ERROR,
-                http_status_code=status.BAD_REQUEST,
-                message="No project with this id found",
+                http_status_code=status.NOT_FOUND,
+                message="No virtual lab with this id found",
             )
         except UserNotInList:
             raise VliError(

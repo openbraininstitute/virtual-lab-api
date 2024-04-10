@@ -6,7 +6,6 @@ from sqlalchemy.exc import NoResultFound, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
-from virtual_labs.core.exceptions.generic_exceptions import UserNotInList
 from virtual_labs.core.types import UserRoleEnum
 from virtual_labs.domain.labs import UserWithInviteStatus, VirtualLabUsers
 from virtual_labs.infrastructure.kc.models import UserRepresentation
@@ -14,7 +13,6 @@ from virtual_labs.repositories import labs as lab_repository
 from virtual_labs.repositories.group_repo import GroupQueryRepository
 from virtual_labs.repositories.invite_repo import InviteQueryRepository
 from virtual_labs.repositories.user_repo import UserQueryRepository
-from virtual_labs.usecases.labs.lab_authorization import is_user_in_lab
 
 
 def get_pending_user(
@@ -37,19 +35,13 @@ def get_pending_user(
     return user
 
 
-async def get_virtual_lab_users(
-    db: AsyncSession, lab_id: UUID4, user_id: UUID4
-) -> VirtualLabUsers:
+async def get_virtual_lab_users(db: AsyncSession, lab_id: UUID4) -> VirtualLabUsers:
     invite_repo = InviteQueryRepository(db)
     group_repo = GroupQueryRepository()
     user_repo = UserQueryRepository()
 
     try:
         lab = await lab_repository.get_undeleted_virtual_lab(db, lab_id)
-        if not is_user_in_lab(user_id, lab):
-            raise UserNotInList(
-                f"User {user_id} is not member of lab {lab.name} and therefore cannot retrieve lab users"
-            )
         admins = [
             UserWithInviteStatus(
                 **admin.model_dump(),
@@ -79,12 +71,6 @@ async def get_virtual_lab_users(
             for invite in invites
         ]
         return VirtualLabUsers(users=admins + members + pending_users)
-    except UserNotInList:
-        raise VliError(
-            message=f"User {user_id} is not member of lab {lab.name} and therefore cannot retrieve lab users",
-            error_code=VliErrorCode.NOT_ALLOWED_OP,
-            http_status_code=HTTPStatus.FORBIDDEN,
-        )
     except NoResultFound:
         raise VliError(
             message="Virtual lab not found",

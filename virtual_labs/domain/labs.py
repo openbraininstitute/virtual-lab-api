@@ -107,8 +107,8 @@ class VirtualLabDomainVerbose(VirtualLabDomain):
         from_attributes = True
 
 
-class Labs(BaseModel):
-    virtual_labs: list[VirtualLabWithProject]
+class SearchLabResponse(BaseModel):
+    virtual_labs: list[VirtualLabDomain]
 
 
 class UserWithInviteStatus(ShortenedUser):

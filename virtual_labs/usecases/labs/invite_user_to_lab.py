@@ -8,7 +8,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.exceptions.email_error import EmailError
-from virtual_labs.core.exceptions.generic_exceptions import UserNotInList
 from virtual_labs.domain.labs import AddUserToVirtualLab
 from virtual_labs.infrastructure.email.email_service import EmailDetails, send_invite
 from virtual_labs.repositories import labs as lab_repo
@@ -17,7 +16,6 @@ from virtual_labs.repositories.invite_repo import (
     InviteQueryRepository,
 )
 from virtual_labs.repositories.user_repo import UserQueryRepository
-from virtual_labs.usecases.labs.lab_authorization import is_user_admin_of_lab
 
 
 async def send_email_to_user_or_rollback(
@@ -58,10 +56,6 @@ async def invite_user_to_lab(
 
     try:
         lab = await lab_repo.get_undeleted_virtual_lab(db, lab_id)
-        if not is_user_admin_of_lab(user_id=inviter_id, lab=lab):
-            raise UserNotInList(
-                f"Only admins of lab can invite other users and user {inviter_id} is not admin of lab {lab.name}"
-            )
 
         user_to_invite = user_repo.retrieve_user_by_email(invite_details.email)
         user_id = UUID(user_to_invite.id) if user_to_invite is not None else None
@@ -109,12 +103,6 @@ async def invite_user_to_lab(
                 invite_repo=invite_mutation_repo,
             )
             return UUID(str(existing_invite.id))
-    except UserNotInList:
-        raise VliError(
-            message=f"Only admins of lab can invite other users and user {inviter_id} is not admin of lab {lab.name}",
-            error_code=VliErrorCode.NOT_ALLOWED_OP,
-            http_status_code=HTTPStatus.FORBIDDEN,
-        )
     except ValueError as error:
         logger.error(f"ValueError when inviting user {invite_details.email} {error}")
         raise VliError(

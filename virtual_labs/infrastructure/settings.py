@@ -50,9 +50,7 @@ class Settings(BaseSettings):
 
     INVITE_JWT_SECRET: str = "TEST_JWT_SECRET"
     INVITE_EXPIRES_IN_DAYS: int = 7
-    INVITE_LINK_BASE: str = (
-        DEPLOYMENT_NAMESPACE + "mmb-beta"
-    )  # TODO: This might need to be changed
+    INVITE_LINK_BASE: str = "http://localhost:3000/api"
 
     @field_validator("DATABASE_URI", mode="before")
     @classmethod

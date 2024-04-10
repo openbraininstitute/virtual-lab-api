@@ -8,22 +8,14 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
-from virtual_labs.core.exceptions.generic_exceptions import UserNotInList
 from virtual_labs.repositories import labs as lab_repository
 from virtual_labs.repositories.user_repo import UserMutationRepository
-from virtual_labs.usecases.labs.lab_authorization import is_user_admin_of_lab
 
 
-async def remove_user_from_lab(
-    lab_id: UUID4, user_making_change: UUID4, user_id: UUID4, db: AsyncSession
-) -> None:
+async def remove_user_from_lab(lab_id: UUID4, user_id: UUID4, db: AsyncSession) -> None:
     try:
         lab = await lab_repository.get_undeleted_virtual_lab(db, lab_id)
 
-        if not is_user_admin_of_lab(user_id=user_making_change, lab=lab):
-            raise UserNotInList(
-                f"Only admins of lab {lab.name} can remove other users from lab"
-            )
         user_repository = UserMutationRepository()
 
         user_repository.detach_user_from_group(
@@ -34,12 +26,6 @@ async def remove_user_from_lab(
         )
 
         return
-    except UserNotInList:
-        raise VliError(
-            message=f"Only admins of lab {lab.name} can remove other users from lab",
-            error_code=VliErrorCode.NOT_ALLOWED_OP,
-            http_status_code=HTTPStatus.FORBIDDEN,
-        )
     except SQLAlchemyError as error:
         logger.error(
             f"Db error when retrieving virtual lab {lab_id} for removing user {user_id}. {error}"

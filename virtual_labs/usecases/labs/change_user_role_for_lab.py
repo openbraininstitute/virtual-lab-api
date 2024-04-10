@@ -16,12 +16,10 @@ from virtual_labs.repositories.user_repo import (
     UserMutationRepository,
     UserQueryRepository,
 )
-from virtual_labs.usecases.labs.lab_authorization import is_user_admin_of_lab
 
 
 async def change_user_role_for_lab(
     lab_id: UUID4,
-    user_making_change_id: UUID4,
     user_id: UUID4,
     new_role: UserRoleEnum,
     db: AsyncSession,
@@ -31,12 +29,6 @@ async def change_user_role_for_lab(
 
     try:
         lab = await lab_repository.get_undeleted_virtual_lab(db, lab_id)
-        if not is_user_admin_of_lab(user_id=user_making_change_id, lab=lab):
-            raise VliError(
-                message=f"Only admins of lab {lab.name} can change roles for other users",
-                error_code=VliErrorCode.NOT_ALLOWED_OP,
-                http_status_code=HTTPStatus.FORBIDDEN,
-            )
         user = user_query_repo.retrieve_user_from_kc(str(user_id))
 
         new_group_id = (
