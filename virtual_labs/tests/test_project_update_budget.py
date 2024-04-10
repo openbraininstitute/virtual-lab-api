@@ -7,7 +7,7 @@ from virtual_labs.core.exceptions.api_error import VliErrorCode
 
 
 @pytest.mark.asyncio
-async def test_vlm_project_deletion_operation_not_allowed(
+async def test_update_project_budget_operation_not_allowed(
     async_test_client: AsyncClient,
     mock_create_projects: tuple[UUID, float, list[UUID], dict[str, str]],
 ) -> None:
@@ -29,7 +29,7 @@ async def test_vlm_project_deletion_operation_not_allowed(
 
 
 @pytest.mark.asyncio
-async def test_vlm_project_deletion_success(
+async def test_update_project_budget_success(
     async_test_client: AsyncClient,
     mock_create_projects: tuple[UUID, float, list[UUID], dict[str, str]],
 ) -> None:

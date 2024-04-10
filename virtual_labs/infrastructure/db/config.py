@@ -78,3 +78,9 @@ session_pool = DatabaseSessionPool(
 async def default_session_factory() -> AsyncGenerator[AsyncSession, None]:
     async with session_pool.session() as session:
         yield session
+
+
+@asynccontextmanager
+async def session_context_factory() -> AsyncGenerator[AsyncSession, None]:
+    async with session_pool.session() as session:
+        yield session
