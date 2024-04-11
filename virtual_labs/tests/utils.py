@@ -1,11 +1,22 @@
-from typing import cast
+from contextlib import asynccontextmanager
+from typing import AsyncGenerator, cast
 from uuid import uuid4
 
 from httpx import AsyncClient, Response
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+)
 
+from virtual_labs.infrastructure.db.config import session_pool
 from virtual_labs.infrastructure.kc.config import kc_auth
 
 email_server_baseurl = "http://localhost:8025"
+
+
+@asynccontextmanager
+async def session_context_factory() -> AsyncGenerator[AsyncSession, None]:
+    async with session_pool.session() as session:
+        yield session
 
 
 def auth(username: str = "test") -> str:
