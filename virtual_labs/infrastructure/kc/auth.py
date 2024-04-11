@@ -9,6 +9,7 @@ from fastapi.security import (
 )
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
+from virtual_labs.core.exceptions.identity_error import IdentityError
 from virtual_labs.infrastructure.kc.models import AuthUser
 
 from .config import kc_auth
@@ -53,6 +54,26 @@ def verify_jwt(
             http_status_code=status.UNAUTHORIZED,
             message="Invalid authentication credentials",
         )
+
+    try:
+        introspected_token = kc_auth.introspect(
+            token=token,
+        )
+
+        if introspected_token and introspected_token["active"] is False:
+            raise IdentityError(
+                message="Session not active",
+                detail="Session is dead or user not found",
+            )
+
+    except Exception as exception:
+        raise VliError(
+            error_code=VliErrorCode.AUTHORIZATION_ERROR,
+            http_status_code=status.UNAUTHORIZED,
+            message="Invalid authentication session",
+            details=str(exception),
+        ) from exception
+
     try:
         user = AuthUser(**decoded_token)
         return (user, token)
