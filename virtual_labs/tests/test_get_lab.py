@@ -60,3 +60,6 @@ async def test_update_lab(
     assert len(lab["projects"]) == 1
     assert lab["projects"][0]["id"] == project_id
     assert lab["projects"][0]["starred"] is False
+    assert len(lab["users"]) == 1
+    assert lab["users"][0]["username"] == "test"
+    assert lab["users"][0]["invite_accepted"] is True
