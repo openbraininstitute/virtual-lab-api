@@ -30,15 +30,6 @@ class VirtualLabBase(BaseModel):
         return v
 
 
-class VirtualLabCreate(VirtualLabBase):
-    plan_id: int
-
-
-class AddUser(BaseModel):
-    role: UserRoleEnum
-    user_id: UUID4
-
-
 class VirtualLabUpdate(BaseModel):
     name: str | None = None
     description: str | None = None
@@ -144,10 +135,21 @@ class AllPlans(BaseModel):
     all_plans: list[PlanDomain]
 
 
-class AddUserToVirtualLab(BaseModel):
+class AddUser(BaseModel):
     email: EmailStr
     role: UserRoleEnum
 
 
 class InviteSent(BaseModel):
     invite_id: UUID4
+
+
+class VirtualLabCreate(VirtualLabBase):
+    plan_id: int
+    include_members: list[AddUser] | None = None
+
+
+class CreateLabOut(BaseModel):
+    virtual_lab: VirtualLabDomain
+    successful_invites: list[AddUser]
+    failed_invites: list[AddUser]

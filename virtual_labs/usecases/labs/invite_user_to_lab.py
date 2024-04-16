@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.exceptions.email_error import EmailError
-from virtual_labs.domain.labs import AddUserToVirtualLab
+from virtual_labs.domain.labs import AddUser
 from virtual_labs.infrastructure.email.email_service import EmailDetails, send_invite
 from virtual_labs.repositories import labs as lab_repo
 from virtual_labs.repositories.invite_repo import (
@@ -35,7 +35,9 @@ async def send_email_to_user_or_rollback(
             )
         )
     except EmailError as error:
-        logger.error(f"Error when sending email invite {error.message} {error.detail}")
+        logger.error(
+            f"Error when sending email invite to user {email} {error.message} {error.detail}"
+        )
         await invite_repo.delete_lab_invite(invite_id=UUID(str(invite_id)))
         raise VliError(
             message=f"There was an error while emailing virtual lab invite to {email}. Please try sending the invite again.",
@@ -47,7 +49,7 @@ async def send_email_to_user_or_rollback(
 async def invite_user_to_lab(
     lab_id: UUID4,
     inviter_id: UUID4,
-    invite_details: AddUserToVirtualLab,
+    invite_details: AddUser,
     db: AsyncSession,
 ) -> UUID4:
     user_repo = UserQueryRepository()

@@ -1,4 +1,4 @@
-from typing import AsyncGenerator
+from typing import Any, AsyncGenerator, cast
 from uuid import uuid4
 
 import pytest
@@ -37,6 +37,66 @@ async def mock_lab_create(
     assert response.status_code == 200
 
 
+@pytest_asyncio.fixture
+async def mock_lab_create_with_users(
+    async_test_client: AsyncClient,
+) -> AsyncGenerator[tuple[dict[str, Any], Response, AsyncClient, dict[str, str]], None]:
+    client = async_test_client
+    body = {
+        "name": f"Test Lab {uuid4()}",
+        "description": "Test",
+        "reference_email": "user@test.org",
+        "budget": 10,
+        "plan_id": 1,
+        "include_members": [
+            {"email": "test-1@test.com", "role": "admin"},
+            {"email": "test-2@test.com", "role": "member"},
+        ],
+    }
+    headers = get_headers()
+    response = await client.post(
+        "/virtual-labs",
+        json=body,
+        headers=headers,
+    )
+
+    yield body, response, client, headers
+
+    lab_id = response.json()["data"]["virtual_lab"]["id"]
+    response = await client.delete(f"/virtual-labs/{lab_id}", headers=get_headers())
+    assert response.status_code == 200
+
+
+def assert_users_in_lab(response: Response) -> None:
+    users = cast(list[dict[str, Any]], response.json()["data"]["virtual_lab"]["users"])
+    actual_users = [
+        {
+            "username": user.get("username"),
+            "invite_accepted": user.get("invite_accepted"),
+            "role": user.get("role"),
+        }
+        for user in users
+    ]
+    expected_users = [
+        {
+            "username": "test",
+            "invite_accepted": True,
+            "role": "admin",
+        },
+        {
+            "username": "test-1",
+            "invite_accepted": False,
+            "role": "admin",
+        },
+        {
+            "username": "test-2",
+            "invite_accepted": False,
+            "role": "member",
+        },
+    ]
+    assert actual_users == expected_users
+
+
 @pytest.mark.asyncio
 async def test_virtual_lab_created(
     mock_lab_create: tuple[Response, dict[str, str]],
@@ -44,7 +104,11 @@ async def test_virtual_lab_created(
     response, headers = mock_lab_create
     # Test that the virtual lab was created
     assert response.status_code == 200
-    lab_id = response.json()["data"]["virtual_lab"]["id"]
+    data = response.json()["data"]
+    lab_id = data["virtual_lab"]["id"]
+
+    assert data.get("successful_invites") == []
+    assert data.get("failed_invites") == []
 
     group_repo = GroupQueryRepository()
     group_id = f"vlab/{lab_id}/admin"
@@ -58,3 +122,37 @@ async def test_virtual_lab_created(
     )
     # Test that the nexus organization was created
     assert nexus_org_request.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_virtual_lab_created_with_users(
+    mock_lab_create_with_users: tuple[
+        dict[str, Any], Response, AsyncClient, dict[str, str]
+    ],
+) -> None:
+    request, response, client, headers = mock_lab_create_with_users
+    assert response.status_code == 200
+    actual_response = response.json()["data"]
+    lab_id = actual_response["virtual_lab"]["id"]
+
+    expected_response = {
+        "virtual_lab": {
+            "name": request.get("name"),
+            "description": "Test",
+            "reference_email": "user@test.org",
+            "budget": 10.0,
+            "id": lab_id,
+            "plan_id": 1,
+            "created_at": actual_response["virtual_lab"]["created_at"],
+        },
+        "successful_invites": [
+            {"email": "test-1@test.com", "role": "admin"},
+            {"email": "test-2@test.com", "role": "member"},
+        ],
+        "failed_invites": [],
+    }
+
+    assert actual_response == expected_response
+
+    lab_response = await client.get(f"/virtual-labs/{lab_id}", headers=headers)
+    assert_users_in_lab(lab_response)
