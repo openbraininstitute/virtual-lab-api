@@ -4,6 +4,7 @@ from typing import List, Optional
 from pydantic import UUID4, BaseModel, EmailStr
 
 from virtual_labs.core.types import UserRoleEnum
+from virtual_labs.domain.invite import AddUser
 from virtual_labs.domain.user import ShortenedUser
 
 
@@ -22,7 +23,7 @@ class ProjectBody(BaseModel):
 
 
 class ProjectCreationBody(ProjectBody):
-    include_members: Optional[list[UUID4]] = None
+    include_members: Optional[list[AddUser]] = None
 
 
 class Project(BaseModel):
@@ -53,7 +54,7 @@ class ProjectWithVLOut(BaseModel):
 
 
 class FailedInvite(BaseModel):
-    user_id: UUID4
+    user_email: EmailStr
     first_name: str | None = None
     last_name: str | None = None
     exists: bool = True
