@@ -24,3 +24,15 @@ TOKEN_RESPONSE=$(curl -s -X POST \
 ACCESS_TOKEN=$(echo "$TOKEN_RESPONSE" | jq -r '.access_token')
 echo "Access token:"
 echo "$ACCESS_TOKEN"
+
+# check the OS and copy the access token to the clipboard
+OS=$(uname)
+if [ "$OS" == "Linux" ]; then
+echo "$ACCESS_TOKEN" | xclip -selection clipboard
+echo "Token also copied to clipboard (Linux)."
+elif [ "$OS" == "Darwin" ]; then
+echo "$ACCESS_TOKEN" | pbcopy
+echo "Token also copied to clipboard (macOS)."
+else
+echo "Unsupported OS for clipboard operation: $OS"
+fi
