@@ -46,7 +46,6 @@ class UserQueryRepository:
 
         match len(users):
             case 0:
-                # TODO: !36 If we create a temporary User in KC for unregistered users then here we should raise an error instead of returning None
                 logger.debug(f"No user with email {email} found in keycloak")
                 return None
             case 1:

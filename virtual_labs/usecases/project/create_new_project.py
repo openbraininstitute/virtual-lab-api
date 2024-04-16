@@ -15,6 +15,7 @@ from virtual_labs.core.exceptions.identity_error import IdentityError
 from virtual_labs.core.exceptions.nexus_error import NexusError
 from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.core.types import UserRoleEnum
+from virtual_labs.domain.invite import AddUser
 from virtual_labs.domain.project import FailedInvite, Project, ProjectCreationBody
 from virtual_labs.external.nexus.project_instance import instantiate_nexus_project
 from virtual_labs.infrastructure.db.models import Project as DbProject
@@ -33,12 +34,11 @@ from virtual_labs.repositories.user_repo import (
     UserQueryRepository,
 )
 from virtual_labs.shared.utils.auth import get_user_id_from_auth
-from virtual_labs.shared.utils.uniq_list import uniq_list
 
 
 async def invite_project_members(
     session: AsyncSession,
-    members: List[UUID4],
+    members: list[AddUser],
     virtual_lab: VirtualLab,
     project: DbProject,
     inviter_id: UUID4,
@@ -46,15 +46,19 @@ async def invite_project_members(
     invite_repo = InviteMutationRepository(session)
     user_query_repo = UserQueryRepository()
     failed_invites: List[FailedInvite] = []
-
-    for member in uniq_list(members):
+    for member in members:
         try:
-            user = user_query_repo.retrieve_user_from_kc(str(member))
+            user = user_query_repo.retrieve_user_by_email(member.email)
+            if user is None:
+                raise IdentityError(
+                    f"User with email {member.email} not found",
+                    detail="Only users that exist in keycloak can be invited to projects",
+                )
             try:
                 invite = await invite_repo.add_project_invite(
                     inviter_id=inviter_id,
                     project_id=UUID(str(project.id)),
-                    invitee_role=UserRoleEnum.member,
+                    invitee_role=member.role,
                     invitee_id=UUID(user.id),
                     invitee_email=str(user.email),
                 )
@@ -79,7 +83,7 @@ async def invite_project_members(
                 if user:
                     failed_invites.append(
                         FailedInvite(
-                            user_id=member,
+                            user_email=member.email,
                             first_name=user.firstName,
                             last_name=user.lastName,
                         )
@@ -88,7 +92,7 @@ async def invite_project_members(
         except IdentityError:
             failed_invites.append(
                 FailedInvite(
-                    user_id=member,
+                    user_email=member.email,
                     exists=False,
                 )
             )

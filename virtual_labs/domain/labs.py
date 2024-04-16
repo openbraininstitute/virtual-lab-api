@@ -3,7 +3,7 @@ from typing import Generic, Optional, TypeVar
 
 from pydantic import UUID4, BaseModel, EmailStr, JsonValue, field_validator
 
-from virtual_labs.core.types import UserRoleEnum
+from virtual_labs.domain.invite import AddUser
 from virtual_labs.domain.user import ShortenedUser
 from virtual_labs.infrastructure.kc.models import UserRepresentation
 
@@ -133,11 +133,6 @@ class LabVerbose(BaseModel):
 
 class AllPlans(BaseModel):
     all_plans: list[PlanDomain]
-
-
-class AddUser(BaseModel):
-    email: EmailStr
-    role: UserRoleEnum
 
 
 class InviteSent(BaseModel):

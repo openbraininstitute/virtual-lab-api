@@ -1,4 +1,9 @@
-from httpx import Response
+from typing import AsyncGenerator
+from uuid import uuid4
+
+import pytest
+import pytest_asyncio
+from httpx import AsyncClient, Response
 from requests import get
 
 from virtual_labs.infrastructure.settings import settings
@@ -32,3 +37,36 @@ def test_vlm_project_creation(
     )
 
     assert nexus_project.status_code == 200
+
+
+@pytest_asyncio.fixture
+async def mock_create_project_with_users(
+    async_test_client: AsyncClient,
+    mock_lab_create: tuple[Response, dict[str, str]],
+) -> AsyncGenerator[Response, None]:
+    client = async_test_client
+    vl_response, headers = mock_lab_create
+    virtual_lab_id = vl_response.json()["data"]["virtual_lab"]["id"]
+
+    payload = {
+        "name": f"Test Project {uuid4()}",
+        "description": "Test Project",
+        "include_members": [{"email": "test-1@test.com", "role": "admin"}],
+    }
+    response = await client.post(
+        f"/virtual-labs/{virtual_lab_id}/projects",
+        json=payload,
+    )
+
+    yield response
+
+
+@pytest.mark.asyncio
+async def test_vlm_project_with_members_creation(
+    mock_create_project_with_users: Response,
+) -> None:
+    response = mock_create_project_with_users
+
+    assert response.status_code == 200
+    failed_invites = response.json()["data"]["failed_invites"]
+    assert failed_invites == []
