@@ -9,8 +9,9 @@ from virtual_labs.core.authorization import (
 )
 from virtual_labs.core.types import UserRoleEnum
 from virtual_labs.domain.common import PageParams, PaginatedResultsResponse
+from virtual_labs.domain.invite import AddUser
 from virtual_labs.domain.labs import (
-    AddUserToVirtualLab,
+    CreateLabOut,
     InviteSent,
     Lab,
     LabByIdOut,
@@ -116,19 +117,16 @@ async def get_virtual_lab_users(
     )
 
 
-@router.post("", response_model=LabResponse[Lab])
+@router.post(
+    "", response_model=LabResponse[CreateLabOut], response_model_exclude_none=True
+)
 async def create_virtual_lab(
     lab: VirtualLabCreate,
     session: AsyncSession = Depends(default_session_factory),
     auth: tuple[AuthUser, str] = Depends(verify_jwt),
-) -> LabResponse[Lab]:
-    created_lab = Lab(
-        virtual_lab=VirtualLabDomain.model_validate(
-            await usecases.create_virtual_lab(session, lab, auth=auth)
-        )
-    )
-
-    return LabResponse[Lab](message="Newly created virtual lab", data=created_lab)
+) -> LabResponse[CreateLabOut]:
+    result = await usecases.create_virtual_lab(session, lab, auth)
+    return LabResponse[CreateLabOut](message="Newly created virtual lab", data=result)
 
 
 @router.patch("/{virtual_lab_id}", response_model=LabResponse[Lab])
@@ -155,7 +153,7 @@ async def update_virtual_lab(
 @verify_vlab_write
 async def invite_user_to_virtual_lab(
     virtual_lab_id: UUID4,
-    invite_details: AddUserToVirtualLab,
+    invite_details: AddUser,
     session: AsyncSession = Depends(default_session_factory),
     auth: tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> LabResponse[InviteSent]:
