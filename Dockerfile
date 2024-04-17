@@ -19,12 +19,16 @@ FROM python:3.12-slim-bookworm as runtime
 ENV VIRTUAL_ENV=/app/.venv \
     PATH="/app/.venv/bin:$PATH"
 
+
 COPY --from=builder ${VIRTUAL_ENV} ${VIRTUAL_ENV}
+WORKDIR /app
 
-COPY ./virtual_labs ./virtual_labs_manager_app/virtual_labs
+COPY ./virtual_labs /app/virtual_labs
+COPY ./alembic /app/alembic
 
-ENV PYTHONPATH=/virtual_labs_manager_app
+COPY ./docker-entrypoint.sh /app/
+COPY ./alembic.ini /app/
 
 EXPOSE 8000
 
-ENTRYPOINT ["python", "-m", "uvicorn", "--host=0.0.0.0", "virtual_labs_manager_app.virtual_labs.api:app"]
+ENTRYPOINT ["./docker-entrypoint.sh"]
