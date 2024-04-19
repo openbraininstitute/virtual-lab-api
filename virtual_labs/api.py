@@ -31,8 +31,8 @@ app = FastAPI(
     title=settings.APP_NAME,
     debug=settings.APP_DEBUG,
     lifespan=lifespan,
-    openapi_url="/openapi.json",
-    docs_url="/docs",
+    openapi_url=f"{settings.BASE_PATH}/openapi.json",
+    docs_url=f"{settings.BASE_PATH}/docs",
 )
 
 base_router = APIRouter(prefix=settings.BASE_PATH)
