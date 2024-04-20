@@ -24,7 +24,7 @@ curl -XPUT \
   "http://localhost:8080/v1/realms/obp-realm" \
   -d '{
         "name":"obp-realm",
-        "openIdConfig":"http://keycloak:8080/realms/obp-realm/.well-known/openid-configuration"
+        "openIdConfig":"http://keycloak:9090/realms/obp-realm/.well-known/openid-configuration"
       }'
 
 echo "Initialize nexus"

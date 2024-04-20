@@ -41,6 +41,15 @@ Access token:
 <access_token>
 ```
 
+# Accessing local (or test) keycloak UI
+
+Add keycloak as host for address 127.0.0.1 in /etc/host file
+```bash
+echo "127.0.0.1 keycloak" | sudo tee -a /etc/hosts # This adds a line "127.0.0.1 keycloak" to /etc/hosts 
+```
+
+Now navigating to http://localhost:9090 or http://keycloak:9090 should load the keycloak web interface
+
 # Generating db migrations
 
 The version numbers are stored in alembic/versions. Alembic can be used to autogenerate migration scripts based on schema changes like so:
