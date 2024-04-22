@@ -262,7 +262,9 @@ class NexusProjectInterface:
             data = response.json()
             return NexusResource(**data)
         except Exception as ex:
-            logger.error(f"Error during creating nexus es view {ex}")
+            logger.error(
+                f"Error during creating nexus es view {ex}. Response {response.json()}"
+            )
             raise NexusError(
                 message="Error during creating nexus es view",
                 type=NexusErrorValue.CREATE_ES_VIEW_ERROR,
@@ -480,7 +482,9 @@ class NexusProjectInterface:
             data = response.json()
             return NexusResource(**data)
         except Exception as ex:
-            logger.error(f"Error during creating nexus resource {ex}")
+            logger.error(
+                f"Error during creating nexus resource {ex}. Response {response.json()}"
+            )
             raise NexusError(
                 message="Error during creating nexus resource",
                 type=NexusErrorValue.CREATE_RESOURCE_ERROR,
