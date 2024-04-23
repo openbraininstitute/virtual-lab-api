@@ -13,6 +13,7 @@ from virtual_labs.core.exceptions.nexus_error import NexusError
 from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.domain.project import Project, ProjectBody
 from virtual_labs.external.nexus.project_interface import NexusProjectInterface
+from virtual_labs.infrastructure.kc.auth import get_client_token
 from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.repositories.project_repo import ProjectMutationRepository
 
@@ -27,7 +28,9 @@ async def update_project_data(
     auth: Tuple[AuthUser, str],
 ) -> Response | VliError:
     pmr = ProjectMutationRepository(session)
-    nexus = NexusProjectInterface(httpx_clt=httpx_client, auth=auth)
+    nexus = NexusProjectInterface(
+        httpx_clt=httpx_client, client_token=get_client_token()
+    )
     try:
         project = await pmr.update_project_data(
             virtual_lab_id=virtual_lab_id,

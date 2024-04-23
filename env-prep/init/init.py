@@ -10,6 +10,7 @@ acls_payload = {
             "identity": {
                 "realm": "obp-realm",
                 "subject": "service-account-obpapp",
+                "@type": "User",
             },
             "permissions": [
                 "version/read",

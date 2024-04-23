@@ -16,6 +16,7 @@ from virtual_labs.external.nexus.defaults import (
     prep_default_local_context,
 )
 from virtual_labs.external.nexus.project_interface import NexusProjectInterface
+from virtual_labs.infrastructure.kc.auth import get_client_token
 from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.infrastructure.settings import settings
 
@@ -35,7 +36,7 @@ async def instantiate_nexus_project(
     async with httpx.AsyncClient(transport=transport) as httpx_clt:
         nexus_interface = NexusProjectInterface(
             httpx_clt,
-            auth,
+            get_client_token(),
         )
         user, _ = auth
 
@@ -65,7 +66,7 @@ async def instantiate_nexus_project(
             identities=[
                 {
                     "realm": settings.KC_REALM_NAME,
-                    "subject": user.username,
+                    "subject": settings.KC_SUBJECT,
                 }
             ],
         )
