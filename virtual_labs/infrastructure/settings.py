@@ -36,7 +36,6 @@ class Settings(BaseSettings):
     KC_CLIENT_ID: str = "obpapp"
     KC_CLIENT_SECRET: str = "obp-secret"
     KC_REALM_NAME: str = "obp-realm"
-    KC_SUBJECT: str = "service-account-obpapp"
     DEPLOYMENT_NAMESPACE: str = "https://openbrainplatform.org/"
 
     MAIL_USERNAME: str = "dummyusername"

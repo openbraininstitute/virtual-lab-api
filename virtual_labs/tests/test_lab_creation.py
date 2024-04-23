@@ -8,7 +8,7 @@ from requests import get
 
 from virtual_labs.infrastructure.settings import settings
 from virtual_labs.repositories.group_repo import GroupQueryRepository
-from virtual_labs.tests.utils import get_headers
+from virtual_labs.tests.utils import get_client_headers, get_headers
 
 
 @pytest_asyncio.fixture
@@ -118,7 +118,7 @@ async def test_virtual_lab_created(
     assert group is not None
 
     nexus_org_request = get(
-        f"{settings.NEXUS_DELTA_URI}/orgs/{str(lab_id)}", headers=headers
+        f"{settings.NEXUS_DELTA_URI}/orgs/{str(lab_id)}", headers=get_client_headers()
     )
     # Test that the nexus organization was created
     assert nexus_org_request.status_code == 200

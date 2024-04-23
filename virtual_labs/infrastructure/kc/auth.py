@@ -7,17 +7,19 @@ from fastapi.security import (
     HTTPBearer,
     OAuth2AuthorizationCodeBearer,
 )
-from keycloak import KeycloakOpenIDConnection  # type: ignore
 from loguru import logger
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.exceptions.identity_error import IdentityError
+from virtual_labs.infrastructure.kc.config import kc_realm
 from virtual_labs.infrastructure.kc.models import AuthUser, ClientToken
 from virtual_labs.infrastructure.settings import settings
 
 from .config import kc_auth
 
 auth_header: HTTPBearer | OAuth2AuthorizationCodeBearer = HTTPBearer(auto_error=False)
+
+KC_SUBJECT: str = f"service-account-{settings.KC_CLIENT_ID}"
 
 
 def get_public_key() -> str:
@@ -91,16 +93,8 @@ def verify_jwt(
 
 def get_client_token() -> str:
     try:
-        keycloak_connection = KeycloakOpenIDConnection(
-            server_url=settings.KC_SERVER_URI,
-            realm_name=settings.KC_REALM_NAME,
-            client_id=settings.KC_CLIENT_ID,
-            client_secret_key=settings.KC_CLIENT_SECRET,
-            verify=True,
-        )
-        keycloak_connection.get_token()
-        token_details = ClientToken.model_validate(keycloak_connection.token)
-        return token_details.access_token
+        token = kc_realm.connection.token
+        return ClientToken.model_validate(token).access_token
     except Exception as error:
         logger.error(f"Error retrieving client token {error}")
         raise error
