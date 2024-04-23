@@ -44,7 +44,7 @@ async def delete_virtual_lab(
         if lab.deleted is True:
             return response
 
-        nexus_org = await deprecate_nexus_organization(lab_id, auth)
+        nexus_org = await deprecate_nexus_organization(lab_id)
         logger.debug(f"Deprecated nexus organization {nexus_org.label}")
 
         await repository.delete_virtual_lab(db, lab_id)

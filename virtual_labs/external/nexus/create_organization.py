@@ -9,7 +9,7 @@ from virtual_labs.external.nexus.models import NexusOrganization
 from virtual_labs.external.nexus.organization_interface import (
     NexusOrganizationInterface,
 )
-from virtual_labs.infrastructure.kc.models import AuthUser
+from virtual_labs.infrastructure.kc.auth import get_client_token
 
 
 async def create_nexus_organization(
@@ -17,11 +17,11 @@ async def create_nexus_organization(
     description: str | None,
     admin_group_id: str,
     member_group_id: str,
-    auth: tuple[AuthUser, str],
 ) -> NexusOrganization:
     transport = httpx.AsyncHTTPTransport(retries=3)
     async with httpx.AsyncClient(transport=transport) as httpx_client:
-        nexus_org_interface = NexusOrganizationInterface(httpx_client, auth)
+        client_token = get_client_token()
+        nexus_org_interface = NexusOrganizationInterface(httpx_client, client_token)
         nexus_org = await nexus_org_interface.create_organization(
             nexus_org_id, description
         )

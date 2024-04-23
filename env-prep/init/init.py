@@ -8,9 +8,8 @@ acls_payload = {
     "acl": [
         {
             "identity": {
-                "@type": "User",
                 "realm": "obp-realm",
-                "subject": "test",
+                "subject": "service-account-obpapp",
             },
             "permissions": [
                 "version/read",
@@ -99,10 +98,10 @@ client_headers = {
     "Content-Type": "application/json",
 }
 
-user_headers = {
-    "Authorization": f"bearer {user_token}",
-    "Content-Type": "application/json",
-}
+# user_headers = {
+#     "Authorization": f"bearer {user_token}",
+#     "Content-Type": "application/json",
+# }
 
 # print("---- #0 get test user id 'subject'")
 # kc_conn.request(
@@ -117,26 +116,26 @@ user_headers = {
 
 
 print("---- #1 append ACLs to the user 'test' \n")
-nexus_conn.request("PATCH", "/v1/acls", json.dumps(acls_payload), user_headers)
+nexus_conn.request("PATCH", "/v1/acls", json.dumps(acls_payload), client_headers)
 res = nexus_conn.getresponse()
 data = res.read()
 print(data.decode("utf-8"), "\n")
 
 
 print("---- #2 create neurosciencegraph/datamodels (org/project) \n")
-nexus_conn.request("PUT", "/v1/orgs/neurosciencegraph", org_payload, user_headers)
+nexus_conn.request("PUT", "/v1/orgs/neurosciencegraph", org_payload, client_headers)
 res = (nexus_conn.getresponse()).read()
 nexus_conn.request(
-    "PUT", "/v1/projects/neurosciencegraph/datamodels", project_payload, user_headers
+    "PUT", "/v1/projects/neurosciencegraph/datamodels", project_payload, client_headers
 )
 res = nexus_conn.getresponse()
 print(res.read().decode("utf-8"), "\n")
 
 
 print("---- #3- create bbp/atlas (org/project) \n")
-nexus_conn.request("PUT", "/v1/orgs/bbp", org_payload, user_headers)
+nexus_conn.request("PUT", "/v1/orgs/bbp", org_payload, client_headers)
 res = (nexus_conn.getresponse()).read()
-nexus_conn.request("PUT", "/v1/projects/bbp/atlas", project_payload, user_headers)
+nexus_conn.request("PUT", "/v1/projects/bbp/atlas", project_payload, client_headers)
 res = nexus_conn.getresponse()
 print(res.read().decode("utf-8"), "\n")
 
@@ -149,7 +148,7 @@ with open(os.path.join(__location__, "es_view_dataset_payload.json")) as f:
         "POST",
         "/v1/views/neurosciencegraph/datamodels",
         data,
-        user_headers,
+        client_headers,
     )
     res = nexus_conn.getresponse()
     print(res.read().decode("utf-8"), "\n")
@@ -162,7 +161,7 @@ with open(os.path.join(__location__, "es_view_dataset_payload.json")) as f:
         "POST",
         "/v1/views/bbp/atlas",
         data,
-        user_headers,
+        client_headers,
     )
     res = nexus_conn.getresponse()
     print(res.read().decode("utf-8"), "\n")
@@ -175,7 +174,7 @@ with open(os.path.join(__location__, "neuroshapes_org_resource.json")) as f:
         "PUT",
         "/v1/resources/neurosciencegraph/datamodels/_/https%3A%2F%2Fneuroshapes.org",
         data,
-        user_headers,
+        client_headers,
     )
     res = nexus_conn.getresponse()
     print(res.read().decode("utf-8"), "\n")
@@ -188,7 +187,7 @@ with open(os.path.join(__location__, "api_mappings_payload.json")) as f:
         "PUT",
         "/v1/resources/neurosciencegraph/datamodels/_/https%3A%2F%2Fbbp.epfl.ch%2Fnexus%2Fv1%2Fresources%2Fneurosciencegraph%2Fdatamodels%2F_%2Fnexus_api_mappings",
         data,
-        user_headers,
+        client_headers,
     )
     res = nexus_conn.getresponse()
     print(res.read().decode("utf-8"), "\n")
