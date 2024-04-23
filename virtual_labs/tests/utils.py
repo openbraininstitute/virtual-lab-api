@@ -6,6 +6,7 @@ from httpx import AsyncClient, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.infrastructure.db.config import session_pool
+from virtual_labs.infrastructure.kc.auth import get_client_token
 from virtual_labs.infrastructure.kc.config import kc_auth
 
 email_server_baseurl = "http://localhost:8025"
@@ -27,6 +28,13 @@ def get_headers(username: str = "test") -> dict[str, str]:
         "Content-Type": "application/json",
         "Accept": "application/json",
         "Authorization": f"Bearer {auth(username)}",
+    }
+
+
+def get_client_headers() -> dict[str, str]:
+    return {
+        "Content-Type": "application/json",
+        "Authorization": f"bearer {get_client_token()}",
     }
 
 

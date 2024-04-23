@@ -5,7 +5,7 @@ from httpx import AsyncClient, Response
 from requests import get
 
 from virtual_labs.infrastructure.settings import settings
-from virtual_labs.tests.utils import get_headers
+from virtual_labs.tests.utils import get_client_headers, get_headers
 
 
 @pytest.mark.asyncio
@@ -41,7 +41,7 @@ async def test_vlm_project_deletion(
     # Test Nexus project deprecation
     nexus_project = get(
         f"{settings.NEXUS_DELTA_URI}/projects/{virtual_lab_id}/{str(project_id)}",
-        headers=headers,
+        headers=get_client_headers(),
     )
 
     result = nexus_project.json()

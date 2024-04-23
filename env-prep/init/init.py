@@ -99,11 +99,6 @@ client_headers = {
     "Content-Type": "application/json",
 }
 
-# user_headers = {
-#     "Authorization": f"bearer {user_token}",
-#     "Content-Type": "application/json",
-# }
-
 # print("---- #0 get test user id 'subject'")
 # kc_conn.request(
 #     "GET",

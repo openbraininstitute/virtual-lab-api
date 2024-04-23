@@ -3,6 +3,7 @@ from httpx import AsyncClient, Response
 from requests import get
 
 from virtual_labs.infrastructure.settings import settings
+from virtual_labs.tests.utils import get_client_headers
 
 
 @pytest.mark.asyncio
@@ -30,10 +31,10 @@ async def test_vlm_update_project_data(
     assert result["data"]["project"]["name"] == new_name
     assert result["data"]["project"]["description"] == new_description
 
-    # Test Nexus project deprecation
+    # Test Nexus project is udpated
     nexus_project = get(
         f"{settings.NEXUS_DELTA_URI}/projects/{virtual_lab_id}/{str(project_id)}",
-        headers=headers,
+        headers=get_client_headers(),
     )
 
     result = nexus_project.json()
