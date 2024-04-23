@@ -70,7 +70,9 @@ class NexusProjectInterface:
             data = response.json()
             return NexusProject(**data)
         except Exception as ex:
-            logger.error(f"Error during fetching nexus project {ex}")
+            logger.error(
+                f"Error during fetching nexus project {ex}. Response {response.json()}"
+            )
             raise NexusError(
                 message="Error during fetching nexus project",
                 type=NexusErrorValue.FETCH_PROJECT_ERROR,
@@ -107,7 +109,9 @@ class NexusProjectInterface:
             data = response.json()
             return NexusProject(**data)
         except Exception as ex:
-            logger.error(f"Error during creating nexus project {ex}")
+            logger.error(
+                f"Error during creating nexus project {ex}. Response {response.json()}"
+            )
             raise NexusError(
                 message="Error during creating nexus project",
                 type=NexusErrorValue.CREATE_PROJECT_ERROR,
@@ -132,7 +136,9 @@ class NexusProjectInterface:
             data = response.json()
             return NexusResultAcl(**data)
         except Exception as ex:
-            logger.error(f"Error during fetching nexus project acls {ex}")
+            logger.error(
+                f"Error during fetching nexus project acls {ex}. Response {response.json()}"
+            )
             raise NexusError(
                 message="Error during fetching nexus project acls",
                 type=NexusErrorValue.FETCH_PROJECT_ACL_ERROR,
@@ -172,7 +178,9 @@ class NexusProjectInterface:
             data = response.json()
             return NexusAcls(**data)
         except Exception as ex:
-            logger.error(f"Error during creating nexus project acls {ex}")
+            logger.error(
+                f"Error during creating nexus project acls {ex}. Response: {response.json()}"
+            )
             raise NexusError(
                 message="Error during creating nexus project acls",
                 type=NexusErrorValue.APPEND_ACL_ERROR,
@@ -198,7 +206,9 @@ class NexusProjectInterface:
             data = response.json()
             return NexusAcls(**data)
         except Exception as ex:
-            logger.error(f"Error during deleting nexus acl list {ex}")
+            logger.error(
+                f"Error during deleting nexus acl list {ex}. Response {response.json()}"
+            )
             raise NexusError(
                 message="Error during deleting nexus project acl list",
                 type=NexusErrorValue.DELETE_PROJECT_ACL_ERROR,
@@ -219,7 +229,9 @@ class NexusProjectInterface:
             data = response.json()
             return NexusProject(**data)
         except Exception as ex:
-            logger.error(f"Error during deprecation of nexus project {ex}")
+            logger.error(
+                f"Error during deprecation of nexus project {ex}. Response: {response.json()}"
+            )
             raise NexusError(
                 message="Error during deprecation of nexus project",
                 type=NexusErrorValue.DEPRECATE_PROJECT_ERROR,
@@ -301,7 +313,9 @@ class NexusProjectInterface:
             data = response.json()
             return NexusResource(**data)
         except Exception as ex:
-            logger.error(f"Error during creating nexus es aggregate view {ex}")
+            logger.error(
+                f"Error during creating nexus es aggregate view {ex}. Response {response.json()}"
+            )
             raise NexusError(
                 message="Error during creating nexus es aggregate view",
                 type=NexusErrorValue.CREATE_ES_AGG_VIEW_ERROR,
@@ -336,7 +350,9 @@ class NexusProjectInterface:
             data = response.json()
             return NexusResource(**data)
         except Exception as ex:
-            logger.error(f"Error during creating nexus sp aggregate view {ex}")
+            logger.error(
+                f"Error during creating nexus sp aggregate view {ex}. Response {response.json()}"
+            )
             raise NexusError(
                 message="Error during creating nexus sp aggregate view",
                 type=NexusErrorValue.CREATE_SP_AGG_VIEW_ERROR,
@@ -354,7 +370,9 @@ class NexusProjectInterface:
             data = response.json()
             return NexusPermissions(**data)
         except Exception as ex:
-            logger.error(f"Error during fetching nexus permissions {ex}")
+            logger.error(
+                f"Error during fetching nexus permissions {ex}. Response {response.json()}"
+            )
             raise NexusError(
                 message="Error during fetching nexus permissions",
                 type=NexusErrorValue.FETCH_NEXUS_PERMISSIONS_ERROR,
@@ -393,7 +411,9 @@ class NexusProjectInterface:
             data = response.json()
             return NexusAcls(**data)
         except Exception as ex:
-            logger.error(f"Error during creating nexus project acls {ex}")
+            logger.error(
+                f"Error during creating nexus project acls {ex}. Response {response.json()}"
+            )
             raise NexusError(
                 message="Error during creating nexus project acls",
                 type=NexusErrorValue.SUBTRACT_ACL_ERROR,
@@ -423,7 +443,9 @@ class NexusProjectInterface:
             data = response.json()
             return NexusResource(**data)
         except Exception as ex:
-            logger.error(f"Error during fetching of nexus resource {ex}")
+            logger.error(
+                f"Error during fetching of nexus resource {ex}. Response {response.json()}"
+            )
             raise NexusError(
                 message="Error during fetching of nexus resource",
                 type=NexusErrorValue.FETCH_RESOURCE_ERROR,
@@ -459,7 +481,9 @@ class NexusProjectInterface:
             data = response.json()
             return NexusCrossResolver(**data)
         except Exception as ex:
-            logger.error(f"Error during creating nexus resolver {ex}")
+            logger.error(
+                f"Error during creating nexus resolver {ex}. Response {response.json()}"
+            )
             raise NexusError(
                 message="Error during creating nexus resolver",
                 type=NexusErrorValue.CREATE_RESOLVER_ERROR,
@@ -515,7 +539,9 @@ class NexusProjectInterface:
             data = response.json()
             return NexusProject(**data)
         except Exception as ex:
-            logger.error(f"Error during update nexus project {ex}")
+            logger.error(
+                f"Error during update nexus project {ex}. Response {response.json()}"
+            )
             raise NexusError(
                 message="Error during update nexus project",
                 type=NexusErrorValue.UPDATE_PROJECT_ERROR,

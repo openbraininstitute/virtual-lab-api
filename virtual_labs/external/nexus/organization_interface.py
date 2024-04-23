@@ -34,7 +34,7 @@ class NexusOrganizationInterface:
             return NexusOrganization(**response.json())
         except Exception as error:
             logger.error(
-                f"Error when creating nexus organization for virtual lab {lab_id}: {error}"
+                f"Error when creating nexus organization for virtual lab {lab_id}: {error}. Response {response.json()}"
             )
             raise NexusError(
                 message=f"Error when creating nexus organization for virtual lab {lab_id}",
@@ -53,7 +53,9 @@ class NexusOrganizationInterface:
 
             return NexusOrganization(**response.json())
         except Exception as ex:
-            logger.error(f"Error when fetching organization {lab_id} {ex}")
+            logger.error(
+                f"Error when fetching organization {lab_id} {ex}. Response {response.json()}"
+            )
             raise NexusError(
                 message=f"Error when fetching organization {lab_id}",
                 type=NexusErrorValue.FETCH_ORGANIZATION_ERROR,
@@ -74,7 +76,9 @@ class NexusOrganizationInterface:
             data = response.json()
             return NexusOrganization(**data)
         except Exception as ex:
-            logger.error(f"Error when deprecation organization {lab_id}: {ex}")
+            logger.error(
+                f"Error when deprecation organization {lab_id}: {ex}. Response {response.json()}"
+            )
             raise NexusError(
                 message=f"Error when deprecation organization {lab_id}",
                 type=NexusErrorValue.DEPRECATE_ORGANIZATION_ERROR,
@@ -96,7 +100,9 @@ class NexusOrganizationInterface:
             data = response.json()
             return NexusResultAcl(**data)
         except Exception as error:
-            logger.error(f"Error during fetching acls for lab {org_id} {error}")
+            logger.error(
+                f"Error during fetching acls for lab {org_id} {error}. Response {response.json()}"
+            )
             raise NexusError(
                 message=f"Error during fetching acls for lab {org_id}",
                 type=NexusErrorValue.FETCH_PROJECT_ACL_ERROR,
@@ -136,7 +142,7 @@ class NexusOrganizationInterface:
             return NexusAcls(**data)
         except Exception as ex:
             logger.error(
-                f"Error when adding acls for lab {org_id}, group {group_id}: {ex}"
+                f"Error when adding acls for lab {org_id}, group {group_id}: {ex}. Response {response.json()}"
             )
             raise NexusError(
                 message=f"Error when adding acls for lab {org_id}",
