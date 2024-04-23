@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 from urllib.parse import quote_plus as url_encode
 
 from httpx import AsyncClient
@@ -31,7 +31,6 @@ from virtual_labs.external.nexus.models import (
     NexusResource,
     NexusResultAcl,
 )
-from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.infrastructure.settings import settings
 
 
@@ -45,10 +44,10 @@ def create_context(vocab: str) -> Dict[str, Any]:
 class NexusProjectInterface:
     httpx_clt: AsyncClient
 
-    def __init__(self, httpx_clt: AsyncClient, auth: Tuple[AuthUser, str]) -> None:
+    def __init__(self, httpx_clt: AsyncClient, client_token: str) -> None:
         self.headers = {
             "Content-Type": "application/json",
-            "Authorization": "bearer {}".format(auth[1]),
+            "Authorization": f"bearer {client_token}",
         }
         self.httpx_clt = httpx_clt
         pass
@@ -476,6 +475,7 @@ class NexusProjectInterface:
             response = await self.httpx_clt.post(
                 nexus_resolver_url, headers=self.headers, json=payload
             )
+
             response.raise_for_status()
 
             data = response.json()

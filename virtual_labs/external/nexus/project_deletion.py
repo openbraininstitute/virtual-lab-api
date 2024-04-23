@@ -4,6 +4,7 @@ import httpx
 from pydantic import UUID4
 
 from virtual_labs.external.nexus.project_interface import NexusProjectInterface
+from virtual_labs.infrastructure.kc.auth import get_client_token
 from virtual_labs.infrastructure.kc.models import AuthUser
 
 
@@ -15,7 +16,7 @@ async def delete_nexus_project(
     async with httpx.AsyncClient(transport=transport) as httpx_clt:
         nexus_interface = NexusProjectInterface(
             httpx_clt,
-            auth,
+            get_client_token(),
         )
         revision = (
             await nexus_interface.retrieve_project(
