@@ -158,7 +158,6 @@ async def create_virtual_lab(
             description=lab.description,
             admin_group_id=group_ids["admin_group_id"],
             member_group_id=group_ids["member_group_id"],
-            auth=auth,
         )
         logger.info(f"Nexus org created {nexus_org}")
     except NexusError as ex:

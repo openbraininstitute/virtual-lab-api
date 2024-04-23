@@ -8,18 +8,17 @@ from virtual_labs.external.nexus.models import (
     NexusOrganization,
     NexusResultAcl,
 )
-from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.infrastructure.settings import settings
 
 
 class NexusOrganizationInterface:
     httpx_client: AsyncClient
 
-    def __init__(self, client: AsyncClient, auth: tuple[AuthUser, str]):
+    def __init__(self, client: AsyncClient, client_token: str):
         self.httpx_client = client
         self.headers = {
             "Content-Type": "application/json",
-            "Authorization": "bearer {}".format(auth[1]),
+            "Authorization": f"bearer {client_token}",
         }
 
     async def create_organization(

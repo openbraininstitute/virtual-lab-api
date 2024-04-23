@@ -7,10 +7,13 @@ from fastapi.security import (
     HTTPBearer,
     OAuth2AuthorizationCodeBearer,
 )
+from keycloak import KeycloakOpenIDConnection  # type: ignore
+from loguru import logger
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.exceptions.identity_error import IdentityError
-from virtual_labs.infrastructure.kc.models import AuthUser
+from virtual_labs.infrastructure.kc.models import AuthUser, ClientToken
+from virtual_labs.infrastructure.settings import settings
 
 from .config import kc_auth
 
@@ -84,3 +87,20 @@ def verify_jwt(
             message="Generating authentication details failed",
             details="The user details is not correct",
         )
+
+
+def get_client_token() -> str:
+    try:
+        keycloak_connection = KeycloakOpenIDConnection(
+            server_url=settings.KC_SERVER_URI,
+            realm_name=settings.KC_REALM_NAME,
+            client_id=settings.KC_CLIENT_ID,
+            client_secret_key=settings.KC_CLIENT_SECRET,
+            verify=True,
+        )
+        keycloak_connection.get_token()
+        token_details = ClientToken.model_validate(keycloak_connection.token)
+        return token_details.access_token
+    except Exception as error:
+        logger.error(f"Error retrieving client token {error}")
+        raise error

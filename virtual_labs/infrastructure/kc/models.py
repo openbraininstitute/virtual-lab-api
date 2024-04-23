@@ -44,3 +44,11 @@ class AuthUser(BaseModel):
     email: EmailStr
     email_verified: bool
     name: str
+
+
+class ClientToken(BaseModel):
+    access_token: str
+    expires_in: int
+
+    class Config:
+        from_attributes = True
