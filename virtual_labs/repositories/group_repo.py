@@ -65,12 +65,7 @@ class GroupMutationRepository:
         """
         try:
             group_id = self.Kc.create_group(
-                {
-                    "name": "vlab/{}/{}".format(vl_id, role.value),
-                    "attributes": {
-                        "_name": [vl_name],
-                    },
-                }
+                {"name": "vlab/{}/{}".format(vl_id, role.value)}
             )
 
             return cast(
@@ -101,13 +96,7 @@ class GroupMutationRepository:
         proj/virtual_lab_id/project_id/role
         """
         group_id = self.Kc.create_group(
-            {
-                "name": "proj/{}/{}/{}".format(virtual_lab_id, project_id, role.value),
-                "attributes": {
-                    "_name": [payload.name],
-                    "_description": [payload.description],
-                },
-            },
+            {"name": "proj/{}/{}/{}".format(virtual_lab_id, project_id, role.value)},
         )
 
         return cast(
