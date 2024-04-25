@@ -1,5 +1,4 @@
 import copy
-from http import HTTPStatus
 from typing import Any, AsyncGenerator, cast
 from uuid import uuid4
 
@@ -7,7 +6,7 @@ import pytest
 import pytest_asyncio
 from httpx import AsyncClient, Response
 
-from virtual_labs.tests.utils import get_headers
+from virtual_labs.tests.utils import cleanup_resources, get_headers
 
 
 @pytest_asyncio.fixture
@@ -23,14 +22,14 @@ async def mock_lab_create(
         "plan_id": 1,
     }
     headers = get_headers()
-    response = await client.post(
+    lab_delete_response = await client.post(
         "/virtual-labs",
         json=body,
         headers=headers,
     )
 
-    assert response.status_code == 200
-    lab_id = response.json()["data"]["virtual_lab"]["id"]
+    assert lab_delete_response.status_code == 200
+    lab_id = lab_delete_response.json()["data"]["virtual_lab"]["id"]
 
     project_body = {
         "name": f"Test Project {uuid4()}",
@@ -44,14 +43,7 @@ async def mock_lab_create(
     project_id = cast("str", project_response.json()["data"]["project"]["id"])
 
     yield client, lab_id, project_id, headers
-
-    lab_id = response.json()["data"]["virtual_lab"]["id"]
-
-    try:
-        response = await client.delete(f"/virtual-labs/{lab_id}", headers=get_headers())
-        assert response.status_code == HTTPStatus.OK
-    except Exception:
-        assert response.status_code == HTTPStatus.NOT_FOUND
+    await cleanup_resources(client=client, lab_id=lab_id)
 
 
 @pytest.mark.asyncio
