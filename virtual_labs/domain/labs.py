@@ -1,7 +1,16 @@
+import warnings
 from datetime import datetime
 from typing import Generic, TypeVar
 
-from pydantic import UUID4, BaseModel, EmailStr, JsonValue, field_validator
+from pydantic import (
+    UUID4,
+    BaseModel,
+    EmailStr,
+    JsonValue,
+    field_validator,
+    computed_field,
+    Field,
+)
 
 from virtual_labs.domain.invite import AddUser
 from virtual_labs.domain.user import UserWithInviteStatus
@@ -18,16 +27,19 @@ class VirtualLabBase(BaseModel):
     name: str
     description: str
     reference_email: EmailStr
-    budget: float
     entity: str
+    budget_amount: int = Field(exclude=True, default=0)
 
-    @field_validator("budget")
-    @classmethod
-    def check_budget_greater_than_0(cls, v: float) -> float:
-        if v <= 0:
-            raise ValueError("Budget should be greater than 0")
+    @computed_field  # type: ignore[misc]
+    @property
+    def budget(self) -> float:
+        return self.budget_amount // 100 + self.budget_amount % 100 / 100
 
-        return v
+    @budget.setter
+    def budget(_self, _value: float) -> None:
+        warnings.warn(
+            "Don't set budget directly, it will be computed based on budget_amount."
+        )
 
 
 class VirtualLabUpdate(BaseModel):

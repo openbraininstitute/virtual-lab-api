@@ -30,13 +30,26 @@ help:
 dev:
 	poetry run uvicorn virtual_labs.api:app --reload
 
-init: 
+dev-p:
+	@poetry run dotenv -f .env.local set STRIPE_WEBHOOK_SECRET $$(poetry run dotenv -f env-prep/stripe-data/.env.local get STRIPE_WEBHOOK_SECRET) > /dev/null
+	poetry run uvicorn virtual_labs.api:app --reload
+
+init:
 	./dev-init.sh
+
+init-dev-p:
+	./dev-p-init.sh
+
+compose-up-dev-p:
+	cd env-prep && docker compose --env-file .env.local -f docker-compose-dev-p.yml -p vlm-dev-p up --wait
+
+compose-down-dev-p:
+	cd env-prep && docker compose --env-file .env.local -f docker-compose-dev-p.yml -p vlm-dev-p down --remove-orphans --volumes
 
 kill: 
 	cd env-prep && docker compose -f docker-compose-dev.yml -p vlm-project down --remove-orphans --volumes
-				   
-build: 
+
+build:
 	docker build -t $(SERVICE_NAME) . --platform=linux/amd64
 
 format:

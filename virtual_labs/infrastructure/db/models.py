@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 
 from sqlalchemy import (
     JSON,
@@ -15,12 +16,22 @@ from sqlalchemy import (
     not_,
 )
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import DeclarativeBase, relationship
+from sqlalchemy.orm import DeclarativeBase, relationship, Mapped, mapped_column
 from sqlalchemy.sql import func
 
 
 class Base(DeclarativeBase):
     pass
+
+
+class VirtualLabTopup(Base):
+    __tablename__ = "virtual_lab_topup"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    virtual_lab_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("virtual_lab.id"))
+    amount: Mapped[int] = mapped_column()
+    created_at: Mapped[datetime] = mapped_column(default=func.now())
+    stripe_event_id: Mapped[str] = mapped_column()
 
 
 class VirtualLab(Base):
@@ -39,9 +50,11 @@ class VirtualLab(Base):
     reference_email = Column(String(255))
     entity = Column(String, nullable=False)
 
+    budget_amount = Column(Integer, nullable=False, default=0)
+
     budget = Column(
         Float, CheckConstraint("budget > 0"), nullable=False
-    )  # Amount in USD
+    )  # Amount in USD, deprecated in favour of budget_amount
 
     deleted = Column(Boolean, default=False, index=True)
     created_at = Column(DateTime, default=func.now())

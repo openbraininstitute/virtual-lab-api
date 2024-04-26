@@ -10,7 +10,7 @@ from sqlalchemy.sql import and_, or_
 from virtual_labs.core.types import PaginatedDbResult
 from virtual_labs.domain import labs
 from virtual_labs.domain.common import PageParams
-from virtual_labs.infrastructure.db.models import Project, VirtualLab
+from virtual_labs.infrastructure.db.models import Project, VirtualLab, VirtualLabTopup
 
 
 class VirtualLabDbCreate(labs.VirtualLabCreate):
@@ -84,7 +84,7 @@ async def get_virtual_lab_soft(db: AsyncSession, lab_id: UUID4) -> VirtualLab | 
 
 
 async def get_virtual_lab_async(db: AsyncSession, lab_id: UUID4) -> VirtualLab:
-    """Returns irtual lab by id. Raises an exception if the lab by id is not found.
+    """Returns virtual lab by id. Raises an exception if the lab by id is not found.
     The returned virtual lab might be deleted (i.e. Virtual.deleted might be True).
     """
     lab = await db.get(VirtualLab, lab_id)
@@ -216,3 +216,20 @@ async def retrieve_lab_distributed_budget(
     result = await session.execute(stmt)
     sum_budget_projects = result.t.scalar()
     return sum_budget_projects if sum_budget_projects else 0
+
+
+async def topup_virtual_lab(
+    db: AsyncSession,
+    lab_id: UUID4,
+    amount: int,
+    stripe_event_id: str,
+) -> None:
+    lab = await db.get(VirtualLab, lab_id)
+    assert lab
+    lab.budget_amount = VirtualLab.budget_amount + amount  # type: ignore[assignment]
+    db.add(
+        VirtualLabTopup(
+            virtual_lab_id=lab_id, amount=amount, stripe_event_id=stripe_event_id
+        )
+    )
+    await db.commit()
