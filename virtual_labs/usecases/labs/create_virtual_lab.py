@@ -78,6 +78,15 @@ async def invite_members_to_lab(
         try:
             user_to_invite = user_repo.retrieve_user_by_email(member.email)
             user_id = UUID(user_to_invite.id) if user_to_invite is not None else None
+            if user_id == inviter_id:
+                logger.error(
+                    f"User cannot invite oneself. Inviter {inviter_id}. Invitee {member.email}"
+                )
+                raise VliError(
+                    message=f"User with email {member.email} is already in lab {virtual_lab.name}",
+                    http_status_code=HTTPStatus.PRECONDITION_FAILED,
+                    error_code=VliErrorCode.ENTITY_ALREADY_EXISTS,
+                )
 
             invite = await invite_mutation_repo.add_lab_invite(
                 virtual_lab_id=UUID(str(virtual_lab.id)),

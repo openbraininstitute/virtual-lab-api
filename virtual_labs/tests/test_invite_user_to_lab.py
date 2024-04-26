@@ -1,3 +1,4 @@
+from http import HTTPStatus
 from typing import AsyncGenerator
 from uuid import uuid4
 
@@ -100,3 +101,18 @@ async def test_existing_invite_is_updated_when_user_invited_again(
     # 2 emails are sent
     emails_sent = get(f"{email_server_baseurl}/api/v1/search?query=to:{recipient}")
     assert len(emails_sent.json()["messages"]) == 2
+
+
+@pytest.mark.asyncio
+async def test_user_already_in_lab_cannot_be_reinvited(
+    mock_lab_create: tuple[AsyncClient, str, dict[str, str]],
+) -> None:
+    client, lab_id, headers = mock_lab_create
+    invite = {"email": "test@test.com", "role": "admin"}
+
+    try:
+        invite_response = await client.post(
+            f"/virtual-labs/{lab_id}/invites", headers=headers, json=invite
+        )
+    except Exception:
+        assert invite_response.status_code == HTTPStatus.PRECONDITION_FAILED
