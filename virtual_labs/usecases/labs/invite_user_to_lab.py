@@ -62,6 +62,19 @@ async def invite_user_to_lab(
         user_to_invite = user_repo.retrieve_user_by_email(invite_details.email)
         user_id = UUID(user_to_invite.id) if user_to_invite is not None else None
 
+        if user_id is not None and (
+            user_repo.is_user_in_group(user_id, str(lab.admin_group_id))
+            or user_repo.is_user_in_group(user_id, str(lab.member_group_id))
+        ):
+            logger.error(
+                f"User with email {invite_details.email} is already in lab {lab.name}"
+            )
+            raise VliError(
+                message=f"User with email {invite_details.email} is already in lab {lab.name}",
+                http_status_code=HTTPStatus.PRECONDITION_FAILED,
+                error_code=VliErrorCode.ENTITY_ALREADY_EXISTS,
+            )
+
         existing_invite = await invite_query_repo.get_lab_invite_by_params(
             lab_id=UUID(str(lab.id)),
             email=invite_details.email,
