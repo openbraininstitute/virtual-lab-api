@@ -19,6 +19,7 @@ async def test_invite_user_to_project(
     user_to_invite = "test-1"
     invite_payload = {"email": f"{user_to_invite}@test.com", "role": "admin"}
 
+    # invite user
     response = await client.post(
         f"/virtual-labs/{lab_id}/projects/{project_id}/invites",
         json=invite_payload,
@@ -26,11 +27,21 @@ async def test_invite_user_to_project(
     )
     assert response.status_code == HTTPStatus.OK
 
+    # accept invite
     invite_token = get_invite_token_from_email(f"{user_to_invite}@test.com")
     accept_invite_response = await client.post(
         f"/invites?token={invite_token}", headers=get_headers(username=user_to_invite)
     )
     assert accept_invite_response.status_code == HTTPStatus.OK
+    lab_response = await client.get(
+        f"/virtual-labs/{lab_id}", headers=get_headers(username=user_to_invite)
+    )
+    assert lab_response.status_code == HTTPStatus.OK
+    project_response = await client.get(
+        f"/virtual-labs/{lab_id}/projects/{project_id}",
+        headers=get_headers(username=user_to_invite),
+    )
+    assert project_response.status_code == HTTPStatus.OK
 
 
 @pytest.mark.asyncio

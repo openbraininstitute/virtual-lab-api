@@ -27,6 +27,7 @@ from virtual_labs.repositories.user_repo import (
     UserMutationRepository,
     UserQueryRepository,
 )
+from virtual_labs.shared.utils.is_user_in_lab import is_user_in_lab
 
 
 async def invitation_handler(
@@ -98,7 +99,7 @@ async def invitation_handler(
             project_invite = await invite_query_repo.get_project_invite_by_id(
                 invite_id=UUID(invite_id)
             )
-            project, _ = await project_query_repo.retrieve_one_project_by_id(
+            project, vlab = await project_query_repo.retrieve_one_project_by_id(
                 project_id=UUID(str(project_invite.project_id))
             )
             if project_invite.accepted:
@@ -134,6 +135,12 @@ async def invitation_handler(
                 user_id=UUID(user.id),
                 group_id=str(group_id),
             )
+
+            if not is_user_in_lab(UUID(user.id), vlab):
+                user_mut_repo.attach_user_to_group(
+                    user_id=UUID(user.id), group_id=str(vlab.member_group_id)
+                )
+
             await invite_mut_repo.update_project_invite(
                 invite_id=UUID(str(project_invite.id)),
                 properties={"accepted": True, "updated_at": func.now()},
