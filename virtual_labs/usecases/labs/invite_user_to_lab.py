@@ -16,6 +16,7 @@ from virtual_labs.repositories.invite_repo import (
     InviteQueryRepository,
 )
 from virtual_labs.repositories.user_repo import UserQueryRepository
+from virtual_labs.shared.utils.is_user_in_lab import is_user_in_lab
 
 
 async def send_email_to_user_or_rollback(
@@ -62,10 +63,8 @@ async def invite_user_to_lab(
         user_to_invite = user_repo.retrieve_user_by_email(invite_details.email)
         user_id = UUID(user_to_invite.id) if user_to_invite is not None else None
 
-        if user_id is not None and (
-            user_repo.is_user_in_group(user_id, str(lab.admin_group_id))
-            or user_repo.is_user_in_group(user_id, str(lab.member_group_id))
-        ):
+        # If user is already in lab, raise an error
+        if user_id is not None and (is_user_in_lab(user_id, lab)):
             logger.error(
                 f"User with email {invite_details.email} is already in lab {lab.name}"
             )

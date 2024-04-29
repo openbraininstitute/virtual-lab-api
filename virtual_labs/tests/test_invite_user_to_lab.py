@@ -109,10 +109,11 @@ async def test_user_already_in_lab_cannot_be_reinvited(
 ) -> None:
     client, lab_id, headers = mock_lab_create
     invite = {"email": "test@test.com", "role": "admin"}
-
-    try:
-        invite_response = await client.post(
-            f"/virtual-labs/{lab_id}/invites", headers=headers, json=invite
-        )
-    except Exception:
-        assert invite_response.status_code == HTTPStatus.PRECONDITION_FAILED
+    invite_response = await client.post(
+        f"/virtual-labs/{lab_id}/invites", headers=headers, json=invite
+    )
+    assert invite_response.status_code == HTTPStatus.PRECONDITION_FAILED
+    assert (
+        "User with email test@test.com is already in lab"
+        in invite_response.json()["message"]
+    )
