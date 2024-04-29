@@ -22,6 +22,7 @@ from virtual_labs.repositories.invite_repo import (
 from virtual_labs.repositories.project_repo import ProjectQueryRepository
 from virtual_labs.repositories.user_repo import UserQueryRepository
 from virtual_labs.shared.utils.auth import get_user_id_from_auth
+from virtual_labs.shared.utils.is_user_in_project import is_user_in_project
 
 
 async def invite_user_to_project(
@@ -52,10 +53,21 @@ async def invite_user_to_project(
         if user.email == invite_details.email:
             raise ValueError("Self invite is forbidden")
 
-        if invite is None:
-            user_to_invite = user_repo.retrieve_user_by_email(invite_details.email)
-            user_id = UUID(user_to_invite.id) if user_to_invite is not None else None
+        user_to_invite = user_repo.retrieve_user_by_email(invite_details.email)
+        user_id = UUID(user_to_invite.id) if user_to_invite is not None else None
 
+        # If user is already in project, raise an error
+        if user_id is not None and (is_user_in_project(user_id, project)):
+            logger.error(
+                f"User with email {invite_details.email} is already in project {project.name}"
+            )
+            raise VliError(
+                message=f"User with email {invite_details.email} is already in project {project.name}",
+                http_status_code=HTTPStatus.PRECONDITION_FAILED,
+                error_code=VliErrorCode.ENTITY_ALREADY_EXISTS,
+            )
+
+        if invite is None:
             invite = await invite_repo.add_project_invite(
                 project_id=project_id,
                 inviter_id=inviter_id,
@@ -122,6 +134,8 @@ async def invite_user_to_project(
             error_code=VliErrorCode.DATABASE_ERROR,
             http_status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
         )
+    except VliError as error:
+        raise error
     except Exception as error:
         logger.error(
             f"Invite could not be sent to user due to an unknown error {error}"
