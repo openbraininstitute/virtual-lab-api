@@ -1,4 +1,5 @@
-from typing import Any, Literal, Optional
+from os import getenv
+from typing import Any, Literal, Optional, TypeGuard, get_args
 
 from dotenv import load_dotenv
 from pydantic import EmailStr, PostgresDsn, ValidationInfo, field_validator
@@ -7,16 +8,26 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 load_dotenv("")
 
+_ENVS = Literal["dev", "test", "stage", "prod"]
+
+
+def _is_valid_env(env: str | None) -> TypeGuard[_ENVS]:
+    return env in get_args(_ENVS)
+
+
+_ENV = getenv("DEPLOYMENT_ENV")
+_DEPLOYMENT_ENV = _ENV if _is_valid_env(_ENV) else "dev"
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         # `.env.local` takes priority over `.env`
-        env_file=(".env", ".env.local")
+        env_file=(".env", f".env.{_DEPLOYMENT_ENV}", ".env.local")
     )
 
     APP_NAME: str = "virtual-lab-manager service"
     APP_DEBUG: bool = False
-    DEPLOYMENT_ENV: Literal["dev", "test", "production"] = "dev"
+    DEPLOYMENT_ENV: _ENVS = _DEPLOYMENT_ENV
     BASE_PATH: str = ""
     DEBUG_DATABASE_ECHO: bool = False
     CORS_ORIGINS: list[str] = []
