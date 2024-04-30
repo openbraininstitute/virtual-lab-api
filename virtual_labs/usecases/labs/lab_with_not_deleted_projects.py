@@ -77,4 +77,5 @@ def lab_with_not_deleted_projects(
         deleted=domain_lab.deleted,
         deleted_at=domain_lab.deleted_at,
         updated_at=domain_lab.updated_at,
+        entity=domain_lab.entity,
     )

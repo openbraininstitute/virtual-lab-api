@@ -36,6 +36,7 @@ class VirtualLab(Base):
     name = Column(String(250), index=True)
     description = Column(Text)
     reference_email = Column(String(255))
+    entity = Column(String, nullable=False)
 
     budget = Column(
         Float, CheckConstraint("budget > 0"), nullable=False

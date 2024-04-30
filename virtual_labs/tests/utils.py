@@ -58,6 +58,7 @@ async def create_mock_lab(
         "reference_email": "user@test.org",
         "budget": 10,
         "plan_id": 1,
+        "entity": "EPFL, Switzerland",
     }
     headers = get_headers(owner_username)
     response = await client.post(
@@ -78,6 +79,7 @@ async def create_mock_lab_with_project(
         "reference_email": "user@test.org",
         "budget": 10,
         "plan_id": 1,
+        "entity": "EPFL, Switzerland",
     }
     headers = get_headers(owner_username)
     lab_response = await client.post(
