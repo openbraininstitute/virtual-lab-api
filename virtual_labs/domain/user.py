@@ -5,6 +5,7 @@ from pydantic import (
     UUID4,
     AliasChoices,
     BaseModel,
+    EmailStr,
     Field,
     computed_field,
     field_validator,
@@ -14,6 +15,7 @@ from pydantic import (
 class ShortenedUser(BaseModel):
     id: UUID4 | None
     username: str
+    email: EmailStr
     createdTimestamp: Annotated[datetime, Field(alias="created_at", default="")]
     first_name: Annotated[
         str, Field(validation_alias=AliasChoices("firstName"), default="")
