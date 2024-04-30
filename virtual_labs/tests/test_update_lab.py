@@ -19,6 +19,7 @@ async def mock_lab_create(
         "reference_email": "user@test.org",
         "budget": 10,
         "plan_id": 1,
+        "entity": "EPFL, Switzerland",
     }
     headers = get_headers()
     response = await client.post(
@@ -39,7 +40,12 @@ async def test_update_lab(
 ) -> None:
     client, lab_id, headers = mock_lab_create
 
-    update_body = {"name": "New Name", "plan_id": 2, "budget": 200}
+    update_body = {
+        "name": "New Name",
+        "plan_id": 2,
+        "budget": 200,
+        "entity": "Max Planck",
+    }
     response = await client.patch(
         f"/virtual-labs/{lab_id}", headers=headers, json=update_body
     )
@@ -48,3 +54,4 @@ async def test_update_lab(
     assert data["name"] == update_body["name"]
     assert data["plan_id"] == update_body["plan_id"]
     assert data["budget"] == update_body["budget"]
+    assert data["entity"] == update_body["entity"]

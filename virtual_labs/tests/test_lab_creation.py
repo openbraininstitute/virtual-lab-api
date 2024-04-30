@@ -22,6 +22,7 @@ async def mock_lab_create(
         "reference_email": "user@test.org",
         "budget": 10,
         "plan_id": 1,
+        "entity": "EPFL, Switzerland",
     }
     headers = get_headers()
     response = await client.post(
@@ -47,6 +48,7 @@ async def mock_lab_create_with_users(
         "reference_email": "user@test.org",
         "budget": 10,
         "plan_id": 1,
+        "entity": "EPFL, Switzerland",
         "include_members": [
             {"email": "test-1@test.com", "role": "admin"},
             {"email": "test-2@test.com", "role": "member"},
@@ -141,6 +143,7 @@ async def test_virtual_lab_created_with_users(
             "budget": 10.0,
             "id": lab_id,
             "plan_id": 1,
+            "entity": "EPFL, Switzerland",
             "created_at": actual_response["virtual_lab"]["created_at"],
         },
         "successful_invites": [

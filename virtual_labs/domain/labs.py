@@ -20,6 +20,7 @@ class VirtualLabBase(BaseModel):
     description: str
     reference_email: EmailStr
     budget: float
+    entity: str
 
     @field_validator("budget")
     @classmethod
@@ -36,6 +37,7 @@ class VirtualLabUpdate(BaseModel):
     reference_email: EmailStr | None = None
     budget: float | None = None
     plan_id: int | None = None
+    entity: str | None = None
 
     @field_validator("budget")
     @classmethod
