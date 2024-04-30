@@ -70,7 +70,7 @@ async def invite_user_to_lab(
             )
             raise VliError(
                 message=f"User with email {invite_details.email} is already in lab {lab.name}",
-                http_status_code=HTTPStatus.PRECONDITION_FAILED,
+                http_status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
                 error_code=VliErrorCode.ENTITY_ALREADY_EXISTS,
             )
 
