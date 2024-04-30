@@ -112,7 +112,7 @@ async def test_user_already_in_lab_cannot_be_reinvited(
     invite_response = await client.post(
         f"/virtual-labs/{lab_id}/invites", headers=headers, json=invite
     )
-    assert invite_response.status_code == HTTPStatus.PRECONDITION_FAILED
+    assert invite_response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
     assert (
         "User with email test@test.com is already in lab"
         in invite_response.json()["message"]

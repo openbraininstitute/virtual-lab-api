@@ -63,7 +63,7 @@ async def invite_user_to_project(
             )
             raise VliError(
                 message=f"User with email {invite_details.email} is already in project {project.name}",
-                http_status_code=HTTPStatus.PRECONDITION_FAILED,
+                http_status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
                 error_code=VliErrorCode.ENTITY_ALREADY_EXISTS,
             )
 

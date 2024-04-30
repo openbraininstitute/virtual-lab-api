@@ -62,4 +62,4 @@ async def test_user_already_in_project_cannot_be_reinvited(
         json=invite_payload,
         headers=headers,
     )
-    assert reinvite_user_response.status_code == HTTPStatus.PRECONDITION_FAILED
+    assert reinvite_user_response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
