@@ -150,19 +150,21 @@ async def update_virtual_lab(
     return await get_undeleted_virtual_lab(db, lab_id)
 
 
-async def delete_virtual_lab(db: AsyncSession, lab_id: UUID4) -> VirtualLab:
+async def delete_virtual_lab(
+    db: AsyncSession, lab_id: UUID4, user_id: UUID4
+) -> VirtualLab:
     now = func.now()
     # Mark virtual lab as deleted
     await db.execute(
         update(VirtualLab)
         .where(VirtualLab.id == lab_id)
-        .values(deleted=True, deleted_at=now)
+        .values(deleted=True, deleted_at=now, deleted_by=user_id)
     )
     # Mark projects for the virtual lab as deleted
     await db.execute(
         update(Project)
-        .where(VirtualLab.id == lab_id)
-        .values(deleted=True, deleted_at=now)
+        .where(Project.virtual_lab_id == lab_id)
+        .values(deleted=True, deleted_at=now, deleted_by=user_id)
     )
 
     await db.commit()

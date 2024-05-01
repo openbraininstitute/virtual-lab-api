@@ -22,14 +22,14 @@ async def mock_lab_create(
         "plan_id": 1,
     }
     headers = get_headers()
-    lab_delete_response = await client.post(
+    lab_create_response = await client.post(
         "/virtual-labs",
         json=body,
         headers=headers,
     )
 
-    assert lab_delete_response.status_code == 200
-    lab_id = lab_delete_response.json()["data"]["virtual_lab"]["id"]
+    assert lab_create_response.status_code == 200
+    lab_id = lab_create_response.json()["data"]["virtual_lab"]["id"]
 
     project_body = {
         "name": f"Test Project {uuid4()}",

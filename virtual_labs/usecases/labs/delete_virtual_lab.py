@@ -35,7 +35,8 @@ async def delete_virtual_lab(
 ) -> LabByIdOut:
     try:
         db_lab = await repository.get_virtual_lab_async(db, lab_id)
-        lab = lab_with_not_deleted_projects(db_lab, get_user_id_from_auth(auth))
+        user_id = get_user_id_from_auth(auth)
+        lab = lab_with_not_deleted_projects(db_lab, user_id)
         users = (await get_virtual_lab_users(db, lab_id)).users
         lab_with_users = VirtualLabWithUsers.model_validate(
             lab.model_copy(update={"users": users})
@@ -47,7 +48,7 @@ async def delete_virtual_lab(
         nexus_org = await deprecate_nexus_organization(lab_id)
         logger.debug(f"Deprecated nexus organization {nexus_org.label}")
 
-        await repository.delete_virtual_lab(db, lab_id)
+        await repository.delete_virtual_lab(db, lab_id, user_id)
 
         response.virtual_lab.deleted = True
         response.virtual_lab.deleted_at = datetime.now()

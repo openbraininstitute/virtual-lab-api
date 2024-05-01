@@ -45,6 +45,7 @@ class VirtualLab(Base):
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, onupdate=func.now())
     deleted_at = Column(DateTime)
+    deleted_by = Column(UUID(as_uuid=True))
 
     projects = relationship("Project", back_populates="virtual_lab")
     invites = relationship("VirtualLabInvite", back_populates="virtual_lab")
