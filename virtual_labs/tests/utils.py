@@ -69,6 +69,39 @@ async def create_mock_lab(
     return response
 
 
+async def create_mock_lab_with_project(
+    client: AsyncClient, owner_username: str = "test"
+) -> tuple[str, str]:
+    body = {
+        "name": f"Test Lab {uuid4()}",
+        "description": "Test",
+        "reference_email": "user@test.org",
+        "budget": 10,
+        "plan_id": 1,
+    }
+    headers = get_headers(owner_username)
+    lab_response = await client.post(
+        "/virtual-labs",
+        json=body,
+        headers=headers,
+    )
+    assert lab_response.status_code == 200
+    lab_id = lab_response.json()["data"]["virtual_lab"]["id"]
+
+    project_body = {
+        "name": f"Test Project {uuid4()}",
+        "description": "Test",
+    }
+    project_response = await client.post(
+        f"/virtual-labs/{lab_id}/projects",
+        json=project_body,
+        headers=headers,
+    )
+
+    project_id = project_response.json()["data"]["project"]["id"]
+    return (lab_id, project_id)
+
+
 def get_invite_token_from_email_body(email_body: str) -> str:
     return email_body.split("?token=")[2].split("</a>\n")[0]
 
