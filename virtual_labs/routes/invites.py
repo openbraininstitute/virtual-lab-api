@@ -26,7 +26,7 @@ router = APIRouter(
     operation_id="invite_handler_test",
     summary="This will process the invite (add users to groups, update the invite status)",
     response_model=None,
-    include_in_schema=settings.DEPLOYMENT_ENV != "prod",
+    include_in_schema=settings.DEPLOYMENT_ENV != "production",
 )
 async def handle_test_invite(
     invite_id: UUID,

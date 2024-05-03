@@ -37,7 +37,7 @@ echo "get access token"
 
 if [ "$IS_CI" == "True" ]; then
     echo "start dev server"
-    DEPLOYMENT_ENV=env make dev &
+    make dev &
 
     echo "Checking that virtual lab server is ready to accept connections..."
     curl --retry 30 -f --retry-all-errors --retry-delay 2 -s -o /dev/null "http://localhost:8000/healthz"
@@ -72,5 +72,5 @@ if [ "$IS_CI" == "True" ]; then
   fi
 
   echo "start dev server"
-  DEPLOYMENT_ENV=env make dev
+  make dev
 fi

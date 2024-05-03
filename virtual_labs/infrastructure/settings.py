@@ -8,7 +8,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 load_dotenv("")
 
-_ENVS = Literal["dev", "test", "stage", "prod"]
+_ENVS = Literal["development", "testing", "staging", "production"]
 
 
 def _is_valid_env(env: str | None) -> TypeGuard[_ENVS]:
@@ -16,7 +16,7 @@ def _is_valid_env(env: str | None) -> TypeGuard[_ENVS]:
 
 
 _ENV = getenv("DEPLOYMENT_ENV")
-_DEPLOYMENT_ENV = _ENV if _is_valid_env(_ENV) else "dev"
+_DEPLOYMENT_ENV = _ENV if _is_valid_env(_ENV) else "development"
 
 
 class Settings(BaseSettings):
