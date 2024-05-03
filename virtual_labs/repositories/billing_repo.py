@@ -52,7 +52,7 @@ class BillingMutationRepository:
         brand: str,
         cardholder_name: str,
         cardholder_email: str,
-    ) -> None:
+    ) -> PaymentMethod:
         payment_method = PaymentMethod(
             stripe_payment_method_id=payment_method_id,
             user_id=user_id,
