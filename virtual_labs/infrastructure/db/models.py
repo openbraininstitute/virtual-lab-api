@@ -50,6 +50,7 @@ class VirtualLab(Base):
 
     projects = relationship("Project", back_populates="virtual_lab")
     invites = relationship("VirtualLabInvite", back_populates="virtual_lab")
+    payment_methods = relationship("PaymentMethod", back_populates="virtual_lab")
 
     plan_id = Column(Integer, ForeignKey("plan.id"))
     plan = relationship("Plan", back_populates="virtual_labs")
@@ -158,28 +159,24 @@ class VirtualLabInvite(Base):
     updated_at = Column(DateTime, onupdate=func.now(), default=func.now())
 
 
-# class PaymentCard(Base):
-#     __tablename__ = "payment_card"
+class PaymentMethod(Base):
+    __tablename__ = "payment_method"
 
-#     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-#     cardNumber = Column(String(19))
-#     expiration_date = Column(DateTime)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    stripe_payment_method_id = Column(String, nullable=False)
+    user_id = Column(UUID)
 
-#     created_at = Column(DateTime, default=datetime.utcnow)
-#     updated_at = Column(DateTime, onupdate=datetime.utcnow)
+    customerId = Column(String, nullable=False)
+    card_number = Column(String(4), nullable=False)
+    brand = Column(String, nullable=False)
+    cardholder_name = Column(String, nullable=False)
+    cardholder_email = Column(String, nullable=False)
+    expire_at = Column(String, nullable=False)
 
-#     virtual_lab_id = Column(
-#         "virtual_lab_id", UUID(as_uuid=True), ForeignKey("virtual_lab.id")
-#     )
-#     virtual_lab = relationship("VirtualLab")
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, onupdate=func.now())
 
-
-# class Billing(Base):
-#     __tablename__ = "billing"
-
-#     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-
-#     payment_card_id = Column(
-#         "payment_card_id", UUID(as_uuid=True), ForeignKey("payment_card.id")
-#     )
-#     payment_card = relationship("PaymentCard")
+    virtual_lab_id = Column(
+        "virtual_lab_id", UUID(as_uuid=True), ForeignKey("virtual_lab.id")
+    )
+    virtual_lab = relationship("VirtualLab", back_populates="payment_methods")
