@@ -2,7 +2,7 @@ from typing import AsyncGenerator
 from uuid import uuid4
 
 import pytest_asyncio
-from httpx import AsyncClient, Response
+from httpx import AsyncClient
 
 from virtual_labs.tests.utils import get_headers
 
@@ -34,8 +34,8 @@ async def mock_create_lab(
 @pytest_asyncio.fixture
 async def mock_create_payment_methods(
     async_test_client: AsyncClient,
-    mock_create_lab: tuple[Response, dict[str, str]],
-) -> AsyncGenerator[tuple[Response, list[dict[str, str]], dict[str, str]], None]:
+    mock_create_lab: tuple[str, dict[str, str]],
+) -> AsyncGenerator[tuple[str, list[dict[str, str]], dict[str, str]], None]:
     client = async_test_client
     virtual_lab_id, headers = mock_create_lab
 
