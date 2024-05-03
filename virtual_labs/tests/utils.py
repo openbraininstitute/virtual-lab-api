@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.infrastructure.db.config import session_pool
 from virtual_labs.infrastructure.db.models import (
+    PaymentMethod,
     Project,
     ProjectInvite,
     ProjectStar,
@@ -180,7 +181,11 @@ async def cleanup_resources(client: AsyncClient, lab_id: str) -> None:
         ).one()
         await session.commit()
 
-    # 3. Delete KC groups
+    # 3. Delete Payment Methods
+    async with session_context_factory() as session:
+        await session.execute(statement=delete(PaymentMethod))
+
+    # 4. Delete KC groups
     group_repo = GroupMutationRepository()
     for project_group_id in project_group_ids:
         group_repo.delete_group(group_id=project_group_id[0])
