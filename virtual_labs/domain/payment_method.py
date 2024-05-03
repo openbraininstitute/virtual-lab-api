@@ -1,10 +1,12 @@
 from datetime import datetime
 from typing import List
 
-from pydantic import UUID4, BaseModel, EmailStr, Field
+from pydantic import UUID4, BaseModel, ConfigDict, EmailStr, Field
 
 
 class PaymentMethod(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: UUID4
     brand: str
     card_number: str
@@ -14,9 +16,6 @@ class PaymentMethod(BaseModel):
 
     created_at: datetime
     updated_at: datetime | None
-
-    class Config:
-        from_attributes = True
 
 
 class PaymentMethodsOut(BaseModel):
