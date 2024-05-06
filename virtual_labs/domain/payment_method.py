@@ -33,7 +33,11 @@ class PaymentMethodCreationBody(BaseModel):
     name: str
     email: EmailStr
     expireAt: str = Field(
-        min_length=7, max_length=7, pattern=r"^(0[1-9]|1[0-2])\/\d{4}$"
+        min_length=7,
+        max_length=7,
+        pattern=r"^(0[1-9]|1[0-2])\/\d{4}$",
+        description="Stripe expire date format: MM/YYYY",
+        examples=["12/2024"],
     )
     paymentMethodId: str
     brand: str

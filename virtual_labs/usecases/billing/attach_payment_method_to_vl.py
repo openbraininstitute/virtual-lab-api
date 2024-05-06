@@ -46,8 +46,7 @@ async def attach_payment_method_to_virtual_lab(
             },
         )
 
-    except SQLAlchemyError as ex:
-        print("ex", ex)
+    except SQLAlchemyError:
         raise VliError(
             error_code=VliErrorCode.DATABASE_ERROR,
             http_status_code=status.BAD_REQUEST,
