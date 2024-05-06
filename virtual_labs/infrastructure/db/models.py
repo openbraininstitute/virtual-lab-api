@@ -32,6 +32,7 @@ class VirtualLab(Base):
     member_group_id = Column(String, nullable=False, unique=True)
 
     nexus_organization_id = Column(String, nullable=False, unique=True)
+    stripe_customer_id = Column(String, nullable=False, unique=True)
 
     name = Column(String(250), index=True)
     description = Column(Text)
@@ -166,7 +167,6 @@ class PaymentMethod(Base):
     stripe_payment_method_id = Column(String, nullable=False)
     user_id = Column(UUID)
 
-    customerId = Column(String, nullable=False)
     card_number = Column(String(4), nullable=False)
     brand = Column(String, nullable=False)
     cardholder_name = Column(String, nullable=False)
