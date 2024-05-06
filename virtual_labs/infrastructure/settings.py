@@ -63,6 +63,8 @@ class Settings(BaseSettings):
     INVITE_EXPIRES_IN_DAYS: int = 7
     INVITE_LINK_BASE: str = "http://localhost:3000/"
 
+    STRIPE_SECRET_KEY: str = "sk_test_xxxx"
+
     @field_validator("DATABASE_URI", mode="before")
     @classmethod
     def build_db_connection(cls, v: Optional[str], values: ValidationInfo) -> Any:

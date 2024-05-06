@@ -19,6 +19,7 @@ class VirtualLabDbCreate(labs.VirtualLabCreate):
     admin_group_id: str
     member_group_id: str
     nexus_organization_id: str
+    stripe_customer_id: str
 
 
 def get_all_virtual_lab_for_user(db: Session) -> List[VirtualLab]:
@@ -102,6 +103,7 @@ async def create_virtual_lab(db: AsyncSession, lab: VirtualLabDbCreate) -> Virtu
         description=lab.description,
         reference_email=lab.reference_email,
         nexus_organization_id=str(lab.nexus_organization_id),
+        stripe_customer_id=str(lab.stripe_customer_id),
         projects=[],
         budget=lab.budget,
         plan_id=lab.plan_id,
