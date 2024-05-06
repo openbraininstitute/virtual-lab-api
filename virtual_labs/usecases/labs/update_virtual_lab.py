@@ -1,14 +1,19 @@
 from http import HTTPStatus
 
+import stripe
 from loguru import logger
 from pydantic import UUID4
 from sqlalchemy.exc import IntegrityError, NoResultFound, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
+from stripe import StripeClient
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.domain import labs as domain
+from virtual_labs.infrastructure.settings import settings
 from virtual_labs.repositories import labs as repository
 from virtual_labs.usecases.plans.verify_plan import verify_plan
+
+stripe_client = StripeClient(settings.STRIPE_SECRET_KEY)
 
 
 async def update_virtual_lab(
@@ -18,6 +23,15 @@ async def update_virtual_lab(
         if lab.plan_id is not None:
             await verify_plan(db, lab.plan_id)
         db_lab = await repository.update_virtual_lab(db, lab_id, lab)
+
+        stripe_client.customers.update(
+            db_lab.stripe_customer_id,
+            {
+                "name": str(db_lab.name),
+                "email": str(db_lab.reference_email),
+            },
+        )
+
         return domain.VirtualLabOut(
             virtual_lab=domain.VirtualLabDetails.model_validate(db_lab)
         )
@@ -55,6 +69,13 @@ async def update_virtual_lab(
             message="Virtual lab could not be saved to the database",
             error_code=VliErrorCode.DATABASE_ERROR,
             http_status_code=HTTPStatus.BAD_REQUEST,
+        )
+    except stripe.StripeError as ex:
+        logger.error(f"Error during updating stripe customer :({ex})")
+        raise VliError(
+            message="updating stripe customer failed",
+            error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
+            http_status_code=HTTPStatus.BAD_GATEWAY,
         )
     except VliError as error:
         raise error
