@@ -5,6 +5,7 @@ from uuid import UUID, uuid4
 
 from httpx import AsyncClient, Response
 from loguru import logger
+from requests import get
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -107,6 +108,15 @@ async def create_mock_lab_with_project(
 
 def get_invite_token_from_email_body(email_body: str) -> str:
     return email_body.split("?token=")[2].split("</a>\n")[0]
+
+
+def get_invite_token_from_email(recipient_email: str) -> str:
+    email_body = get(
+        f"{email_server_baseurl}/view/latest.html?query=to:{recipient_email}"
+    ).text
+
+    encoded_invite_token = get_invite_token_from_email_body(email_body)
+    return encoded_invite_token
 
 
 async def cleanup_resources(client: AsyncClient, lab_id: str) -> None:
