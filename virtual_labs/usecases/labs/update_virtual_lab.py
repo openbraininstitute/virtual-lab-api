@@ -25,7 +25,7 @@ async def update_virtual_lab(
         db_lab = await repository.update_virtual_lab(db, lab_id, lab)
 
         stripe_client.customers.update(
-            db_lab.stripe_customer_id,
+            str(db_lab.stripe_customer_id),
             {
                 "name": str(db_lab.name),
                 "email": str(db_lab.reference_email),
