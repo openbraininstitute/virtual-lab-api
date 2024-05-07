@@ -11,6 +11,8 @@ from pydantic import (
     field_validator,
 )
 
+from virtual_labs.core.types import UserRoleEnum
+
 
 class ShortenedUser(BaseModel):
     id: UUID4 | None
@@ -43,4 +45,4 @@ class ShortenedUser(BaseModel):
 
 class UserWithInviteStatus(ShortenedUser):
     invite_accepted: bool
-    role: str
+    role: UserRoleEnum

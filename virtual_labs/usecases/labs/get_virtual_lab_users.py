@@ -52,7 +52,7 @@ async def get_virtual_lab_users(db: AsyncSession, lab_id: UUID4) -> VirtualLabUs
             UserWithInviteStatus(
                 **admin.model_dump(),
                 invite_accepted=True,
-                role=UserRoleEnum.admin.value,
+                role=UserRoleEnum.admin,
             )
             for admin in group_repo.retrieve_group_users(str(lab.admin_group_id))
         ]
@@ -60,7 +60,7 @@ async def get_virtual_lab_users(db: AsyncSession, lab_id: UUID4) -> VirtualLabUs
             UserWithInviteStatus(
                 **member.model_dump(),
                 invite_accepted=True,
-                role=UserRoleEnum.member.value,
+                role=UserRoleEnum.member,
             )
             for member in group_repo.retrieve_group_users(str(lab.member_group_id))
         ]
@@ -72,7 +72,9 @@ async def get_virtual_lab_users(db: AsyncSession, lab_id: UUID4) -> VirtualLabUs
                     user_email=str(invite.user_email),
                 ).model_dump(),
                 invite_accepted=False,
-                role=str(invite.role),  # TODO: Convert to enum
+                role=UserRoleEnum.admin
+                if str(invite.role) == UserRoleEnum.admin.value
+                else UserRoleEnum.member,
             )
             for invite in invites
         ]
