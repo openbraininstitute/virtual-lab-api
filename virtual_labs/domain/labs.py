@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Generic, TypeVar
 
-from pydantic import UUID4, BaseModel, EmailStr, Field, JsonValue, field_validator
+from pydantic import UUID4, BaseModel, EmailStr, JsonValue, field_validator
 
 from virtual_labs.domain.invite import AddUser
 from virtual_labs.domain.user import UserWithInviteStatus
@@ -66,10 +66,6 @@ class VirtualLabDetails(VirtualLabBase):
     nexus_organization_id: str
 
     updated_at: datetime | None = None
-
-    admin: UserWithInviteStatus = Field(
-        description="First admin of the lab in alphabetic order"
-    )
 
     class Config:
         from_attributes = True
