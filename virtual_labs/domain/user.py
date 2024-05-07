@@ -39,3 +39,8 @@ class ShortenedUser(BaseModel):
     class Config:
         from_attributes = True
         # populate_by_name = True
+
+
+class UserWithInviteStatus(ShortenedUser):
+    invite_accepted: bool
+    role: str

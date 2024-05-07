@@ -7,7 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.types import UserRoleEnum
-from virtual_labs.domain.labs import UserWithInviteStatus, VirtualLabUsers
+from virtual_labs.domain.labs import VirtualLabUsers
+from virtual_labs.domain.user import UserWithInviteStatus
 from virtual_labs.infrastructure.kc.models import (
     UserNotInKCRepresentation,
     UserRepresentation,

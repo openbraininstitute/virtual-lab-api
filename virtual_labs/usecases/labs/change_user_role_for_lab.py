@@ -11,7 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.exceptions.identity_error import IdentityError
 from virtual_labs.core.types import UserRoleEnum
-from virtual_labs.domain.labs import LabResponse, UserWithInviteStatus, VirtualLabUser
+from virtual_labs.domain.labs import LabResponse, VirtualLabUser
+from virtual_labs.domain.user import UserWithInviteStatus
 from virtual_labs.repositories import labs as lab_repository
 from virtual_labs.repositories.user_repo import (
     UserMutationRepository,

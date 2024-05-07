@@ -4,7 +4,7 @@ from typing import Generic, TypeVar
 from pydantic import UUID4, BaseModel, EmailStr, Field, JsonValue, field_validator
 
 from virtual_labs.domain.invite import AddUser
-from virtual_labs.domain.user import ShortenedUser
+from virtual_labs.domain.user import UserWithInviteStatus
 
 T = TypeVar("T")
 
@@ -57,11 +57,6 @@ class PlanDomain(BaseModel):
 
     class Config:
         from_attributes = True
-
-
-class UserWithInviteStatus(ShortenedUser):
-    invite_accepted: bool
-    role: str
 
 
 class VirtualLabDetails(VirtualLabBase):
