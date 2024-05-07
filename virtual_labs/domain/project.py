@@ -1,11 +1,11 @@
 from datetime import datetime
 from typing import List, Optional
 
-from pydantic import UUID4, BaseModel, EmailStr, Field
+from pydantic import UUID4, BaseModel, EmailStr
 
 from virtual_labs.core.types import UserRoleEnum
 from virtual_labs.domain.invite import AddUser
-from virtual_labs.domain.user import ShortenedUser, UserWithInviteStatus
+from virtual_labs.domain.user import UserWithInviteStatus
 
 
 class VirtualLabModel(BaseModel):
@@ -41,9 +41,6 @@ class Project(BaseModel):
 
 class ProjectVlOut(Project):
     virtual_lab_id: UUID4
-    admin: ShortenedUser = Field(
-        description="Alphabetically first admin of the project"
-    )
 
 
 class ProjectExistenceOut(BaseModel):

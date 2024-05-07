@@ -34,7 +34,6 @@ from virtual_labs.repositories.user_repo import (
     UserQueryRepository,
 )
 from virtual_labs.shared.utils.auth import get_user_id_from_auth
-from virtual_labs.shared.utils.get_one_project_admin import get_one_project_admin
 
 
 async def invite_project_members(
@@ -250,9 +249,7 @@ async def create_new_project_use_case(
         return VliResponse.new(
             message="Project created successfully",
             data={
-                "project": ProjectVlOut(
-                    **project.__dict__, admin=get_one_project_admin(project)
-                ),
+                "project": ProjectVlOut.model_validate(project),
                 "virtual_lab_id": virtual_lab_id,
                 "failed_invites": failed_invites,
             },
