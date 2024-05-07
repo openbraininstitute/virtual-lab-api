@@ -28,7 +28,7 @@ router = APIRouter(
 
 
 @router.get(
-    "/{virtual_lab_id}/billing/payment_methods",
+    "/{virtual_lab_id}/billing/payment-methods",
     operation_id="retrieve_vl_payment_methods",
     summary="Retrieve payment methods for a specific virtual lab",
     response_model=VliAppResponse[PaymentMethodsOut],
@@ -46,7 +46,7 @@ async def retrieve_vl_payment_methods(
 
 
 @router.post(
-    "/{virtual_lab_id}/billing/payment_methods",
+    "/{virtual_lab_id}/billing/payment-methods",
     operation_id="add_new_vl_payment_methods",
     summary="Add new payment method to a specific virtual lab",
     response_model=VliAppResponse[PaymentMethodOut],
