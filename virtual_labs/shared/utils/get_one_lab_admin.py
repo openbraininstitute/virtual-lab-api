@@ -4,7 +4,7 @@ from loguru import logger
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.types import UserRoleEnum
-from virtual_labs.domain.labs import UserWithInviteStatus
+from virtual_labs.domain.user import UserWithInviteStatus
 from virtual_labs.infrastructure.db.models import VirtualLab
 from virtual_labs.repositories.group_repo import GroupQueryRepository
 
