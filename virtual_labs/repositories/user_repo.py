@@ -83,6 +83,9 @@ class UserQueryRepository:
         current_groups = [group.id for group in self.retrieve_user_groups(user_id)]
         return group_id in current_groups
 
+    def get_all_users_count(self) -> int:
+        return len(self.Kc.get_users())
+
 
 class UserMutationRepository:
     Kc: KeycloakAdmin
