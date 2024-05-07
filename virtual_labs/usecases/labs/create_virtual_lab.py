@@ -188,9 +188,9 @@ async def create_virtual_lab(
         customer = stripe_client.customers.create(
             {
                 "name": lab.name,
-                "email": lab.reference_email,
+                "email": str(lab.reference_email),
                 "metadata": {
-                    "virtual_lab_id": new_lab_id,
+                    "virtual_lab_id": str(new_lab_id),
                 },
             }
         )
