@@ -15,7 +15,6 @@ from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.repositories.group_repo import GroupQueryRepository
 from virtual_labs.repositories.project_repo import ProjectQueryRepository
 from virtual_labs.shared.utils.auth import get_user_id_from_auth
-from virtual_labs.shared.utils.get_one_project_admin import get_one_project_admin
 
 
 async def retrieve_all_user_projects_per_vl_use_case(
@@ -39,14 +38,7 @@ async def retrieve_all_user_projects_per_vl_use_case(
             pagination=pagination,
         )
 
-        projects = [
-            {
-                **ProjectVlOut(
-                    **p.__dict__, admin=get_one_project_admin(p)
-                ).model_dump(),
-            }
-            for p, v in results.rows
-        ]
+        projects = [ProjectVlOut.model_validate(p) for p, v in results.rows]
     except SQLAlchemyError:
         raise VliError(
             error_code=VliErrorCode.DATABASE_ERROR,

@@ -16,7 +16,6 @@ from virtual_labs.external.nexus.project_interface import NexusProjectInterface
 from virtual_labs.infrastructure.kc.auth import get_client_token
 from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.repositories.project_repo import ProjectMutationRepository
-from virtual_labs.shared.utils.get_one_project_admin import get_one_project_admin
 
 
 async def update_project_data(
@@ -69,9 +68,5 @@ async def update_project_data(
     else:
         return VliResponse.new(
             message="Project data updated successfully",
-            data={
-                "project": ProjectVlOut(
-                    **project.__dict__, admin=get_one_project_admin(project)
-                ),
-            },
+            data={"project": ProjectVlOut.model_validate(project)},
         )
