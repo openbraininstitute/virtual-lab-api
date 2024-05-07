@@ -6,6 +6,7 @@ from fastapi import Response
 from jwt import ExpiredSignatureError, PyJWTError
 from loguru import logger
 from sqlalchemy import func
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
@@ -171,6 +172,16 @@ async def invitation_handler(
             http_status_code=status.BAD_REQUEST,
             message="Invite Token is not valid",
             details="Invitation token is malformed",
+        )
+    except SQLAlchemyError:
+        logger.error(
+            f"Invite {decoded_token.get('invite_id', None)} not found for origin {decoded_token.get('origin')}"
+        )
+        raise VliError(
+            error_code=VliErrorCode.INVALID_REQUEST,
+            http_status_code=status.NOT_FOUND,
+            message="No invite was found for this link",
+            details="The invite link is either malformed or the invite is deleted",
         )
     except (ValueError, AssertionError) as ex:
         logger.error(f"Could not retrieve users from keycloak: ({ex})")
