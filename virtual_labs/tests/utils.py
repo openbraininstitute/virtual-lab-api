@@ -8,6 +8,7 @@ from loguru import logger
 from requests import get
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from stripe import SetupIntent
 
 from virtual_labs.infrastructure.db.config import session_pool
 from virtual_labs.infrastructure.db.models import (
@@ -207,8 +208,8 @@ async def cleanup_resources(client: AsyncClient, lab_id: str) -> None:
     group_repo.delete_group(group_id=lab_data[1])
 
 
-def create_confirmed_setup_intent() -> str:
-    setup_intent = test_stripe_client.setup_intents.create()
+def create_confirmed_setup_intent(customer_id: str) -> SetupIntent:
+    setup_intent = test_stripe_client.setup_intents.create({"customer": customer_id})
     setup_intent_confirmed = test_stripe_client.setup_intents.confirm(
         setup_intent.id,
         {
@@ -216,5 +217,8 @@ def create_confirmed_setup_intent() -> str:
             "payment_method": "pm_card_visa",
         },
     )
+    intent = test_stripe_client.setup_intents.retrieve(
+        setup_intent_confirmed.id, {"expand": ["payment_method"]}
+    )
 
-    return setup_intent_confirmed.id
+    return intent
