@@ -46,7 +46,6 @@ class BillingMutationRepository:
         virtual_lab_id: UUID4,
         user_id: UUID4,
         payment_method_id: str,
-        customer_id: str,
         card_number: str,
         expire_at: str,
         brand: str,
@@ -54,15 +53,14 @@ class BillingMutationRepository:
         cardholder_email: str,
     ) -> PaymentMethod:
         payment_method = PaymentMethod(
-            stripe_payment_method_id=payment_method_id,
             user_id=user_id,
-            customerId=customer_id,
-            card_number=card_number,
-            brand=brand,
+            virtual_lab_id=virtual_lab_id,
+            stripe_payment_method_id=payment_method_id,
             cardholder_name=cardholder_name,
             cardholder_email=cardholder_email,
+            card_number=card_number,
+            brand=brand,
             expire_at=expire_at,
-            virtual_lab_id=virtual_lab_id,
         )
 
         self.session.add(payment_method)

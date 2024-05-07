@@ -63,7 +63,8 @@ class Settings(BaseSettings):
     INVITE_EXPIRES_IN_DAYS: int = 7
     INVITE_LINK_BASE: str = "http://localhost:3000/"
 
-    STRIPE_SECRET_KEY: str = "sk_test_xxxx"
+    STRIPE_SECRET_KEY: str = "sk_test_51PC03bFjhkSGAqrA4yCXKDmA8NN1DV2hkLu9ixpBYSGdQ86SXqlFEdz0Bsoo067s5CemI1TPmQTgm72bTMSwMtNs00JCAWNapu"
+    TEST_STRIPE_SECRET_KEY: str = "sk_test_51PC03bFjhkSGAqrA4yCXKDmA8NN1DV2hkLu9ixpBYSGdQ86SXqlFEdz0Bsoo067s5CemI1TPmQTgm72bTMSwMtNs00JCAWNapu"
 
     @field_validator("DATABASE_URI", mode="before")
     @classmethod

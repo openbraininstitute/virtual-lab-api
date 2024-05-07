@@ -5,15 +5,12 @@ from loguru import logger
 from pydantic import UUID4
 from sqlalchemy.exc import IntegrityError, NoResultFound, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
-from stripe import StripeClient
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.domain import labs as domain
-from virtual_labs.infrastructure.settings import settings
+from virtual_labs.infrastructure.stripe.config import stripe_client
 from virtual_labs.repositories import labs as repository
 from virtual_labs.usecases.plans.verify_plan import verify_plan
-
-stripe_client = StripeClient(settings.STRIPE_SECRET_KEY)
 
 
 async def update_virtual_lab(
