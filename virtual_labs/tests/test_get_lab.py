@@ -67,7 +67,6 @@ async def test_get_lab_by_id(
         "plan_id": lab["plan_id"],
         "created_at": lab["created_at"],
         "nexus_organization_id": lab["nexus_organization_id"],
-        "admin": lab["admin"],
         "updated_at": None,
     }
     actual_response = response.json()["data"]["virtual_lab"]
