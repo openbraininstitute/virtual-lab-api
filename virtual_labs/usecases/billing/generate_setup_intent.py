@@ -27,6 +27,7 @@ async def generate_setup_intent(
         setup_intent = stripe_client.setup_intents.create(
             {
                 "customer": str(vlab.stripe_customer_id),
+                "payment_method_types": ["card"],
                 "metadata": {
                     "virtual_lab_id": str(virtual_lab_id),
                 },
