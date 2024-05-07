@@ -54,7 +54,7 @@ async def change_user_role_for_lab(
                 message="User already has this role",
                 data=VirtualLabUser(
                     user=UserWithInviteStatus(
-                        **user.model_dump(), invite_accepted=True, role=new_role.value
+                        **user.model_dump(), invite_accepted=True, role=new_role
                     )
                 ),
             )
@@ -75,7 +75,7 @@ async def change_user_role_for_lab(
             message="Successfully changed user role",
             data=VirtualLabUser(
                 user=UserWithInviteStatus(
-                    **user.model_dump(), invite_accepted=True, role=new_role.value
+                    **user.model_dump(), invite_accepted=True, role=new_role
                 )
             ),
         )

@@ -1,5 +1,4 @@
 from http import HTTPStatus as status
-from typing import List
 
 from fastapi.responses import Response
 from loguru import logger
@@ -9,10 +8,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.response.api_response import VliResponse
-from virtual_labs.domain.user import ShortenedUser
-from virtual_labs.infrastructure.kc.models import UserRepresentation
+from virtual_labs.core.types import UserRoleEnum
+from virtual_labs.domain.user import UserWithInviteStatus
 from virtual_labs.repositories.group_repo import GroupQueryRepository
+from virtual_labs.repositories.invite_repo import InviteQueryRepository
 from virtual_labs.repositories.project_repo import ProjectQueryRepository
+from virtual_labs.repositories.user_repo import UserQueryRepository
+from virtual_labs.usecases.labs.get_virtual_lab_users import get_pending_user
 
 
 async def retrieve_all_users_per_project_use_case(
@@ -22,6 +24,8 @@ async def retrieve_all_users_per_project_use_case(
 ) -> Response | VliError:
     gqr = GroupQueryRepository()
     pqr = ProjectQueryRepository(session)
+    invite_repo = InviteQueryRepository(session)
+    user_repo = UserQueryRepository()
 
     try:
         project, _ = await pqr.retrieve_one_project_strict(
@@ -35,13 +39,37 @@ async def retrieve_all_users_per_project_use_case(
         )
 
     try:
-        members = gqr.retrieve_group_users(str(project.member_group_id))
-        admins = gqr.retrieve_group_users(str(project.admin_group_id))
-        users: List[UserRepresentation] = list(
-            {v.id: v for v in admins + members}.values()
-        )
-
-        shortened_users = [ShortenedUser(**u.__dict__) for u in users]
+        admins = [
+            UserWithInviteStatus(
+                **admin.model_dump(),
+                invite_accepted=True,
+                role=UserRoleEnum.admin,
+            )
+            for admin in gqr.retrieve_group_users(str(project.admin_group_id))
+        ]
+        members = [
+            UserWithInviteStatus(
+                **member.model_dump(),
+                invite_accepted=True,
+                role=UserRoleEnum.member,
+            )
+            for member in gqr.retrieve_group_users(str(project.member_group_id))
+        ]
+        pending_invites = await invite_repo.get_pending_users_for_project(project_id)
+        pending_users = [
+            UserWithInviteStatus(
+                **get_pending_user(
+                    user=(user_repo.retrieve_user_by_email(str(invite.user_email))),
+                    user_email=str(invite.user_email),
+                ).model_dump(),
+                invite_accepted=False,
+                role=UserRoleEnum.admin
+                if str(invite.role) == UserRoleEnum.admin.value
+                else UserRoleEnum.member,
+            )
+            for invite in pending_invites
+        ]
+        users = admins + members + pending_users
     except SQLAlchemyError:
         raise VliError(
             error_code=VliErrorCode.DATABASE_ERROR,
@@ -58,5 +86,5 @@ async def retrieve_all_users_per_project_use_case(
     else:
         return VliResponse.new(
             message="Users found successfully",
-            data={"users": shortened_users, "total": len(users)},
+            data={"users": users, "total": len(users)},
         )

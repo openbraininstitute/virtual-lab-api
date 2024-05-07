@@ -5,7 +5,7 @@ from pydantic import UUID4, BaseModel, EmailStr, Field
 
 from virtual_labs.core.types import UserRoleEnum
 from virtual_labs.domain.invite import AddUser
-from virtual_labs.domain.user import ShortenedUser
+from virtual_labs.domain.user import ShortenedUser, UserWithInviteStatus
 
 
 class VirtualLabModel(BaseModel):
@@ -123,7 +123,7 @@ class ProjectStar(BaseModel):
 
 
 class ProjectUsersOut(BaseModel):
-    users: List[ShortenedUser]
+    users: List[UserWithInviteStatus]
     total: int
 
 

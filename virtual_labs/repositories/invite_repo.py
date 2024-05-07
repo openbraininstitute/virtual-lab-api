@@ -1,7 +1,7 @@
 from typing import Any, Dict
 
 from pydantic import UUID4, EmailStr
-from sqlalchemy import func, select, update
+from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,6 +18,18 @@ class InviteQueryRepository:
     async def get_pending_users_for_lab(self, lab_id: UUID4) -> list[VirtualLabInvite]:
         query = select(VirtualLabInvite).filter(
             VirtualLabInvite.virtual_lab_id == lab_id, ~VirtualLabInvite.accepted
+        )
+        invites = (await self.session.execute(query)).scalars().all()
+        return list(invites)
+
+    async def get_pending_users_for_project(
+        self, project_id: UUID4
+    ) -> list[ProjectInvite]:
+        query = select(ProjectInvite).filter(
+            and_(
+                ProjectInvite.project_id == project_id,
+                or_(ProjectInvite.accepted.is_(None), ~ProjectInvite.accepted),
+            )
         )
         invites = (await self.session.execute(query)).scalars().all()
         return list(invites)

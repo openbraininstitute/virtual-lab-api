@@ -25,7 +25,7 @@ def get_one_lab_admin(lab: VirtualLab) -> UserWithInviteStatus:
         return UserWithInviteStatus(
             **all_admins[0].model_dump(),
             invite_accepted=True,
-            role=UserRoleEnum.admin.value,
+            role=UserRoleEnum.admin,
         )
     except Exception as error:
         logger.error(f"Error when retrieving first admin in lab {lab.id}: {error}")
