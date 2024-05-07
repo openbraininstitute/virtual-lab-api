@@ -23,6 +23,8 @@ jobs:
       - name: Check migration scripts are added for modified schemas
         run: make check-db-schema
       - name: Run tests
+        env:
+          TEST_STRIPE_SECRET_KEY: ${{ secrets.TEST_STRIPE_SECRET_KEY }}
         run: make test
       - name: cleanup
         if: ${{ always() }}
