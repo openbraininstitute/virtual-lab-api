@@ -20,6 +20,7 @@ from virtual_labs.infrastructure.db.models import (
 )
 from virtual_labs.infrastructure.kc.auth import get_client_token
 from virtual_labs.infrastructure.kc.config import kc_auth
+from virtual_labs.infrastructure.stripe.config import test_stripe_client
 from virtual_labs.repositories.group_repo import GroupMutationRepository
 
 email_server_baseurl = "http://localhost:8025"
@@ -182,6 +183,12 @@ async def cleanup_resources(client: AsyncClient, lab_id: str) -> None:
             )
         )
 
+        await session.execute(
+            statement=delete(PaymentMethod).where(
+                PaymentMethod.virtual_lab_id == lab_id
+            )
+        )
+
         lab_data = (
             await session.execute(
                 statement=delete(VirtualLab)
@@ -191,10 +198,6 @@ async def cleanup_resources(client: AsyncClient, lab_id: str) -> None:
         ).one()
         await session.commit()
 
-    # 3. Delete Payment Methods
-    async with session_context_factory() as session:
-        await session.execute(statement=delete(PaymentMethod))
-
     # 4. Delete KC groups
     group_repo = GroupMutationRepository()
     for project_group_id in project_group_ids:
@@ -202,3 +205,16 @@ async def cleanup_resources(client: AsyncClient, lab_id: str) -> None:
         group_repo.delete_group(group_id=project_group_id[1])
     group_repo.delete_group(group_id=lab_data[0])
     group_repo.delete_group(group_id=lab_data[1])
+
+
+def create_confirmed_setup_intent() -> str:
+    setup_intent = test_stripe_client.setup_intents.create()
+    setup_intent_confirmed = test_stripe_client.setup_intents.confirm(
+        setup_intent.id,
+        {
+            "return_url": "http://localhost:4000",
+            "payment_method": "pm_card_visa",
+        },
+    )
+
+    return setup_intent_confirmed.id

@@ -1,41 +1,31 @@
-from typing import AsyncGenerator
-
 import pytest
-from httpx import AsyncClient
+from httpx import AsyncClient, Response
 
-from virtual_labs.infrastructure.stripe.config import test_stripe_client
-from virtual_labs.tests.utils import cleanup_resources
+from virtual_labs.tests.utils import create_confirmed_setup_intent
 
 
 @pytest.mark.asyncio
 async def test_attach_new_payment_method_to_vl(
     async_test_client: AsyncClient,
-    mock_create_lab: tuple[str, dict[str, str]],
-) -> AsyncGenerator[None, None]:
+    mock_lab_create: tuple[Response, dict[str, str]],
+) -> None:
     client = async_test_client
-    (virtual_lab_id, headers) = mock_create_lab
+    response, headers = mock_lab_create
+    virtual_lab_id = response.json()["data"]["virtual_lab"]["id"]
 
-    cardholder_name = "test payment_method"
+    cardholder_name = "test payment method"
+
     # this is required to confirm the payment method
     # usually this will be handled in the frontend when the user provide payment details
-
-    setup_intent = test_stripe_client.setup_intents.create()
-    setup_intent_confirmed = test_stripe_client.setup_intents.confirm(
-        setup_intent.id,
-        {
-            "return_url": "http://localhost:4000",
-            "payment_method": "pm_card_visa",
-        },
-    )
-
+    setup_intent_id = create_confirmed_setup_intent()
     payload = {
         "name": cardholder_name,
         "email": "cardholder@vlm.com",
-        "setupIntentId": setup_intent_confirmed.id,
+        "setupIntentId": setup_intent_id,
     }
 
     response = await client.post(
-        f"/virtual-labs/{virtual_lab_id}/billing/payment_methods",
+        f"/virtual-labs/{virtual_lab_id}/billing/payment-methods",
         json=payload,
     )
 
@@ -44,7 +34,3 @@ async def test_attach_new_payment_method_to_vl(
     assert (
         response.json()["data"]["payment_method"]["cardholder_name"] == cardholder_name
     )
-
-    yield None
-
-    await cleanup_resources(client=async_test_client, lab_id=virtual_lab_id)
