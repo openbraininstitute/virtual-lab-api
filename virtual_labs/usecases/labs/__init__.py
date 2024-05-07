@@ -3,6 +3,7 @@ from .all_virtual_labs_for_user import paginated_labs_for_user
 from .change_user_role_for_lab import change_user_role_for_lab
 from .check_virtual_lab_name_exists import check_virtual_lab_name_exists
 from .create_virtual_lab import create_virtual_lab
+from .delete_lab_invite import delete_lab_invite
 from .delete_virtual_lab import delete_virtual_lab
 from .get_virtual_lab import get_virtual_lab
 from .get_virtual_lab_users import get_virtual_lab_users
@@ -23,4 +24,5 @@ __all__ = [
     "invite_user_to_lab",
     "remove_user_from_lab",
     "change_user_role_for_lab",
+    "delete_lab_invite",
 ]

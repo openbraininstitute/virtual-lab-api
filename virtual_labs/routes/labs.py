@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends
-from pydantic import UUID4
+from pydantic import UUID4, EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.authorization import (
@@ -206,3 +206,19 @@ async def delete_virtual_lab(
 ) -> LabResponse[VirtualLabOut]:
     deleted_lab = await usecases.delete_virtual_lab(session, virtual_lab_id, auth=auth)
     return LabResponse[VirtualLabOut](message="Deleted virtual lab", data=deleted_lab)
+
+
+@router.delete(
+    "/{virtual_lab_id}/invites",
+    response_model=LabResponse[None],
+    description="Delete invite. Only invites that are not accepted can be deleted.",
+)
+@verify_vlab_write
+async def delete_lab_invite(
+    virtual_lab_id: UUID4,
+    email: EmailStr,
+    role: UserRoleEnum = UserRoleEnum.member,
+    session: AsyncSession = Depends(default_session_factory),
+    auth: tuple[AuthUser, str] = Depends(verify_jwt),
+) -> LabResponse[None]:
+    return await usecases.delete_lab_invite(session, virtual_lab_id, email, role)
