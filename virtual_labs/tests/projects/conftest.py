@@ -28,6 +28,7 @@ async def mock_create_project(
         json=payload,
     )
 
+    assert response.json()["data"]["project"]["name"] == payload["name"]
     yield response, headers
 
 

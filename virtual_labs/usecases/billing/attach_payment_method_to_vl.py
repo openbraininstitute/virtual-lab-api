@@ -1,11 +1,13 @@
 from http import HTTPStatus as status
-from typing import Tuple
+from typing import Tuple, cast
 
+import stripe
 from fastapi.responses import Response
 from loguru import logger
 from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
+from stripe import PaymentMethod as StripePaymentMethod
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.response.api_response import VliResponse
@@ -33,19 +35,30 @@ async def attach_payment_method_to_virtual_lab(
                 "expand": ["payment_method"],
             },
         )
-        stripe_payment_method = setup_intent.payment_method
+        stripe_payment_method = cast(
+            StripePaymentMethod,
+            setup_intent.payment_method,
+        )
 
-        if stripe_payment_method.card.exp_month and stripe_payment_method.card.exp_year:
-            expire_at = f"{stripe_payment_method.card.exp_month}/{stripe_payment_method.card.exp_year}"
-
-    except Exception as ex:
+    except stripe.StripeError as ex:
         logger.error(f"Error during retrieving stripe setup intent :({ex})")
         raise VliError(
             message="Retrieving stripe setup intent failed",
             error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
             http_status_code=status.BAD_GATEWAY,
         )
+
+    if not (stripe_payment_method and stripe_payment_method.card):
+        raise VliError(
+            message="No payment method are attached to the setup intent",
+            error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
+            http_status_code=status.BAD_GATEWAY,
+        )
+
     try:
+        if stripe_payment_method.card.exp_month and stripe_payment_method.card.exp_year:
+            expire_at = f"{stripe_payment_method.card.exp_month}/{stripe_payment_method.card.exp_year}"
+
         payment_method = await billing_mut_repo.add_new_payment_method(
             virtual_lab_id=virtual_lab_id,
             cardholder_email=payload.email,
@@ -64,7 +77,6 @@ async def attach_payment_method_to_virtual_lab(
                 "payment_method": PaymentMethod(**payment_method.__dict__),
             },
         )
-
     except SQLAlchemyError:
         raise VliError(
             error_code=VliErrorCode.DATABASE_ERROR,

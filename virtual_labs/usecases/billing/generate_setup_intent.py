@@ -28,7 +28,7 @@ async def generate_setup_intent(
             {
                 "customer": str(vlab.stripe_customer_id),
                 "metadata": {
-                    "virtual_lab_id": virtual_lab_id,
+                    "virtual_lab_id": str(virtual_lab_id),
                 },
             }
         )
