@@ -17,7 +17,7 @@ from virtual_labs.domain.invite import AddUser
 from virtual_labs.external.nexus.create_organization import create_nexus_organization
 from virtual_labs.infrastructure.db import models
 from virtual_labs.infrastructure.kc.models import AuthUser
-from virtual_labs.infrastructure.settings import settings
+from virtual_labs.infrastructure.stripe.config import stripe_client
 from virtual_labs.repositories import labs as repository
 from virtual_labs.repositories.group_repo import GroupMutationRepository
 from virtual_labs.repositories.invite_repo import InviteMutationRepository
@@ -28,8 +28,6 @@ from virtual_labs.repositories.user_repo import (
 from virtual_labs.shared.utils.auth import get_user_id_from_auth
 from virtual_labs.usecases.labs.invite_user_to_lab import send_email_to_user_or_rollback
 from virtual_labs.usecases.plans.verify_plan import verify_plan
-
-stripe_client = stripe.StripeClient(settings.STRIPE_SECRET_KEY)
 
 GroupIds = dict[Literal["member_group_id"] | Literal["admin_group_id"], str]
 UserInvites = TypedDict(
@@ -197,7 +195,7 @@ async def create_virtual_lab(
     except stripe.StripeError as ex:
         logger.error(f"Error during creating stripe customer :({ex})")
         raise VliError(
-            message="Another virtual lab with same name already exists",
+            message="creating stripe customer failed",
             error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
             http_status_code=HTTPStatus.BAD_GATEWAY,
         )

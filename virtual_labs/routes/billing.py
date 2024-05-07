@@ -15,6 +15,7 @@ from virtual_labs.domain.payment_method import (
     PaymentMethodCreationBody,
     PaymentMethodOut,
     PaymentMethodsOut,
+    SetupIntentOut,
 )
 from virtual_labs.infrastructure.db.config import default_session_factory
 from virtual_labs.infrastructure.kc.auth import verify_jwt
@@ -62,5 +63,24 @@ async def add_new_payment_method_to_vl(
         session,
         virtual_lab_id=virtual_lab_id,
         payload=payload,
+        auth=auth,
+    )
+
+
+@router.post(
+    "/{virtual_lab_id}/billing/setup-intent",
+    operation_id="generate_setup_intent",
+    summary="generate setup intent for a specific stripe customer (customer == virtual lab)",
+    response_model=VliAppResponse[SetupIntentOut],
+)
+@verify_vlab_write
+async def generate_setup_intent(
+    virtual_lab_id: UUID4,
+    session: AsyncSession = Depends(default_session_factory),
+    auth: Tuple[AuthUser, str] = Depends(verify_jwt),
+) -> Response | VliError:
+    return await billing_cases.generate_setup_intent(
+        session,
+        virtual_lab_id=virtual_lab_id,
         auth=auth,
     )

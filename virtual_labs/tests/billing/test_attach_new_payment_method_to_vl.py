@@ -1,14 +1,14 @@
 from typing import AsyncGenerator
-from uuid import uuid4
 
 import pytest
 from httpx import AsyncClient
 
+from virtual_labs.infrastructure.stripe.config import test_stripe_client
 from virtual_labs.tests.utils import cleanup_resources
 
 
 @pytest.mark.asyncio
-async def test_add_new_payment_method_to_vl(
+async def test_attach_new_payment_method_to_vl(
     async_test_client: AsyncClient,
     mock_create_lab: tuple[str, dict[str, str]],
 ) -> AsyncGenerator[None, None]:
@@ -16,14 +16,22 @@ async def test_add_new_payment_method_to_vl(
     (virtual_lab_id, headers) = mock_create_lab
 
     cardholder_name = "test payment_method"
+    # this is required to confirm the payment method
+    # usually this will be handled in the frontend when the user provide payment details
+
+    setup_intent = test_stripe_client.setup_intents.create()
+    setup_intent_confirmed = test_stripe_client.setup_intents.confirm(
+        setup_intent.id,
+        {
+            "return_url": "http://localhost:4000",
+            "payment_method": "pm_card_visa",
+        },
+    )
+
     payload = {
-        "customerId": f"cus_{uuid4()}",
         "name": cardholder_name,
         "email": "cardholder@vlm.com",
-        "expireAt": "12/2034",
-        "paymentMethodId": f"pm_{uuid4()}",
-        "brand": "visa",
-        "last4": "4351",
+        "setupIntentId": setup_intent_confirmed.id,
     }
 
     response = await client.post(

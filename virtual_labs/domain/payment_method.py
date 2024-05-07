@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List
 
-from pydantic import UUID4, BaseModel, ConfigDict, EmailStr, Field
+from pydantic import UUID4, BaseModel, ConfigDict, EmailStr
 
 
 class PaymentMethod(BaseModel):
@@ -28,15 +28,13 @@ class PaymentMethodOut(BaseModel):
     payment_method: PaymentMethod
 
 
+class SetupIntentOut(BaseModel):
+    id: str
+    client_secret: str
+    customer_id: str
+
+
 class PaymentMethodCreationBody(BaseModel):
-    customerId: str
+    setupIntentId: str
     name: str
     email: EmailStr
-    expireAt: str = Field(
-        pattern=r"^(0?[1-9]|1[0-2])\/\d{4}$",
-        description="Stripe expire date format: MM/YYYY",
-        examples=["12/2024"],
-    )
-    paymentMethodId: str
-    brand: str
-    last4: str
