@@ -3,7 +3,7 @@ from typing import Annotated, Tuple
 from fastapi import APIRouter, Body, Depends, Query
 from fastapi.responses import Response
 from httpx import AsyncClient
-from pydantic import UUID4
+from pydantic import UUID4, EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.authorization import (
@@ -489,3 +489,20 @@ async def invite_user_to_project(
         invite_details=invite,
         auth=auth,
     )
+
+
+@router.delete(
+    "/{virtual_lab_id}/projects/{project_id}/invites",
+    response_model=VliAppResponse[None],
+    description="Delete invite. Only invites that are not accepted can be deleted.",
+)
+@verify_vlab_or_project_write
+async def delete_project_invite(
+    virtual_lab_id: UUID4,
+    project_id: UUID4,
+    email: EmailStr,
+    role: UserRoleEnum = UserRoleEnum.member,
+    session: AsyncSession = Depends(default_session_factory),
+    auth: tuple[AuthUser, str] = Depends(verify_jwt),
+) -> Response:
+    return await project_cases.delete_project_invite(session, project_id, email, role)

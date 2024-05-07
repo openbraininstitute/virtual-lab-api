@@ -1,6 +1,7 @@
 from .check_project_exist import check_project_existence_use_case
 from .create_new_project import create_new_project_use_case
 from .delete_project import delete_project_use_case
+from .delete_project_invite import delete_project_invite
 from .detach_user_from_project import detach_user_from_project
 from .invite_user_to_project import invite_user_to_project
 from .retrieve_all_user_projects import retrieve_all_user_projects_use_case
@@ -44,4 +45,5 @@ __all__ = [
     "detach_user_from_project",
     "update_project_data",
     "invite_user_to_project",
+    "delete_project_invite",
 ]
