@@ -1,7 +1,7 @@
 from typing import List
 
 from pydantic import UUID4
-from sqlalchemy import select
+from sqlalchemy import case, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.infrastructure.db.models import PaymentMethod
@@ -12,6 +12,15 @@ class BillingQueryRepository:
 
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
+
+    async def retrieve_payment_method_by_id(
+        self,
+        payment_method_id: UUID4,
+    ) -> PaymentMethod:
+        query = select(PaymentMethod).where(
+            PaymentMethod.id == payment_method_id,
+        )
+        return (await self.session.execute(statement=query)).scalar_one()
 
     async def retrieve_vl_payment_methods(
         self,
@@ -67,3 +76,38 @@ class BillingMutationRepository:
         await self.session.commit()
         await self.session.refresh(payment_method)
         return payment_method
+
+    async def update_vl_default_payment_method(
+        self,
+        *,
+        virtual_lab_id: UUID4,
+        payment_method_id: UUID4,
+    ) -> List[PaymentMethod]:
+        print("@@->", virtual_lab_id, "@@->", payment_method_id)
+        stmt = (
+            update(PaymentMethod)
+            .where(
+                PaymentMethod.virtual_lab_id == virtual_lab_id,
+            )
+            .values(
+                default=case(
+                    (PaymentMethod.id == payment_method_id, True),
+                    else_=False,
+                ),
+            )
+            .returning(
+                PaymentMethod.id,
+                PaymentMethod.default,
+                PaymentMethod.card_number,
+                PaymentMethod.brand,
+                PaymentMethod.cardholder_name,
+                PaymentMethod.cardholder_email,
+                PaymentMethod.expire_at,
+                PaymentMethod.created_at,
+                PaymentMethod.updated_at,
+                PaymentMethod.virtual_lab_id,
+            )
+        )
+        result = await self.session.execute(statement=stmt)
+        await self.session.commit()
+        return list(result.all())
