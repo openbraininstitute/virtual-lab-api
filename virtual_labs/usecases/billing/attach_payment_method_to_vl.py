@@ -47,6 +47,18 @@ async def attach_payment_method_to_virtual_lab(
             error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
             http_status_code=status.BAD_GATEWAY,
         )
+    try:
+        stripe_client.payment_methods.update(
+            stripe_payment_method.id,
+            {"billing_details": {"name": payload.name, "email": payload.email}},
+        )
+    except stripe.StripeError as ex:
+        logger.error(f"Error during update stripe payment method details :({ex})")
+        raise VliError(
+            message="Update stripe payment method details failed",
+            error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
+            http_status_code=status.BAD_GATEWAY,
+        )
 
     if not (stripe_payment_method and stripe_payment_method.card):
         raise VliError(
