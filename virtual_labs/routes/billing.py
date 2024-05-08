@@ -1,6 +1,6 @@
-from typing import Tuple
+from typing import Annotated, Tuple
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Body, Depends
 from fastapi.responses import Response
 from pydantic import UUID4
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -82,5 +82,26 @@ async def generate_setup_intent(
     return await billing_cases.generate_setup_intent(
         session,
         virtual_lab_id=virtual_lab_id,
+        auth=auth,
+    )
+
+
+@router.patch(
+    "/{virtual_lab_id}/billing/payment-methods/default",
+    operation_id="update_default_payment_method",
+    summary="Update default payment method (this will be used only for stripe invoice and subscription for paymentIntent you have to pass the pmId)",
+    response_model=VliAppResponse[PaymentMethodsOut],
+)
+@verify_vlab_write
+async def update_default_payment_method(
+    virtual_lab_id: UUID4,
+    payment_method_id: Annotated[UUID4, Body(embed=True)],
+    session: AsyncSession = Depends(default_session_factory),
+    auth: Tuple[AuthUser, str] = Depends(verify_jwt),
+) -> Response | VliError:
+    return await billing_cases.update_default_payment_method(
+        session,
+        virtual_lab_id=virtual_lab_id,
+        payment_method_id=payment_method_id,
         auth=auth,
     )

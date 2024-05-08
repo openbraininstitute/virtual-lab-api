@@ -57,7 +57,12 @@ async def attach_payment_method_to_virtual_lab(
     try:
         await stripe_client.payment_methods.update_async(
             stripe_payment_method.id,
-            {"billing_details": {"name": payload.name, "email": payload.email}},
+            {
+                "billing_details": {
+                    "name": payload.name,
+                    "email": payload.email,
+                }
+            },
         )
     except stripe.StripeError as ex:
         logger.error(f"Error during update stripe payment method details :({ex})")
@@ -86,10 +91,11 @@ async def attach_payment_method_to_virtual_lab(
             message="Payment method added successfully",
             data={
                 "virtual_lab_id": virtual_lab_id,
-                "payment_method": PaymentMethod(**payment_method.__dict__),
+                "payment_method": PaymentMethod.model_validate(payment_method),
             },
         )
-    except SQLAlchemyError:
+    except SQLAlchemyError as ex:
+        logger.error(f"Adding new payment method to virtual lab failed ({ex})")
         raise VliError(
             error_code=VliErrorCode.DATABASE_ERROR,
             http_status_code=status.BAD_REQUEST,

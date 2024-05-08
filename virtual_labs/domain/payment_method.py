@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 from pydantic import UUID4, BaseModel, ConfigDict, EmailStr
 
@@ -13,6 +13,7 @@ class PaymentMethod(BaseModel):
     cardholder_name: str
     cardholder_email: str
     expire_at: str
+    default: Optional[bool] = False
 
     created_at: datetime
     updated_at: datetime | None
