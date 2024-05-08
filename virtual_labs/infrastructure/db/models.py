@@ -175,6 +175,7 @@ class PaymentMethod(Base):
     stripe_payment_method_id = Column(String, nullable=False)
     user_id = Column(UUID)
 
+    default = Column(Boolean, default=False)
     card_number = Column(String(4), nullable=False)
     brand = Column(String, nullable=False)
     cardholder_name = Column(String, nullable=False)
