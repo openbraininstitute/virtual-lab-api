@@ -22,17 +22,13 @@ async def mock_create_payment_methods(
 
     virtual_lab_id = response.json()["data"]["virtual_lab"]["id"]
     async with session_context_factory() as session:
-        (customer_id,) = (
-            (
-                await session.execute(
-                    statement=select(VirtualLab.stripe_customer_id).filter(
-                        VirtualLab.id == UUID(virtual_lab_id)
-                    )
+        customer_id = (
+            await session.execute(
+                statement=select(VirtualLab.stripe_customer_id).filter(
+                    VirtualLab.id == UUID(virtual_lab_id)
                 )
             )
-            .one()
-            .t
-        )
+        ).scalar_one()
 
     payment_methods = [
         {
