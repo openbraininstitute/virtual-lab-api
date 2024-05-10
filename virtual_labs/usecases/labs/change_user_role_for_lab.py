@@ -14,6 +14,7 @@ from virtual_labs.core.types import UserRoleEnum
 from virtual_labs.domain.labs import LabResponse, VirtualLabUser
 from virtual_labs.domain.user import UserWithInviteStatus
 from virtual_labs.repositories import labs as lab_repository
+from virtual_labs.repositories.group_repo import GroupQueryRepository
 from virtual_labs.repositories.user_repo import (
     UserMutationRepository,
     UserQueryRepository,
@@ -29,6 +30,7 @@ async def change_user_role_for_lab(
 ) -> LabResponse[VirtualLabUser]:
     user_mutation_repo = UserMutationRepository()
     user_query_repo = UserQueryRepository()
+    group_repo = GroupQueryRepository()
 
     try:
         lab = await lab_repository.get_undeleted_virtual_lab(db, lab_id)
@@ -42,6 +44,20 @@ async def change_user_role_for_lab(
                 error_code=VliErrorCode.ENTITY_NOT_FOUND,
                 http_status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
             )
+
+        admins = group_repo.retrieve_group_users(str(lab.admin_group_id))
+        if (
+            len(admins) == 1
+            and admins[0].id == str(user_id)
+            and new_role == UserRoleEnum.member
+        ):
+            raise VliError(
+                message=f"Last admin of lab {lab_id} cannot be converted to member",
+                error_code=VliErrorCode.NOT_ALLOWED_OP,
+                http_status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
+                details="Lab needs to have at least 1 admin.",
+            )
+
         new_group_id = (
             lab.admin_group_id
             if new_role.value == UserRoleEnum.admin.value
