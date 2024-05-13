@@ -21,7 +21,7 @@ from virtual_labs.infrastructure.db.models import (
 )
 from virtual_labs.infrastructure.kc.auth import get_client_token
 from virtual_labs.infrastructure.kc.config import kc_auth
-from virtual_labs.infrastructure.stripe.config import test_stripe_client
+from virtual_labs.infrastructure.stripe.config import stripe_client
 from virtual_labs.repositories.group_repo import GroupMutationRepository
 
 email_server_baseurl = "http://localhost:8025"
@@ -209,15 +209,15 @@ async def cleanup_resources(client: AsyncClient, lab_id: str) -> None:
 
 
 def create_confirmed_setup_intent(customer_id: str) -> SetupIntent:
-    setup_intent = test_stripe_client.setup_intents.create({"customer": customer_id})
-    setup_intent_confirmed = test_stripe_client.setup_intents.confirm(
+    setup_intent = stripe_client.setup_intents.create({"customer": customer_id})
+    setup_intent_confirmed = stripe_client.setup_intents.confirm(
         setup_intent.id,
         {
             "return_url": "http://localhost:4000",
             "payment_method": "pm_card_visa",
         },
     )
-    intent = test_stripe_client.setup_intents.retrieve(
+    intent = stripe_client.setup_intents.retrieve(
         setup_intent_confirmed.id, {"expand": ["payment_method"]}
     )
 

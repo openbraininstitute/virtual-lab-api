@@ -20,7 +20,7 @@ async def generate_setup_intent(
     *,
     virtual_lab_id: UUID4,
     auth: Tuple[AuthUser, str],
-) -> Response | VliError:
+) -> Response:
     try:
         vlab = await get_undeleted_virtual_lab(session, virtual_lab_id)
 

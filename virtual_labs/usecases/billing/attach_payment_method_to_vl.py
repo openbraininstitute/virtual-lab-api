@@ -24,7 +24,7 @@ async def attach_payment_method_to_virtual_lab(
     virtual_lab_id: UUID4,
     payload: PaymentMethodCreationBody,
     auth: Tuple[AuthUser, str],
-) -> Response | VliError:
+) -> Response:
     billing_mut_repo = BillingMutationRepository(session)
     user_id = get_user_id_from_auth(auth)
 
@@ -47,6 +47,13 @@ async def attach_payment_method_to_virtual_lab(
             error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
             http_status_code=status.BAD_GATEWAY,
         )
+
+    if not (stripe_payment_method and stripe_payment_method.card):
+        raise VliError(
+            message="No payment method are attached to the setup intent",
+            error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
+            http_status_code=status.BAD_GATEWAY,
+        )
     try:
         stripe_client.payment_methods.update(
             stripe_payment_method.id,
@@ -56,13 +63,6 @@ async def attach_payment_method_to_virtual_lab(
         logger.error(f"Error during update stripe payment method details :({ex})")
         raise VliError(
             message="Update stripe payment method details failed",
-            error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
-            http_status_code=status.BAD_GATEWAY,
-        )
-
-    if not (stripe_payment_method and stripe_payment_method.card):
-        raise VliError(
-            message="No payment method are attached to the setup intent",
             error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
             http_status_code=status.BAD_GATEWAY,
         )
