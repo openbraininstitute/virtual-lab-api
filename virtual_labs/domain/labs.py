@@ -1,5 +1,5 @@
-import warnings
 from datetime import datetime
+from virtual_labs.shared.utils.billing import amount_to_float
 from typing import Generic, TypeVar
 
 from pydantic import (
@@ -7,7 +7,6 @@ from pydantic import (
     BaseModel,
     EmailStr,
     JsonValue,
-    field_validator,
     computed_field,
     Field,
 )
@@ -30,35 +29,17 @@ class VirtualLabBase(BaseModel):
     entity: str
     budget_amount: int = Field(exclude=True, default=0)
 
-    @computed_field  # type: ignore[misc]
-    @property
+    @computed_field
     def budget(self) -> float:
-        return self.budget_amount // 100 + self.budget_amount % 100 / 100
-
-    @budget.setter
-    def budget(_self, _value: float) -> None:
-        warnings.warn(
-            "Don't set budget directly, it will be computed based on budget_amount."
-        )
+        return amount_to_float(self.budget_amount)
 
 
 class VirtualLabUpdate(BaseModel):
     name: str | None = None
     description: str | None = None
     reference_email: EmailStr | None = None
-    budget: float | None = None
     plan_id: int | None = None
     entity: str | None = None
-
-    @field_validator("budget")
-    @classmethod
-    def check_budget_greater_than_0(cls, v: float | None) -> float | None:
-        if v is None:
-            return v
-
-        if v <= 0:
-            raise ValueError("Budget should be greater than 0")
-        return v
 
 
 class PlanDomain(BaseModel):

@@ -10,6 +10,7 @@ from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.exceptions.generic_exceptions import (
     BudgetExceedLimit,
 )
+from virtual_labs.shared.utils.billing import amount_to_float
 from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.repositories.labs import retrieve_lab_distributed_budget
 from virtual_labs.repositories.project_repo import (
@@ -38,7 +39,9 @@ async def update_project_budget_use_case(
             current_project_id=project_id,
         )
 
-        if (value + sum_budget_projects) > virtual_lab.budget:
+        if (value + sum_budget_projects) > amount_to_float(
+            int(virtual_lab.budget_amount)
+        ):
             raise BudgetExceedLimit("Project budget exceed max limit")
 
         updated_project_id, new_budget, updated_at = await pmr.update_project_budget(

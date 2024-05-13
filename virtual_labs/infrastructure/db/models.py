@@ -4,7 +4,6 @@ from datetime import datetime
 from sqlalchemy import (
     JSON,
     Boolean,
-    CheckConstraint,
     Column,
     DateTime,
     Float,
@@ -51,10 +50,6 @@ class VirtualLab(Base):
     entity = Column(String, nullable=False)
 
     budget_amount = Column(Integer, nullable=False, default=0)
-
-    budget = Column(
-        Float, CheckConstraint("budget > 0"), nullable=False
-    )  # Amount in USD, deprecated in favour of budget_amount
 
     deleted = Column(Boolean, default=False, index=True)
     created_at = Column(DateTime, default=func.now())

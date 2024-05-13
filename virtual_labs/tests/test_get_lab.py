@@ -19,7 +19,6 @@ async def mock_lab_create(
         "name": f"Test Lab {uuid4()}",
         "description": "Test",
         "reference_email": "user@test.org",
-        "budget": 10,
         "plan_id": 1,
         "entity": "EPFL, Switzerland",
     }
@@ -62,7 +61,7 @@ async def test_get_lab_by_id(
         "name": lab["name"],
         "description": lab["description"],
         "reference_email": lab["reference_email"],
-        "budget": lab["budget"],
+        "budget": 0.0,
         "entity": lab["entity"],
         "plan_id": lab["plan_id"],
         "created_at": lab["created_at"],

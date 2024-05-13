@@ -105,7 +105,6 @@ async def create_virtual_lab(db: AsyncSession, lab: VirtualLabDbCreate) -> Virtu
         nexus_organization_id=str(lab.nexus_organization_id),
         stripe_customer_id=str(lab.stripe_customer_id),
         projects=[],
-        budget=lab.budget,
         plan_id=lab.plan_id,
         entity=lab.entity,
     )
@@ -131,7 +130,6 @@ async def update_virtual_lab(
                     "reference_email", current.reference_email
                 ),
                 "updated_at": func.now(),
-                "budget": data_to_update.get("budget", current.budget),
                 "plan_id": data_to_update.get("plan_id", current.plan_id),
                 "entity": data_to_update.get("entity", current.entity),
             }

@@ -11,7 +11,6 @@ def db_lab_to_domain_lab(lab: VirtualLab) -> VirtualLabDetails:
         name=lab.name,
         description=lab.description,
         reference_email=lab.reference_email,
-        budget=lab.budget,
         budget_amount=lab.budget_amount,
         entity=lab.entity,
         plan_id=lab.plan_id,
