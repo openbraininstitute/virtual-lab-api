@@ -26,6 +26,7 @@ pyjwt = "^2.8.0"
 asyncpg = "^0.29.0"
 asyncpg-stubs = "^0.29.1"
 stripe = "^9.5.0"
+sshtunnel = "^0.4.0"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -40,3 +41,6 @@ pytest-asyncio = "0.21.1"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+add_customer_id_to_vlab_script = "scripts.add-customer-id-to-vlab:main" 
