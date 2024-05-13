@@ -16,7 +16,7 @@ async def retrieve_virtual_lab_payment_methods(
     session: AsyncSession,
     *,
     virtual_lab_id: UUID4,
-) -> Response | VliError:
+) -> Response:
     billing_query_repo = BillingQueryRepository(session)
 
     try:
