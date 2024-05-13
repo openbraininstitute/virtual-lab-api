@@ -29,11 +29,21 @@ def upgrade() -> None:
     op.add_column(
         "virtual_lab", sa.Column("stripe_customer_id", sa.String(), nullable=True)
     )
-    for item in session.query(VirtualLab.id):
+    for lab in session.query(VirtualLab):
         session.execute(
             statement=sa.update(VirtualLab)
-            .where(VirtualLab.id == item.id)
-            .values(stripe_customer_id=stripe_client.customers.create().id)
+            .where(VirtualLab.id == lab.id)
+            .values(
+                stripe_customer_id=stripe_client.customers.create(
+                    {
+                        "name": str(lab.name),
+                        "email": str(lab.reference_email),
+                        "metadata": {
+                            "virtual_lab_id": str(lab.id),
+                        },
+                    }
+                )
+            )
         )
     session.commit()
     op.alter_column(
