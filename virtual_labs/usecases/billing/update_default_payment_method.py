@@ -27,7 +27,7 @@ async def update_default_payment_method(
     virtual_lab_id: UUID4,
     payment_method_id: UUID4,
     auth: Tuple[AuthUser, str],
-) -> Response | VliError:
+) -> Response:
     billing_mut_repo = BillingMutationRepository(session)
     billing_query_repo = BillingQueryRepository(session)
 
@@ -36,8 +36,8 @@ async def update_default_payment_method(
     except SQLAlchemyError as ex:
         logger.error(f"Error during retrieving virtual lab :({ex})")
         raise VliError(
-            error_code=VliErrorCode.DATABASE_ERROR,
-            http_status_code=status.BAD_REQUEST,
+            error_code=VliErrorCode.ENTITY_NOT_FOUND,
+            http_status_code=status.NOT_FOUND,
             message="Retrieving virtual lab failed",
         )
 
@@ -48,8 +48,8 @@ async def update_default_payment_method(
     except SQLAlchemyError as ex:
         logger.error(f"Error during retrieving db payment method :({ex})")
         raise VliError(
-            error_code=VliErrorCode.DATABASE_ERROR,
-            http_status_code=status.BAD_REQUEST,
+            error_code=VliErrorCode.ENTITY_NOT_FOUND,
+            http_status_code=status.NOT_FOUND,
             message="Retrieving payment methods failed",
         )
 
@@ -91,14 +91,17 @@ async def update_default_payment_method(
                 payment_method_id=UUID(str(payment_method.id)),
             )
         )
-
+        default_payment_method = PaymentMethod.model_validate(
+            next(
+                (item for item in update_payment_methods if item.default is True),
+                None,
+            )
+        )
         return VliResponse.new(
             message="Updating default payment method ended successfully",
             data={
                 "virtual_lab_id": virtual_lab_id,
-                "payment_methods": [
-                    PaymentMethod.model_validate(pm) for pm in update_payment_methods
-                ],
+                "payment_method": PaymentMethod.model_validate(default_payment_method),
             },
         )
     except SQLAlchemyError as ex:
