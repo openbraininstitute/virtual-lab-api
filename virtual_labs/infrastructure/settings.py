@@ -64,7 +64,6 @@ class Settings(BaseSettings):
     INVITE_LINK_BASE: str = "http://localhost:3000/"
 
     STRIPE_SECRET_KEY: str = ""
-    TEST_STRIPE_SECRET_KEY: str = ""
 
     @field_validator("DATABASE_URI", mode="before")
     @classmethod
