@@ -41,10 +41,10 @@ init-dev-p:
 	./dev-p-init.sh
 
 compose-up-dev-p:
-	cd env-prep && docker compose --env-file .env.local -f docker-compose-dev-p.yml -p vlm-dev-p up --wait
+	cd env-prep && docker compose --env-file ../.env.local -f docker-compose-dev-p.yml -p vlm-dev-p up --wait
 
 compose-down-dev-p:
-	cd env-prep && docker compose --env-file .env.local -f docker-compose-dev-p.yml -p vlm-dev-p down --remove-orphans --volumes
+	cd env-prep && docker compose --env-file ../.env.local -f docker-compose-dev-p.yml -p vlm-dev-p down --remove-orphans --volumes
 
 kill: 
 	cd env-prep && docker compose -f docker-compose-dev.yml -p vlm-project down --remove-orphans --volumes

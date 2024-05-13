@@ -54,10 +54,10 @@ services:
   stripe-cli:
     image: stripe/stripe-cli
     container_name: stripe
-    env_file: .env.local
+    env_file: ../.env.local
     environment:
       STRIPE_CLI_TELEMETRY_OPTOUT: 1
-      STRIPE_API_KEY: ${STRIPE_API_KEY}
+      STRIPE_API_KEY: ${STRIPE_SECRET_KEY}
       STRIPE_DEVICE_NAME: ${STRIPE_DEVICE_NAME}
     volumes:
       - ./stripe-data:/stripe-data

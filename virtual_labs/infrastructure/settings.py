@@ -64,6 +64,7 @@ class Settings(BaseSettings):
     INVITE_LINK_BASE: str = "http://localhost:3000/"
 
     STRIPE_SECRET_KEY: str = ""
+    STRIPE_DEVICE_NAME: str = ""
     STRIPE_WEBHOOK_SECRET: str = ""
 
     @field_validator("DATABASE_URI", mode="before")
