@@ -9,10 +9,10 @@ from virtual_labs.core.authorization import (
     verify_vlab_read,
     verify_vlab_write,
 )
-from virtual_labs.core.exceptions.api_error import VliError
 from virtual_labs.core.types import VliAppResponse
 from virtual_labs.domain.payment_method import (
     PaymentMethodCreationBody,
+    PaymentMethodDeletionOut,
     PaymentMethodOut,
     PaymentMethodsOut,
     SetupIntentOut,
@@ -39,7 +39,7 @@ async def retrieve_vl_payment_methods(
     virtual_lab_id: UUID4,
     session: AsyncSession = Depends(default_session_factory),
     auth: Tuple[AuthUser, str] = Depends(verify_jwt),
-) -> Response | VliError:
+) -> Response:
     return await billing_cases.retrieve_virtual_lab_payment_methods(
         session,
         virtual_lab_id=virtual_lab_id,
@@ -58,7 +58,7 @@ async def add_new_payment_method_to_vl(
     payload: PaymentMethodCreationBody,
     session: AsyncSession = Depends(default_session_factory),
     auth: Tuple[AuthUser, str] = Depends(verify_jwt),
-) -> Response | VliError:
+) -> Response:
     return await billing_cases.attach_payment_method_to_virtual_lab(
         session,
         virtual_lab_id=virtual_lab_id,
@@ -78,7 +78,7 @@ async def generate_setup_intent(
     virtual_lab_id: UUID4,
     session: AsyncSession = Depends(default_session_factory),
     auth: Tuple[AuthUser, str] = Depends(verify_jwt),
-) -> Response | VliError:
+) -> Response:
     return await billing_cases.generate_setup_intent(
         session,
         virtual_lab_id=virtual_lab_id,
@@ -102,8 +102,29 @@ async def update_default_payment_method(
     payment_method_id: Annotated[UUID4, Body(embed=True)],
     session: AsyncSession = Depends(default_session_factory),
     auth: Tuple[AuthUser, str] = Depends(verify_jwt),
-) -> Response | VliError:
+) -> Response:
     return await billing_cases.update_default_payment_method(
+        session,
+        virtual_lab_id=virtual_lab_id,
+        payment_method_id=payment_method_id,
+        auth=auth,
+    )
+
+
+@router.delete(
+    "/{virtual_lab_id}/billing/payment-methods/{payment_method_id}",
+    operation_id="delete_payment_method",
+    summary="Delete payment method",
+    response_model=VliAppResponse[PaymentMethodDeletionOut],
+)
+@verify_vlab_write
+async def delete_payment_method(
+    virtual_lab_id: UUID4,
+    payment_method_id: UUID4,
+    session: AsyncSession = Depends(default_session_factory),
+    auth: Tuple[AuthUser, str] = Depends(verify_jwt),
+) -> Response:
+    return await billing_cases.delete_payment_method_from_vl(
         session,
         virtual_lab_id=virtual_lab_id,
         payment_method_id=payment_method_id,
