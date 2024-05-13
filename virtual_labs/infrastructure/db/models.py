@@ -189,3 +189,13 @@ class PaymentMethod(Base):
         "virtual_lab_id", UUID(as_uuid=True), ForeignKey("virtual_lab.id")
     )
     virtual_lab = relationship("VirtualLab", back_populates="payment_methods")
+
+    __table_args__ = (
+        Index(
+            "ix_default_payment_per_lab",
+            "virtual_lab_id",
+            "default",
+            unique=True,
+            postgresql_where=(default.is_(True)),
+        ),
+    )
