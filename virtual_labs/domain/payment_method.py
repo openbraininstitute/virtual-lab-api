@@ -29,6 +29,13 @@ class PaymentMethodOut(BaseModel):
     payment_method: PaymentMethod
 
 
+class PaymentMethodDeletionOut(BaseModel):
+    virtual_lab_id: UUID4
+    payment_method_id: UUID4
+    deleted: bool
+    deleted_at: datetime
+
+
 class SetupIntentOut(BaseModel):
     id: str
     client_secret: str
