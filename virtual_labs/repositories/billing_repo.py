@@ -83,7 +83,6 @@ class BillingMutationRepository:
         virtual_lab_id: UUID4,
         payment_method_id: UUID4,
     ) -> List[PaymentMethod]:
-        print("@@->", virtual_lab_id, "@@->", payment_method_id)
         stmt = (
             update(PaymentMethod)
             .where(

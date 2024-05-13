@@ -89,8 +89,12 @@ async def generate_setup_intent(
 @router.patch(
     "/{virtual_lab_id}/billing/payment-methods/default",
     operation_id="update_default_payment_method",
-    summary="Update default payment method (this will be used only for stripe invoice and subscription for paymentIntent you have to pass the pmId)",
-    response_model=VliAppResponse[PaymentMethodsOut],
+    summary="""
+    Update default payment method 
+    This will be used only for stripe invoice and subscription. 
+    for paymentIntent you have to pass the payment method Id
+    """,
+    response_model=VliAppResponse[PaymentMethodOut],
 )
 @verify_vlab_write
 async def update_default_payment_method(
