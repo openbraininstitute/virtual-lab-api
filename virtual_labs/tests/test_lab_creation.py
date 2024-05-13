@@ -140,7 +140,7 @@ async def test_virtual_lab_created_with_users(
             "name": request.get("name"),
             "description": "Test",
             "reference_email": "user@test.org",
-            "budget": 10.0,
+            "budget": 0.0,  # should be updated only through payment topup event
             "id": lab_id,
             "plan_id": 1,
             "entity": "EPFL, Switzerland",

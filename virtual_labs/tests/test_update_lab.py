@@ -53,5 +53,5 @@ async def test_update_lab(
     data = response.json()["data"]["virtual_lab"]
     assert data["name"] == update_body["name"]
     assert data["plan_id"] == update_body["plan_id"]
-    assert data["budget"] == update_body["budget"]
+    assert data["budget"] == 0.0, "Should be updated only through payment topup event!"
     assert data["entity"] == update_body["entity"]
