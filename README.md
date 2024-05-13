@@ -6,6 +6,7 @@ Make sure you have the following dependencies installed:
 - [poetry](https://python-poetry.org/docs/#installation) (version >=1.5.1)
 - [docker](https://docs.docker.com/engine/install/) - Add the docker group to your user to enable running docker without `sudo`. This can be done by running `sudo usermod -a -G <your username>`
 - [jq](https://jqlang.github.io/jq/download/)
+- Stripe API key (`STRIPE_SECRET_KEY` in testing should be start with `sk_test_`)
 
 # Development
 
@@ -82,13 +83,17 @@ Tests can be run using the following command:
 ```
 make test
 ```
+
 ### Test Billing endpoints
+
 The following section explains how to test attaching a payment method to a customer using Stripe's Setup Intents. This operation primarily involves frontend interactions to verify and confirm the Setup Intent. Therefore, it's crucial to conduct this part of the API testing manually.
 
 #### Prerequisites:
+
 1. **Stripe CLI:** Installation of Stripe CLI is recommended for facilitating local testing and event simulation. It can be downloaded from the [Stripe CLI documentation page](https://stripe.com/docs/stripe-cli).
 
 #### Steps to Test:
+
 1. **Create a Setup Intent:** Initially, create a Setup Intent to prepare for attaching a payment method to a customer by using `/virtual-labs/{virtual_lab_id}/billing/setup-intent` endpoint.
 2. **Confirm the Setup Intent:** Manually pass the Setup Intent ID to the `confirm` method to simulate the user confirming their payment details (in the frontend this op is using `stripe.setupConfirm()`). This action triggers Stripe to attach the specified test payment method to the Setup Intent.
 

@@ -25,7 +25,7 @@ jobs:
       - name: Run tests
         env:
           TEST_STRIPE_SECRET_KEY: ${{ secrets.TEST_STRIPE_SECRET_KEY }}
-        run: DEPLOYMENT_ENV=testing STRIPE_SECRET_KEY=${{ secrets.TEST_STRIPE_SECRET_KEY }} TEST_STRIPE_SECRET_KEY=${{ secrets.TEST_STRIPE_SECRET_KEY }} poetry run pytest
+        run: DEPLOYMENT_ENV=testing STRIPE_SECRET_KEY=${{ secrets.TEST_STRIPE_SECRET_KEY }} poetry run pytest
       - name: cleanup
         if: ${{ always() }}
         run: |
