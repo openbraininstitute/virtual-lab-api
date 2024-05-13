@@ -198,9 +198,14 @@ async def cleanup_resources(client: AsyncClient, lab_id: str) -> None:
             await session.execute(
                 statement=delete(VirtualLab)
                 .where(VirtualLab.id == lab_id)
-                .returning(VirtualLab.admin_group_id, VirtualLab.member_group_id)
+                .returning(
+                    VirtualLab.admin_group_id,
+                    VirtualLab.member_group_id,
+                    VirtualLab.stripe_customer_id,
+                )
             )
         ).one()
+
         await session.commit()
 
     # 4. Delete KC groups
@@ -211,17 +216,24 @@ async def cleanup_resources(client: AsyncClient, lab_id: str) -> None:
     group_repo.delete_group(group_id=lab_data[0])
     group_repo.delete_group(group_id=lab_data[1])
 
+    # 5. delete customer from stripe
+    await stripe_client.customers.delete_async(
+        customer=str(lab_data[2]),
+    )
 
-def create_confirmed_setup_intent(customer_id: str) -> SetupIntent:
-    setup_intent = stripe_client.setup_intents.create({"customer": customer_id})
-    setup_intent_confirmed = stripe_client.setup_intents.confirm(
+
+async def create_confirmed_setup_intent(customer_id: str) -> SetupIntent:
+    setup_intent = await stripe_client.setup_intents.create_async(
+        {"customer": customer_id}
+    )
+    setup_intent_confirmed = await stripe_client.setup_intents.confirm_async(
         setup_intent.id,
         {
             "return_url": "http://localhost:4000",
             "payment_method": "pm_card_visa",
         },
     )
-    intent = stripe_client.setup_intents.retrieve(
+    intent = await stripe_client.setup_intents.retrieve_async(
         setup_intent_confirmed.id, {"expand": ["payment_method"]}
     )
 
