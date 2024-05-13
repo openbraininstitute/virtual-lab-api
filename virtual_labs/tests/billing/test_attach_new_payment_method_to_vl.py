@@ -35,7 +35,7 @@ async def test_attach_new_payment_method_to_vl(
     # this is necessary to confirm the payment method
     # usually this will be handled in the frontend when the user provide payment details
 
-    setup_intent = create_confirmed_setup_intent(customer_id)
+    setup_intent = await create_confirmed_setup_intent(customer_id)
     payment_method = cast(PaymentMethod, setup_intent.payment_method)
 
     assert payment_method is not None

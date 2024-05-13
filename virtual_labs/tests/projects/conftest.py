@@ -65,11 +65,6 @@ async def mock_create_projects(
 
     yield cast(UUID, virtual_lab_id), cast(float, virtual_lab_budget), projects, headers
 
-    for id in projects:
-        response = await client.delete(
-            f"/virtual-labs/{virtual_lab_id}/projects/{id}",
-        )
-
 
 @pytest_asyncio.fixture
 async def mock_create_vl_projects(
