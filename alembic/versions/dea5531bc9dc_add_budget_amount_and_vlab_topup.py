@@ -1,8 +1,8 @@
 """add_budget_amount_and_vlab_topup
 
-Revision ID: 2ddf58ddb53f
-Revises: 6338b6ac5353
-Create Date: 2024-05-10 13:30:59.036044
+Revision ID: dea5531bc9dc
+Revises: f4fe29571ef5
+Create Date: 2024-05-13 12:02:41.689795
 
 """
 from typing import Sequence, Union
@@ -12,8 +12,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = "2ddf58ddb53f"
-down_revision: Union[str, None] = "6338b6ac5353"
+revision: str = "dea5531bc9dc"
+down_revision: Union[str, None] = "f4fe29571ef5"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
