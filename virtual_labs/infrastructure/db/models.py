@@ -32,7 +32,7 @@ class VirtualLab(Base):
     member_group_id = Column(String, nullable=False, unique=True)
 
     nexus_organization_id = Column(String, nullable=False, unique=True)
-    stripe_customer_id = Column(String, nullable=False, unique=True)
+    stripe_customer_id = Column(String, nullable=False, unique=False)
 
     name = Column(String(250), index=True)
     description = Column(Text)
