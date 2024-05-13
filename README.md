@@ -1,9 +1,10 @@
 # Prerequisites
 
 Make sure you have the following dependencies installed:
+
 - [python](https://www.python.org/downloads/) (version 3.12)
 - [poetry](https://python-poetry.org/docs/#installation) (version >=1.5.1)
-- [docker](https://docs.docker.com/engine/install/) - Add the docker group to your user to enable running docker without `sudo`. This can be done by running `sudo usermod -a -G <your username>` 
+- [docker](https://docs.docker.com/engine/install/) - Add the docker group to your user to enable running docker without `sudo`. This can be done by running `sudo usermod -a -G <your username>`
 - [jq](https://jqlang.github.io/jq/download/)
 
 # Development
@@ -19,6 +20,7 @@ Make sure you have the following dependencies installed:
    make init
    ```
 3. Run db migrations (this also initializes the database)
+
    ```
    make init-db
    ```
@@ -44,6 +46,7 @@ Access token:
 # Accessing local (or test) keycloak UI
 
 Add keycloak as host for address 127.0.0.1 in /etc/host file
+
 ```bash
 echo "127.0.0.1 keycloak" | sudo tee -a /etc/hosts # This adds a line "127.0.0.1 keycloak" to /etc/hosts 
 ```
@@ -57,14 +60,17 @@ The version numbers are stored in alembic/versions. Alembic can be used to autog
 ```
 poetry run alembic revision --autogenerate -m '<A descriptive message>'
 ```
+
 Note that these migration scripts *should* be reviewed carefully. Also, not all schema changes can be autogerated. Details about which schema changes need scripts to be written manually are [here](https://alembic.sqlalchemy.org/en/latest/autogenerate.html#what-does-autogenerate-detect-and-what-does-it-not-detect).
 
 Migration can be run like so:
+
 ```
 poetry run alembic upgrade head
 ```
 
 To check if migration is needed (same as above, alembic cannot check all schema changes):
+
 ```
 make check-db-schema
 ```
@@ -72,8 +78,27 @@ make check-db-schema
 # Testing
 
 Tests can be run using the following command:
+
 ```
 make test
+```
+### Test Billing endpoints
+The following section explains how to test attaching a payment method to a customer using Stripe's Setup Intents. This operation primarily involves frontend interactions to verify and confirm the Setup Intent. Therefore, it's crucial to conduct this part of the API testing manually.
+
+#### Prerequisites:
+1. **Stripe CLI:** Installation of Stripe CLI is recommended for facilitating local testing and event simulation. It can be downloaded from the [Stripe CLI documentation page](https://stripe.com/docs/stripe-cli).
+
+#### Steps to Test:
+1. **Create a Setup Intent:** Initially, create a Setup Intent to prepare for attaching a payment method to a customer by using `/virtual-labs/{virtual_lab_id}/billing/setup-intent` endpoint.
+2. **Confirm the Setup Intent:** Manually pass the Setup Intent ID to the `confirm` method to simulate the user confirming their payment details (in the frontend this op is using `stripe.setupConfirm()`). This action triggers Stripe to attach the specified test payment method to the Setup Intent.
+
+Alternatively, if you prefer not to use Stripe CLI, you can execute a POST request directly to Stripe's API to perform these actions. However, using Stripe CLI provides a more integrated and straightforward testing workflow.
+
+For further details on working with Setup Intents and managing payment methods, refer to the [Stripe API documentation on Setup Intents](https://stripe.com/docs/api/setup_intents).
+
+```sh
+stripe setup_intents confirm seti_1PFtBwFjhkSGAqrAUHCvTAAA \
+  --payment-method=pm_card_visa
 ```
 
 # IDE Setup
@@ -82,14 +107,15 @@ make test
 
 1. Make sure that VSCode is picking up the right python version. This should look like `~/.cache/pypoetry/virtualenvs/virtual-labs[uuid]...`
 2. Recommended extensions:
-    - Ruff (extension_id - charliermarsh.ruff)
-    - MyPy Type Checker (extension_id: ms-python.mypy-type-checker)
+   - Ruff (extension_id - charliermarsh.ruff)
+   - MyPy Type Checker (extension_id: ms-python.mypy-type-checker)
 
 # Contributing
 
 To create an MR and push code to it, you will need to setup git-hooks *only the first time you push code to the repo*.
 
 1. Install git hooks to enable pre-push checks
+
 ```
 poetry run pre-commit install
 ```
