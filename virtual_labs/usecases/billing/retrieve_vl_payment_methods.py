@@ -33,7 +33,7 @@ async def retrieve_virtual_lab_payment_methods(
             data={
                 "virtual_lab_id": virtual_lab_id,
                 "payment_methods": [
-                    PaymentMethod(**pm.__dict__) for pm in payment_methods
+                    PaymentMethod.model_validate(pm) for pm in payment_methods
                 ],
             },
         )

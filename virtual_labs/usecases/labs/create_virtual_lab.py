@@ -183,7 +183,7 @@ async def create_virtual_lab(
         )
 
     try:
-        customer = stripe_client.customers.create(
+        customer = await stripe_client.customers.create_async(
             {
                 "name": lab.name,
                 "email": str(lab.reference_email),

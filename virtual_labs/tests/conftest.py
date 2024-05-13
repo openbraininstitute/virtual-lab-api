@@ -55,4 +55,5 @@ async def mock_lab_create(
     yield response, headers
 
     lab_id = response.json()["data"]["virtual_lab"]["id"]
+
     await cleanup_resources(client, lab_id)

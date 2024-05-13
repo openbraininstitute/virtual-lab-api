@@ -21,7 +21,7 @@ async def update_virtual_lab(
             await verify_plan(db, lab.plan_id)
         db_lab = await repository.update_virtual_lab(db, lab_id, lab)
 
-        stripe_client.customers.update(
+        await stripe_client.customers.update_async(
             str(db_lab.stripe_customer_id),
             {
                 "name": str(db_lab.name),

@@ -36,7 +36,7 @@ async def mock_lab_create(
 
     yield client, lab_id, headers
 
-    await cleanup_resources(client=client, lab_id=lab_id)
+    await cleanup_resources(client, lab_id)
 
 
 @pytest.mark.asyncio

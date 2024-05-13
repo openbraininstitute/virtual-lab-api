@@ -24,7 +24,7 @@ async def generate_setup_intent(
     try:
         vlab = await get_undeleted_virtual_lab(session, virtual_lab_id)
 
-        setup_intent = stripe_client.setup_intents.create(
+        setup_intent = await stripe_client.setup_intents.create_async(
             {
                 "customer": str(vlab.stripe_customer_id),
                 "payment_method_types": ["card"],

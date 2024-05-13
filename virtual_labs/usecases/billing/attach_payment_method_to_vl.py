@@ -29,7 +29,7 @@ async def attach_payment_method_to_virtual_lab(
     user_id = get_user_id_from_auth(auth)
 
     try:
-        setup_intent = stripe_client.setup_intents.retrieve(
+        setup_intent = await stripe_client.setup_intents.retrieve_async(
             payload.setupIntentId,
             {
                 "expand": ["payment_method"],
@@ -55,7 +55,7 @@ async def attach_payment_method_to_virtual_lab(
             http_status_code=status.BAD_GATEWAY,
         )
     try:
-        stripe_client.payment_methods.update(
+        await stripe_client.payment_methods.update_async(
             stripe_payment_method.id,
             {"billing_details": {"name": payload.name, "email": payload.email}},
         )

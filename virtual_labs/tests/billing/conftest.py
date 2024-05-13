@@ -34,7 +34,7 @@ async def mock_create_payment_methods(
         {
             "name": f"test payment_method {i}",
             "email": f"cardholder_{i}@vlm.com",
-            "setupIntentId": create_confirmed_setup_intent(customer_id).id,
+            "setupIntentId": (await create_confirmed_setup_intent(customer_id)).id,
         }
         for i in range(3)
     ]
