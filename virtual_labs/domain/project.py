@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List, Optional
 
-from pydantic import UUID4, BaseModel, EmailStr
+from pydantic import UUID4, BaseModel, EmailStr, Field
 
 from virtual_labs.core.types import UserRoleEnum
 from virtual_labs.domain.invite import AddUser
@@ -18,7 +18,7 @@ class VirtualLabModel(BaseModel):
 
 
 class ProjectBody(BaseModel):
-    name: str
+    name: str = Field(max_length=250)
     description: Optional[str] = None
 
 
