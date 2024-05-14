@@ -55,6 +55,7 @@ class Settings(BaseSettings):
     MAIL_PORT: int = 1025
     MAIL_SERVER: str = "localhost"
     MAIL_STARTTLS: bool = False
+
     MAIL_SSL_TLS: bool = False
     USE_CREDENTIALS: bool = True
     VALIDATE_CERTS: bool = False

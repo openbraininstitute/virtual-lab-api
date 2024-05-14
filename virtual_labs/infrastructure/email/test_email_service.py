@@ -29,9 +29,14 @@ async def test_email_invite_sent_for_virtual_lab() -> None:
     recipient_email = f"{str(uuid4())}@pytest.org"
     mock_invite_id = uuid4()
     mock_lab_name = "Mock Lab Name"
+    inviter = "Malory Archer"
+    invitee = "Lana Kane"
+
     invite_link = await send_invite(
         details=EmailDetails(
             recipient=recipient_email,
+            invitee_name=invitee,
+            inviter_name=inviter,
             invite_id=mock_invite_id,
             lab_id=uuid4(),
             lab_name=mock_lab_name,
@@ -48,6 +53,9 @@ async def test_email_invite_sent_for_virtual_lab() -> None:
     assert "?token=" in invite_link
     assert "?token=" in email_body
     assert mock_lab_name in email_body
+    assert "been invited to virtual lab" in email_body
+    assert inviter in email_body
+    assert invitee in email_body
 
     assert decoded_token["invite_id"] == str(mock_invite_id)
     assert decoded_token["origin"] == InviteOrigin.LAB.value
@@ -60,11 +68,15 @@ async def test_email_invite_sent_for_project() -> None:
     mock_invite_id = uuid4()
     mock_lab_name = "Mock Lab Name"
     mock_project_name = "Mock Project Name"
+    inviter = "Malory Archer"
+    invitee = None
 
     invite_link = await send_invite(
         details=EmailDetails(
             recipient=recipient_email,
             invite_id=mock_invite_id,
+            invitee_name=invitee,
+            inviter_name=inviter,
             lab_id=uuid4(),
             lab_name=mock_lab_name,
             project_id=uuid4(),
@@ -81,8 +93,11 @@ async def test_email_invite_sent_for_project() -> None:
 
     assert "?token=" in invite_link
     assert "?token=" in email_body
-    assert mock_lab_name in email_body
     assert mock_project_name in email_body
+    assert "been invited to project" in email_body
+    assert "Great news!" in email_body
+    assert "None" not in email_body
+    assert inviter in email_body
 
     assert decoded_token["invite_id"] == str(mock_invite_id)
     assert decoded_token["origin"] == InviteOrigin.PROJECT.value
@@ -102,6 +117,8 @@ async def test_throws_email_error_if_email_could_not_be_sent() -> None:
                 details=EmailDetails(
                     recipient="mock@mock.com",
                     invite_id=invite_id,
+                    inviter_name="Pam Poovey",
+                    invitee_name="Cyril Figgis",
                     lab_id=uuid4(),
                     lab_name="mock",
                     project_id=uuid4(),

@@ -108,7 +108,7 @@ async def create_mock_lab_with_project(
 
 
 def get_invite_token_from_email_body(email_body: str) -> str:
-    return email_body.split("?token=")[2].split("</a>\n")[0]
+    return email_body.split("token=")[1].split('" ')[0]
 
 
 def get_invite_token_from_email(recipient_email: str) -> str:
