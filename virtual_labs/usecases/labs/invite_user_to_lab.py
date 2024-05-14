@@ -21,6 +21,8 @@ from virtual_labs.shared.utils.is_user_in_lab import is_user_in_lab
 
 async def send_email_to_user_or_rollback(
     invite_id: UUID,
+    invitee_name: str | None,
+    inviter_name: str,
     email: EmailStr,
     lab_name: str,
     lab_id: UUID,
@@ -33,6 +35,8 @@ async def send_email_to_user_or_rollback(
                 invite_id=invite_id,
                 lab_id=lab_id,
                 lab_name=lab_name,
+                invitee_name=invitee_name,
+                inviter_name=inviter_name,
             )
         )
     except EmailError as error:
@@ -61,7 +65,13 @@ async def invite_user_to_lab(
         lab = await lab_repo.get_undeleted_virtual_lab(db, lab_id)
 
         user_to_invite = user_repo.retrieve_user_by_email(invite_details.email)
+        inviting_user = user_repo.retrieve_user_from_kc(str(inviter_id))
         user_id = UUID(user_to_invite.id) if user_to_invite is not None else None
+        invitee_name = (
+            None
+            if user_to_invite is None
+            else f"{user_to_invite.firstName} {user_to_invite.lastName}"
+        )
 
         # If user is already in lab, raise an error
         if user_id is not None and (is_user_in_lab(user_id, lab)):
@@ -94,6 +104,8 @@ async def invite_user_to_lab(
             await db.refresh(lab)
             await send_email_to_user_or_rollback(
                 invite_id=UUID(str(invite.id)),
+                invitee_name=invitee_name,
+                inviter_name=f"{inviting_user.firstName} {inviting_user.lastName}",
                 email=invite_details.email,
                 lab_name=str(lab.name),
                 lab_id=UUID(str(lab.id)),
@@ -111,6 +123,8 @@ async def invite_user_to_lab(
 
             await send_email_to_user_or_rollback(
                 invite_id=UUID(str(existing_invite.id)),
+                invitee_name=invitee_name,
+                inviter_name=f"{inviting_user.firstName} {inviting_user.lastName}",
                 email=invite_details.email,
                 lab_name=str(lab.name),
                 lab_id=UUID(str(lab.id)),

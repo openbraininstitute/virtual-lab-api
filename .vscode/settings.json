@@ -37,5 +37,8 @@
     "unstar",
     "unstaring",
     "usecases"
-  ]
+  ],
+  "search.exclude": {
+    "**/.mypy_cache": true
+  }
 }

@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from fastapi_mail import ConnectionConfig, FastMail, MessageSchema, MessageType
 from loguru import logger
 from pydantic import UUID4, BaseModel, EmailStr
@@ -21,11 +23,15 @@ email_config = ConnectionConfig(
     MAIL_SSL_TLS=settings.MAIL_SSL_TLS,
     USE_CREDENTIALS=settings.USE_CREDENTIALS,
     VALIDATE_CERTS=settings.VALIDATE_CERTS,
+    TEMPLATE_FOLDER=Path(__file__).parent
+    / "templates",  # Resolves to `virtual_labs/infrastructure/email/templates`,
 )
 
 
 class EmailDetails(BaseModel):
     recipient: EmailStr
+    invitee_name: str | None = None
+    inviter_name: str
     invite_id: UUID4
 
     lab_id: UUID4
@@ -40,6 +46,7 @@ async def send_invite(details: EmailDetails) -> str:
         origin = (
             InviteOrigin.LAB if details.project_id is None else InviteOrigin.PROJECT
         )
+        display_origin = "virtual lab" if origin is InviteOrigin.LAB else "project"
         invite_token = generate_encrypted_invite_token(details.invite_id, origin)
         invite_link = generate_invite_link(invite_token)
         invite_html = generate_invite_html(
@@ -47,13 +54,44 @@ async def send_invite(details: EmailDetails) -> str:
         )
 
         message = MessageSchema(
-            subject=f"Invitation to OBP {origin.value}",
+            subject=f"Invitation to OBBP {display_origin}",
             recipients=[details.recipient],
             body=invite_html,
             subtype=MessageType.html,
+            attachments=[
+                {
+                    "file": "virtual_labs/infrastructure/email/assets/hippocampus_bg.jpg",
+                    "headers": {
+                        "Content-ID": "hippocampus",
+                        "Content-Disposition": 'inline; filename="hippocampus_bg.jpg"',  # For inline images only
+                    },
+                    "mime_type": "image",
+                    "mime_subtype": "jpg",
+                },
+                {
+                    "file": "virtual_labs/infrastructure/email/assets/logo.png",
+                    "headers": {
+                        "Content-ID": "logo",
+                        "Content-Disposition": 'inline; filename="logo.png"',  # For inline images only
+                    },
+                    "mime_type": "image",
+                    "mime_subtype": "png",
+                    "Content-Type": "multipart/related",
+                },
+            ],
+            template_body={
+                "invitee_name": details.invitee_name,
+                "inviter_name": details.inviter_name,
+                "invite_link": invite_link,
+                "discover_link": f"{settings.DEPLOYMENT_NAMESPACE}/mmb-beta",
+                "origin": display_origin,
+                "invited_to": details.lab_name
+                if origin is InviteOrigin.LAB
+                else details.project_name,
+            },
         )
         fm = FastMail(email_config)
-        await fm.send_message(message)
+        await fm.send_message(message, template_name="invitation_template.html")
         logger.debug(f"Invite link {invite_link} emailed to user {details.recipient}")
         return invite_link
     except Exception as error:

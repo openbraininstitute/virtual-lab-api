@@ -75,11 +75,18 @@ async def invite_members_to_lab(
 
     successful_invites: list[AddUser] = []
     failed_invites: list[AddUser] = []
+    inviting_user = user_repo.retrieve_user_from_kc(str(inviter_id))
 
     for member in members:
         try:
             user_to_invite = user_repo.retrieve_user_by_email(member.email)
             user_id = UUID(user_to_invite.id) if user_to_invite is not None else None
+            invitee_name = (
+                None
+                if user_to_invite is None
+                else f"{user_to_invite.firstName} {user_to_invite.lastName}"
+            )
+
             if user_id == inviter_id:
                 logger.error(
                     f"User cannot invite oneself. Inviter {inviter_id}. Invitee {member.email}"
@@ -103,6 +110,8 @@ async def invite_members_to_lab(
             await db.refresh(virtual_lab)
             await send_email_to_user_or_rollback(
                 invite_id=UUID(str(invite.id)),
+                invitee_name=invitee_name,
+                inviter_name=f"{inviting_user.firstName} {inviting_user.lastName}",
                 email=member.email,
                 lab_name=str(virtual_lab.name),
                 lab_id=UUID(str(virtual_lab.id)),

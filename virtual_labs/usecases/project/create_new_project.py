@@ -49,6 +49,8 @@ async def invite_project_members(
     for member in members:
         try:
             user = user_query_repo.retrieve_user_by_email(member.email)
+            inviter = user_query_repo.retrieve_user_from_kc(str(inviter_id))
+
             if user is None:
                 raise IdentityError(
                     f"User with email {member.email} not found",
@@ -67,6 +69,8 @@ async def invite_project_members(
                 await send_invite(
                     details=EmailDetails(
                         recipient=str(user.email),
+                        invitee_name=f"{user.firstName} {user.lastName}",
+                        inviter_name=f"{inviter.firstName} {inviter.lastName}",
                         invite_id=UUID(str(invite.id)),
                         lab_id=UUID(str(virtual_lab.id)),
                         lab_name=str(virtual_lab.name),
