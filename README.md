@@ -6,7 +6,7 @@ Make sure you have the following dependencies installed:
 - [poetry](https://python-poetry.org/docs/#installation) (version >=1.5.1)
 - [docker](https://docs.docker.com/engine/install/) - Add the docker group to your user to enable running docker without `sudo`. This can be done by running `sudo usermod -a -G <your username>`
 - [jq](https://jqlang.github.io/jq/download/)
-- Stripe API key (`STRIPE_SECRET_KEY` in testing should be start with `sk_test_`)
+- Stripe API key (`STRIPE_SECRET_KEY` test key and `STRIPE_DEVICE_NAME=dev` in `./.env.local`)
 
 # Development
 
