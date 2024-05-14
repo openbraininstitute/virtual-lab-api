@@ -1,6 +1,8 @@
 from enum import StrEnum
 from http import HTTPStatus
 
+from pydantic import BaseModel, Field
+
 
 class VliErrorCode(StrEnum):
     """
@@ -49,3 +51,12 @@ class VliError(Exception):
     def __repr__(self) -> str:
         class_name = self.__class__.__name__
         return f'{class_name}(message="{self.message}", error_code={self.error_code}, details={self.details}, http_status_code={self.http_status_code})'
+
+
+class VlmValidationError(BaseModel):
+    error_code: str
+    details: dict[str, str] = Field(
+        ...,
+        examples=[{"field": "error's description"}],
+        description="A dictionary containing more details about the error. Keys are often field names, and values are the specific error messages.",
+    )
