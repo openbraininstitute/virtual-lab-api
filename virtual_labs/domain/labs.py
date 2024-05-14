@@ -1,18 +1,18 @@
 from datetime import datetime
-from virtual_labs.shared.utils.billing import amount_to_float
 from typing import Generic, TypeVar
 
 from pydantic import (
     UUID4,
     BaseModel,
     EmailStr,
+    Field,
     JsonValue,
     computed_field,
-    Field,
 )
 
 from virtual_labs.domain.invite import AddUser
 from virtual_labs.domain.user import UserWithInviteStatus
+from virtual_labs.shared.utils.billing import amount_to_float
 
 T = TypeVar("T")
 
@@ -23,7 +23,7 @@ class LabResponse(BaseModel, Generic[T]):
 
 
 class VirtualLabBase(BaseModel):
-    name: str
+    name: str = Field(max_length=250)
     description: str
     reference_email: EmailStr
     entity: str
