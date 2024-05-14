@@ -26,7 +26,8 @@ jobs:
         env:
           TEST_STRIPE_SECRET_KEY: ${{ secrets.TEST_STRIPE_SECRET_KEY }}
         run: |
-          echo STRIPE_SECRET_KEY=${{ secrets.TEST_STRIPE_SECRET_KEY }} >> .env.testing
+          echo STRIPE_SECRET_KEY=${{ secrets.TEST_STRIPE_SECRET_KEY }} >> .env.local
+          echo STRIPE_DEVICE_NAME=CI >> .env.local
           DEPLOYMENT_ENV=testing  poetry run pytest
       - name: cleanup
         if: ${{ always() }}
