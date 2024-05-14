@@ -29,7 +29,9 @@ def upgrade() -> None:
     op.add_column(
         "virtual_lab", sa.Column("stripe_customer_id", sa.String(), nullable=True)
     )
-    for lab in session.query(VirtualLab):
+    for lab in session.query(
+        VirtualLab.id, VirtualLab.name, VirtualLab.reference_email
+    ):
         session.execute(
             statement=sa.update(VirtualLab)
             .where(VirtualLab.id == lab.id)
