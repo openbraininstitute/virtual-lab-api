@@ -16,6 +16,7 @@ from virtual_labs.infrastructure.db.config import session_pool
 from virtual_labs.infrastructure.settings import settings
 from virtual_labs.routes.billing import router as billing_router
 from virtual_labs.routes.common import router as common_router
+from virtual_labs.routes.payments import router as payments_router
 from virtual_labs.routes.invites import router as invite_router
 from virtual_labs.routes.labs import router as virtual_lab_router
 from virtual_labs.routes.plans import router as plans_router
@@ -108,5 +109,6 @@ base_router.include_router(virtual_lab_router)
 base_router.include_router(plans_router)
 base_router.include_router(invite_router)
 base_router.include_router(billing_router)
+base_router.include_router(payments_router)
 
 app.include_router(base_router)

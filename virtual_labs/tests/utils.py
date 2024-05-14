@@ -18,6 +18,7 @@ from virtual_labs.infrastructure.db.models import (
     ProjectStar,
     VirtualLab,
     VirtualLabInvite,
+    VirtualLabTopup,
 )
 from virtual_labs.infrastructure.kc.auth import get_client_token
 from virtual_labs.infrastructure.kc.config import kc_auth
@@ -60,7 +61,6 @@ async def create_mock_lab(
         "name": f"Test Lab {uuid4()}",
         "description": "Test",
         "reference_email": "user@test.org",
-        "budget": 10,
         "plan_id": 1,
         "entity": "EPFL, Switzerland",
     }
@@ -81,7 +81,6 @@ async def create_mock_lab_with_project(
         "name": f"Test Lab {uuid4()}",
         "description": "Test",
         "reference_email": "user@test.org",
-        "budget": 10,
         "plan_id": 1,
         "entity": "EPFL, Switzerland",
     }
@@ -187,6 +186,11 @@ async def cleanup_resources(client: AsyncClient, lab_id: str) -> None:
         await session.execute(
             statement=delete(PaymentMethod).where(
                 PaymentMethod.virtual_lab_id == lab_id
+            )
+        )
+        await session.execute(
+            statement=delete(VirtualLabTopup).where(
+                VirtualLabTopup.virtual_lab_id == lab_id
             )
         )
 

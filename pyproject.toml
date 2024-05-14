@@ -25,7 +25,7 @@ fastapi-mail = "^1.4.1"
 pyjwt = "^2.8.0"
 asyncpg = "^0.29.0"
 asyncpg-stubs = "^0.29.1"
-stripe = "^9.5.0"
+stripe = "^9.6.0"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -36,6 +36,7 @@ pytest = "^8.0.2"
 requests = "^2.31.0"
 types-requests = "^2.31.0.20240311"
 pytest-asyncio = "0.21.1"
+python-dotenv = "^1.0.1"
 
 [build-system]
 requires = ["poetry-core"]

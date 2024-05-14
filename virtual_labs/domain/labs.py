@@ -1,7 +1,15 @@
 from datetime import datetime
+from virtual_labs.shared.utils.billing import amount_to_float
 from typing import Generic, TypeVar
 
-from pydantic import UUID4, BaseModel, EmailStr, JsonValue, field_validator
+from pydantic import (
+    UUID4,
+    BaseModel,
+    EmailStr,
+    JsonValue,
+    computed_field,
+    Field,
+)
 
 from virtual_labs.domain.invite import AddUser
 from virtual_labs.domain.user import UserWithInviteStatus
@@ -18,35 +26,20 @@ class VirtualLabBase(BaseModel):
     name: str
     description: str
     reference_email: EmailStr
-    budget: float
     entity: str
+    budget_amount: int = Field(exclude=True, default=0)
 
-    @field_validator("budget")
-    @classmethod
-    def check_budget_greater_than_0(cls, v: float) -> float:
-        if v <= 0:
-            raise ValueError("Budget should be greater than 0")
-
-        return v
+    @computed_field
+    def budget(self) -> float:
+        return amount_to_float(self.budget_amount)
 
 
 class VirtualLabUpdate(BaseModel):
     name: str | None = None
     description: str | None = None
     reference_email: EmailStr | None = None
-    budget: float | None = None
     plan_id: int | None = None
     entity: str | None = None
-
-    @field_validator("budget")
-    @classmethod
-    def check_budget_greater_than_0(cls, v: float | None) -> float | None:
-        if v is None:
-            return v
-
-        if v <= 0:
-            raise ValueError("Budget should be greater than 0")
-        return v
 
 
 class PlanDomain(BaseModel):

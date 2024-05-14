@@ -42,7 +42,6 @@ async def mock_lab_create(
         "name": f"Test Lab {uuid4()}",
         "description": "Test",
         "reference_email": "user@test.org",
-        "budget": 10000,
         "plan_id": 1,
         "entity": "EPFL, Switzerland",
     }
