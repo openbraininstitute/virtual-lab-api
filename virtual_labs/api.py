@@ -5,12 +5,17 @@ from typing import Any, Generator
 from fastapi import FastAPI, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
+from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
 from fastapi.routing import APIRouter
 from loguru import logger
 from starlette.middleware.cors import CORSMiddleware
 
-from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
+from virtual_labs.core.exceptions.api_error import (
+    VliError,
+    VliErrorCode,
+    VlmValidationError,
+)
 from virtual_labs.core.schemas import api
 from virtual_labs.infrastructure.db.config import session_pool
 from virtual_labs.infrastructure.settings import settings
@@ -37,6 +42,26 @@ app = FastAPI(
     openapi_url=f"{settings.BASE_PATH}/openapi.json",
     docs_url=f"{settings.BASE_PATH}/docs",
 )
+
+
+def custom_openapi() -> dict[str, Any]:
+    if app.openapi_schema:
+        return app.openapi_schema
+    openapi_schema = get_openapi(
+        title=settings.APP_NAME,
+        version="0.0.9",
+        description="API description",
+        routes=app.routes,
+    )
+    openapi_schema["components"]["schemas"][
+        "HTTPValidationError"
+    ] = VlmValidationError.model_json_schema()
+
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+
+app.openapi = custom_openapi  # type: ignore
 
 base_router = APIRouter(prefix=settings.BASE_PATH)
 
