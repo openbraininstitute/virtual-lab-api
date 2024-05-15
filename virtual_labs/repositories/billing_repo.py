@@ -1,8 +1,9 @@
-from typing import List
+from typing import List, cast
 
 from pydantic import UUID4
-from sqlalchemy import and_, case, delete, select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql import and_
 
 from virtual_labs.infrastructure.db.models import PaymentMethod
 
@@ -82,18 +83,21 @@ class BillingMutationRepository:
         *,
         virtual_lab_id: UUID4,
         payment_method_id: UUID4,
-    ) -> List[PaymentMethod]:
+    ) -> PaymentMethod:
+        await self.session.execute(
+            statement=update(PaymentMethod)
+            .where(PaymentMethod.virtual_lab_id == virtual_lab_id)
+            .values(default=False)
+        )
         stmt = (
             update(PaymentMethod)
             .where(
-                PaymentMethod.virtual_lab_id == virtual_lab_id,
+                and_(
+                    PaymentMethod.virtual_lab_id == virtual_lab_id,
+                    PaymentMethod.id == payment_method_id,
+                )
             )
-            .values(
-                default=case(
-                    (PaymentMethod.id == payment_method_id, True),
-                    else_=False,
-                ),
-            )
+            .values(default=True)
             .returning(
                 PaymentMethod.id,
                 PaymentMethod.default,
@@ -108,8 +112,9 @@ class BillingMutationRepository:
             )
         )
         result = await self.session.execute(statement=stmt)
+
         await self.session.commit()
-        return list(result.all())
+        return cast(PaymentMethod, result.one())
 
     async def delete_vl_payment_method(
         self,

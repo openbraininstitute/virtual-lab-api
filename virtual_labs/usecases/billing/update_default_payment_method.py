@@ -85,23 +85,18 @@ async def update_default_payment_method(
             details=str(ex),
         )
     try:
-        update_payment_methods = (
+        updated_payment_method = (
             await billing_mut_repo.update_vl_default_payment_method(
                 virtual_lab_id=virtual_lab_id,
                 payment_method_id=UUID(str(payment_method.id)),
             )
         )
-        default_payment_method = PaymentMethod.model_validate(
-            next(
-                (item for item in update_payment_methods if item.default is True),
-                None,
-            )
-        )
+        default_payment_method = PaymentMethod.model_validate(updated_payment_method)
         return VliResponse.new(
             message="Updating default payment method ended successfully",
             data={
                 "virtual_lab_id": virtual_lab_id,
-                "payment_method": PaymentMethod.model_validate(default_payment_method),
+                "payment_method": default_payment_method,
             },
         )
     except SQLAlchemyError as ex:
