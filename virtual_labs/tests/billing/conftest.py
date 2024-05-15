@@ -16,16 +16,16 @@ from virtual_labs.tests.utils import (
 async def mock_create_payment_methods(
     async_test_client: AsyncClient,
     mock_lab_create: tuple[Response, dict[str, str]],
-) -> AsyncGenerator[tuple[str, list[dict[str, str]], dict[str, str]], None]:
+) -> AsyncGenerator[tuple[dict[str, str], list[dict[str, str]], dict[str, str]], None]:
     client = async_test_client
     response, headers = mock_lab_create
 
-    virtual_lab_id = response.json()["data"]["virtual_lab"]["id"]
+    virtual_lab = response.json()["data"]["virtual_lab"]
     async with session_context_factory() as session:
         customer_id = (
             await session.execute(
                 statement=select(VirtualLab.stripe_customer_id).filter(
-                    VirtualLab.id == UUID(virtual_lab_id)
+                    VirtualLab.id == UUID(virtual_lab["id"])
                 )
             )
         ).scalar_one()
@@ -41,8 +41,8 @@ async def mock_create_payment_methods(
 
     for pm in payment_methods:
         await client.post(
-            f"/virtual-labs/{virtual_lab_id}/billing/payment-methods",
+            f"/virtual-labs/{virtual_lab["id"]}/billing/payment-methods",
             json=pm,
         )
 
-    yield virtual_lab_id, payment_methods, headers
+    yield virtual_lab, payment_methods, headers
