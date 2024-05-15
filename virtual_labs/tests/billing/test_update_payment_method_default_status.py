@@ -17,15 +17,17 @@ from virtual_labs.tests.utils import session_context_factory
 
 
 @pytest.mark.asyncio
-async def test_attach_new_payment_method_to_vl(
+async def test_update_payment_method_default_status(
     async_test_client: AsyncClient,
-    mock_create_payment_methods: tuple[str, list[dict[str, str]], dict[str, str]],
+    mock_create_payment_methods: tuple[
+        dict[str, str], list[dict[str, str]], dict[str, str]
+    ],
 ) -> None:
     client = async_test_client
-    (virtual_lab_id, _, _) = mock_create_payment_methods
+    (virtual_lab, _, _) = mock_create_payment_methods
 
     response = await client.get(
-        f"/virtual-labs/{virtual_lab_id}/billing/payment-methods"
+        f"/virtual-labs/{virtual_lab["id"]}/billing/payment-methods"
     )
     payment_methods = cast(
         list[PaymentMethod], response.json()["data"]["payment_methods"]
@@ -37,7 +39,7 @@ async def test_attach_new_payment_method_to_vl(
     ]
 
     response = await client.patch(
-        f"/virtual-labs/{virtual_lab_id}/billing/payment-methods/default",
+        f"/virtual-labs/{virtual_lab["id"]}/billing/payment-methods/default",
         json={
             "payment_method_id": str(first_payment_method_id),
         },
@@ -46,10 +48,10 @@ async def test_attach_new_payment_method_to_vl(
     assert response.status_code == 200
 
     async with session_context_factory() as session:
-        virtual_lab = (
+        db_virtual_lab = (
             await session.execute(
                 statement=select(VirtualLab).filter(
-                    VirtualLab.id == UUID(virtual_lab_id)
+                    VirtualLab.id == UUID(virtual_lab["id"])
                 )
             )
         ).scalar_one()
@@ -72,8 +74,8 @@ async def test_attach_new_payment_method_to_vl(
             ).scalars()
         )
 
-    stripe_customer = stripe_client.customers.retrieve(
-        str(virtual_lab.stripe_customer_id)
+    stripe_customer = await stripe_client.customers.retrieve_async(
+        str(db_virtual_lab.stripe_customer_id)
     )
     assert stripe_customer.invoice_settings is not None
     assert stripe_customer.invoice_settings.default_payment_method == str(

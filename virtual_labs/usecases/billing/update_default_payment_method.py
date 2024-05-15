@@ -54,7 +54,7 @@ async def update_default_payment_method(
         )
 
     try:
-        stripe_payment_method = stripe_client.payment_methods.retrieve(
+        stripe_payment_method = await stripe_client.payment_methods.retrieve_async(
             str(payment_method.stripe_payment_method_id),
         )
 
@@ -68,7 +68,7 @@ async def update_default_payment_method(
         )
 
     try:
-        stripe_client.customers.update(
+        await stripe_client.customers.update_async(
             str(vlab.stripe_customer_id),
             {
                 "invoice_settings": {
