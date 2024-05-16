@@ -40,6 +40,6 @@ async def retrieve_project_budget_use_case(
             message="Project budget fetched successfully",
             data={
                 "project_id": project_id,
-                "budget": project.budget,
+                "budget": project.budget_amount,
             },
         )

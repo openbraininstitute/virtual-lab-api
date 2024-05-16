@@ -16,7 +16,7 @@ from virtual_labs.repositories.project_repo import (
     ProjectMutationRepository,
     ProjectQueryRepository,
 )
-from virtual_labs.shared.utils.billing import amount_to_float
+from virtual_labs.shared.utils.billing import amount_to_cent
 
 
 async def update_project_budget_use_case(
@@ -39,15 +39,15 @@ async def update_project_budget_use_case(
             current_project_id=project_id,
         )
 
-        if (value + sum_budget_projects) > amount_to_float(
-            int(virtual_lab.budget_amount)
-        ):
+        new_budget = amount_to_cent(value)
+
+        if (new_budget + sum_budget_projects) > int(virtual_lab.budget_amount):
             raise BudgetExceedLimit("Project budget exceed max limit")
 
         updated_project_id, new_budget, updated_at = await pmr.update_project_budget(
             virtual_lab_id=virtual_lab_id,
             project_id=project_id,
-            value=value,
+            value=new_budget,
         )
 
     except SQLAlchemyError:
@@ -56,11 +56,12 @@ async def update_project_budget_use_case(
             http_status_code=status.BAD_REQUEST,
             message="Updating project budget failed",
         )
-    except BudgetExceedLimit:
+    except BudgetExceedLimit as ex:
         raise VliError(
             error_code=VliErrorCode.NOT_ALLOWED_OP,
             http_status_code=status.NOT_ACCEPTABLE,
             message="Update project budget exceed limit",
+            details=str(ex),
         )
     except Exception as ex:
         logger.error(
