@@ -31,7 +31,7 @@ async def delete_project_use_case(
     virtual_lab_id: UUID4,
     project_id: UUID4,
     auth: Tuple[AuthUser, str],
-) -> Response | VliError:
+) -> Response:
     pqr = ProjectQueryRepository(session)
     pmr = ProjectMutationRepository(session)
     user_id = get_user_id_from_auth(auth)

@@ -22,7 +22,7 @@ async def search_projects_per_virtual_lab_by_name_use_case(
     virtual_lab_id: UUID4,
     query_term: str | None,
     auth: Tuple[AuthUser, str],
-) -> Response | VliError:
+) -> Response:
     pr = ProjectQueryRepository(session)
     gqr = GroupQueryRepository()
 

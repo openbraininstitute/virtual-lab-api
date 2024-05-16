@@ -31,7 +31,7 @@ async def update_user_role_in_project(
     user_id: UUID4,
     new_role: UserRoleEnum,
     auth: Tuple[AuthUser, str],
-) -> Response | VliError:
+) -> Response:
     pqr = ProjectQueryRepository(session)
     uqr = UserQueryRepository()
     umr = UserMutationRepository()

@@ -20,7 +20,7 @@ from virtual_labs.shared.utils.auth import get_user_id_from_auth
 
 async def retrieve_all_user_projects_use_case(
     session: AsyncSession, auth: Tuple[AuthUser, str], pagination: PageParams
-) -> Response | VliError:
+) -> Response:
     pr = ProjectQueryRepository(session)
     gqr = GroupQueryRepository()
     uqr = UserQueryRepository()

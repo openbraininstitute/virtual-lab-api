@@ -107,7 +107,7 @@ async def create_new_project_use_case(
     virtual_lab_id: UUID4,
     payload: ProjectCreationBody,
     auth: Tuple[AuthUser, str],
-) -> Response | VliError:
+) -> Response:
     pmr = ProjectMutationRepository(session)
     pqr = ProjectQueryRepository(session)
     gmr = GroupMutationRepository()

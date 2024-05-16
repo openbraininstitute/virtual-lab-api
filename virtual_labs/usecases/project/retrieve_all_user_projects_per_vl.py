@@ -23,7 +23,7 @@ async def retrieve_all_user_projects_per_vl_use_case(
     virtual_lab_id: UUID4,
     pagination: PageParams,
     auth: Tuple[AuthUser, str],
-) -> Response | VliError:
+) -> Response:
     pr = ProjectQueryRepository(session)
     gqr = GroupQueryRepository()
     user_id = get_user_id_from_auth(auth)

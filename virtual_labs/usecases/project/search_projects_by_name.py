@@ -18,7 +18,7 @@ from virtual_labs.shared.utils.get_one_project_admin import get_one_project_admi
 
 async def search_projects_by_name_use_case(
     session: AsyncSession, query_term: str | None, auth: Tuple[AuthUser, str]
-) -> Response | VliError:
+) -> Response:
     pr = ProjectQueryRepository(session)
     gqr = GroupQueryRepository()
 

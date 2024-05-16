@@ -18,7 +18,7 @@ from virtual_labs.shared.utils.get_one_project_admin import get_one_project_admi
 
 async def retrieve_starred_projects_use_case(
     session: AsyncSession, auth: Tuple[AuthUser, str], pagination: PageParams
-) -> Response | VliError:
+) -> Response:
     pr = ProjectQueryRepository(session)
 
     try:

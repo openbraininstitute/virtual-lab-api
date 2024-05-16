@@ -24,7 +24,7 @@ async def update_star_project_status_use_case(
     project_id: UUID4,
     value: bool,
     auth: Tuple[AuthUser, str],
-) -> Response | VliError:
+) -> Response:
     pmr = ProjectMutationRepository(session)
     pqr = ProjectQueryRepository(session)
     user_id = get_user_id_from_auth(auth)

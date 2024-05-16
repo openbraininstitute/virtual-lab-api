@@ -30,7 +30,7 @@ async def detach_user_from_project(
     project_id: UUID4,
     user_id: UUID4,
     auth: Tuple[AuthUser, str],
-) -> Response | VliError:
+) -> Response:
     pqr = ProjectQueryRepository(session)
     umr = UserMutationRepository()
     gqr = GroupQueryRepository()
