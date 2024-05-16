@@ -3,11 +3,21 @@ from uuid import UUID, uuid4
 
 import pytest_asyncio
 from httpx import AsyncClient, Response
+from sqlalchemy import update
 
-from virtual_labs.tests.utils import cleanup_resources, create_mock_lab, get_headers
+from virtual_labs.infrastructure.db.models import Project, VirtualLab
+from virtual_labs.shared.utils.billing import amount_to_float
+from virtual_labs.tests.utils import (
+    cleanup_resources,
+    create_mock_lab,
+    get_headers,
+    session_context_factory,
+)
 
 VL_COUNT = 2
 PROJECTS_PER_VL_COUNT = 2
+VL_BUDGET_AMOUNT = 100050  # in cent (1000.50$)
+VL_PROJECTS_COUNT = 3
 
 
 @pytest_asyncio.fixture
@@ -40,11 +50,22 @@ async def mock_create_projects(
     client = async_test_client
     vl_response, headers = mock_lab_create
     virtual_lab_id = vl_response.json()["data"]["virtual_lab"]["id"]
-    virtual_lab_budget = vl_response.json()["data"]["virtual_lab"]["budget"]
+
+    # mock the budget for virtual lab (instead using the stripe webhook)
+    async with session_context_factory() as session:
+        virtual_lab_budget = (
+            await session.execute(
+                statement=update(VirtualLab)
+                .where(VirtualLab.id == UUID(virtual_lab_id))
+                .values(budget_amount=VL_BUDGET_AMOUNT)
+                .returning(VirtualLab.budget_amount)
+            )
+        ).scalar_one()
+        await session.commit()
 
     projects: list[UUID] = []
 
-    for i in range(3):
+    for i in range(VL_PROJECTS_COUNT):
         payload = {
             "name": f"Test Project {i} {uuid4()}",
             "description": f"Test Project description {i}",
@@ -55,15 +76,23 @@ async def mock_create_projects(
             json=payload,
         )
         project_id = response.json()["data"]["project"]["id"]
-
-        response = await client.patch(
-            f"/virtual-labs/{virtual_lab_id}/projects/{project_id}/budget",
-            json={"new_budget": float(virtual_lab_budget) / 3},
-        )
+        async with session_context_factory() as session:
+            await session.execute(
+                statement=update(Project)
+                .where(Project.id == UUID(project_id))
+                .values(budget_amount=int(VL_BUDGET_AMOUNT / VL_PROJECTS_COUNT))
+                .returning(Project.budget_amount)
+            )
+            await session.commit()
 
         projects.append(project_id)
 
-    yield cast(UUID, virtual_lab_id), cast(float, virtual_lab_budget), projects, headers
+    yield (
+        cast(UUID, virtual_lab_id),
+        amount_to_float(virtual_lab_budget),
+        projects,
+        headers,
+    )
 
 
 @pytest_asyncio.fixture

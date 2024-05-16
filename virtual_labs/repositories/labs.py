@@ -197,15 +197,17 @@ async def retrieve_lab_distributed_budget(
     *,
     current_project_id: UUID4,
     virtual_lab_id: UUID4,
-) -> float:
+) -> int:
     stmt = (
         select(
-            func.coalesce(func.sum(Project.budget), 0).label("sum_budget_projects"),
+            func.coalesce(func.sum(Project.budget_amount), 0).label(
+                "sum_budget_projects"
+            ),
         )
         .where(
             and_(
                 Project.id != current_project_id,
-                Project.budget.isnot(None),
+                Project.budget_amount.isnot(None),
                 Project.virtual_lab_id == virtual_lab_id,
             )
         )

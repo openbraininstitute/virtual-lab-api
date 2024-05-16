@@ -1,11 +1,12 @@
 from datetime import datetime
 from typing import List, Optional
 
-from pydantic import UUID4, BaseModel, EmailStr, Field
+from pydantic import UUID4, BaseModel, ConfigDict, EmailStr, Field, computed_field
 
 from virtual_labs.core.types import UserRoleEnum
 from virtual_labs.domain.invite import AddUser
 from virtual_labs.domain.user import UserWithInviteStatus
+from virtual_labs.shared.utils.billing import amount_to_float
 
 
 class VirtualLabModel(BaseModel):
@@ -27,16 +28,19 @@ class ProjectCreationBody(ProjectBody):
 
 
 class Project(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: UUID4
     nexus_project_id: str
     name: str
     description: str | None
-    budget: float | None
     created_at: datetime
     updated_at: datetime | None
+    budget_amount: int = Field(exclude=True, default=0)
 
-    class Config:
-        from_attributes = True
+    @computed_field
+    def budget(self) -> float:
+        return amount_to_float(self.budget_amount)
 
 
 class ProjectVlOut(Project):
@@ -77,7 +81,11 @@ class ProjectDeletionOut(BaseModel):
 
 class ProjectBudgetOut(BaseModel):
     project_id: UUID4
-    budget: float
+    budget_amount: int = Field(exclude=True, default=0)
+
+    @computed_field
+    def budget(self) -> float:
+        return amount_to_float(self.budget_amount)
 
 
 class ProjectCountOut(BaseModel):
