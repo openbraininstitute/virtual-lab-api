@@ -87,7 +87,8 @@ class Project(Base):
     name = Column(String(250), index=True)
     description = Column(Text)
     deleted = Column(Boolean, default=False)
-    budget = Column(Integer, nullable=False, default=0)
+    budget_amount = Column(Integer, nullable=False, default=0)
+
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, onupdate=func.now(), default=func.now())
     deleted_at = Column(DateTime)
