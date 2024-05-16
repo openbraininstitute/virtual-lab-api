@@ -16,7 +16,7 @@ from virtual_labs.repositories.project_repo import (
     ProjectMutationRepository,
     ProjectQueryRepository,
 )
-from virtual_labs.shared.utils.billing import amount_to_cent
+from virtual_labs.shared.utils.billing import amount_to_cent, amount_to_float
 
 
 async def update_project_budget_use_case(
@@ -77,7 +77,7 @@ async def update_project_budget_use_case(
             message="Project new budget updated successfully",
             data={
                 "project_id": updated_project_id,
-                "new_budget": new_budget,
+                "new_budget": amount_to_float(new_budget),
                 "updated_at": updated_at,
             },
         )

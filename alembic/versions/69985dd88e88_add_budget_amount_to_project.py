@@ -25,7 +25,8 @@ def upgrade() -> None:
     conn = op.get_bind()
     session = Session(bind=conn)
     op.add_column(
-        "project", sa.Column("budget_amount", sa.Integer(), nullable=True, default=0)
+        "project",
+        sa.Column("budget_amount", sa.Integer(), nullable=True, server_default="0"),
     )
 
     for (id,) in session.query(Project.id):
@@ -35,7 +36,7 @@ def upgrade() -> None:
         session.execute(
             statement=sa.update(Project)
             .where(Project.id == id)
-            .values(budget_amount=budget)
+            .values(budget_amount=0 if budget is None else budget)
         )
     session.commit()
     op.alter_column(table_name="project", column_name="budget_amount", nullable=False)
