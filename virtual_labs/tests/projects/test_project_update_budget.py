@@ -4,7 +4,6 @@ import pytest
 from httpx import AsyncClient
 
 from virtual_labs.core.exceptions.api_error import VliErrorCode
-from virtual_labs.shared.utils.billing import amount_to_cent
 
 
 @pytest.mark.asyncio
@@ -48,4 +47,4 @@ async def test_update_project_budget_success(
     details = response.json()
 
     assert response.status_code == 200
-    assert details["data"]["new_budget"] == amount_to_cent(new_budget)
+    assert details["data"]["new_budget"] == new_budget
