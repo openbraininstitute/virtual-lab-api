@@ -15,7 +15,7 @@ from virtual_labs.shared.utils.uniq_list import uniq_list
 
 async def retrieve_users_per_project_count_use_case(
     session: AsyncSession, project_id: UUID4
-) -> Response | VliError:
+) -> Response:
     pr = ProjectQueryRepository(session)
     gqr = GroupQueryRepository()
 

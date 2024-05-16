@@ -10,13 +10,13 @@ from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.exceptions.generic_exceptions import (
     BudgetExceedLimit,
 )
-from virtual_labs.shared.utils.billing import amount_to_float
 from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.repositories.labs import retrieve_lab_distributed_budget
 from virtual_labs.repositories.project_repo import (
     ProjectMutationRepository,
     ProjectQueryRepository,
 )
+from virtual_labs.shared.utils.billing import amount_to_float
 
 
 async def update_project_budget_use_case(
@@ -24,7 +24,7 @@ async def update_project_budget_use_case(
     virtual_lab_id: UUID4,
     project_id: UUID4,
     value: float,
-) -> Response | VliError:
+) -> Response:
     pmr = ProjectMutationRepository(session)
     pqr = ProjectQueryRepository(session)
     pqr = ProjectQueryRepository(session)

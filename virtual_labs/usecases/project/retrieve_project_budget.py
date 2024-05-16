@@ -13,11 +13,14 @@ from virtual_labs.repositories.project_repo import ProjectQueryRepository
 
 async def retrieve_project_budget_use_case(
     session: AsyncSession, virtual_lab_id: UUID4, project_id: UUID4
-) -> Response | VliError:
+) -> Response:
     pr = ProjectQueryRepository(session)
     try:
         project, _ = await pr.retrieve_one_project_strict(virtual_lab_id, project_id)
-    except SQLAlchemyError:
+    except SQLAlchemyError as ex:
+        logger.error(
+            f"Error during request project from db {virtual_lab_id}/{project_id} ({ex})"
+        )
         raise VliError(
             error_code=VliErrorCode.DATABASE_ERROR,
             http_status_code=status.BAD_REQUEST,

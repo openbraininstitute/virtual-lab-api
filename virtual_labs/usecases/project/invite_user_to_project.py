@@ -32,7 +32,7 @@ async def invite_user_to_project(
     project_id: UUID4,
     invite_details: ProjectInviteIn,
     auth: Tuple[AuthUser, str],
-) -> Response | VliError:
+) -> Response:
     pr = ProjectQueryRepository(session)
     user_repo = UserQueryRepository()
     invite_repo = InviteMutationRepository(session)

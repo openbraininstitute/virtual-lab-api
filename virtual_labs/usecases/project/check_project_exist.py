@@ -12,7 +12,7 @@ from virtual_labs.repositories.project_repo import ProjectQueryRepository
 
 async def check_project_existence_use_case(
     session: AsyncSession, query_term: str | None
-) -> Response | VliError:
+) -> Response:
     pr = ProjectQueryRepository(session)
 
     if not query_term:

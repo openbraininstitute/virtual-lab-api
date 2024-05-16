@@ -13,7 +13,7 @@ from virtual_labs.repositories.project_repo import ProjectQueryRepository
 
 async def retrieve_projects_count_per_virtual_lab_use_case(
     session: AsyncSession, virtual_lab_id: UUID4
-) -> Response | VliError:
+) -> Response:
     pr = ProjectQueryRepository(session)
 
     try:

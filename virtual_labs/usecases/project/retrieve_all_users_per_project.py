@@ -21,7 +21,7 @@ async def retrieve_all_users_per_project_use_case(
     session: AsyncSession,
     virtual_lab_id: UUID4,
     project_id: UUID4,
-) -> Response | VliError:
+) -> Response:
     gqr = GroupQueryRepository()
     pqr = ProjectQueryRepository(session)
     invite_repo = InviteQueryRepository(session)
