@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from pydantic import UUID4, BaseModel, ConfigDict, EmailStr
 
@@ -27,6 +27,25 @@ class PaymentMethodsOut(BaseModel):
 class PaymentMethodOut(BaseModel):
     virtual_lab_id: UUID4
     payment_method: PaymentMethod
+
+
+class StripePaymentOut(BaseModel):
+    virtual_lab_id: UUID4
+    status: Literal[
+        "canceled",
+        "processing",
+        "requires_action",
+        "requires_capture",
+        "requires_confirmation",
+        "requires_payment_method",
+        "succeeded",
+    ]
+
+
+class VlabBalanceOut(BaseModel):
+    virtual_lab_id: UUID4
+    budget: float
+    total_spent: float
 
 
 class PaymentMethodDeletionOut(BaseModel):
