@@ -15,6 +15,7 @@ from virtual_labs.domain.payment_method import PaymentMethod, PaymentMethodCreat
 from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.infrastructure.stripe.config import stripe_client
 from virtual_labs.repositories.billing_repo import BillingMutationRepository
+from virtual_labs.repositories.labs import get_undeleted_virtual_lab
 from virtual_labs.shared.utils.auth import get_user_id_from_auth
 
 
@@ -27,6 +28,16 @@ async def attach_payment_method_to_virtual_lab(
 ) -> Response:
     billing_mut_repo = BillingMutationRepository(session)
     user_id = get_user_id_from_auth(auth)
+
+    try:
+        vlab = await get_undeleted_virtual_lab(session, virtual_lab_id)
+    except SQLAlchemyError as ex:
+        logger.error(f"Error during retrieving virtual lab :({ex})")
+        raise VliError(
+            error_code=VliErrorCode.ENTITY_NOT_FOUND,
+            http_status_code=status.NOT_FOUND,
+            message="Retrieving virtual lab failed",
+        )
 
     try:
         setup_intent = await stripe_client.setup_intents.retrieve_async(
@@ -46,6 +57,7 @@ async def attach_payment_method_to_virtual_lab(
             message="Retrieving stripe setup intent failed",
             error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
             http_status_code=status.BAD_GATEWAY,
+            details=str(ex),
         )
 
     if not (stripe_payment_method and stripe_payment_method.card):
@@ -61,15 +73,26 @@ async def attach_payment_method_to_virtual_lab(
                 "billing_details": {
                     "name": payload.name,
                     "email": payload.email,
-                }
+                },
             },
         )
+
+        if len(vlab.payment_methods) == 0:
+            await stripe_client.customers.update_async(
+                str(vlab.stripe_customer_id),
+                {
+                    "invoice_settings": {
+                        "default_payment_method": stripe_payment_method.id
+                    }
+                },
+            )
     except stripe.StripeError as ex:
         logger.error(f"Error during update stripe payment method details :({ex})")
         raise VliError(
             message="Update stripe payment method details failed",
             error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
             http_status_code=status.BAD_GATEWAY,
+            details=str(ex),
         )
 
     try:
@@ -85,6 +108,7 @@ async def attach_payment_method_to_virtual_lab(
             brand=stripe_payment_method.card.brand,
             card_number=stripe_payment_method.card.last4,
             payment_method_id=stripe_payment_method.id,
+            default=bool(len(vlab.payment_methods) == 0),
         )
 
         return VliResponse.new(
