@@ -61,6 +61,7 @@ class BillingMutationRepository:
         brand: str,
         cardholder_name: str,
         cardholder_email: str,
+        default: bool = False,
     ) -> PaymentMethod:
         payment_method = PaymentMethod(
             user_id=user_id,
@@ -71,6 +72,7 @@ class BillingMutationRepository:
             card_number=card_number,
             brand=brand,
             expire_at=expire_at,
+            default=default,
         )
 
         self.session.add(payment_method)
