@@ -164,6 +164,7 @@ async def init_vl_budget_topup(
     operation_id="retrieve_virtual_lab_balance",
     summary="""
     retrieve current balance (budget, total_spent) for a virtual lab
+    The total spent is dummy value for the moment (waiting for the dedicated service to be ready)
     """,
     response_model=VliAppResponse[VlabBalanceOut],
 )
