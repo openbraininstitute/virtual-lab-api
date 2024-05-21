@@ -46,3 +46,39 @@ async def mock_create_payment_methods(
         )
 
     yield virtual_lab, payment_methods, headers
+
+
+@pytest_asyncio.fixture
+async def mock_create_payment_method(
+    async_test_client: AsyncClient,
+    mock_lab_create: tuple[Response, dict[str, str]],
+) -> AsyncGenerator[tuple[dict[str, str], dict[str, str], dict[str, str]], None]:
+    client = async_test_client
+    response, headers = mock_lab_create
+
+    virtual_lab = response.json()["data"]["virtual_lab"]
+    virtual_lab_id = response.json()["data"]["virtual_lab"]["id"]
+
+    async with session_context_factory() as session:
+        customer_id = (
+            await session.execute(
+                statement=select(VirtualLab.stripe_customer_id).filter(
+                    VirtualLab.id == UUID(virtual_lab_id)
+                )
+            )
+        ).scalar_one()
+
+    payment_method = {
+        "name": "test one payment_method",
+        "email": "cardholder_test_one@vlm.com",
+        "setupIntentId": (await create_confirmed_setup_intent(customer_id)).id,
+    }
+
+    response = await client.post(
+        f"/virtual-labs/{virtual_lab_id}/billing/payment-methods",
+        json=payment_method,
+    )
+
+    payment_method = response.json()["data"]["payment_method"]
+
+    yield virtual_lab, payment_method, headers
