@@ -1,5 +1,6 @@
 from http import HTTPStatus as status
 from typing import Tuple, cast
+from uuid import UUID
 
 import stripe
 from fastapi.responses import Response
@@ -94,7 +95,7 @@ async def attach_payment_method_to_virtual_lab(
 
     try:
         payment_methods_count = await billing_query_repo.retrieve_payment_methods_count(
-            lab_id=UUID4(str(vlab.id))
+            lab_id=UUID(str(vlab.id))
         )
 
         if not payment_methods_count or payment_methods_count == 0:
