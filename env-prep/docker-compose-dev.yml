@@ -149,7 +149,6 @@ services:
     networks:
       - ls
 
-
   blazegraph:
     image: bluebrain/blazegraph-nexus:2.1.6-RC
     environment:
@@ -172,3 +171,23 @@ services:
       - delta_data:/var/lib/postgresql/data
     networks:
       - ls
+
+  stripe-cli:
+    image: stripe/stripe-cli
+    container_name: stripe
+    environment:
+      STRIPE_CLI_TELEMETRY_OPTOUT: 1
+      STRIPE_API_KEY: ${STRIPE_SECRET_KEY}
+      STRIPE_DEVICE_NAME: ${STRIPE_DEVICE_NAME}
+    volumes:
+      - ./stripe-data:/stripe-data
+    entrypoint:
+      - '/bin/sh'
+      - '-c'
+      - |
+        echo STRIPE_WEBHOOK_SECRET=$(stripe listen --print-secret) > /stripe-data/.env.local &&
+        stripe listen --forward-to http://host.docker.internal:8000/payments/webhook
+    network_mode: host
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+      - "172.17.0.1:host-gateway"
