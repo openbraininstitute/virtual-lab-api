@@ -10,7 +10,11 @@ from sqlalchemy.sql import and_, or_
 from virtual_labs.core.types import PaginatedDbResult
 from virtual_labs.domain import labs
 from virtual_labs.domain.common import PageParams
-from virtual_labs.infrastructure.db.models import Project, VirtualLab, VirtualLabTopup
+from virtual_labs.infrastructure.db.models import (
+    Project,
+    VirtualLab,
+    VirtualLabTopup,
+)
 
 
 class VirtualLabDbCreate(labs.VirtualLabCreate):

@@ -1,7 +1,7 @@
 from typing import List, cast
 
 from pydantic import UUID4
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import and_
 
@@ -42,6 +42,14 @@ class BillingQueryRepository:
 
         payment_cards = [row for row in result]
         return payment_cards
+
+    async def retrieve_payment_methods_count(self, lab_id: UUID4) -> int | None:
+        result = await self.session.scalar(
+            select(func.count(PaymentMethod.id)).where(
+                PaymentMethod.virtual_lab_id == lab_id,
+            )
+        )
+        return result
 
 
 class BillingMutationRepository:
