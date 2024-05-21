@@ -9,7 +9,7 @@ CLIENT_SECRET="obp-secret"
 
 
 # Start containers
-docker compose -f env-prep/docker-compose-dev.yml -p vlm-project up --wait
+docker compose --env-file ./.env.local -f env-prep/docker-compose-dev.yml -p vlm-project up --wait
 
 
 # Check that delta ready to accept connections
