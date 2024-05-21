@@ -14,8 +14,13 @@ from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.domain.payment_method import PaymentMethod, PaymentMethodCreationBody
 from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.infrastructure.stripe.config import stripe_client
-from virtual_labs.repositories.billing_repo import BillingMutationRepository
-from virtual_labs.repositories.labs import get_undeleted_virtual_lab
+from virtual_labs.repositories.billing_repo import (
+    BillingMutationRepository,
+    BillingQueryRepository,
+)
+from virtual_labs.repositories.labs import (
+    get_undeleted_virtual_lab,
+)
 from virtual_labs.shared.utils.auth import get_user_id_from_auth
 
 
@@ -27,6 +32,7 @@ async def attach_payment_method_to_virtual_lab(
     auth: Tuple[AuthUser, str],
 ) -> Response:
     billing_mut_repo = BillingMutationRepository(session)
+    billing_query_repo = BillingQueryRepository(session)
     user_id = get_user_id_from_auth(auth)
 
     try:
@@ -77,15 +83,6 @@ async def attach_payment_method_to_virtual_lab(
             },
         )
 
-        if len(vlab.payment_methods) == 0:
-            await stripe_client.customers.update_async(
-                str(vlab.stripe_customer_id),
-                {
-                    "invoice_settings": {
-                        "default_payment_method": stripe_payment_method.id
-                    }
-                },
-            )
     except stripe.StripeError as ex:
         logger.error(f"Error during update stripe payment method details :({ex})")
         raise VliError(
@@ -96,6 +93,20 @@ async def attach_payment_method_to_virtual_lab(
         )
 
     try:
+        payment_methods_count = await billing_query_repo.retrieve_payment_methods_count(
+            lab_id=UUID4(str(vlab.id))
+        )
+
+        if not payment_methods_count or payment_methods_count == 0:
+            await stripe_client.customers.update_async(
+                str(vlab.stripe_customer_id),
+                {
+                    "invoice_settings": {
+                        "default_payment_method": stripe_payment_method.id
+                    }
+                },
+            )
+
         if stripe_payment_method.card.exp_month and stripe_payment_method.card.exp_year:
             expire_at = f"{stripe_payment_method.card.exp_month}/{stripe_payment_method.card.exp_year}"
 
@@ -108,7 +119,7 @@ async def attach_payment_method_to_virtual_lab(
             brand=stripe_payment_method.card.brand,
             card_number=stripe_payment_method.card.last4,
             payment_method_id=stripe_payment_method.id,
-            default=bool(len(vlab.payment_methods) == 0),
+            default=bool(payment_methods_count == 0),
         )
 
         return VliResponse.new(
@@ -123,7 +134,7 @@ async def attach_payment_method_to_virtual_lab(
         raise VliError(
             error_code=VliErrorCode.DATABASE_ERROR,
             http_status_code=status.BAD_REQUEST,
-            message="Payment methods failed",
+            message="Adding new payment methods failed",
         )
     except Exception as ex:
         logger.error(f"Error during adding new payment method to virtual lab ({ex})")
