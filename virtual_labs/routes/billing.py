@@ -1,3 +1,4 @@
+from textwrap import dedent
 from typing import Annotated, Tuple
 
 from fastapi import APIRouter, Body, Depends
@@ -74,6 +75,8 @@ async def add_new_payment_method_to_vl(
     operation_id="update_default_payment_method",
     summary="""
     Update default payment method 
+    """,
+    description="""
     This will be used only for stripe invoice and subscription. 
     for paymentIntent you have to pass the payment method Id
     """,
@@ -119,6 +122,33 @@ async def delete_payment_method(
     "/{virtual_lab_id}/billing/setup-intent",
     operation_id="generate_setup_intent",
     summary="generate setup intent for a specific stripe customer (customer == virtual lab)",
+    description=dedent(
+        """
+    This endpoint will only generate the setup intent, to be able to use it correctly in attaching
+    the payment method to a specific virtual lab, you have to confirm it.
+
+    To confirm the setup intent without using the frontend app, you can access the stripe api docs
+    and use the builtin-CLI to confirm the setup intent id.
+
+    ### Stripe dashboard CLI
+    You have to use test mode of the stripe account 
+    [Stripe Builtin-CLI](https://docs.stripe.com/api/setup_intents/confirm?shell=true&api=true&resource=setup_intents&action=confirm) 
+
+    ### Local machine Stripe CLI
+
+    ```shell 
+    stripe setup_intents confirm {setup_intent_id} --payment-method={payment_method}
+    ```
+    where:
+    ```py
+    setup_intent_id = `seti_1Mm2cBLkdIwHu7ixaiKW3ElR` # the generated setupIntent 
+    payment_method = `pm_card_visa` 
+    # it can be any payment method, available in test cards page
+    ```
+
+    [Stripe Test cards](https://docs.stripe.com/testing?testing-method=payment-methods)
+    """
+    ),
     response_model=VliAppResponse[SetupIntentOut],
 )
 @verify_vlab_write
@@ -164,8 +194,12 @@ async def init_vl_budget_topup(
     operation_id="retrieve_virtual_lab_balance",
     summary="""
     retrieve current balance (budget, total_spent) for a virtual lab
-    The total spent is dummy value for the moment (waiting for the dedicated service to be ready)
     """,
+    description=dedent(
+        """
+    **The total spent is dummy value for the moment (waiting for the dedicated service to be ready)**
+    """
+    ),
     response_model=VliAppResponse[VlabBalanceOut],
 )
 @verify_vlab_read
