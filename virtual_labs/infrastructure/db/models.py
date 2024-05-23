@@ -27,7 +27,9 @@ class VirtualLabTopup(Base):
     __tablename__ = "virtual_lab_topup"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    virtual_lab_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("virtual_lab.id"))
+    virtual_lab_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("virtual_lab.id"), index=True
+    )
     amount: Mapped[int] = mapped_column()
     created_at: Mapped[datetime] = mapped_column(default=func.now())
     stripe_event_id: Mapped[str] = mapped_column()
@@ -95,7 +97,7 @@ class Project(Base):
     deleted_by = Column(UUID(as_uuid=True))
 
     virtual_lab_id = Column(
-        "virtual_lab_id", UUID(as_uuid=True), ForeignKey("virtual_lab.id")
+        "virtual_lab_id", UUID(as_uuid=True), ForeignKey("virtual_lab.id"), index=True
     )
     virtual_lab = relationship("VirtualLab", back_populates="projects")
     project_stars = relationship("ProjectStar", back_populates="project")
@@ -121,7 +123,7 @@ class ProjectStar(Base):
     updated_at = Column(DateTime, onupdate=func.now(), default=func.now())
 
     user_id = Column(UUID, nullable=False)
-    project_id = Column(UUID, ForeignKey("project.id"))
+    project_id = Column(UUID, ForeignKey("project.id"), index=True)
     project = relationship("Project", back_populates="project_stars")
 
 
@@ -148,7 +150,7 @@ class ProjectInvite(Base):
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, onupdate=func.now(), default=func.now())
 
-    project_id = Column(UUID(as_uuid=True), ForeignKey("project.id"))
+    project_id = Column(UUID(as_uuid=True), ForeignKey("project.id"), index=True)
     project = relationship("Project", back_populates="invites")
 
 
@@ -160,7 +162,7 @@ class VirtualLabInvite(Base):
     user_id = Column(UUID)
     role = Column(String, nullable=False)
     user_email = Column(String, nullable=False)
-    virtual_lab_id = Column(UUID, ForeignKey("virtual_lab.id"))
+    virtual_lab_id = Column(UUID, ForeignKey("virtual_lab.id"), index=True)
     virtual_lab = relationship("VirtualLab", back_populates="invites")
 
     accepted = Column(Boolean, default=False)
@@ -187,7 +189,7 @@ class PaymentMethod(Base):
     updated_at = Column(DateTime, onupdate=func.now())
 
     virtual_lab_id = Column(
-        "virtual_lab_id", UUID(as_uuid=True), ForeignKey("virtual_lab.id")
+        "virtual_lab_id", UUID(as_uuid=True), ForeignKey("virtual_lab.id"), index=True
     )
     virtual_lab = relationship("VirtualLab", back_populates="payment_methods")
 
