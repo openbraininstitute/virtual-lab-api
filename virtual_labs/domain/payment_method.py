@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import List, Literal, Optional
 
+import stripe
 from pydantic import UUID4, BaseModel, ConfigDict, EmailStr
 
 
@@ -30,6 +31,8 @@ class PaymentMethodOut(BaseModel):
 
 
 class StripePaymentOut(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     virtual_lab_id: UUID4
     status: Literal[
         "canceled",
@@ -39,6 +42,18 @@ class StripePaymentOut(BaseModel):
         "requires_confirmation",
         "requires_payment_method",
         "succeeded",
+    ]
+    next_action: stripe.PaymentIntent.NextAction
+    cancellation_reason: Optional[
+        Literal[
+            "abandoned",
+            "automatic",
+            "duplicate",
+            "failed_invoice",
+            "fraudulent",
+            "requested_by_customer",
+            "void_invoice",
+        ]
     ]
 
 

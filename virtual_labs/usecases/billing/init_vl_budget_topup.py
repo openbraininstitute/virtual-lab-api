@@ -74,9 +74,7 @@ async def init_vl_budget_topup(
                 "customer": str(vlab.stripe_customer_id),
                 "payment_method": stripe_payment_method.id,
                 "confirm": True,
-                # TODO: see if we should include basePath to env variables as
-                # TODO: LAB_PATH="{}/mmb-beta/virtual-lab/lab/{}/admin" and do replacement with format,
-                "return_url": "{}/mmb-beta/virtual-lab/lab/{}/admin".format(
+                "return_url": settings.VLAB_ADMIN_PATH.format(
                     settings.DEPLOYMENT_NAMESPACE, virtual_lab_id
                 ),
                 "metadata": {
@@ -91,6 +89,8 @@ async def init_vl_budget_topup(
             data={
                 "virtual_lab_id": virtual_lab_id,
                 "status": payment_intent.status,
+                "next_action": payment_intent.next_action,
+                "cancellation_reason": payment_intent.cancellation_reason,
             },
         )
     except stripe.StripeError as ex:
