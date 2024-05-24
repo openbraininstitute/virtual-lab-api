@@ -1,7 +1,6 @@
 from datetime import datetime
-from typing import List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional, TypedDict
 
-import stripe
 from pydantic import UUID4, BaseModel, ConfigDict, EmailStr
 
 
@@ -30,6 +29,26 @@ class PaymentMethodOut(BaseModel):
     payment_method: PaymentMethod
 
 
+StripeRedirectToUrl = TypedDict(
+    "StripeRedirectToUrl",
+    {
+        "return_url": Optional[str],
+        "url": Optional[str],
+    },
+)
+
+
+StripeNextActionType = TypedDict(
+    "StripeNextActionType",
+    {
+        "type": Literal["redirect_to_url", "use_stripe_sdk"],
+        "redirect_to_url": StripeRedirectToUrl,
+        "use_stripe_sdk": Optional[Dict[str, Any]],
+    },
+    total=False,  # Allow for partial dictionaries
+)
+
+
 class StripePaymentOut(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -43,7 +62,7 @@ class StripePaymentOut(BaseModel):
         "requires_payment_method",
         "succeeded",
     ]
-    next_action: stripe.PaymentIntent.NextAction
+    next_action: StripeNextActionType
     cancellation_reason: Optional[
         Literal[
             "abandoned",
