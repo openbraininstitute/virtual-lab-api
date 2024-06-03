@@ -102,6 +102,7 @@ class Project(Base):
     virtual_lab = relationship("VirtualLab", back_populates="projects")
     project_stars = relationship("ProjectStar", back_populates="project")
     invites = relationship("ProjectInvite", back_populates="project")
+    bookmarks = relationship("Bookmark", back_populates="project")
 
     __table_args__ = (
         Index(
@@ -202,3 +203,14 @@ class PaymentMethod(Base):
             postgresql_where=(default.is_(True)),
         ),
     )
+
+
+class Bookmark(Base):
+    __tablename__ = "bookmark"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    resource_id = Column(String, nullable=False, index=True)
+    category = Column(String, nullable=False)
+
+    project_id = Column(UUID(as_uuid=True), ForeignKey("project.id"), index=True)
+    project = relationship("Project", back_populates="bookmarks")

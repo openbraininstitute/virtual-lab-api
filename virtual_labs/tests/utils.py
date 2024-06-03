@@ -12,6 +12,7 @@ from stripe import SetupIntent
 
 from virtual_labs.infrastructure.db.config import session_pool
 from virtual_labs.infrastructure.db.models import (
+    Bookmark,
     PaymentMethod,
     Project,
     ProjectInvite,
@@ -123,7 +124,7 @@ def get_invite_token_from_email(recipient_email: str) -> str:
 async def cleanup_resources(client: AsyncClient, lab_id: str) -> None:
     """Performs cleanup of following resources for lab_id:
     1. Deprecates underlying nexus org/project by calling the DELETE endpoints
-    2. Deletes lab/project row along with lab_invite, project_invite, project_star rows from the DB
+    2. Deletes lab/project row along with lab_invite, project_invite, project_star, bookmarks, rows from the DB
     3. Deletes admin and member groups from keycloak
     """
     project_ids = []
@@ -165,6 +166,10 @@ async def cleanup_resources(client: AsyncClient, lab_id: str) -> None:
                 )
             )
 
+            await session.execute(
+                statement=delete(Bookmark).where(Bookmark.project_id == project_id)
+            )
+
             logger.debug(f"Deleting project {project_id}")
             project_data = (
                 await session.execute(
@@ -175,7 +180,7 @@ async def cleanup_resources(client: AsyncClient, lab_id: str) -> None:
             ).first()
 
             if project_data is not None:
-                project_group_ids.append(project_data.tuple())
+                project_group_ids.append(project_data._tuple())
 
         await session.execute(
             statement=delete(VirtualLabInvite).where(
