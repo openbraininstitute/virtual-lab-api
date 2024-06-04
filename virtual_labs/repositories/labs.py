@@ -1,20 +1,14 @@
-from typing import List
-
 from pydantic import UUID4
 from sqlalchemy import func, select, update
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session, noload
+from sqlalchemy.orm import noload
 from sqlalchemy.sql import and_, or_
 
 from virtual_labs.core.types import PaginatedDbResult
 from virtual_labs.domain import labs
 from virtual_labs.domain.common import PageParams
-from virtual_labs.infrastructure.db.models import (
-    Project,
-    VirtualLab,
-    VirtualLabTopup,
-)
+from virtual_labs.infrastructure.db.models import Project, VirtualLab, VirtualLabTopup
 
 
 class VirtualLabDbCreate(labs.VirtualLabCreate):
@@ -24,10 +18,6 @@ class VirtualLabDbCreate(labs.VirtualLabCreate):
     member_group_id: str
     nexus_organization_id: str
     stripe_customer_id: str
-
-
-def get_all_virtual_lab_for_user(db: Session) -> List[VirtualLab]:
-    return db.query(VirtualLab).filter(~VirtualLab.deleted).all()
 
 
 async def get_paginated_virtual_labs(

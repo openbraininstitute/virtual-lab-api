@@ -1,7 +1,20 @@
 from pydantic import UUID4
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.infrastructure.db.models import Bookmark
+
+
+class BookmarkQueryRepository:
+    session: AsyncSession
+
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+
+    async def get_project_bookmarks(self, project_id: UUID4) -> list[Bookmark]:
+        query = select(Bookmark).where(Bookmark.project_id == project_id)
+        result = (await self.session.execute(statement=query)).scalars().all()
+        return list(result)
 
 
 class BookmarkMutationRepository:
