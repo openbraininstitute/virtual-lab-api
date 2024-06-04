@@ -211,6 +211,7 @@ class Bookmark(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     resource_id = Column(String, nullable=False, index=True)
     category = Column(String, nullable=False)
+    created_at = Column(DateTime, default=func.now())
 
     project_id = Column(UUID(as_uuid=True), ForeignKey("project.id"), index=True)
     project = relationship("Project", back_populates="bookmarks")
