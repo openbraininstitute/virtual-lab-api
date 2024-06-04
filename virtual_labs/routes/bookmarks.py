@@ -79,3 +79,21 @@ async def bulk_delete_bookmarks(
     return LabResponse[BulkDeleteBookmarks](
         message="Bulk delete bookmarks", data=result
     )
+
+
+@router.delete(
+    "/{virtual_lab_id}/projects/{project_id}/bookmarks",
+    summary="Delete bookmark by category and resource id",
+    response_model=LabResponse[None],
+)
+@verify_vlab_or_project_read
+async def delete_bookmark(
+    virtual_lab_id: UUID4,
+    project_id: UUID4,
+    resource_id: str,
+    category: BookmarkCategory,
+    session: AsyncSession = Depends(default_session_factory),
+    auth: tuple[AuthUser, str] = Depends(verify_jwt),
+) -> LabResponse[None]:
+    await usecases.delete_bookmark(session, project_id, resource_id, category)
+    return LabResponse[None](message="Bulk delete bookmarks", data=None)
