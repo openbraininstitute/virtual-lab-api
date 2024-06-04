@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import TypedDict
 
 from pydantic import UUID4, BaseModel
 
@@ -28,3 +29,12 @@ class BookmarkOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+BulkDeleteBookmarks = TypedDict(
+    "BulkDeleteBookmarks",
+    {
+        "successfully_deleted": list[AddBookmarkBody],
+        "failed_to_delete": list[AddBookmarkBody],
+    },
+)
