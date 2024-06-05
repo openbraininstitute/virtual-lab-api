@@ -1,8 +1,8 @@
 """Add bookmarks table
 
-Revision ID: d202082416b6
+Revision ID: 2cd64f276718
 Revises: f7446c78a705
-Create Date: 2024-06-04 12:06:30.795709
+Create Date: 2024-06-05 14:27:42.240260
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "d202082416b6"
+revision: str = "2cd64f276718"
 down_revision: Union[str, None] = "f7446c78a705"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -23,7 +23,20 @@ def upgrade() -> None:
         "bookmark",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("resource_id", sa.String(), nullable=False),
-        sa.Column("category", sa.String(), nullable=False),
+        sa.Column(
+            "category",
+            sa.Enum(
+                "ExperimentalBoutonDensity",
+                "ExperimentalNeuronDensity",
+                "ExperimentalElectroPhysiology",
+                "ExperimentalSynapsePerConnection",
+                "ExperimentalNeuronMorphology",
+                "SimulationCampaigns",
+                "CircuitEModel",
+                name="bookmarkcategory",
+            ),
+            nullable=False,
+        ),
         sa.Column("created_at", sa.DateTime(), nullable=True),
         sa.Column("project_id", sa.UUID(), nullable=True),
         sa.ForeignKeyConstraint(

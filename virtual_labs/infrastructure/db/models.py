@@ -1,22 +1,14 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import (
-    JSON,
-    Boolean,
-    Column,
-    DateTime,
-    Float,
-    ForeignKey,
-    Index,
-    Integer,
-    String,
-    Text,
-    not_,
-)
+from sqlalchemy import JSON, Boolean, Column, DateTime
+from sqlalchemy import Enum as SAEnum
+from sqlalchemy import Float, ForeignKey, Index, Integer, String, Text, not_
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
+
+from virtual_labs.domain.bookmark import BookmarkCategory
 
 
 class Base(DeclarativeBase):
@@ -210,7 +202,9 @@ class Bookmark(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     resource_id = Column(String, nullable=False, index=True)
-    category = Column(String, nullable=False)
+
+    # Since we are not using MappedColumn (recommended by SQLAlchemy) mypy is not able to infer correct types here. See https://github.com/sqlalchemy/sqlalchemy/discussions/9941#discussioncomment-6155861
+    category = Column(SAEnum(BookmarkCategory), nullable=False)  # type: ignore[var-annotated]
     created_at = Column(DateTime, default=func.now())
 
     project_id = Column(UUID(as_uuid=True), ForeignKey("project.id"), index=True)

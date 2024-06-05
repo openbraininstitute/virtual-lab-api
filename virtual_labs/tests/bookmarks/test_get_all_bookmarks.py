@@ -47,7 +47,7 @@ async def add_bookmarks_to_project(
             session.add(
                 Bookmark(
                     resource_id=bookmark.resource_id,
-                    category=bookmark.category.value,
+                    category=bookmark.category,
                     project_id=project_id,
                 )
             )
