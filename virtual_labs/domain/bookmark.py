@@ -14,7 +14,7 @@ class BookmarkCategory(Enum):
     CircuitEModel = "CircuitEModel"
 
 
-class AddBookmarkBody(BaseModel):
+class BookmarkIn(BaseModel):
     resource_id: str
     category: BookmarkCategory
 
@@ -34,7 +34,7 @@ class BookmarkOut(BaseModel):
 BulkDeleteBookmarks = TypedDict(
     "BulkDeleteBookmarks",
     {
-        "successfully_deleted": list[AddBookmarkBody],
-        "failed_to_delete": list[AddBookmarkBody],
+        "successfully_deleted": list[BookmarkIn],
+        "failed_to_delete": list[BookmarkIn],
     },
 )

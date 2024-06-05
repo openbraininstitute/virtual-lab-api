@@ -5,11 +5,11 @@ import pytest
 import pytest_asyncio
 from httpx import AsyncClient
 
-from virtual_labs.domain.bookmark import AddBookmarkBody, BookmarkCategory
+from virtual_labs.domain.bookmark import BookmarkCategory, BookmarkIn
 from virtual_labs.infrastructure.db.models import Bookmark
 from virtual_labs.tests.utils import session_context_factory
 
-mock_bookmark = AddBookmarkBody(
+mock_bookmark = BookmarkIn(
     resource_id="resource-1", category=BookmarkCategory.ExperimentalNeuronMorphology
 )
 
