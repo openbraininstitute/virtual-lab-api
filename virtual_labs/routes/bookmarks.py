@@ -6,8 +6,8 @@ from virtual_labs.core.authorization.verify_vlab_or_project_read import (
     verify_vlab_or_project_read,
 )
 from virtual_labs.domain.bookmark import (
-    AddBookmarkBody,
     BookmarkCategory,
+    BookmarkIn,
     BookmarkOut,
     BulkDeleteBookmarks,
 )
@@ -32,7 +32,7 @@ router = APIRouter(
 async def add_bookmark(
     virtual_lab_id: UUID4,
     project_id: UUID4,
-    incoming_bookmark: AddBookmarkBody,
+    incoming_bookmark: BookmarkIn,
     session: AsyncSession = Depends(default_session_factory),
     auth: tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> LabResponse[BookmarkOut]:
@@ -69,7 +69,7 @@ async def get_bookmarks_by_category(
 async def bulk_delete_bookmarks(
     virtual_lab_id: UUID4,
     project_id: UUID4,
-    bookmarks_to_delete: list[AddBookmarkBody],
+    bookmarks_to_delete: list[BookmarkIn],
     session: AsyncSession = Depends(default_session_factory),
     auth: tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> LabResponse[BulkDeleteBookmarks]:

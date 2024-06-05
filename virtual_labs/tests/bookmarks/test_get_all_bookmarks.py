@@ -4,34 +4,34 @@ import pytest
 import pytest_asyncio
 from httpx import AsyncClient
 
-from virtual_labs.domain.bookmark import AddBookmarkBody, BookmarkCategory
+from virtual_labs.domain.bookmark import BookmarkCategory, BookmarkIn
 from virtual_labs.infrastructure.db.models import Bookmark
 from virtual_labs.tests.utils import session_context_factory
 
-mock_bookmarks: list[AddBookmarkBody] = [
-    AddBookmarkBody(
+mock_bookmarks: list[BookmarkIn] = [
+    BookmarkIn(
         resource_id="resource-1", category=BookmarkCategory.ExperimentalNeuronMorphology
     ),
-    AddBookmarkBody(
+    BookmarkIn(
         resource_id="resource-2", category=BookmarkCategory.ExperimentalNeuronMorphology
     ),
-    AddBookmarkBody(
+    BookmarkIn(
         resource_id="resource-3",
         category=BookmarkCategory.ExperimentalElectroPhysiology,
     ),
-    AddBookmarkBody(
+    BookmarkIn(
         resource_id="resource-4", category=BookmarkCategory.ExperimentalBoutonDensity
     ),
-    AddBookmarkBody(
+    BookmarkIn(
         resource_id="resource-5", category=BookmarkCategory.ExperimentalBoutonDensity
     ),
-    AddBookmarkBody(
+    BookmarkIn(
         resource_id="resource-6", category=BookmarkCategory.ExperimentalNeuronDensity
     ),
-    AddBookmarkBody(
+    BookmarkIn(
         resource_id="resource-7", category=BookmarkCategory.ExperimentalNeuronDensity
     ),
-    AddBookmarkBody(
+    BookmarkIn(
         resource_id="resource-8", category=BookmarkCategory.ExperimentalNeuronMorphology
     ),
 ]

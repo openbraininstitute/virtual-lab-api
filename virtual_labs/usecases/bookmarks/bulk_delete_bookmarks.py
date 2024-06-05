@@ -2,12 +2,12 @@ from loguru import logger
 from pydantic import UUID4
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from virtual_labs.domain.bookmark import AddBookmarkBody, BulkDeleteBookmarks
+from virtual_labs.domain.bookmark import BookmarkIn, BulkDeleteBookmarks
 from virtual_labs.repositories.bookmark_repo import BookmarkMutationRepository
 
 
 async def bulk_delete_bookmarks(
-    db: AsyncSession, project_id: UUID4, bookmarks: list[AddBookmarkBody]
+    db: AsyncSession, project_id: UUID4, bookmarks: list[BookmarkIn]
 ) -> BulkDeleteBookmarks:
     result: BulkDeleteBookmarks = {"successfully_deleted": [], "failed_to_delete": []}
     repo = BookmarkMutationRepository(db)

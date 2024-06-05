@@ -6,12 +6,12 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
-from virtual_labs.domain.bookmark import AddBookmarkBody, BookmarkOut
+from virtual_labs.domain.bookmark import BookmarkIn, BookmarkOut
 from virtual_labs.repositories.bookmark_repo import BookmarkMutationRepository
 
 
 async def add_bookmark(
-    db: AsyncSession, project_id: UUID4, payload: AddBookmarkBody
+    db: AsyncSession, project_id: UUID4, payload: BookmarkIn
 ) -> BookmarkOut:
     try:
         repo = BookmarkMutationRepository(db)
