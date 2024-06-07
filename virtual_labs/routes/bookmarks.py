@@ -56,7 +56,7 @@ async def get_bookmarks_by_category(
 ) -> LabResponse[dict[BookmarkCategory, list[BookmarkOut]]]:
     result = await usecases.get_bookmarks_by_category(session, project_id)
     return LabResponse[dict[BookmarkCategory, list[BookmarkOut]]](
-        message="Resource successfully bookmarked to project", data=result
+        message="Bookmarks successfully retrieved for project", data=result
     )
 
 

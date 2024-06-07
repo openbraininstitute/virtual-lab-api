@@ -1,9 +1,21 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import JSON, Boolean, Column, DateTime
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    Column,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    not_,
+)
 from sqlalchemy import Enum as SAEnum
-from sqlalchemy import Float, ForeignKey, Index, Integer, String, Text, not_
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
@@ -209,3 +221,12 @@ class Bookmark(Base):
 
     project_id = Column(UUID(as_uuid=True), ForeignKey("project.id"), index=True)
     project = relationship("Project", back_populates="bookmarks")
+
+    __table_args__ = (
+        UniqueConstraint(
+            resource_id,
+            category,
+            project_id,
+            name="bookmark_unique_for_resource_category_per_project",
+        ),
+    )
