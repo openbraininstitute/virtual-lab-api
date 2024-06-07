@@ -48,15 +48,15 @@ async def test_user_can_bulk_delete_bookmarks_in_project(
     lab_id, project_id, headers, client = add_bookmarks_to_project
     bookmarks_to_delete = [
         {
-            "resource_id": mock_bookmarks[1].resource_id,
+            "resourceId": mock_bookmarks[1].resource_id,
             "category": mock_bookmarks[1].category.value,
         },
         {
-            "resource_id": "non_existing_resource",
+            "resourceId": "non_existing_resource",
             "category": mock_bookmarks[1].category.value,
         },
         {
-            "resource_id": mock_bookmarks[2].resource_id,
+            "resourceId": mock_bookmarks[2].resource_id,
             "category": mock_bookmarks[2].category.value,
         },
     ]
