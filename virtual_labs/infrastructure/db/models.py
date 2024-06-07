@@ -12,6 +12,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
     not_,
 )
 from sqlalchemy import Enum as SAEnum
@@ -221,3 +222,12 @@ class Bookmark(Base):
 
     project_id = Column(UUID(as_uuid=True), ForeignKey("project.id"), index=True)
     project = relationship("Project", back_populates="bookmarks")
+
+    __table_args__ = (
+        UniqueConstraint(
+            resource_id,
+            category,
+            project_id,
+            name="bookmark_unique_for_resource_category_per_project",
+        ),
+    )
