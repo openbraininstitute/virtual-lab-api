@@ -1,7 +1,7 @@
 from enum import Enum
-from typing import TypedDict
+from typing import Annotated, TypedDict
 
-from pydantic import UUID4, BaseModel
+from pydantic import UUID4, BaseModel, Field
 
 
 class BookmarkCategory(Enum):
@@ -15,7 +15,7 @@ class BookmarkCategory(Enum):
 
 
 class BookmarkIn(BaseModel):
-    resource_id: str
+    resource_id: Annotated[str, Field(alias="resourceId")]
     category: BookmarkCategory
 
     class Config:
@@ -24,11 +24,12 @@ class BookmarkIn(BaseModel):
 
 class BookmarkOut(BaseModel):
     id: UUID4
-    resource_id: str
+    resource_id: Annotated[str, Field(alias="resourceId")]
     category: BookmarkCategory
 
     class Config:
         from_attributes = True
+        populate_by_name = True
 
 
 BulkDeleteBookmarks = TypedDict(
