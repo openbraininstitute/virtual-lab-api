@@ -2,7 +2,7 @@ from http import HTTPStatus
 
 from loguru import logger
 from pydantic import UUID4
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
@@ -19,6 +19,13 @@ async def add_bookmark(
             project_id, payload.resource_id, payload.category.value
         )
         return BookmarkOut.model_validate(bookmark)
+    except IntegrityError as error:
+        raise VliError(
+            message="Resource is already bookmarked in project",
+            error_code=VliErrorCode.ENTITY_ALREADY_EXISTS,
+            http_status_code=HTTPStatus.CONFLICT,
+            details=str(error),
+        )
     except SQLAlchemyError as error:
         logger.error(f"DB error during adding bookmark to project: ({error})")
         raise VliError(
