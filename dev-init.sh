@@ -1,6 +1,7 @@
 #!/bin/bash
 
 set -o errexit
+set -x
 # Keycloak details - replace these with your actual values
 KC_SERVER_URI="http://localhost:9090"
 KC_REALM_NAME="obp-realm"
@@ -9,14 +10,17 @@ CLIENT_SECRET="obp-secret"
 
 
 # Start containers
-make kill
 docker compose -f env-prep/docker-compose-dev.yml -p vlm-project up --wait
-
 
 # Check that delta ready to accept connections
 echo "Checking that delta is ready to accept connections..."
-curl --retry 30 -f --retry-all-errors --retry-delay 2 -s -o /dev/null "http://localhost:8080/v1/version"
+if ! curl --retry 30 --fail --retry-all-errors --retry-delay 2 -v "http://localhost:8080/v1/version"; then 
+  # Show delta logs if curl failed
+  docker compose -f env-prep/docker-compose-dev.yml -p vlm-project logs delta
+  exit 1
+fi 
 echo "Delta is ready! 🚀"
+
 
 # Register created realm on delta
 echo "Registering realm in delta"
