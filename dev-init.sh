@@ -9,6 +9,7 @@ CLIENT_SECRET="obp-secret"
 
 
 # Start containers
+make kill
 docker compose -f env-prep/docker-compose-dev.yml -p vlm-project up --wait
 
 
