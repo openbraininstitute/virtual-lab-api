@@ -1,9 +1,21 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import JSON, Boolean, Column, DateTime
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    Column,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    not_,
+)
 from sqlalchemy import Enum as SAEnum
-from sqlalchemy import Float, ForeignKey, Index, Integer, String, Text, not_
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
@@ -104,6 +116,7 @@ class Project(Base):
             unique=True,
             postgresql_where=(not_(deleted)),
         ),
+        UniqueConstraint("virtual_lab_id", "name", name="unique_name_per_virtual_lab"),
     )
 
 
