@@ -269,6 +269,22 @@ class ProjectQueryRepository:
             count,
         )
 
+    async def check_project_exists_by_name_per_vlab(
+        self, *, vlab_id: UUID, query_term: str
+    ) -> int | None:
+        count = await self.session.scalar(
+            select(func.count(Project.id)).filter(
+                and_(
+                    Project.virtual_lab_id == vlab_id,
+                    func.lower(Project.name) == func.lower(query_term),
+                )
+            )
+        )
+        return cast(
+            int,
+            count,
+        )
+
 
 class ProjectMutationRepository:
     session: AsyncSession

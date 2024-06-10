@@ -124,7 +124,8 @@ async def create_new_project_use_case(
         vlab = await get_undeleted_virtual_lab(session, virtual_lab_id)
 
         if bool(
-            await pqr.check_project_exists_by_name(
+            await pqr.check_project_exists_by_name_per_vlab(
+                vlab_id=virtual_lab_id,
                 query_term=payload.name,
             )
         ):
