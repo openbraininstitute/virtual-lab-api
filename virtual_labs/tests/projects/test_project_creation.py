@@ -40,6 +40,36 @@ def test_vlm_project_creation(
     assert nexus_project.status_code == 200
 
 
+@pytest.mark.asyncio
+async def test_create_projects_per_vlab_with_same_name_should_failed(
+    async_test_client: AsyncClient,
+    mock_lab_create: tuple[Response, dict[str, str]],
+) -> None:
+    client = async_test_client
+    vl_response, headers = mock_lab_create
+    virtual_lab_id = vl_response.json()["data"]["virtual_lab"]["id"]
+
+    common_name = "Test Project Same Name"
+
+    project_1 = await client.post(
+        f"/virtual-labs/{virtual_lab_id}/projects",
+        json={
+            "name": common_name,
+            "description": "Test Project",
+        },
+    )
+
+    assert project_1.status_code == 200
+    project_2 = await client.post(
+        f"/virtual-labs/{virtual_lab_id}/projects",
+        json={
+            "name": common_name,
+            "description": "Test Project",
+        },
+    )
+    assert project_2.status_code == 400
+
+
 @pytest_asyncio.fixture
 async def mock_create_project_with_users(
     async_test_client: AsyncClient,
