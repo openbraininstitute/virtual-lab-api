@@ -12,7 +12,6 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
-    UniqueConstraint,
     not_,
 )
 from sqlalchemy import Enum as SAEnum
@@ -110,13 +109,13 @@ class Project(Base):
 
     __table_args__ = (
         Index(
-            "unique_name_for_non_deleted",
+            "unique_project_name_for_non_deleted",
             name,
             deleted,
+            virtual_lab_id,
             unique=True,
             postgresql_where=(not_(deleted)),
         ),
-        UniqueConstraint("virtual_lab_id", "name", name="unique_name_per_virtual_lab"),
     )
 
 
