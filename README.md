@@ -1,4 +1,4 @@
-# Prerequisites
+# Dependencies
 
 Make sure you have the following dependencies installed:
 
