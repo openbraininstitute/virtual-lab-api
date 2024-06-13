@@ -2,7 +2,7 @@
 name = "virtual-labs"
 version = "0.1.0"
 description = ""
-authors = ["Blue Brain Project, EPFL"]
+authors = ["Bilal Meddah <bilal.meddah@epfl.ch>", "Pavlo Getta <pavlo.getta@epfl.ch>", "Dinika Saxena <dinika.saxena@epfl.ch>", "Gil Arturo Barrios Del Villar <gil.barriosdelvillar@epfl.ch>"]
 readme = "README.md"
 packages = [{include = "virtual_labs"}]
 

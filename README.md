@@ -1,3 +1,7 @@
+# Virtual Labs API
+
+This is the repository for the REST api that is used to manage virtual labs and their projects, primarily by the [core-web-app](https://github.com/BlueBrain/core-web-app). 
+
 # Dependencies
 
 Make sure you have the following dependencies installed:
@@ -129,3 +133,9 @@ This will setup a git hook (pre-push) that is configured to run the following ch
 
 - Formatting (using ruff)
 - Linting (using ruff)
+
+# Funding & Acknowledgment
+ 
+The development of this software was supported by funding to the Blue Brain Project, a research center of the École polytechnique fédérale de Lausanne (EPFL), from the Swiss government's ETH Board of the Swiss Federal Institutes of Technology.
+ 
+Copyright © 2015-2022 Blue Brain Project/EPFL
