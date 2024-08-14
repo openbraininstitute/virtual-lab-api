@@ -191,7 +191,7 @@ async def create_virtual_lab(
             details=ex.type,
         )
     except Exception as ex:
-        logger.error(f"Error when creating nexus origin {ex}")
+        logger.error(f"Error when creating nexus org {new_lab_id} {ex}")
         raise VliError(
             error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
             http_status_code=HTTPStatus.BAD_GATEWAY,

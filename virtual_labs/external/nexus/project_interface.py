@@ -1,3 +1,4 @@
+from http import HTTPStatus
 from typing import Any, Dict, List, Optional
 from urllib.parse import quote_plus as url_encode
 
@@ -602,10 +603,9 @@ class NexusProjectInterface:
                 },
             )
 
-            # TODO: Log only in error http response case
-            logger.debug(f"Delta S3 Respose {response.json()}")
-
-            response.raise_for_status()
+            if not HTTPStatus(response.status_code).is_success:
+                logger.debug(f"Delta S3 Error Response: {response.json()}")
+                response.raise_for_status()
 
             data = response.json()
             return NexusS3Storage(**data)
