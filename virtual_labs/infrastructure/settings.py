@@ -40,7 +40,23 @@ class Settings(BaseSettings):
         "postgresql+asyncpg://vlm:vlm@localhost:15432/vlm"
     )
     NEXUS_DELTA_URI: Url = Url("http://localhost:8080/v1")
-    NEXUS_CROSS_RESOLVER_PROJECTS: list[str] = ["neurosciencegraph/datamodels"]
+    NEXUS_CROSS_RESOLVER_PROJECTS: list[str] = [
+        "public/ephys",
+        "public/thalamus",
+        "public/ngv",
+        "public/multi-vesicular-release",
+        "public/hippocampus",
+        "public/topological-sampling",
+        "bbp/lnmce",
+        "public/ngv-anatomy",
+        "bbp-external/seu",
+        "public/forge",
+        "public/sscx",
+        "bbp/mouselight",
+        "public/morphologies",
+        "neurosciencegraph/datamodels",
+        "bbp/mmb-point-neuron-framework-model",
+    ]
 
     KC_SERVER_URI: str = "http://localhost:9090/"
     KC_USER_NAME: str = "admin"
