@@ -42,7 +42,7 @@ def verify_project_read(f: Callable[..., Any]) -> Callable[..., Any]:
         except SQLAlchemyError:
             raise VliError(
                 error_code=VliErrorCode.DATABASE_ERROR,
-                http_status_code=status.BAD_REQUEST,
+                http_status_code=status.NOT_FOUND,
                 message="No project with this id found",
             )
         except UserNotInList:
