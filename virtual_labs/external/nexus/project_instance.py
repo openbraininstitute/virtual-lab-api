@@ -15,7 +15,7 @@ from virtual_labs.external.nexus.defaults import (
     prep_default_local_context,
 )
 from virtual_labs.external.nexus.project_interface import NexusProjectInterface
-from virtual_labs.infrastructure.kc.auth import KC_SUBJECT, get_client_token
+from virtual_labs.infrastructure.kc.auth import get_client_token
 from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.infrastructure.settings import settings
 
@@ -67,12 +67,8 @@ async def instantiate_nexus_project(
             identities=[
                 {
                     "realm": settings.KC_REALM_NAME,
-                    "subject": KC_SUBJECT,
-                },
-                {
-                    "realm": settings.KC_REALM_NAME,
                     "subject": "authenticated",
-                },
+                }
             ],
         )
         await asyncio.gather(
