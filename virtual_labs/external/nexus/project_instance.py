@@ -39,6 +39,8 @@ async def instantiate_nexus_project(
         )
         user, _ = auth
 
+        sbo_suite_projects = await nexus_interface.get_sbo_suite_projects()
+
         # get the latest api mapping
         # TODO: to confirm if the api mapping has the full set
         api_mappings_datamodels = (
@@ -61,7 +63,7 @@ async def instantiate_nexus_project(
             virtual_lab_id=virtual_lab_id,
             project_id=project_id,
             type=CROSS_RESOLVER,
-            projects=settings.NEXUS_CROSS_RESOLVER_PROJECTS,
+            projects=sbo_suite_projects,
             identities=[
                 {
                     "realm": settings.KC_REALM_NAME,
@@ -124,11 +126,15 @@ async def instantiate_nexus_project(
             ),
             # Create aggregated elastic search view in the project
             nexus_interface.create_nexus_es_aggregate_view(
-                virtual_lab_id=virtual_lab_id, project_id=project_id
+                virtual_lab_id=virtual_lab_id,
+                project_id=project_id,
+                extra_projects=sbo_suite_projects,
             ),
             # Create aggregated Sparql view in the project
             nexus_interface.create_nexus_sp_aggregate_view(
-                virtual_lab_id=virtual_lab_id, project_id=project_id
+                virtual_lab_id=virtual_lab_id,
+                project_id=project_id,
+                extra_projects=sbo_suite_projects,
             ),
             # Create S3 storage
             nexus_interface.create_s3_storage(
