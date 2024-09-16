@@ -440,8 +440,8 @@ class NexusProjectInterface:
                         {
                             "permissions": permissions,
                             "identity": {
-                                "realm": identity["realm"],
-                                "subject": identity["subject"],
+                                "realm": identity.realm,
+                                "subject": identity.subject,
                             },
                         },
                     ],
@@ -507,7 +507,7 @@ class NexusProjectInterface:
         payload = {
             "@type": type,
             "projects": projects,
-            "identities": identities,
+            "identities": [i.__dict__ for i in identities],
             "priority": priority,
         }
 

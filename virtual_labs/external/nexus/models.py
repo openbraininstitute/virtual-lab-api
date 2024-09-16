@@ -30,9 +30,10 @@ class NexusApiMapping(TypedDict):
     prefix: str
 
 
-class NexusIdentity(TypedDict):
+class NexusIdentity(BaseModel):
     realm: str
-    subject: str | None
+    subject: Optional[str] = None
+    type: Optional[Annotated[str, Field(alias="@type")]] = None
 
 
 class NexusResource(NexusBase):

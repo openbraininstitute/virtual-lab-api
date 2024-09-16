@@ -109,7 +109,7 @@ def prep_subtract_identity(
     realm: str,
     user: str,
 ) -> NexusIdentity:
-    return {"realm": realm, "subject": user}
+    return NexusIdentity(realm=realm, subject=user)
 
 
 def prep_default_local_context(vocab: str) -> Dict[str, Any]:
