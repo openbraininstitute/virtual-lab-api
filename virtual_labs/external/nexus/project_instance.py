@@ -67,7 +67,7 @@ async def instantiate_nexus_project(
             identities=[
                 {
                     "realm": settings.KC_REALM_NAME,
-                    "subject": "authenticated",
+                    "subject": "Authenticated",
                 }
             ],
         )
