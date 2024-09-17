@@ -45,6 +45,28 @@ acls_payload = {
     ],
 }
 
+public_project_acl = {
+    "@type": "Append",
+    "acl": [
+        {
+            "identity": {
+                "realm": "obp-realm",
+                "@type": "Authenticated",
+            },
+            "permissions": [
+                "version/read",
+                "projects/read",
+                "realms/read",
+                "resources/read",
+                "views/query",
+                "quotas/read",
+                "supervision/read",
+                "export/run",
+            ],
+        }
+    ],
+}
+
 
 org_payload = json.dumps({"description": "organization"})
 project_payload = json.dumps({"description": "organization"})
@@ -56,6 +78,10 @@ KC_PASSWORD = "admin"
 KC_CLIENT_ID = "obpapp"
 KC_CLIENT_SECRET = "obp-secret"
 KC_REALM_NAME = "obp-realm"
+
+
+def print_response(nexus_conn):
+    print(nexus_conn.getresponse().read().decode("utf-8"), "\n")
 
 
 nexus_conn = http.client.HTTPConnection("localhost", 8080)
@@ -113,27 +139,38 @@ client_headers = {
 
 print("---- #1 append ACLs to the user 'test' \n")
 nexus_conn.request("PATCH", "/v1/acls", json.dumps(acls_payload), client_headers)
-res = nexus_conn.getresponse()
-data = res.read()
-print(data.decode("utf-8"), "\n")
+print_response(nexus_conn)
 
 
 print("---- #2 create neurosciencegraph/datamodels (org/project) \n")
 nexus_conn.request("PUT", "/v1/orgs/neurosciencegraph", org_payload, client_headers)
-res = (nexus_conn.getresponse()).read()
+print_response(nexus_conn)
+
 nexus_conn.request(
     "PUT", "/v1/projects/neurosciencegraph/datamodels", project_payload, client_headers
 )
-res = nexus_conn.getresponse()
-print(res.read().decode("utf-8"), "\n")
+print_response(nexus_conn)
+
+nexus_conn.request(
+    "PATCH",
+    "/v1/acls/neurosciencegraph/datamodels",
+    json.dumps(public_project_acl),
+    client_headers,
+)
+print_response(nexus_conn)
 
 
 print("---- #3- create bbp/atlas (org/project) \n")
 nexus_conn.request("PUT", "/v1/orgs/bbp", org_payload, client_headers)
-res = (nexus_conn.getresponse()).read()
+print_response(nexus_conn)
+
 nexus_conn.request("PUT", "/v1/projects/bbp/atlas", project_payload, client_headers)
-res = nexus_conn.getresponse()
-print(res.read().decode("utf-8"), "\n")
+print_response(nexus_conn)
+
+nexus_conn.request(
+    "PATCH", "/v1/acls/bbp/atlas", json.dumps(public_project_acl), client_headers
+)
+print_response(nexus_conn)
 
 
 print("---- #4 create dataset es view for  neurosciencegraph/datamodels \n")
@@ -146,8 +183,7 @@ with open(os.path.join(__location__, "es_view_dataset_payload.json")) as f:
         data,
         client_headers,
     )
-    res = nexus_conn.getresponse()
-    print(res.read().decode("utf-8"), "\n")
+    print_response(nexus_conn)
 
 print("---- #5 create dataset es view for  bbp/atlas \n")
 with open(os.path.join(__location__, "es_view_dataset_payload.json")) as f:
@@ -159,8 +195,7 @@ with open(os.path.join(__location__, "es_view_dataset_payload.json")) as f:
         data,
         client_headers,
     )
-    res = nexus_conn.getresponse()
-    print(res.read().decode("utf-8"), "\n")
+    print_response(nexus_conn)
 
 
 print("---- #6 create neuroshapes.org resource\n")
@@ -172,8 +207,7 @@ with open(os.path.join(__location__, "neuroshapes_org_resource.json")) as f:
         data,
         client_headers,
     )
-    res = nexus_conn.getresponse()
-    print(res.read().decode("utf-8"), "\n")
+    print_response(nexus_conn)
 
 
 print("---- #7 create api_mapping_resource\n")
@@ -185,8 +219,7 @@ with open(os.path.join(__location__, "api_mappings_payload.json")) as f:
         data,
         client_headers,
     )
-    res = nexus_conn.getresponse()
-    print(res.read().decode("utf-8"), "\n")
+    print_response(nexus_conn)
 
 
 print("\n------END------\n")
