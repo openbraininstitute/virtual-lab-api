@@ -507,7 +507,9 @@ class NexusProjectInterface:
         payload = {
             "@type": type,
             "projects": projects,
-            "identities": [i.model_dump(by_alias=True) for i in identities],
+            "identities": [
+                i.model_dump(by_alias=True, exclude_none=True) for i in identities
+            ],
             "priority": priority,
         }
 

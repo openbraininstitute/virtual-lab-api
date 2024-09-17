@@ -32,8 +32,8 @@ class NexusApiMapping(TypedDict):
 
 class NexusIdentity(BaseModel):
     realm: str
-    subject: str = None
-    type: Annotated[str, Field(serialization_alias="@type")] = None
+    subject: Optional[str] = None
+    type: Annotated[str | None, Field(serialization_alias="@type")] = None
 
 
 class NexusResource(NexusBase):
