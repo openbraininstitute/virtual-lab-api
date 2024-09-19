@@ -284,7 +284,7 @@ class NexusProjectInterface:
                 type=NexusErrorValue.CREATE_ES_VIEW_ERROR,
             )
 
-    async def __get_sbo_suite_views(self) -> list[ProjectView]:
+    async def get_sbo_suite_projects(self) -> list[str]:
         try:
             sbo_projects_response = await self.httpx_clt.get(
                 f"{settings.NEXUS_DELTA_URI}/search/suites/sbo", headers=self.headers
@@ -294,13 +294,10 @@ class NexusProjectInterface:
             data = NexusSuiteProjects.model_validate(
                 sbo_projects_response.json()
             ).projects
+
             sbo_projects = data if isinstance(data, list) else [data]
 
-            views = [
-                ProjectView(project=project, viewId=ES_VIEW_ID)
-                for project in sbo_projects
-            ]
-            return views
+            return sbo_projects
         except Exception as ex:
             logger.error(
                 f"Failed to retrieve projects within sbo suite. Response {sbo_projects_response.json()}. Error: {ex}"
@@ -316,11 +313,15 @@ class NexusProjectInterface:
         virtual_lab_id: UUID4,
         project_id: UUID4,
         view_id: str = AG_ES_VIEW_ID,
+        extra_projects: List[str] = [],
     ) -> NexusResource:
         nexus_es_view_url = (
             f"{settings.NEXUS_DELTA_URI}/views/{str(virtual_lab_id)}/{str(project_id)}"
         )
-        sbo_suite_views = await self.__get_sbo_suite_views()
+        extra_views = [
+            ProjectView(project=project, viewId=ES_VIEW_ID)
+            for project in extra_projects
+        ]
         views = (
             [
                 ProjectView(
@@ -329,7 +330,7 @@ class NexusProjectInterface:
                 ),
             ]
             + ES_VIEWS
-            + sbo_suite_views
+            + extra_views
         )
         try:
             response = await self.httpx_clt.post(
@@ -360,13 +361,20 @@ class NexusProjectInterface:
         virtual_lab_id: UUID4,
         project_id: UUID4,
         view_id: str = AG_SP_VIEW_ID,
+        extra_projects: List[str] = [],
     ) -> NexusResource:
         nexus_es_view_url = (
             f"{settings.NEXUS_DELTA_URI}/views/{str(virtual_lab_id)}/{str(project_id)}"
         )
-        views = [
-            {"project": f"{virtual_lab_id}/{project_id}", "viewId": SP_VIEW_ID}
-        ] + SP_VIEWS
+        extra_views = [
+            ProjectView(project=project, viewId=SP_VIEW_ID)
+            for project in extra_projects
+        ]
+        views = (
+            [{"project": f"{virtual_lab_id}/{project_id}", "viewId": SP_VIEW_ID}]
+            + SP_VIEWS
+            + extra_views
+        )
 
         try:
             response = await self.httpx_clt.post(
@@ -432,8 +440,8 @@ class NexusProjectInterface:
                         {
                             "permissions": permissions,
                             "identity": {
-                                "realm": identity["realm"],
-                                "subject": identity["subject"],
+                                "realm": identity.realm,
+                                "subject": identity.subject,
                             },
                         },
                     ],
@@ -499,7 +507,9 @@ class NexusProjectInterface:
         payload = {
             "@type": type,
             "projects": projects,
-            "identities": identities,
+            "identities": [
+                i.model_dump(by_alias=True, exclude_none=True) for i in identities
+            ],
             "priority": priority,
         }
 

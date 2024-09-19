@@ -14,8 +14,9 @@ from virtual_labs.external.nexus.defaults import (
     ES_VIEW_ID,
     prep_default_local_context,
 )
+from virtual_labs.external.nexus.models import NexusIdentity
 from virtual_labs.external.nexus.project_interface import NexusProjectInterface
-from virtual_labs.infrastructure.kc.auth import KC_SUBJECT, get_client_token
+from virtual_labs.infrastructure.kc.auth import get_client_token
 from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.infrastructure.settings import settings
 
@@ -39,6 +40,8 @@ async def instantiate_nexus_project(
         )
         user, _ = auth
 
+        sbo_suite_projects = await nexus_interface.get_sbo_suite_projects()
+
         # get the latest api mapping
         # TODO: to confirm if the api mapping has the full set
         api_mappings_datamodels = (
@@ -61,12 +64,13 @@ async def instantiate_nexus_project(
             virtual_lab_id=virtual_lab_id,
             project_id=project_id,
             type=CROSS_RESOLVER,
-            projects=settings.NEXUS_CROSS_RESOLVER_PROJECTS,
+            projects=sbo_suite_projects,
             identities=[
-                {
-                    "realm": settings.KC_REALM_NAME,
-                    "subject": KC_SUBJECT,
-                }
+                NexusIdentity(realm=settings.KC_REALM_NAME, type="Authenticated"),
+                NexusIdentity(
+                    realm=settings.KC_REALM_NAME,
+                    subject=f"service-account-{settings.KC_CLIENT_ID}",
+                ),
             ],
         )
         await asyncio.gather(
@@ -124,11 +128,15 @@ async def instantiate_nexus_project(
             ),
             # Create aggregated elastic search view in the project
             nexus_interface.create_nexus_es_aggregate_view(
-                virtual_lab_id=virtual_lab_id, project_id=project_id
+                virtual_lab_id=virtual_lab_id,
+                project_id=project_id,
+                extra_projects=sbo_suite_projects,
             ),
             # Create aggregated Sparql view in the project
             nexus_interface.create_nexus_sp_aggregate_view(
-                virtual_lab_id=virtual_lab_id, project_id=project_id
+                virtual_lab_id=virtual_lab_id,
+                project_id=project_id,
+                extra_projects=sbo_suite_projects,
             ),
             # Create S3 storage
             nexus_interface.create_s3_storage(
