@@ -56,6 +56,8 @@ public_project_acl = {
             "permissions": [
                 "version/read",
                 "projects/read",
+                "permissions/read",
+                "organizations/read",
                 "realms/read",
                 "resources/read",
                 "views/query",
