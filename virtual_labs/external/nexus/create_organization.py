@@ -21,7 +21,7 @@ async def create_nexus_organization(
 ) -> NexusOrganization:
     transport = httpx.AsyncHTTPTransport(retries=3)
     async with httpx.AsyncClient(transport=transport) as httpx_client:
-        client_token = get_client_token()
+        client_token = await get_client_token()
         nexus_org_interface = NexusOrganizationInterface(httpx_client, client_token)
         nexus_org = await nexus_org_interface.create_organization(
             nexus_org_id, description

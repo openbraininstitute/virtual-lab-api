@@ -23,16 +23,14 @@ auth_header: HTTPBearer | OAuth2AuthorizationCodeBearer = HTTPBearer(auto_error=
 KC_SUBJECT: str = f"service-account-{settings.KC_CLIENT_ID}"
 
 
-def get_public_key() -> str:
+async def get_public_key() -> str:
     """
     get the public key to decode the token
     """
-    return (
-        f"-----BEGIN PUBLIC KEY-----\n{kc_auth.public_key()}\n-----END PUBLIC KEY-----"
-    )
+    return f"-----BEGIN PUBLIC KEY-----\n{await kc_auth.a_public_key()}\n-----END PUBLIC KEY-----"
 
 
-def verify_jwt(
+async def verify_jwt(
     header: HTTPAuthorizationCredentials = Depends(auth_header),
 ) -> Tuple[AuthUser, str]:
     if not header:
@@ -45,7 +43,7 @@ def verify_jwt(
 
     try:
         token = header.credentials
-        decoded_token = kc_auth.decode_token(token=token, validate=True)
+        decoded_token = await kc_auth.a_decode_token(token=token, validate=True)
     except KeycloakError as exception:
         logger.error(
             f"Keyclock error while decoding token CODE: {exception.response_code} BODY: {exception.response_body} MESSAGE: {exception.error_message}"
@@ -66,7 +64,7 @@ def verify_jwt(
         )
 
     try:
-        introspected_token = kc_auth.introspect(
+        introspected_token = await kc_auth.a_introspect(
             token=token,
         )
 
@@ -104,9 +102,9 @@ def verify_jwt(
         )
 
 
-def get_client_token() -> str:
+async def get_client_token() -> str:
     try:
-        kc_realm.connection.get_token()  # This refreshes client token
+        await kc_realm.connection.a_get_token()  # This refreshes client token
         return ClientToken.model_validate(kc_realm.connection.token).access_token
     except Exception as error:
         logger.error(f"Error retrieving client token {error}")

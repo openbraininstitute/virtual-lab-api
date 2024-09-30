@@ -12,7 +12,7 @@ async def deprecate_nexus_organization(lab_id: UUID4) -> NexusOrganization:
     transport = httpx.AsyncHTTPTransport(retries=3)
 
     async with httpx.AsyncClient(transport=transport, verify=False) as httpx_client:
-        client_token = get_client_token()
+        client_token = await get_client_token()
         nexus_interface = NexusOrganizationInterface(httpx_client, client_token)
         organization = await nexus_interface.retrieve_organization(lab_id)
         return await nexus_interface.deprecate_organziation(lab_id, organization.rev)

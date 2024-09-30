@@ -16,7 +16,7 @@ async def delete_nexus_project(
     async with httpx.AsyncClient(transport=transport) as httpx_clt:
         nexus_interface = NexusProjectInterface(
             httpx_clt,
-            get_client_token(),
+            await get_client_token(),
         )
         revision = (
             await nexus_interface.retrieve_project(

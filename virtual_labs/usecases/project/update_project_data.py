@@ -34,7 +34,7 @@ async def update_project_data(
     pmr = ProjectMutationRepository(session)
     pqr = ProjectQueryRepository(session)
     nexus = NexusProjectInterface(
-        httpx_clt=httpx_client, client_token=get_client_token()
+        httpx_clt=httpx_client, client_token=await get_client_token()
     )
     try:
         (project, _) = await pqr.retrieve_one_project_by_id(project_id=project_id)
