@@ -1,6 +1,5 @@
 from http import HTTPStatus as status
 from typing import Tuple
-from uuid import UUID
 
 from fastapi import Depends
 from fastapi.security import (
