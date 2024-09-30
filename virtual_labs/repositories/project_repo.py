@@ -10,10 +10,7 @@ from sqlalchemy.sql import and_
 
 from virtual_labs.core.types import PaginatedDbResult
 from virtual_labs.domain.common import PageParams
-from virtual_labs.domain.project import (
-    ProjectCreationBody,
-    ProjectUpdateBody,
-)
+from virtual_labs.domain.project import ProjectCreationBody, ProjectUpdateBody
 from virtual_labs.infrastructure.db.models import Project, ProjectStar, VirtualLab
 
 
@@ -135,6 +132,11 @@ class ProjectQueryRepository:
 
         result = await self.session.execute(statement=stmt)
         return cast(Tuple[Project, VirtualLab], result.one())
+
+    async def retrieve_project_by_id(self, project_id: UUID4) -> Project:
+        stmt = select(Project).where(Project.id == project_id)
+        result = await self.session.execute(stmt)
+        return result.scalar_one()
 
     async def retrieve_one_project_by_name(self, name: str) -> Project | None:
         result = await self.session.scalar(

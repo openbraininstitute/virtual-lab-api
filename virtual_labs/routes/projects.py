@@ -8,15 +8,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.authorization import (
     verify_project_read,
+    verify_user_is_admin,
+    verify_vlab_or_project_read,
     verify_vlab_or_project_write,
     verify_vlab_read,
     verify_vlab_write,
 )
 from virtual_labs.core.authorization.verify_user_authenticated import (
     verify_user_authenticated,
-)
-from virtual_labs.core.authorization.verify_vlab_or_project_read import (
-    verify_vlab_or_project_read,
 )
 from virtual_labs.core.authorization.verify_vlab_read import AuthorizedVlabReadParams
 from virtual_labs.core.exceptions.api_error import VliError
