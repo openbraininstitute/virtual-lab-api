@@ -41,7 +41,9 @@ async def retrieve_all_user_projects_use_case(
                 **Project(**p.__dict__).model_dump(),
                 "virtual_lab_id": v.id,
                 "admin": ShortenedUser(
-                    **uqr.retrieve_user_from_kc(user_id=str(p.owner_id)).__dict__
+                    **(
+                        await uqr.retrieve_user_from_kc(user_id=str(p.owner_id))
+                    ).__dict__
                 ),
             }
             for p, v in results.rows
@@ -61,9 +63,11 @@ async def retrieve_all_user_projects_use_case(
         )
     else:
         return VliResponse.new(
-            message="Projects found successfully"
-            if len(projects) > 0
-            else "No projects was found",
+            message=(
+                "Projects found successfully"
+                if len(projects) > 0
+                else "No projects was found"
+            ),
             data={
                 "results": projects,
                 "page": pagination.page,

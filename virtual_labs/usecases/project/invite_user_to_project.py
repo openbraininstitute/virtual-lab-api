@@ -56,7 +56,7 @@ async def invite_user_to_project(
         user_to_invite = user_repo.retrieve_user_by_email(invite_details.email)
         user_id = UUID(user_to_invite.id) if user_to_invite is not None else None
 
-        inviter = user_repo.retrieve_user_from_kc(str(inviter_id))
+        inviter = await user_repo.retrieve_user_from_kc(str(inviter_id))
         # If user is already in project, raise an error
         if user_id is not None and (is_user_in_project(user_id, project)):
             logger.error(
@@ -81,9 +81,11 @@ async def invite_user_to_project(
             await send_invite(
                 details=EmailDetails(
                     recipient=invite_details.email,
-                    invitee_name=None
-                    if user_to_invite is None
-                    else f"{user_to_invite.firstName} {user_to_invite.lastName}",
+                    invitee_name=(
+                        None
+                        if user_to_invite is None
+                        else f"{user_to_invite.firstName} {user_to_invite.lastName}"
+                    ),
                     inviter_name=f"{inviter.firstName} {inviter.lastName}",
                     invite_id=UUID(str(invite.id)),
                     lab_id=virtual_lab_id,
@@ -103,9 +105,11 @@ async def invite_user_to_project(
             await send_invite(
                 details=EmailDetails(
                     recipient=invite_details.email,
-                    invitee_name=None
-                    if user_to_invite is None
-                    else f"{user_to_invite.firstName} {user_to_invite.lastName}",
+                    invitee_name=(
+                        None
+                        if user_to_invite is None
+                        else f"{user_to_invite.firstName} {user_to_invite.lastName}"
+                    ),
                     inviter_name=f"{inviter.firstName} {inviter.lastName}",
                     invite_id=UUID(str(invite.id)),
                     lab_id=virtual_lab_id,

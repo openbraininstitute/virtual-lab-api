@@ -49,7 +49,7 @@ async def invite_project_members(
     for member in members:
         try:
             user = user_query_repo.retrieve_user_by_email(member.email)
-            inviter = user_query_repo.retrieve_user_from_kc(str(inviter_id))
+            inviter = await user_query_repo.retrieve_user_from_kc(str(inviter_id))
 
             invitee_id = UUID(user.id) if user is not None else None
             invitee_name = None if user is None else f"{user.firstName} {user.lastName}"

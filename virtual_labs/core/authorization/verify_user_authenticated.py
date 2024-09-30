@@ -11,16 +11,17 @@ from virtual_labs.infrastructure.kc.auth import auth_user_id
 from virtual_labs.repositories.user_repo import UserQueryRepository
 
 
-def verify_user_authenticated(
+async def verify_user_authenticated(
     user_id: str = Depends(auth_user_id),
 ) -> UUID:
     """
-    This decorator checks that the request contains auth headers with a bearer token that
+    This dependency checks that the request contains auth headers with a bearer token that
     corresponds to a valid keycloak user (i.e. the user making the request is recognized by our identity provider)
     """
     user_repo = UserQueryRepository()
     try:
-        return UUID(user_repo.retrieve_user_from_kc(user_id).id)
+        user = await user_repo.retrieve_user_from_kc(user_id)
+        return UUID(user.id)
     except Exception as error:
         logger.exception(
             f"Unknown error when checking for user_authentication: {error}"

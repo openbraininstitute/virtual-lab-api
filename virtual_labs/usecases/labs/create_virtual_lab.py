@@ -75,7 +75,7 @@ async def invite_members_to_lab(
 
     successful_invites: list[AddUser] = []
     failed_invites: list[AddUser] = []
-    inviting_user = user_repo.retrieve_user_from_kc(str(inviter_id))
+    inviting_user = await user_repo.retrieve_user_from_kc(str(inviter_id))
 
     for member in members:
         try:

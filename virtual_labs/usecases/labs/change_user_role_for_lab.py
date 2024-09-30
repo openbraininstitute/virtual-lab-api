@@ -15,10 +15,8 @@ from virtual_labs.domain.labs import LabResponse, VirtualLabUser
 from virtual_labs.domain.user import UserWithInviteStatus
 from virtual_labs.repositories import labs as lab_repository
 from virtual_labs.repositories.group_repo import GroupQueryRepository
-from virtual_labs.repositories.user_repo import (
-    UserMutationRepository,
-    UserQueryRepository,
-)
+from virtual_labs.repositories.user_repo import (UserMutationRepository,
+                                                 UserQueryRepository)
 from virtual_labs.shared.utils.is_user_in_lab import is_user_in_lab
 
 
@@ -34,7 +32,7 @@ async def change_user_role_for_lab(
 
     try:
         lab = await lab_repository.get_undeleted_virtual_lab(db, lab_id)
-        user = user_query_repo.retrieve_user_from_kc(str(user_id))
+        user = await user_query_repo.retrieve_user_from_kc(str(user_id))
         if not is_user_in_lab(UUID(user.id), lab):
             logger.debug(
                 f"Cannot change role of user {user.id} because they dont belong in lab {lab.name}"

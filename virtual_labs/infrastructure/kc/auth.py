@@ -115,5 +115,5 @@ async def get_client_token() -> str:
 Token = str
 
 
-def auth_user_id(auth: tuple[AuthUser, Token] = Depends(verify_jwt)) -> str:
+async def auth_user_id(auth: tuple[AuthUser, Token] = Depends(verify_jwt)) -> str:
     return auth[0].sub

@@ -19,9 +19,10 @@ class UserQueryRepository:
     def __init__(self) -> None:
         self.Kc = kc_realm
 
-    def retrieve_user_from_kc(self, user_id: str) -> UserRepresentation:
+    async def retrieve_user_from_kc(self, user_id: str) -> UserRepresentation:
         try:
-            return UserRepresentation(**self.Kc.get_user(user_id))
+            user = await self.Kc.a_get_user(user_id)
+            return UserRepresentation(**user)
         except Exception as error:
             raise IdentityError(
                 message=f"User with id {user_id} not found", detail=str(error)
