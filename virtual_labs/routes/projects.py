@@ -15,6 +15,7 @@ from virtual_labs.core.authorization import (
 from virtual_labs.core.authorization.verify_vlab_or_project_read import (
     verify_vlab_or_project_read,
 )
+from virtual_labs.core.authorization.verify_vlab_read import AuthorizedVlabReadParams
 from virtual_labs.core.exceptions.api_error import VliError
 from virtual_labs.core.types import UserRoleEnum, VliAppResponse
 from virtual_labs.domain.common import PageParams, PaginatedResultsResponse
@@ -133,15 +134,15 @@ async def retrieve_stars_project(
     summary="Fulltext search for only allowed projects per virtual lab for the authenticated user",
     response_model=VliAppResponse[ProjectWithVLOut],
 )
-@verify_vlab_read
 async def search_projects_per_virtual_lab(
-    virtual_lab_id: UUID4,
+    auth: AuthorizedVlabReadParams = Depends(verify_vlab_read),
     q: str = Query("", description="query string"),
-    session: AsyncSession = Depends(default_session_factory),
-    auth: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> Response | VliError:
     return await project_cases.search_projects_per_virtual_lab_by_name_use_case(
-        session, virtual_lab_id, auth=auth, query_term=q
+        auth["session"],
+        auth["virtual_lab"].uuid,
+        user_id=auth["user_id"],
+        query_term=q,
     )
 
 

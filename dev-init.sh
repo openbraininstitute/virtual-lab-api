@@ -10,32 +10,32 @@ CLIENT_SECRET="obp-secret"
 
 
 # Start containers
-chmod +x ./env-prep/init/init-aws.sh
-ls -l ./env-prep/init/init-aws.sh
+# chmod +x ./env-prep/init/init-aws.sh
+# ls -l ./env-prep/init/init-aws.sh
 docker compose -f env-prep/docker-compose-dev.yml -p vlm-project up --wait
 
-# Check that delta ready to accept connections
-echo "Checking that delta is ready to accept connections..."
-if ! curl --retry 30 --fail --retry-all-errors --retry-delay 2 -v "http://localhost:8080/v1/version"; then 
-  # Show delta logs if curl failed
-  docker compose -f env-prep/docker-compose-dev.yml -p vlm-project logs delta
-  exit 1
-fi 
-echo "Delta is ready! 🚀"
+# # Check that delta ready to accept connections
+# echo "Checking that delta is ready to accept connections..."
+# if ! curl --retry 30 --fail --retry-all-errors --retry-delay 2 -v "http://localhost:8080/v1/version"; then 
+#   # Show delta logs if curl failed
+#   docker compose -f env-prep/docker-compose-dev.yml -p vlm-project logs delta
+#   exit 1
+# fi 
+# echo "Delta is ready! 🚀"
 
 
 # Register created realm on delta
-echo "Registering realm in delta"
-curl -XPUT \
-  -H "Content-Type: application/json" \
-  "http://localhost:8080/v1/realms/obp-realm" \
-  -d '{
-        "name":"obp-realm",
-        "openIdConfig":"http://keycloak:9090/realms/obp-realm/.well-known/openid-configuration"
-      }'
+# echo "Registering realm in delta"
+# curl -XPUT \
+#   -H "Content-Type: application/json" \
+#   "http://localhost:8080/v1/realms/obp-realm" \
+#   -d '{
+#         "name":"obp-realm",
+#         "openIdConfig":"http://keycloak:9090/realms/obp-realm/.well-known/openid-configuration"
+#       }'
 
-echo "Initialize nexus"
-python3 env-prep/init/init.py
+# echo "Initialize nexus"
+# python3 env-prep/init/init.py
 
 echo "📦 Initialize Vl database"
 make init-db

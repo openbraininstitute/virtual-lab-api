@@ -1,5 +1,4 @@
 from http import HTTPStatus as status
-from typing import Tuple
 
 from fastapi.responses import Response
 from loguru import logger
@@ -10,23 +9,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.domain.project import Project
-from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.repositories.group_repo import GroupQueryRepository
 from virtual_labs.repositories.project_repo import ProjectQueryRepository
-from virtual_labs.shared.utils.auth import get_user_id_from_auth
 from virtual_labs.shared.utils.get_one_project_admin import get_one_project_admin
 
 
 async def search_projects_per_virtual_lab_by_name_use_case(
-    session: AsyncSession,
-    virtual_lab_id: UUID4,
-    query_term: str | None,
-    auth: Tuple[AuthUser, str],
+    session: AsyncSession, virtual_lab_id: UUID4, query_term: str | None, user_id: UUID4
 ) -> Response:
     pr = ProjectQueryRepository(session)
     gqr = GroupQueryRepository()
-
-    user_id = get_user_id_from_auth(auth)
 
     if not query_term:
         raise VliError(
@@ -67,9 +59,11 @@ async def search_projects_per_virtual_lab_by_name_use_case(
         )
     else:
         return VliResponse.new(
-            message=f"Projects with '{query_term}' found successfully"
-            if len(projects) > 0
-            else "No projects was found",
+            message=(
+                f"Projects with '{query_term}' found successfully"
+                if len(projects) > 0
+                else "No projects was found"
+            ),
             data={
                 "projects": projects,
                 "total": len(projects),

@@ -79,90 +79,90 @@ services:
     networks:
       - ls
 
-  mailpit:
-    image: axllent/mailpit
-    container_name: test-mail-server
-    restart: always
-    volumes:
-      - ./email-data:/email-data
-    ports:
-      - 8025:8025 # UI to see sent emails
-      - 1025:1025 # test smtp server
-    environment:
-      MP_MAX_MESSAGES: 5000
-      MP_DATA_FILE: /email-data/mailpit.db
-      MP_SMTP_AUTH_ACCEPT_ANY: 1
-      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+  # mailpit:
+  #   image: axllent/mailpit
+  #   container_name: test-mail-server
+  #   restart: always
+  #   volumes:
+  #     - ./email-data:/email-data
+  #   ports:
+  #     - 8025:8025 # UI to see sent emails
+  #     - 1025:1025 # test smtp server
+  #   environment:
+  #     MP_MAX_MESSAGES: 5000
+  #     MP_DATA_FILE: /email-data/mailpit.db
+  #     MP_SMTP_AUTH_ACCEPT_ANY: 1
+  #     MP_SMTP_AUTH_ALLOW_INSECURE: 1
 
-  delta:
-    depends_on:
-      keycloak:
-        condition: service_started
-      elasticsearch:
-        condition: service_healthy
-      blazegraph:
-        condition: service_started
-      postgres:
-        condition: service_started
-      storage-service:
-        condition: service_started
-      localstack:
-        condition: service_started
-    environment:
-      DELTA_PLUGINS: "/opt/docker/plugins/"
-      DELTA_EXTERNAL_CONF: "/config/delta-postgres.conf"
-      KAMON_ENABLED: "false"
-    image: bluebrain/nexus-delta:latest
-    entrypoint:
-      - '/bin/bash'
-      - '-c'
-      - |
-        ln -sf /opt/docker/plugins/disabled/project-deletion.jar /opt/docker/plugins/project-deletion.jar &&
-        /opt/docker/bin/delta-app -Xmx4G
-    ports:
-      - 8080:8080
-    volumes:
-      - ./config:/config
-      - /tmp:/default-volume
-    dns:
-      # Set the DNS server to be the LocalStack container, for host resolution
-      - 10.0.2.20
-    networks:
-      - ls
+  # delta:
+  #   depends_on:
+  #     keycloak:
+  #       condition: service_started
+  #     elasticsearch:
+  #       condition: service_healthy
+  #     blazegraph:
+  #       condition: service_started
+  #     postgres:
+  #       condition: service_started
+  #     storage-service:
+  #       condition: service_started
+  #     localstack:
+  #       condition: service_started
+  #   environment:
+  #     DELTA_PLUGINS: "/opt/docker/plugins/"
+  #     DELTA_EXTERNAL_CONF: "/config/delta-postgres.conf"
+  #     KAMON_ENABLED: "false"
+  #   image: bluebrain/nexus-delta:latest
+  #   entrypoint:
+  #     - '/bin/bash'
+  #     - '-c'
+  #     - |
+  #       ln -sf /opt/docker/plugins/disabled/project-deletion.jar /opt/docker/plugins/project-deletion.jar &&
+  #       /opt/docker/bin/delta-app -Xmx4G
+  #   ports:
+  #     - 8080:8080
+  #   volumes:
+  #     - ./config:/config
+  #     - /tmp:/default-volume
+  #   dns:
+  #     # Set the DNS server to be the LocalStack container, for host resolution
+  #     - 10.0.2.20
+  #   networks:
+  #     - ls
 
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.12.1
-    environment:
-      ES_JAVA_OPTS: "-Xmx2G"
-      discovery.type: "single-node"
-      bootstrap.memory_lock: "true"
-      xpack.security.enabled: "true"
-      ingest.geoip.downloader.enabled: "false"
-      ELASTIC_PASSWORD: "password"
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://elastic:password@localhost:9200/" ]
-      interval: 1s
-      timeout: 2s
-      retries: 60
-    ports:
-      - 9200:9200
-    deploy:
-      resources:
-        limits:
-          memory: 4G
-    networks:
-      - ls
+  # elasticsearch:
+  #   image: docker.elastic.co/elasticsearch/elasticsearch:8.12.1
+  #   environment:
+  #     ES_JAVA_OPTS: "-Xmx2G"
+  #     discovery.type: "single-node"
+  #     bootstrap.memory_lock: "true"
+  #     xpack.security.enabled: "true"
+  #     ingest.geoip.downloader.enabled: "false"
+  #     ELASTIC_PASSWORD: "password"
+  #   healthcheck:
+  #     test: [ "CMD", "curl", "-f", "http://elastic:password@localhost:9200/" ]
+  #     interval: 1s
+  #     timeout: 2s
+  #     retries: 60
+  #   ports:
+  #     - 9200:9200
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         memory: 4G
+  #   networks:
+  #     - ls
 
-  blazegraph:
-    image: bluebrain/blazegraph-nexus:2.1.6-RC
-    environment:
-      JAVA_OPTS: "-DjettyXml=/config/jetty.xml -Djava.awt.headless=true -XX:MaxDirectMemorySize=300m -Xms4g -Xmx4g -XX:+UseG1GC"
-    ports:
-      - 9999:9999
-    volumes:
-      - ./config:/config
-    networks:
-      - ls
+  # blazegraph:
+  #   image: bluebrain/blazegraph-nexus:2.1.6-RC
+  #   environment:
+  #     JAVA_OPTS: "-DjettyXml=/config/jetty.xml -Djava.awt.headless=true -XX:MaxDirectMemorySize=300m -Xms4g -Xmx4g -XX:+UseG1GC"
+  #   ports:
+  #     - 9999:9999
+  #   volumes:
+  #     - ./config:/config
+  #   networks:
+  #     - ls
 
   postgres:
     image: library/postgres:15.6
@@ -176,52 +176,52 @@ services:
     networks:
       - ls
 
-  stripe-cli:
-    image: stripe/stripe-cli
-    container_name: stripe
-    environment:
-      STRIPE_CLI_TELEMETRY_OPTOUT: 1
-      STRIPE_API_KEY: ${STRIPE_SECRET_KEY}
-      STRIPE_DEVICE_NAME: ${STRIPE_DEVICE_NAME}
-    volumes:
-      - ./stripe-data:/stripe-data
-    entrypoint:
-      - '/bin/sh'
-      - '-c'
-      - |
-        echo STRIPE_WEBHOOK_SECRET=$(stripe listen --print-secret) > /stripe-data/.env.local &&
-        stripe listen --forward-to http://host.docker.internal:8000/payments/webhook
-    network_mode: host
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-      - "172.17.0.1:host-gateway"
+  # stripe-cli:
+  #   image: stripe/stripe-cli
+  #   container_name: stripe
+  #   environment:
+  #     STRIPE_CLI_TELEMETRY_OPTOUT: 1
+  #     STRIPE_API_KEY: ${STRIPE_SECRET_KEY}
+  #     STRIPE_DEVICE_NAME: ${STRIPE_DEVICE_NAME}
+  #   volumes:
+  #     - ./stripe-data:/stripe-data
+  #   entrypoint:
+  #     - '/bin/sh'
+  #     - '-c'
+  #     - |
+  #       echo STRIPE_WEBHOOK_SECRET=$(stripe listen --print-secret) > /stripe-data/.env.local &&
+  #       stripe listen --forward-to http://host.docker.internal:8000/payments/webhook
+  #   network_mode: host
+  #   extra_hosts:
+  #     - "host.docker.internal:host-gateway"
+  #     - "172.17.0.1:host-gateway"
 
-  storage-service:
-    container_name: "nexus-storage-service"
-    image: bluebrain/nexus-storage:latest
-    environment:
-      STORAGE_CONFIG_FILE: "/config/storage.conf"
-      KAMON_ENABLED: "false"
-    entrypoint: [ "./bin/storage",
-                  "-Dkamon.modules.prometheus-reporter.enabled=false",
-                  "-Dkamon.modules.jaeger.enabled=false" ]
-    ports:
-      - 8090:8090
-    volumes:
-      - ./config:/config
+  # storage-service:
+  #   container_name: "nexus-storage-service"
+  #   image: bluebrain/nexus-storage:latest
+  #   environment:
+  #     STORAGE_CONFIG_FILE: "/config/storage.conf"
+  #     KAMON_ENABLED: "false"
+  #   entrypoint: [ "./bin/storage",
+  #                 "-Dkamon.modules.prometheus-reporter.enabled=false",
+  #                 "-Dkamon.modules.jaeger.enabled=false" ]
+  #   ports:
+  #     - 8090:8090
+  #   volumes:
+  #     - ./config:/config
 
-  localstack:
-    image: localstack/localstack:3.5
-    environment:
-      AWS_ACCESS_KEY_ID: "MY_ACCESS_KEY"
-      AWS_SECRET_ACCESS_KEY: "CHUTCHUT"
-      SERVICES: "s3:4566"
-    ports:
-      - 4566:4566
-    volumes:
-      - "./init/init-aws.sh:/etc/localstack/init/ready.d/init-aws.sh"  # ready hook
-      - "/var/run/docker.sock:/var/run/docker.sock"
-    networks:
-      ls:
-        # Set the container IP address in the 10.0.2.0/24 subnet
-        ipv4_address: 10.0.2.20
+  # localstack:
+  #   image: localstack/localstack:3.5
+  #   environment:
+  #     AWS_ACCESS_KEY_ID: "MY_ACCESS_KEY"
+  #     AWS_SECRET_ACCESS_KEY: "CHUTCHUT"
+  #     SERVICES: "s3:4566"
+  #   ports:
+  #     - 4566:4566
+  #   volumes:
+  #     - "./init/init-aws.sh:/etc/localstack/init/ready.d/init-aws.sh"  # ready hook
+  #     - "/var/run/docker.sock:/var/run/docker.sock"
+  #   networks:
+  #     ls:
+  #       # Set the container IP address in the 10.0.2.0/24 subnet
+  #       ipv4_address: 10.0.2.20

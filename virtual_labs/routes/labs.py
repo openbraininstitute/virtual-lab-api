@@ -7,6 +7,7 @@ from virtual_labs.core.authorization import (
     verify_vlab_read,
     verify_vlab_write,
 )
+from virtual_labs.core.authorization.verify_vlab_read import AuthorizedVlabReadParams
 from virtual_labs.core.types import UserRoleEnum
 from virtual_labs.domain.common import PageParams, PaginatedResultsResponse
 from virtual_labs.domain.invite import AddUser
@@ -86,31 +87,24 @@ async def search_virtual_lab_by_name(
     response_model=LabResponse[VirtualLabOut],
     summary="Get non deleted virtual lab by id",
 )
-@verify_vlab_read
 async def get_virtual_lab(
-    virtual_lab_id: UUID4,
-    session: AsyncSession = Depends(default_session_factory),
-    auth: tuple[AuthUser, str] = Depends(verify_jwt),
+    auth: AuthorizedVlabReadParams = Depends(verify_vlab_read),
 ) -> LabResponse[VirtualLabOut]:
-    lab_response = await usecases.get_virtual_lab(
-        session, virtual_lab_id, user_id=get_user_id_from_auth(auth)
-    )
     return LabResponse[VirtualLabOut](
-        message="Virtual lab resource for id {}".format(virtual_lab_id),
-        data=lab_response,
+        message=f"Virtual lab resource for id {auth['virtual_lab'].uuid}",
+        data=VirtualLabOut(
+            virtual_lab=VirtualLabDetails.model_validate(auth["virtual_lab"])
+        ),
     )
 
 
 @router.get("/{virtual_lab_id}/users", response_model=LabResponse[VirtualLabUsers])
-@verify_vlab_read
 async def get_virtual_lab_users(
-    virtual_lab_id: UUID4,
-    session: AsyncSession = Depends(default_session_factory),
-    auth: tuple[AuthUser, str] = Depends(verify_jwt),
+    auth: AuthorizedVlabReadParams = Depends(verify_vlab_read),
 ) -> LabResponse[VirtualLabUsers]:
     return LabResponse[VirtualLabUsers](
         message="Users for virtual lab",
-        data=await usecases.get_virtual_lab_users(session, virtual_lab_id),
+        data=await usecases.get_virtual_lab_users(auth["session"], auth["virtual_lab"]),
     )
 
 

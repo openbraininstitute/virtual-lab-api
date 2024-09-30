@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime
 
+from pydantic import UUID4
 from sqlalchemy import JSON, Boolean, Column, DateTime
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy import (
@@ -77,6 +78,10 @@ class VirtualLab(Base):
             postgresql_where=(not_(deleted)),
         ),
     )
+
+    @property
+    def uuid(self) -> UUID4:
+        return UUID4(str(self.id))
 
 
 class Project(Base):

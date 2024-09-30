@@ -1,4 +1,5 @@
 from http import HTTPStatus
+from uuid import UUID
 
 from loguru import logger
 from pydantic import UUID4, EmailStr
@@ -9,6 +10,7 @@ from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.types import UserRoleEnum
 from virtual_labs.domain.labs import VirtualLabUsers
 from virtual_labs.domain.user import UserWithInviteStatus
+from virtual_labs.infrastructure.db.models import VirtualLab
 from virtual_labs.infrastructure.kc.models import (
     UserNotInKCRepresentation,
     UserRepresentation,
@@ -41,13 +43,13 @@ def get_pending_user(
     return user
 
 
-async def get_virtual_lab_users(db: AsyncSession, lab_id: UUID4) -> VirtualLabUsers:
+async def get_virtual_lab_users(db: AsyncSession, lab: VirtualLab) -> VirtualLabUsers:
     invite_repo = InviteQueryRepository(db)
     group_repo = GroupQueryRepository()
     user_repo = UserQueryRepository()
+    lab_id = UUID(str(lab.id))
 
     try:
-        lab = await lab_repository.get_undeleted_virtual_lab(db, lab_id)
         admins = [
             UserWithInviteStatus(
                 **admin.model_dump(),
@@ -72,9 +74,11 @@ async def get_virtual_lab_users(db: AsyncSession, lab_id: UUID4) -> VirtualLabUs
                     user_email=str(invite.user_email),
                 ).model_dump(),
                 invite_accepted=False,
-                role=UserRoleEnum.admin
-                if str(invite.role) == UserRoleEnum.admin.value
-                else UserRoleEnum.member,
+                role=(
+                    UserRoleEnum.admin
+                    if str(invite.role) == UserRoleEnum.admin.value
+                    else UserRoleEnum.member
+                ),
             )
             for invite in invites
         ]

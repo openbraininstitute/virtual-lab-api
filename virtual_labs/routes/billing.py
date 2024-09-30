@@ -1,15 +1,13 @@
 from textwrap import dedent
-from typing import Annotated, Tuple
+from typing import Annotated, Tuple, cast
 
 from fastapi import APIRouter, Body, Depends
 from fastapi.responses import Response
 from pydantic import UUID4
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from virtual_labs.core.authorization import (
-    verify_vlab_read,
-    verify_vlab_write,
-)
+from virtual_labs.core.authorization import verify_vlab_read, verify_vlab_write
+from virtual_labs.core.authorization.verify_vlab_read import AuthorizedVlabReadParams
 from virtual_labs.core.types import VliAppResponse
 from virtual_labs.domain.payment_method import (
     PaymentMethodCreationBody,
@@ -37,15 +35,11 @@ router = APIRouter(
     summary="Retrieve payment methods for a specific virtual lab",
     response_model=VliAppResponse[PaymentMethodsOut],
 )
-@verify_vlab_read
 async def retrieve_vl_payment_methods(
-    virtual_lab_id: UUID4,
-    session: AsyncSession = Depends(default_session_factory),
-    auth: Tuple[AuthUser, str] = Depends(verify_jwt),
+    auth: AuthorizedVlabReadParams = Depends(verify_vlab_read),
 ) -> Response:
     return await billing_cases.retrieve_virtual_lab_payment_methods(
-        session,
-        virtual_lab_id=virtual_lab_id,
+        auth["session"], virtual_lab_id=auth["virtual_lab"].uuid
     )
 
 
@@ -202,13 +196,7 @@ async def init_vl_budget_topup(
     ),
     response_model=VliAppResponse[VlabBalanceOut],
 )
-@verify_vlab_read
 async def retrieve_virtual_lab_balance(
-    virtual_lab_id: UUID4,
-    session: AsyncSession = Depends(default_session_factory),
-    auth: Tuple[AuthUser, str] = Depends(verify_jwt),
+    auth: AuthorizedVlabReadParams = Depends(verify_vlab_read),
 ) -> Response:
-    return await billing_cases.retrieve_virtual_lab_balance(
-        session,
-        virtual_lab_id=virtual_lab_id,
-    )
+    return await billing_cases.retrieve_virtual_lab_balance(auth["virtual_lab"])
