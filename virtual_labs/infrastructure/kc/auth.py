@@ -1,5 +1,6 @@
 from http import HTTPStatus as status
 from typing import Tuple
+from uuid import UUID
 
 from fastapi import Depends
 from fastapi.security import (
@@ -109,3 +110,10 @@ async def get_client_token() -> str:
     except Exception as error:
         logger.error(f"Error retrieving client token {error}")
         raise error
+
+
+Token = str
+
+
+def auth_user_id(auth: tuple[AuthUser, Token] = Depends(verify_jwt)) -> str:
+    return auth[0].sub

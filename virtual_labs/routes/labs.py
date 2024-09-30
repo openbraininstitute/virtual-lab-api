@@ -34,19 +34,16 @@ router = APIRouter(prefix="/virtual-labs", tags=["Virtual Labs Endpoints"])
 
 
 @router.get("", response_model=PaginatedLabs)
-@verify_user_authenticated
 async def get_paginated_virtual_labs_for_user(
     page: int = 1,
     size: int = 50,
     db: AsyncSession = Depends(default_session_factory),
-    auth: tuple[AuthUser, str] = Depends(verify_jwt),
+    user_id: UUID4 = Depends(verify_user_authenticated),
 ) -> PaginatedLabs:
     return LabResponse(
         message="Paginated virtual labs for user",
         data=await usecases.paginated_labs_for_user(
-            db,
-            page_params=PageParams(page=page, size=size),
-            user_id=get_user_id_from_auth(auth),
+            db, page_params=PageParams(page=page, size=size), user_id=user_id
         ),
     )
 
@@ -57,9 +54,11 @@ async def check_if_virtual_lab_name_exists(
 ) -> LabResponse[LabExists]:
     response = await usecases.check_virtual_lab_name_exists(db, q)
     return LabResponse[LabExists](
-        message=f"Virtual lab with name {q} already exists"
-        if response["exists"] > 0
-        else f"No virtual lab with name {q} was found",
+        message=(
+            f"Virtual lab with name {q} already exists"
+            if response["exists"] > 0
+            else f"No virtual lab with name {q} was found"
+        ),
         data=response,
     )
 
