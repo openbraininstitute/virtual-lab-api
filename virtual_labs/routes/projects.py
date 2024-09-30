@@ -8,7 +8,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.authorization import (
     verify_project_read,
-    verify_user_is_admin,
     verify_vlab_or_project_read,
     verify_vlab_or_project_write,
     verify_vlab_read,
