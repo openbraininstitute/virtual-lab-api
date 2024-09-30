@@ -1,5 +1,5 @@
 from textwrap import dedent
-from typing import Annotated, Tuple, cast
+from typing import Annotated, Tuple
 
 from fastapi import APIRouter, Body, Depends
 from fastapi.responses import Response

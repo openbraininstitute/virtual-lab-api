@@ -3,12 +3,10 @@ from http import HTTPStatus as status
 
 from fastapi.responses import Response
 from loguru import logger
-from sqlalchemy.exc import SQLAlchemyError
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.infrastructure.db.models import VirtualLab
-from virtual_labs.repositories.labs import get_undeleted_virtual_lab
 from virtual_labs.shared.utils.billing import amount_to_float
 
 

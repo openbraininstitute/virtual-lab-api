@@ -2,7 +2,7 @@ from http import HTTPStatus
 from uuid import UUID
 
 from loguru import logger
-from pydantic import UUID4, EmailStr
+from pydantic import EmailStr
 from sqlalchemy.exc import NoResultFound, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,7 +15,6 @@ from virtual_labs.infrastructure.kc.models import (
     UserNotInKCRepresentation,
     UserRepresentation,
 )
-from virtual_labs.repositories import labs as lab_repository
 from virtual_labs.repositories.group_repo import GroupQueryRepository
 from virtual_labs.repositories.invite_repo import InviteQueryRepository
 from virtual_labs.repositories.user_repo import UserQueryRepository
@@ -47,7 +46,6 @@ async def get_virtual_lab_users(db: AsyncSession, lab: VirtualLab) -> VirtualLab
     invite_repo = InviteQueryRepository(db)
     group_repo = GroupQueryRepository()
     user_repo = UserQueryRepository()
-    lab_id = UUID(str(lab.id))
 
     try:
         admins = [
@@ -66,7 +64,7 @@ async def get_virtual_lab_users(db: AsyncSession, lab: VirtualLab) -> VirtualLab
             )
             for member in group_repo.retrieve_group_users(str(lab.member_group_id))
         ]
-        invites = await invite_repo.get_pending_users_for_lab(lab_id)
+        invites = await invite_repo.get_pending_users_for_lab(lab.uuid)
         pending_users = [
             UserWithInviteStatus(
                 **get_pending_user(
@@ -97,7 +95,7 @@ async def get_virtual_lab_users(db: AsyncSession, lab: VirtualLab) -> VirtualLab
         )
     except SQLAlchemyError as error:
         logger.error(
-            f"Virtual lab {lab_id} could not be retrieved due to an unknown database error: {error}"
+            f"Virtual lab {lab.uuid} could not be retrieved due to an unknown database error: {error}"
         )
 
         raise VliError(
