@@ -53,7 +53,7 @@ async def invite_user_to_project(
         if user.email == invite_details.email:
             raise ValueError("Self invite is forbidden")
 
-        user_to_invite = user_repo.retrieve_user_by_email(invite_details.email)
+        user_to_invite = await user_repo.retrieve_user_by_email(invite_details.email)
         user_id = UUID(user_to_invite.id) if user_to_invite is not None else None
 
         inviter = await user_repo.retrieve_user_from_kc(str(inviter_id))

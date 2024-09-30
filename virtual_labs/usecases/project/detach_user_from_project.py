@@ -36,7 +36,7 @@ async def detach_user_from_project(
             virtual_lab_id=virtual_lab_id,
             project_id=project_id,
         )
-        users = gqr.retrieve_group_users(group_id=str(vl.admin_group_id))
+        users = await gqr.retrieve_group_users(group_id=str(vl.admin_group_id))
         users_list = uniq_list([u.id for u in users])
 
         if (user_id == project.owner_id) or (user_id in users_list):

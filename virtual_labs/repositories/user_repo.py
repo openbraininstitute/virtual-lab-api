@@ -35,8 +35,8 @@ class UserQueryRepository:
             UserRepresentation(**user) for user in self.Kc.get_users({"email": email})
         ]
 
-    def retrieve_user_by_email(self, email: str) -> UserRepresentation | None:
-        users = self.Kc.get_users({"email": email})
+    async def retrieve_user_by_email(self, email: str) -> UserRepresentation | None:
+        users = await self.Kc.get_users({"email": email})
         if not isinstance(users, list):
             logger.error(
                 f"Expected a list of users for email {email} but received type {type(users)} : {users}"

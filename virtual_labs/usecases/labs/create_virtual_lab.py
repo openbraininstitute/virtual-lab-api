@@ -79,7 +79,7 @@ async def invite_members_to_lab(
 
     for member in members:
         try:
-            user_to_invite = user_repo.retrieve_user_by_email(member.email)
+            user_to_invite = await user_repo.retrieve_user_by_email(member.email)
             user_id = UUID(user_to_invite.id) if user_to_invite is not None else None
             invitee_name = (
                 None

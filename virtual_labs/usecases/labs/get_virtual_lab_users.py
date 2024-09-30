@@ -53,7 +53,7 @@ async def get_virtual_lab_users(db: AsyncSession, lab: VirtualLab) -> VirtualLab
                 invite_accepted=True,
                 role=UserRoleEnum.admin,
             )
-            for admin in group_repo.retrieve_group_users(str(lab.admin_group_id))
+            for admin in await group_repo.retrieve_group_users(str(lab.admin_group_id))
         ]
         members = [
             UserWithInviteStatus(
@@ -61,13 +61,17 @@ async def get_virtual_lab_users(db: AsyncSession, lab: VirtualLab) -> VirtualLab
                 invite_accepted=True,
                 role=UserRoleEnum.member,
             )
-            for member in group_repo.retrieve_group_users(str(lab.member_group_id))
+            for member in await group_repo.retrieve_group_users(
+                str(lab.member_group_id)
+            )
         ]
         invites = await invite_repo.get_pending_users_for_lab(lab.uuid)
         pending_users = [
             UserWithInviteStatus(
                 **get_pending_user(
-                    user=(user_repo.retrieve_user_by_email(str(invite.user_email))),
+                    user=(
+                        await user_repo.retrieve_user_by_email(str(invite.user_email))
+                    ),
                     user_email=str(invite.user_email),
                 ).model_dump(),
                 invite_accepted=False,

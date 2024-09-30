@@ -121,6 +121,10 @@ class Project(Base):
         ),
     )
 
+    @property
+    def uuid(self) -> UUID4:
+        return UUID4(str(self.id))
+
 
 class ProjectStar(Base):
     __tablename__ = "project_star"

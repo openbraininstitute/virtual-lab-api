@@ -9,7 +9,7 @@ from virtual_labs.infrastructure.db.models import Project
 from virtual_labs.repositories.group_repo import GroupQueryRepository
 
 
-def get_one_project_admin(project: Project) -> UserWithInviteStatus:
+async def get_one_project_admin(project: Project) -> UserWithInviteStatus:
     """
     Returns one admin for a project.
     If there are multiple admins, the one whose username appears first in alphabetical order is returned.
@@ -17,7 +17,7 @@ def get_one_project_admin(project: Project) -> UserWithInviteStatus:
     """
     try:
         group_repo = GroupQueryRepository()
-        all_admins = group_repo.retrieve_group_users(str(project.admin_group_id))
+        all_admins = await group_repo.retrieve_group_users(str(project.admin_group_id))
 
         assert len(all_admins) >= 1
         all_admins.sort(key=lambda x: x.username)

@@ -33,7 +33,7 @@ def verify_project_write(f: Callable[..., Any]) -> Callable[..., Any]:
             pqr = ProjectQueryRepository(session)
 
             project, _ = await pqr.retrieve_one_project_by_id(project_id=project_id)
-            users = gqr.retrieve_group_users(group_id=str(project.admin_group_id))
+            users = await gqr.retrieve_group_users(group_id=str(project.admin_group_id))
             uniq_users = uniq_list([u.id for u in users])
 
             is_user_in_list(list_=uniq_users, user_id=str(user_id))

@@ -21,8 +21,8 @@ async def retrieve_users_per_project_count_use_case(
 
     try:
         project, _ = await pr.retrieve_one_project_by_id(project_id)
-        admins = gqr.retrieve_group_users(group_id=str(project.admin_group_id))
-        members = gqr.retrieve_group_users(group_id=str(project.member_group_id))
+        admins = await gqr.retrieve_group_users(group_id=str(project.admin_group_id))
+        members = await gqr.retrieve_group_users(group_id=str(project.member_group_id))
 
         users = uniq_list([u.id for u in admins + members])
 

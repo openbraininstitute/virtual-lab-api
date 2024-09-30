@@ -35,7 +35,7 @@ def verify_vlab_write(f: Callable[..., Any]) -> Callable[..., Any]:
                 session,
                 lab_id=virtual_lab_id,
             )
-            users = gqr.retrieve_group_users(group_id=str(vlab.admin_group_id))
+            users = await gqr.retrieve_group_users(group_id=str(vlab.admin_group_id))
             uniq_users = uniq_list([u.id for u in users])
 
             is_user_in_list(list_=uniq_users, user_id=str(user_id))

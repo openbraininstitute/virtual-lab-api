@@ -21,7 +21,7 @@ async def remove_user_from_lab(lab_id: UUID4, user_id: UUID4, db: AsyncSession) 
         user_repository = UserMutationRepository()
         group_repository = GroupQueryRepository()
 
-        admins = group_repository.retrieve_group_users(str(lab.admin_group_id))
+        admins = await group_repository.retrieve_group_users(str(lab.admin_group_id))
         if len(admins) == 1 and (await is_user_admin_of_lab(user_id, lab)):
             raise VliError(
                 message=f"Last admin of lab {lab_id} cannot be removed",

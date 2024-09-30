@@ -45,7 +45,7 @@ async def change_user_role_for_lab(
                 http_status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
             )
 
-        admins = group_repo.retrieve_group_users(str(lab.admin_group_id))
+        admins = await group_repo.retrieve_group_users(str(lab.admin_group_id))
         if (
             len(admins) == 1
             and admins[0].id == str(user_id)

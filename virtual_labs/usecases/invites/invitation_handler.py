@@ -74,7 +74,7 @@ async def invitation_handler(
                 db=session,
                 lab_id=UUID(str(vlab_invite.virtual_lab_id)),
             )
-            user = user_query_repo.retrieve_user_by_email(
+            user = await user_query_repo.retrieve_user_by_email(
                 email=str(vlab_invite.user_email),
             )
             assert user is not None
@@ -120,7 +120,7 @@ async def invitation_handler(
                 raise UserMismatch(
                     "Invite email not match the authenticated user email"
                 )
-            user = user_query_repo.retrieve_user_by_email(
+            user = await user_query_repo.retrieve_user_by_email(
                 email=str(project_invite.user_email)
             )
             assert user is not None

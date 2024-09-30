@@ -41,7 +41,7 @@ def verify_vlab_or_project_read(f: Callable[..., Any]) -> Callable[..., Any]:
                     lab_id=virtual_lab_id,
                 )
                 if vlab:
-                    vlab_admins = gqr.retrieve_group_users(
+                    vlab_admins = await gqr.retrieve_group_users(
                         group_id=str(vlab.admin_group_id)
                     )
                     users += vlab_admins
@@ -49,10 +49,10 @@ def verify_vlab_or_project_read(f: Callable[..., Any]) -> Callable[..., Any]:
             if project_id:
                 project, _ = await pqr.retrieve_one_project_by_id(project_id=project_id)
                 if project:
-                    project_admins = gqr.retrieve_group_users(
+                    project_admins = await gqr.retrieve_group_users(
                         group_id=str(project.admin_group_id)
                     )
-                    project_members = gqr.retrieve_group_users(
+                    project_members = await gqr.retrieve_group_users(
                         group_id=str(project.member_group_id)
                     )
                     users += project_admins + project_members

@@ -64,7 +64,7 @@ async def invite_user_to_lab(
     try:
         lab = await lab_repo.get_undeleted_virtual_lab(db, lab_id)
 
-        user_to_invite = user_repo.retrieve_user_by_email(invite_details.email)
+        user_to_invite = await user_repo.retrieve_user_by_email(invite_details.email)
         inviting_user = await user_repo.retrieve_user_from_kc(str(inviter_id))
         user_id = UUID(user_to_invite.id) if user_to_invite is not None else None
         invitee_name = (

@@ -3,8 +3,8 @@ from virtual_labs.infrastructure.db.models import VirtualLab
 from virtual_labs.shared.utils.get_one_lab_admin import get_one_lab_admin
 
 
-def db_lab_to_domain_lab(lab: VirtualLab) -> VirtualLabDetails:
-    an_admin = get_one_lab_admin(lab)
+async def db_lab_to_domain_lab(lab: VirtualLab) -> VirtualLabDetails:
+    an_admin = await get_one_lab_admin(lab)
 
     params = dict(
         id=lab.id,

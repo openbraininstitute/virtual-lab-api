@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.authorization import (
     verify_project_read,
+    verify_user_is_admin,
     verify_vlab_or_project_read,
     verify_vlab_or_project_write,
     verify_vlab_read,
@@ -16,6 +17,7 @@ from virtual_labs.core.authorization import (
 from virtual_labs.core.authorization.verify_user_authenticated import (
     verify_user_authenticated,
 )
+from virtual_labs.core.authorization.verify_user_is_admin import VerifiedAdminParams
 from virtual_labs.core.authorization.verify_vlab_read import AuthorizedVlabReadParams
 from virtual_labs.core.exceptions.api_error import VliError
 from virtual_labs.core.types import UserRoleEnum, VliAppResponse
@@ -373,15 +375,11 @@ async def update_project_star_status(
     summary="Retrieve users per project",
     response_model=VliAppResponse[ProjectUsersOut],
 )
-@verify_vlab_or_project_write
 async def retrieve_project_users(
-    virtual_lab_id: UUID4,
-    project_id: UUID4,
-    session: AsyncSession = Depends(default_session_factory),
-    auth: Tuple[AuthUser, str] = Depends(verify_jwt),
+    auth: VerifiedAdminParams = Depends(verify_user_is_admin),
 ) -> Response | VliError:
     return await project_cases.retrieve_all_users_per_project_use_case(
-        session, virtual_lab_id, project_id
+        auth.session, auth.project
     )
 
 

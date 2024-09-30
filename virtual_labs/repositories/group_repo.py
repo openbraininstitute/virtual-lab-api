@@ -22,8 +22,8 @@ class GroupQueryRepository:
     def __init__(self) -> None:
         self.Kc = kc_realm
 
-    def retrieve_group_users(self, group_id: str) -> List[UserRepresentation]:
-        members = self.Kc.get_group_members(group_id=group_id)
+    async def retrieve_group_users(self, group_id: str) -> List[UserRepresentation]:
+        members = await self.Kc.a_get_group_members(group_id=group_id)
         return [UserRepresentation(**member) for member in members]
 
     async def retrieve_user_groups(self, user_id: str) -> List[GroupRepresentation]:
@@ -38,8 +38,8 @@ class GroupQueryRepository:
         group = self.Kc.get_group(group_id=group_id)
         return GroupRepresentation(**group)
 
-    def check_user_in_group(self, group_id: str, user_id: str) -> bool:
-        group_users = self.retrieve_group_users(group_id=group_id)
+    async def check_user_in_group(self, group_id: str, user_id: str) -> bool:
+        group_users = await self.retrieve_group_users(group_id=group_id)
         if any([cast(Dict[str, object], u)["id"] == user_id for u in group_users]):
             return True
         else:

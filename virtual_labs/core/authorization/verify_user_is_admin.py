@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from http import HTTPStatus as status
 
 from fastapi import Depends
@@ -9,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.exceptions.identity_error import IdentityError
 from virtual_labs.infrastructure.db.config import default_session_factory
+from virtual_labs.infrastructure.db.models import Project, VirtualLab
 from virtual_labs.repositories.labs import get_virtual_lab_soft
 from virtual_labs.repositories.project_repo import ProjectQueryRepository
 from virtual_labs.shared.utils.is_user_in_lab import is_user_admin_of_lab
@@ -17,15 +19,23 @@ from virtual_labs.shared.utils.is_user_in_project import is_user_project_admin
 from .verify_user_authenticated import verify_user_authenticated
 
 
+@dataclass
+class VerifiedAdminParams:
+    user_id: UUID4
+    vlab_id: UUID4
+    vlab: VirtualLab | None
+    project: Project
+    session: AsyncSession
+
+
 async def verify_user_is_admin(
     virtual_lab_id: UUID4,
     project_id: UUID4,
     user_id: UUID4 = Depends(verify_user_authenticated),
     session: AsyncSession = Depends(default_session_factory),
-) -> None:
+) -> VerifiedAdminParams:
     """
-    This decorator to check if the user is in one of the admins groups
-    either VL or Project admin groups or project members to perform this action
+    Checks if the user a virtual lab admin or project admin
     """
 
     pqr = ProjectQueryRepository(session)
@@ -76,3 +86,11 @@ async def verify_user_is_admin(
             http_status_code=status.BAD_REQUEST,
             message="Checking for authorization failed",
         )
+
+    return VerifiedAdminParams(
+        user_id,
+        virtual_lab_id,
+        vlab=vlab if is_vlab_admin else None,
+        project=project,
+        session=session,
+    )
