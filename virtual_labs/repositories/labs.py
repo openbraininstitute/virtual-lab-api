@@ -32,6 +32,9 @@ async def get_paginated_virtual_labs(
             ),
         )
     )
+
+    # TODO: func.count is a O(N) operation, consider other approaches if it becomes a bottleneck
+    # https://wiki.postgresql.org/wiki/Slow_Counting
     count = await db.scalar(
         select(func.count()).select_from(count_query.options(noload("*")).subquery())
     )
@@ -45,6 +48,8 @@ async def get_paginated_virtual_labs(
         )
     )
 
+    # TODO: Offset is slow O(N), consider cursor based pagination instead if table becomes large
+    # https://www.postgresql.org/docs/current/queries-limit.html
     result = (
         (
             await db.execute(

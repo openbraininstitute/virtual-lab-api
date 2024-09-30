@@ -1,11 +1,9 @@
 import uuid
 from datetime import datetime
 
+from sqlalchemy import JSON, Boolean, Column, DateTime
+from sqlalchemy import Enum as SAEnum
 from sqlalchemy import (
-    JSON,
-    Boolean,
-    Column,
-    DateTime,
     Float,
     ForeignKey,
     Index,
@@ -15,7 +13,6 @@ from sqlalchemy import (
     UniqueConstraint,
     not_,
 )
-from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
@@ -44,8 +41,8 @@ class VirtualLab(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     owner_id = Column(UUID(as_uuid=True), nullable=False)
-    admin_group_id = Column(String, nullable=False, unique=True)
-    member_group_id = Column(String, nullable=False, unique=True)
+    admin_group_id = Column(String, nullable=False, unique=True, index=True)
+    member_group_id = Column(String, nullable=False, unique=True, index=True)
 
     nexus_organization_id = Column(String, nullable=False, unique=True)
     stripe_customer_id = Column(String, nullable=False, unique=True)
@@ -57,7 +54,7 @@ class VirtualLab(Base):
 
     budget_amount = Column(Integer, nullable=False, default=0)
 
-    deleted = Column(Boolean, default=False, index=True)
+    deleted = Column(Boolean, default=False)
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, onupdate=func.now())
     deleted_at = Column(DateTime)
