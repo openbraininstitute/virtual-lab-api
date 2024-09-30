@@ -15,8 +15,10 @@ from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.core.types import UserRoleEnum
 from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.repositories.project_repo import ProjectQueryRepository
-from virtual_labs.repositories.user_repo import (UserMutationRepository,
-                                                 UserQueryRepository)
+from virtual_labs.repositories.user_repo import (
+    UserMutationRepository,
+    UserQueryRepository,
+)
 from virtual_labs.shared.utils.auth import get_user_id_from_auth
 from virtual_labs.shared.utils.is_user_in_project import is_user_in_project
 
@@ -48,9 +50,7 @@ async def update_user_role_in_project(
             project_id=project_id,
         )
 
-        
-
-        if (await is_user_in_project(user_id, project)):
+        if await is_user_in_project(user_id, project):
             raise UserNotInList
 
         new_group_id = (
