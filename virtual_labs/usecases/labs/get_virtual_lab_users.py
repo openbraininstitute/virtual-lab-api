@@ -1,5 +1,4 @@
 from http import HTTPStatus
-from uuid import UUID
 
 from loguru import logger
 from pydantic import EmailStr

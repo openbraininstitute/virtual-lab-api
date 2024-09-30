@@ -12,6 +12,9 @@ from virtual_labs.core.authorization import (
     verify_vlab_read,
     verify_vlab_write,
 )
+from virtual_labs.core.authorization.verify_user_authenticated import (
+    verify_user_authenticated,
+)
 from virtual_labs.core.authorization.verify_vlab_or_project_read import (
     verify_vlab_or_project_read,
 )
@@ -201,12 +204,12 @@ async def retrieve_projects(
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=0),
     session: AsyncSession = Depends(default_session_factory),
-    auth: Tuple[AuthUser, str] = Depends(verify_jwt),
+    user_id: UUID4 = Depends(verify_user_authenticated),
 ) -> Response | VliError:
     return await project_cases.retrieve_all_user_projects_per_vl_use_case(
         session,
         virtual_lab_id=virtual_lab_id,
-        auth=auth,
+        user_id=user_id,
         pagination=PageParams(
             page=page,
             size=size,

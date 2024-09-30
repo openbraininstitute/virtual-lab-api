@@ -89,8 +89,8 @@ class Project(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     nexus_project_id = Column(String, nullable=False, unique=True)
-    admin_group_id = Column(String, nullable=False, unique=True)
-    member_group_id = Column(String, nullable=False, unique=True)
+    admin_group_id = Column(String, nullable=False, unique=True, index=True)
+    member_group_id = Column(String, nullable=False, unique=True, index=True)
     owner_id = Column(UUID(as_uuid=True), nullable=False)
     name = Column(String(250), index=True)
     description = Column(Text)

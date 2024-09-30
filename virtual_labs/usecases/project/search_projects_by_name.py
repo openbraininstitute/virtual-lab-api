@@ -31,7 +31,7 @@ async def search_projects_by_name_use_case(
             message="No search query provided",
         )
     try:
-        groups = gqr.retrieve_user_groups(user_id=str(user_id))
+        groups = await gqr.retrieve_user_groups(user_id=str(user_id))
         group_ids = [g.id for g in groups]
         projects_vl_tuple = await pr.search(
             query_term=query_term,
@@ -64,9 +64,11 @@ async def search_projects_by_name_use_case(
         )
     else:
         return VliResponse.new(
-            message=f"Projects with '{query_term}' found successfully"
-            if len(projects) > 0
-            else "No projects was found",
+            message=(
+                f"Projects with '{query_term}' found successfully"
+                if len(projects) > 0
+                else "No projects was found"
+            ),
             data={
                 "projects": projects,
                 "total": len(projects),

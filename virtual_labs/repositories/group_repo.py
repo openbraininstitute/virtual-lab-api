@@ -26,8 +26,8 @@ class GroupQueryRepository:
         members = self.Kc.get_group_members(group_id=group_id)
         return [UserRepresentation(**member) for member in members]
 
-    def retrieve_user_groups(self, user_id: str) -> List[GroupRepresentation]:
-        groups = self.Kc.get_user_groups(user_id=user_id)
+    async def retrieve_user_groups(self, user_id: str) -> List[GroupRepresentation]:
+        groups = await self.Kc.a_get_user_groups(user_id=user_id)
         return [GroupRepresentation(**group) for group in groups]
 
     def retrieve_group_by_name(self, name: str) -> GroupRepresentation:
