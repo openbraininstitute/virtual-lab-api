@@ -66,11 +66,11 @@ class UserQueryRepository:
                     f"Expected 1 user with email {email} but found {len(users)}"
                 )
 
-    def retrieve_user_groups(self, user_id: UUID4) -> List[GroupRepresentation]:
+    async def retrieve_user_groups(self, user_id: UUID4) -> List[GroupRepresentation]:
         try:
             groups = [
                 GroupRepresentation(**group)
-                for group in self.Kc.get_user_groups(user_id=user_id)
+                for group in (await self.Kc.a_get_user_groups(user_id=user_id))
             ]
             return groups
         except Exception as error:
@@ -80,8 +80,10 @@ class UserQueryRepository:
                 detail=str(error),
             )
 
-    def is_user_in_group(self, user_id: UUID4, group_id: str) -> bool:
-        current_groups = [group.id for group in self.retrieve_user_groups(user_id)]
+    async def is_user_in_group(self, user_id: UUID4, group_id: str) -> bool:
+        current_groups = [
+            group.id for group in (await self.retrieve_user_groups(user_id))
+        ]
         return group_id in current_groups
 
     def get_all_users_count(self) -> int:

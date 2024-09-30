@@ -4,18 +4,21 @@ from virtual_labs.infrastructure.db.models import VirtualLab
 from virtual_labs.repositories.user_repo import UserQueryRepository
 
 
-def is_user_in_lab(user_id: UUID4, lab: VirtualLab) -> bool:
-    """Returns true if the user is either the member or the admin of the lab. Otherwise returns False."""
+async def is_user_admin_of_lab(user_id: UUID4, lab: VirtualLab) -> bool:
     user_repo = UserQueryRepository()
-    if user_repo.is_user_in_group(
+    return await user_repo.is_user_in_group(
         user_id=user_id, group_id=str(lab.admin_group_id)
-    ) or user_repo.is_user_in_group(user_id=user_id, group_id=str(lab.member_group_id)):
-        return True
-    return False
+    )
 
 
-def is_user_admin_of_lab(user_id: UUID4, lab: VirtualLab) -> bool:
+async def is_user_member_of_lab(user_id: UUID4, lab: VirtualLab) -> bool:
     user_repo = UserQueryRepository()
-    if user_repo.is_user_in_group(user_id=user_id, group_id=str(lab.admin_group_id)):
-        return True
-    return False
+    return await user_repo.is_user_in_group(
+        user_id=user_id, group_id=str(lab.member_group_id)
+    )
+
+
+async def is_user_in_lab(user_id: UUID4, lab: VirtualLab) -> bool:
+    return await is_user_admin_of_lab(user_id, lab) or await is_user_member_of_lab(
+        user_id, lab
+    )

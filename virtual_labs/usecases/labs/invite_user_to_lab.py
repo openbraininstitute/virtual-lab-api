@@ -74,7 +74,7 @@ async def invite_user_to_lab(
         )
 
         # If user is already in lab, raise an error
-        if user_id is not None and (is_user_in_lab(user_id, lab)):
+        if user_id is not None and (await is_user_in_lab(user_id, lab)):
             logger.error(
                 f"User with email {invite_details.email} is already in lab {lab.name}"
             )

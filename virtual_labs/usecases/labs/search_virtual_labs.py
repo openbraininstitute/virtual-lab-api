@@ -17,7 +17,9 @@ async def search_virtual_labs_by_name(
 ) -> SearchLabResponse:
     try:
         user_repo = UserQueryRepository()
-        group_ids = [group.id for group in user_repo.retrieve_user_groups(user_id)]
+        group_ids = [
+            group.id for group in (await user_repo.retrieve_user_groups(user_id))
+        ]
 
         matching_labs = [
             VirtualLabDetails.model_validate(lab)

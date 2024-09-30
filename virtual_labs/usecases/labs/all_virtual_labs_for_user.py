@@ -16,7 +16,9 @@ async def paginated_labs_for_user(
 ) -> PaginatedResultsResponse[VirtualLabDetails]:
     try:
         user_repo = UserQueryRepository()
-        group_ids = [group.id for group in user_repo.retrieve_user_groups(user_id)]
+        group_ids = [
+            group.id for group in (await user_repo.retrieve_user_groups(user_id))
+        ]
         paginated_results = await repository.get_paginated_virtual_labs(
             db, page_params, group_ids=group_ids
         )

@@ -58,7 +58,7 @@ async def invite_user_to_project(
 
         inviter = await user_repo.retrieve_user_from_kc(str(inviter_id))
         # If user is already in project, raise an error
-        if user_id is not None and (is_user_in_project(user_id, project)):
+        if user_id is not None and (await is_user_in_project(user_id, project)):
             logger.error(
                 f"User with email {invite_details.email} is already in project {project.name}"
             )

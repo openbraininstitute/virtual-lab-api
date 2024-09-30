@@ -33,7 +33,7 @@ async def change_user_role_for_lab(
     try:
         lab = await lab_repository.get_undeleted_virtual_lab(db, lab_id)
         user = await user_query_repo.retrieve_user_from_kc(str(user_id))
-        if not is_user_in_lab(UUID(user.id), lab):
+        if not (await is_user_in_lab(UUID(user.id), lab)):
             logger.debug(
                 f"Cannot change role of user {user.id} because they dont belong in lab {lab.name}"
             )
@@ -62,7 +62,7 @@ async def change_user_role_for_lab(
             else lab.member_group_id
         )
 
-        if user_query_repo.is_user_in_group(user_id, str(new_group_id)):
+        if (await user_query_repo.is_user_in_group(user_id, str(new_group_id))):
             # User already has `new_role`. Nothing else to do
             return LabResponse[VirtualLabUser](
                 message="User already has this role",
