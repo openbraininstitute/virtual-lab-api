@@ -12,6 +12,24 @@ Make sure you have the following dependencies installed:
 - [jq](https://jqlang.github.io/jq/download/)
 - Stripe API key (`STRIPE_SECRET_KEY` test key and `STRIPE_DEVICE_NAME=dev` in `./.env.local`)
 
+# Configuration
+
+**Running in Macos (M4):**
+For users running the virtual-lab-api on macOS with the M4 chip, the docker-compose configuration requires specific updates to ensure compatibility with the architecture and resource management. Please apply the following changes:
+
+**Delta service:**
+Add the following property to ensure the service runs using the correct architecture:
+```
+platform: linux/amd64
+```
+
+**Elasticsearch service:**
+Include the following environment variables to configure memory usage and disable SVE (Scalable Vector Extensions):
+```
+ES_JAVA_OPTS: "-Xms512m -Xmx512m -XX:UseSVE=0"
+CLI_JAVA_OPTS: "-XX:UseSVE=0"
+```
+   
 # Development
 
 1. Install the dependencies
@@ -32,6 +50,7 @@ Make sure you have the following dependencies installed:
 
 This should start the server on port 8000 (http://127.0.0.1:8000)
 The docs will be available at http://127.0.0.1:8000/docs#/
+
 
 # Retrieving tokens for test users
 
@@ -109,7 +128,6 @@ For further details on working with Setup Intents and managing payment methods, 
 stripe setup_intents confirm seti_1PFtBwFjhkSGAqrAUHCvTAAA \
   --payment-method=pm_card_visa
 ```
-
 # IDE Setup
 
 ## VS Code

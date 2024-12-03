@@ -105,8 +105,6 @@ services:
         condition: service_started
       postgres:
         condition: service_started
-      storage-service:
-        condition: service_started
       localstack:
         condition: service_started
     environment:
@@ -117,9 +115,7 @@ services:
     entrypoint:
       - '/bin/bash'
       - '-c'
-      - |
-        ln -sf /opt/docker/plugins/disabled/project-deletion.jar /opt/docker/plugins/project-deletion.jar &&
-        /opt/docker/bin/delta-app -Xmx4G
+      - '/opt/docker/bin/delta-app -Xmx4G'
     ports:
       - 8080:8080
     volumes:
@@ -134,7 +130,7 @@ services:
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.12.1
     environment:
-      ES_JAVA_OPTS: "-Xmx2G"
+      ES_JAVA_OPTS: "-Xms2G"
       discovery.type: "single-node"
       bootstrap.memory_lock: "true"
       xpack.security.enabled: "true"
@@ -196,21 +192,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
       - "172.17.0.1:host-gateway"
-
-  storage-service:
-    container_name: "nexus-storage-service"
-    image: bluebrain/nexus-storage:latest
-    environment:
-      STORAGE_CONFIG_FILE: "/config/storage.conf"
-      KAMON_ENABLED: "false"
-    entrypoint: [ "./bin/storage",
-                  "-Dkamon.modules.prometheus-reporter.enabled=false",
-                  "-Dkamon.modules.jaeger.enabled=false" ]
-    ports:
-      - 8090:8090
-    volumes:
-      - ./config:/config
-
+  
   localstack:
     image: localstack/localstack:3.5
     environment:
