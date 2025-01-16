@@ -69,6 +69,8 @@ class Settings(BaseSettings):
     STRIPE_DEVICE_NAME: str = ""
     STRIPE_WEBHOOK_SECRET: str = getenv("STRIPE_WEBHOOK_SECRET", "")
 
+    ACCOUNTING_BASE_URL: str | None = None
+
     SENTRY_DSN: str | None = None
     SENTRY_TRACES_SAMPLE_RATE: float = 1.0
     SENTRY_PROFILES_SAMPLE_RATE: float = 1.0
