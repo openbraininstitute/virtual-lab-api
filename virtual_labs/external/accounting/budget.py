@@ -4,6 +4,8 @@ from pydantic import UUID4
 from virtual_labs.external.accounting.budget_interface import BudgetInterface
 from virtual_labs.external.accounting.models import (
     BudgetAssignResponse,
+    BudgetMoveResponse,
+    BudgetReverseResponse,
     BudgetTopUpResponse,
 )
 
@@ -39,7 +41,7 @@ async def assign(
 
 async def reverse(
     virtual_lab_id: UUID4, project_id: UUID4, amount: float
-) -> BudgetAssignResponse:
+) -> BudgetReverseResponse:
     transport = httpx.AsyncHTTPTransport(retries=3)
 
     async with httpx.AsyncClient(transport=transport, verify=False) as httpx_client:
@@ -54,7 +56,7 @@ async def reverse(
 
 async def move(
     virtual_lab_id: UUID4, debited_from: UUID4, credited_to: UUID4, amount: float
-) -> BudgetAssignResponse:
+) -> BudgetMoveResponse:
     transport = httpx.AsyncHTTPTransport(retries=3)
 
     async with httpx.AsyncClient(transport=transport, verify=False) as httpx_client:
