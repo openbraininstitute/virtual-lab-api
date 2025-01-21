@@ -42,6 +42,10 @@ CLI_JAVA_OPTS: "-XX:UseSVE=0"
    ```bash
    make init
    ```
+   If you are using a machine with Apple ships (as M4), use this command instead:
+   ```
+   make init amd
+   ```
 3. Run db migrations (this also initializes the database)
 
    ```

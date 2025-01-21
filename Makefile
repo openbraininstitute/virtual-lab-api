@@ -35,7 +35,7 @@ dev-p:
 	poetry run uvicorn virtual_labs.api:app --reload
 
 init:
-	./dev-init.sh
+	./dev-init.sh $(filter-out $@,$(MAKECMDGOALS))
 
 kill: 
 	cd env-prep && docker compose -f docker-compose-dev.yml -p vlm-project down --remove-orphans --volumes
