@@ -11,14 +11,14 @@ from virtual_labs.external.accounting.budget import (
 )
 from virtual_labs.external.accounting.models import (
     BudgetAssignResponse,
+    BudgetMoveResponse,
     BudgetReverseResponse,
     BudgetTopUpResponse,
-    MoveBudgetResponse,
 )
 
 
 @pytest.mark.asyncio
-async def test_top_up():
+async def test_top_up() -> None:
     vlab_id = uuid4()
     amount = 100.0
     mock_response_data = {"message": "Top-up operation executed", "data": None}
@@ -42,7 +42,7 @@ async def test_top_up():
 
 
 @pytest.mark.asyncio
-async def test_assign():
+async def test_assign() -> None:
     vlab_id = uuid4()
     project_id = uuid4()
     amount = 50.0
@@ -70,7 +70,7 @@ async def test_assign():
 
 
 @pytest.mark.asyncio
-async def test_reverse():
+async def test_reverse() -> None:
     vlab_id = uuid4()
     project_id = uuid4()
     amount = 25.0
@@ -98,7 +98,7 @@ async def test_reverse():
 
 
 @pytest.mark.asyncio
-async def test_move():
+async def test_move() -> None:
     vlab_id = uuid4()
     debited_from = uuid4()
     credited_to = uuid4()
@@ -123,4 +123,4 @@ async def test_move():
 
         result = await move(vlab_id, debited_from, credited_to, amount)
 
-        assert isinstance(result, MoveBudgetResponse)
+        assert isinstance(result, BudgetMoveResponse)

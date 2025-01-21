@@ -11,9 +11,9 @@ from virtual_labs.core.exceptions.accounting_error import (
 )
 from virtual_labs.external.accounting.models import (
     BudgetAssignResponse,
+    BudgetMoveResponse,
     BudgetReverseResponse,
     BudgetTopUpResponse,
-    MoveBudgetResponse,
 )
 from virtual_labs.infrastructure.settings import settings
 
@@ -141,7 +141,7 @@ class BudgetInterface:
         debited_from: UUID4,
         credited_to: UUID4,
         amount: float,
-    ) -> MoveBudgetResponse:
+    ) -> BudgetMoveResponse:
         """Move a budget between projects belonging to the same virtual lab."""
         try:
             response = await self.httpx_client.post(
@@ -155,7 +155,7 @@ class BudgetInterface:
                 },
             )
             response.raise_for_status()
-            return MoveBudgetResponse.model_validate(response.json())
+            return BudgetMoveResponse.model_validate(response.json())
         except HTTPStatusError as error:
             logger.error(
                 f"HTTP Error when moving project budget. Error {error}. Accounting Response: {error.response.json()}"

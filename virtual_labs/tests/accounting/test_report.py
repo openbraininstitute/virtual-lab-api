@@ -14,7 +14,7 @@ from virtual_labs.external.accounting.report import (
 
 
 @pytest.mark.asyncio
-async def test_get_virtual_lab_reports():
+async def test_get_virtual_lab_reports() -> None:
     virtual_lab_id = uuid4()
     mock_response_data = {
         "message": f"Job report for virtual-lab {virtual_lab_id}",
@@ -71,7 +71,7 @@ async def test_get_virtual_lab_reports():
 
 
 @pytest.mark.asyncio
-async def test_get_project_reports():
+async def test_get_project_reports() -> None:
     project_id = uuid4()
     mock_response_data = {
         "message": f"Job report for project {project_id}",

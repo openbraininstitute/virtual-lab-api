@@ -14,7 +14,7 @@ from virtual_labs.external.accounting.models import (
 
 
 @pytest.mark.asyncio
-async def test_create_virtual_lab_account():
+async def test_create_virtual_lab_account() -> None:
     vlab_id = uuid4()
     vlab_name = "test-vlab"
     mock_response_data = {
@@ -46,7 +46,7 @@ async def test_create_virtual_lab_account():
 
 
 @pytest.mark.asyncio
-async def test_create_project_account():
+async def test_create_project_account() -> None:
     vlab_id = uuid4()
     project_id = uuid4()
     project_name = "test-project"

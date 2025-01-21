@@ -12,9 +12,9 @@ from virtual_labs.core.exceptions.accounting_error import (
 from virtual_labs.external.accounting.budget_interface import BudgetInterface
 from virtual_labs.external.accounting.models import (
     BudgetAssignResponse,
+    BudgetMoveResponse,
     BudgetReverseResponse,
     BudgetTopUpResponse,
-    MoveBudgetResponse,
 )
 from virtual_labs.infrastructure.settings import settings
 
@@ -126,7 +126,7 @@ async def test_move_success(
 
     result = await budget_interface.move(vlab_id, from_project, to_project, amount)
 
-    assert isinstance(result, MoveBudgetResponse)
+    assert isinstance(result, BudgetMoveResponse)
 
     mock_client.post.assert_called_once()
 

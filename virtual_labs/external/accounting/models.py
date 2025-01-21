@@ -58,7 +58,7 @@ class BudgetReverseResponse(BaseAccountingResponse):
     data: None
 
 
-class MoveBudgetResponse(BaseAccountingResponse):
+class BudgetMoveResponse(BaseAccountingResponse):
     data: None
 
 
