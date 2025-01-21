@@ -89,5 +89,16 @@ class Settings(BaseSettings):
             path=f"{values.data.get('POSTGRES_DB') or ''}",
         )
 
+    @field_validator("ACCOUNTING_BASE_URL")
+    @classmethod
+    def ensure_accounting_base_url(
+        cls, value: Optional[str], values: ValidationInfo
+    ) -> Any:
+        if value is None and values.data.get("DEPLOYMENT_ENV") != "development":
+            raise ValueError(
+                "ACCOUNTING_BASE_URL should be set for non-local deployments"
+            )
+        return value
+
 
 settings = Settings()

@@ -16,7 +16,7 @@ from virtual_labs.external.accounting.models import (
 from virtual_labs.infrastructure.settings import settings
 
 
-class NexusAgentInterface:
+class AccountInterface:
     httpx_client: AsyncClient
 
     def __init__(self, client: AsyncClient, client_token: str):
@@ -26,8 +26,8 @@ class NexusAgentInterface:
             "Authorization": f"bearer {client_token}",
         }
 
-    @classmethod
-    def get_account_url(cls) -> str:
+    @property
+    def _api_url(cls) -> str:
         return f"{settings.ACCOUNTING_BASE_URL}/account"
 
     async def create_virtual_lab_account(
@@ -37,7 +37,7 @@ class NexusAgentInterface:
     ) -> VlabAccountCreationResponse:
         try:
             response = await self.httpx_client.post(
-                f"{self.get_account_url()}/",
+                f"{self._api_url}/virtual-lab",
                 headers=self.headers,
                 json={
                     "name": name,
@@ -48,52 +48,50 @@ class NexusAgentInterface:
             return VlabAccountCreationResponse.model_validate(response.json())
         except HTTPStatusError as error:
             logger.error(
-                f"HTTP Error when creating virtual lab account. Error {error}. Accounting Response: {response.json()}"
+                f"HTTP Error when creating virtual lab account. Error {error}. Accounting Response: {error.response.json()}"
             )
             raise AccountingError(
-                message=f"Could not create virtual lab account with accounting service. Accounting Response: {response.json()}",
+                message=f"Could not create virtual lab account. Accounting Response: {error.response.json()}",
                 type=AccountingErrorValue.CREATE_VIRTUAL_LAB_ACCOUNT_ERROR,
                 http_status_code=HTTPStatus(error.response.status_code),
             )
         except Exception as error:
-            logger.error(
-                f"Could not create virtual lab account with accounting service. Exception {error}"
-            )
+            logger.error(f"Could not create virtual lab account. Exception: {error}")
             raise AccountingError(
-                message=f"Could not create virtual lab account with accounting service. Nexus Response: {error}",
+                message=f"Could not create virtual lab account. Exception: {error}",
                 type=AccountingErrorValue.CREATE_VIRTUAL_LAB_ACCOUNT_ERROR,
             )
 
     async def create_project_account(
         self,
+        virtual_lab_id: UUID4,
         project_id: UUID4,
         name: str,
     ) -> ProjAccountCreationResponse:
         try:
             response = await self.httpx_client.post(
-                f"{self.get_account_url()}/",
+                f"{self._api_url}/project",
                 headers=self.headers,
                 json={
                     "name": name,
                     "id": str(project_id),
+                    "vlab_id": str(virtual_lab_id),
                 },
             )
             response.raise_for_status()
             return ProjAccountCreationResponse.model_validate(response.json())
         except HTTPStatusError as error:
             logger.error(
-                f"HTTP Error when creating project account. Error {error}. Accounting Response: {response.json()}"
+                f"HTTP Error when creating project account. Error {error}. Accounting Response: {error.response.json()}"
             )
             raise AccountingError(
-                message=f"Could not create project account with accounting service. Accounting Response: {response.json()}",
+                message=f"Could not create project account. Accounting Response: {error.response.json()}",
                 type=AccountingErrorValue.CREATE_PROJECT_ACCOUNT_ERROR,
                 http_status_code=HTTPStatus(error.response.status_code),
             )
         except Exception as error:
-            logger.error(
-                f"Could not create project account with accounting service. Exception {error}"
-            )
+            logger.error(f"Could not create project account. Exception: {error}")
             raise AccountingError(
-                message=f"Could not create project account with accounting service. Accounting Response: {error}",
+                message=f"Could not create project account. Exception: {error}",
                 type=AccountingErrorValue.CREATE_PROJECT_ACCOUNT_ERROR,
             )
