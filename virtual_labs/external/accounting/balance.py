@@ -11,7 +11,7 @@ from virtual_labs.infrastructure.kc.auth import get_client_token
 
 async def get_virtual_lab_balance(
     virtual_lab_id: UUID4, include_projects: bool = False
-) -> ProjBalanceResponse:
+) -> VlabBalanceResponse:
     transport = httpx.AsyncHTTPTransport(retries=3)
 
     async with httpx.AsyncClient(transport=transport, verify=False) as httpx_client:
@@ -23,7 +23,7 @@ async def get_virtual_lab_balance(
         )
 
 
-async def get_project_balance(project_id: UUID4) -> VlabBalanceResponse:
+async def get_project_balance(project_id: UUID4) -> ProjBalanceResponse:
     transport = httpx.AsyncHTTPTransport(retries=3)
 
     async with httpx.AsyncClient(transport=transport, verify=False) as httpx_client:
