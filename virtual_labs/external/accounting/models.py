@@ -83,9 +83,9 @@ class JobReport(BaseModel):
     subtype: JobSubtype
     reserved_at: datetime | None = None
     started_at: datetime | None = None
-    amount: float
+    amount: str
     count: int
-    reserved_amount: float
+    reserved_amount: str
     reserved_count: int
 
 
