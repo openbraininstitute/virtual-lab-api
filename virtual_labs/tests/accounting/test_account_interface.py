@@ -18,23 +18,25 @@ from virtual_labs.infrastructure.settings import settings
 
 
 @pytest.fixture
-def mock_client():
+def mock_client() -> AsyncMock:
     return AsyncMock(spec=AsyncClient)
 
 
 @pytest.fixture
-def account_interface(mock_client):
+def account_interface(mock_client: AsyncMock) -> AccountInterface:
     return AccountInterface(client=mock_client, client_token="test-token")
 
 
 @pytest.mark.asyncio
-async def test_api_url(account_interface):
+async def test_api_url(account_interface: AccountInterface) -> None:
     expected_url = f"{settings.ACCOUNTING_BASE_URL}/account"
     assert account_interface._api_url == expected_url
 
 
 @pytest.mark.asyncio
-async def test_create_virtual_lab_account_success(account_interface, mock_client):
+async def test_create_virtual_lab_account_success(
+    account_interface: AccountInterface, mock_client: AsyncMock
+) -> None:
     vlab_id = uuid4()
     vlab_name = "test-vlab"
     mock_response = Mock(spec=Response)
@@ -59,7 +61,9 @@ async def test_create_virtual_lab_account_success(account_interface, mock_client
 
 
 @pytest.mark.asyncio
-async def test_create_virtual_lab_account_http_error(account_interface, mock_client):
+async def test_create_virtual_lab_account_http_error(
+    account_interface: AccountInterface, mock_client: AsyncMock
+) -> None:
     vlab_id = uuid4()
     mock_response = Mock(spec=Response)
     mock_response.status_code = 400
@@ -76,7 +80,9 @@ async def test_create_virtual_lab_account_http_error(account_interface, mock_cli
 
 
 @pytest.mark.asyncio
-async def test_create_virtual_lab_account_general_error(account_interface, mock_client):
+async def test_create_virtual_lab_account_general_error(
+    account_interface: AccountInterface, mock_client: AsyncMock
+) -> None:
     virtual_lab_id = uuid4()
     mock_client.post.side_effect = Exception("General error")
 
@@ -88,7 +94,9 @@ async def test_create_virtual_lab_account_general_error(account_interface, mock_
 
 
 @pytest.mark.asyncio
-async def test_create_project_account_success(account_interface, mock_client):
+async def test_create_project_account_success(
+    account_interface: AccountInterface, mock_client: AsyncMock
+) -> None:
     virtual_lab_id = uuid4()
     project_id = uuid4()
     proj_name = "test-project"
@@ -116,7 +124,9 @@ async def test_create_project_account_success(account_interface, mock_client):
 
 
 @pytest.mark.asyncio
-async def test_create_project_account_http_error(account_interface, mock_client):
+async def test_create_project_account_http_error(
+    account_interface: AccountInterface, mock_client: AsyncMock
+) -> None:
     virtual_lab_id = uuid4()
     project_id = uuid4()
     mock_response = Mock(spec=Response)
@@ -136,7 +146,9 @@ async def test_create_project_account_http_error(account_interface, mock_client)
 
 
 @pytest.mark.asyncio
-async def test_create_project_account_general_error(account_interface, mock_client):
+async def test_create_project_account_general_error(
+    account_interface: AccountInterface, mock_client: AsyncMock
+) -> None:
     virtual_lab_id = uuid4()
     project_id = uuid4()
     mock_client.post.side_effect = Exception("General error")

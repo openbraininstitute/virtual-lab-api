@@ -18,23 +18,25 @@ from virtual_labs.infrastructure.settings import settings
 
 
 @pytest.fixture
-def mock_client():
+def mock_client() -> AsyncMock:
     return AsyncMock(spec=AsyncClient)
 
 
 @pytest.fixture
-def report_interface(mock_client):
+def report_interface(mock_client: AsyncMock) -> ReportInterface:
     return ReportInterface(client=mock_client, client_token="test-token")
 
 
 @pytest.mark.asyncio
-async def test_api_url(report_interface):
+async def test_api_url(report_interface: ReportInterface) -> None:
     expected_url = f"{settings.ACCOUNTING_BASE_URL}/report"
     assert report_interface._api_url == expected_url
 
 
 @pytest.mark.asyncio
-async def test_get_virtual_lab_reports_success(report_interface, mock_client):
+async def test_get_virtual_lab_reports_success(
+    report_interface: ReportInterface, mock_client: AsyncMock
+) -> None:
     vlab_id = uuid4()
     mock_response = Mock(spec=Response)
     mock_response.json.return_value = {
@@ -102,7 +104,9 @@ async def test_get_virtual_lab_reports_success(report_interface, mock_client):
 
 
 @pytest.mark.asyncio
-async def test_get_project_reports_success(report_interface, mock_client):
+async def test_get_project_reports_success(
+    report_interface: ReportInterface, mock_client: AsyncMock
+) -> None:
     project_id = uuid4()
     mock_response = Mock(spec=Response)
     mock_response.json.return_value = {
@@ -163,7 +167,9 @@ async def test_get_project_reports_success(report_interface, mock_client):
 
 
 @pytest.mark.asyncio
-async def test_get_virtual_lab_reports_http_error(report_interface, mock_client):
+async def test_get_virtual_lab_reports_http_error(
+    report_interface: ReportInterface, mock_client: AsyncMock
+) -> None:
     vlab_id = uuid4()
     mock_response = Mock(spec=Response)
     mock_response.status_code = 400
@@ -180,7 +186,9 @@ async def test_get_virtual_lab_reports_http_error(report_interface, mock_client)
 
 
 @pytest.mark.asyncio
-async def test_get_project_reports_http_error(report_interface, mock_client):
+async def test_get_project_reports_http_error(
+    report_interface: ReportInterface, mock_client: AsyncMock
+) -> None:
     project_id = uuid4()
     mock_response = Mock(spec=Response)
     mock_response.status_code = 400
@@ -197,7 +205,9 @@ async def test_get_project_reports_http_error(report_interface, mock_client):
 
 
 @pytest.mark.asyncio
-async def test_get_virtual_lab_reports_general_error(report_interface, mock_client):
+async def test_get_virtual_lab_reports_general_error(
+    report_interface: ReportInterface, mock_client: AsyncMock
+) -> None:
     vlab_id = uuid4()
     mock_client.get.side_effect = Exception("General error")
 
@@ -208,7 +218,9 @@ async def test_get_virtual_lab_reports_general_error(report_interface, mock_clie
 
 
 @pytest.mark.asyncio
-async def test_get_project_reports_general_error(report_interface, mock_client):
+async def test_get_project_reports_general_error(
+    report_interface: ReportInterface, mock_client: AsyncMock
+) -> None:
     project_id = uuid4()
     mock_client.get.side_effect = Exception("General error")
 

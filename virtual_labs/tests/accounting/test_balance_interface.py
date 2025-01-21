@@ -18,23 +18,25 @@ from virtual_labs.infrastructure.settings import settings
 
 
 @pytest.fixture
-def mock_client():
+def mock_client() -> AsyncMock:
     return AsyncMock(spec=AsyncClient)
 
 
 @pytest.fixture
-def balance_interface(mock_client):
+def balance_interface(mock_client: AsyncMock) -> BalanceInterface:
     return BalanceInterface(client=mock_client, client_token="test-token")
 
 
 @pytest.mark.asyncio
-async def test_api_url(balance_interface):
+async def test_api_url(balance_interface: BalanceInterface) -> None:
     expected_url = f"{settings.ACCOUNTING_BASE_URL}/balance"
     assert balance_interface._api_url == expected_url
 
 
 @pytest.mark.asyncio
-async def test_get_virtual_lab_balance_success(balance_interface, mock_client):
+async def test_get_virtual_lab_balance_success(
+    balance_interface: BalanceInterface, mock_client: AsyncMock
+) -> None:
     vlab_id = uuid4()
     mock_response = Mock(spec=Response)
     mock_response.json.return_value = {
@@ -66,7 +68,9 @@ async def test_get_virtual_lab_balance_success(balance_interface, mock_client):
 
 
 @pytest.mark.asyncio
-async def test_get_virtual_lab_balance_http_error(balance_interface, mock_client):
+async def test_get_virtual_lab_balance_http_error(
+    balance_interface: BalanceInterface, mock_client: AsyncMock
+) -> None:
     vlab_id = uuid4()
     mock_response = Mock(spec=Response)
     mock_response.status_code = 400
@@ -83,7 +87,9 @@ async def test_get_virtual_lab_balance_http_error(balance_interface, mock_client
 
 
 @pytest.mark.asyncio
-async def test_get_virtual_lab_balance_general_error(balance_interface, mock_client):
+async def test_get_virtual_lab_balance_general_error(
+    balance_interface: BalanceInterface, mock_client: AsyncMock
+) -> None:
     vlab_id = uuid4()
     mock_client.get.side_effect = Exception("General error")
 
@@ -94,7 +100,9 @@ async def test_get_virtual_lab_balance_general_error(balance_interface, mock_cli
 
 
 @pytest.mark.asyncio
-async def test_get_project_balance_success(balance_interface, mock_client):
+async def test_get_project_balance_success(
+    balance_interface: BalanceInterface, mock_client: AsyncMock
+) -> None:
     project_id = uuid4()
     mock_response = Mock(spec=Response)
     mock_response.json.return_value = {
@@ -116,7 +124,9 @@ async def test_get_project_balance_success(balance_interface, mock_client):
 
 
 @pytest.mark.asyncio
-async def test_get_project_balance_http_error(balance_interface, mock_client):
+async def test_get_project_balance_http_error(
+    balance_interface: BalanceInterface, mock_client: AsyncMock
+) -> None:
     project_id = uuid4()
     mock_response = Mock(spec=Response)
     mock_response.status_code = 400
@@ -133,7 +143,9 @@ async def test_get_project_balance_http_error(balance_interface, mock_client):
 
 
 @pytest.mark.asyncio
-async def test_get_project_balance_general_error(balance_interface, mock_client):
+async def test_get_project_balance_general_error(
+    balance_interface: BalanceInterface, mock_client: AsyncMock
+) -> None:
     project_id = uuid4()
     mock_client.get.side_effect = Exception("General error")
 

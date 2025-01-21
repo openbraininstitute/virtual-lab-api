@@ -20,23 +20,25 @@ from virtual_labs.infrastructure.settings import settings
 
 
 @pytest.fixture
-def mock_client():
+def mock_client() -> AsyncMock:
     return AsyncMock(spec=AsyncClient)
 
 
 @pytest.fixture
-def budget_interface(mock_client):
+def budget_interface(mock_client: AsyncMock) -> BudgetInterface:
     return BudgetInterface(client=mock_client, client_token="test-token")
 
 
 @pytest.mark.asyncio
-async def test_api_url(budget_interface):
+async def test_api_url(budget_interface: BudgetInterface) -> None:
     expected_url = f"{settings.ACCOUNTING_BASE_URL}/budget"
     assert budget_interface._api_url == expected_url
 
 
 @pytest.mark.asyncio
-async def test_top_up_success(budget_interface, mock_client):
+async def test_top_up_success(
+    budget_interface: BudgetInterface, mock_client: AsyncMock
+) -> None:
     vlab_id = uuid4()
     amount = 1000.0
     mock_response = Mock(spec=Response)
@@ -58,7 +60,9 @@ async def test_top_up_success(budget_interface, mock_client):
 
 
 @pytest.mark.asyncio
-async def test_assign_success(budget_interface, mock_client):
+async def test_assign_success(
+    budget_interface: BudgetInterface, mock_client: AsyncMock
+) -> None:
     vlab_id = uuid4()
     project_id = uuid4()
     amount = 500.0
@@ -81,7 +85,9 @@ async def test_assign_success(budget_interface, mock_client):
 
 
 @pytest.mark.asyncio
-async def test_reverse_success(budget_interface, mock_client):
+async def test_reverse_success(
+    budget_interface: BudgetInterface, mock_client: AsyncMock
+) -> None:
     vlab_id = uuid4()
     project_id = uuid4()
     amount = 300.0
@@ -104,7 +110,9 @@ async def test_reverse_success(budget_interface, mock_client):
 
 
 @pytest.mark.asyncio
-async def test_move_success(budget_interface, mock_client):
+async def test_move_success(
+    budget_interface: BudgetInterface, mock_client: AsyncMock
+) -> None:
     vlab_id = uuid4()
     from_project = uuid4()
     to_project = uuid4()
@@ -128,7 +136,9 @@ async def test_move_success(budget_interface, mock_client):
 
 
 @pytest.mark.asyncio
-async def test_top_up_http_error(budget_interface, mock_client):
+async def test_top_up_http_error(
+    budget_interface: BudgetInterface, mock_client: AsyncMock
+) -> None:
     vlab_id = uuid4()
     mock_response = Mock(spec=Response)
     mock_response.status_code = 400
@@ -145,7 +155,9 @@ async def test_top_up_http_error(budget_interface, mock_client):
 
 
 @pytest.mark.asyncio
-async def test_assign_http_error(budget_interface, mock_client):
+async def test_assign_http_error(
+    budget_interface: BudgetInterface, mock_client: AsyncMock
+) -> None:
     vlab_id = uuid4()
     project_id = uuid4()
     mock_response = Mock(spec=Response)
@@ -163,7 +175,9 @@ async def test_assign_http_error(budget_interface, mock_client):
 
 
 @pytest.mark.asyncio
-async def test_reverse_http_error(budget_interface, mock_client):
+async def test_reverse_http_error(
+    budget_interface: BudgetInterface, mock_client: AsyncMock
+) -> None:
     vlab_id = uuid4()
     project_id = uuid4()
     mock_response = Mock(spec=Response)
@@ -181,7 +195,9 @@ async def test_reverse_http_error(budget_interface, mock_client):
 
 
 @pytest.mark.asyncio
-async def test_move_http_error(budget_interface, mock_client):
+async def test_move_http_error(
+    budget_interface: BudgetInterface, mock_client: AsyncMock
+) -> None:
     vlab_id = uuid4()
     from_project = uuid4()
     to_project = uuid4()
