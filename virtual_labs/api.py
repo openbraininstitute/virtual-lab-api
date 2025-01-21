@@ -21,6 +21,7 @@ from virtual_labs.core.exceptions.api_error import (
 from virtual_labs.core.schemas import api
 from virtual_labs.infrastructure.db.config import session_pool
 from virtual_labs.infrastructure.settings import settings
+from virtual_labs.routes.accounting import router as accounting_router
 from virtual_labs.routes.billing import router as billing_router
 from virtual_labs.routes.bookmarks import router as bookmarks_router
 from virtual_labs.routes.common import router as common_router
@@ -146,5 +147,6 @@ base_router.include_router(invite_router)
 base_router.include_router(billing_router)
 base_router.include_router(payments_router)
 base_router.include_router(bookmarks_router)
+base_router.include_router(accounting_router)
 
 app.include_router(base_router)
