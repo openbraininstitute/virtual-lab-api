@@ -14,9 +14,11 @@ from virtual_labs.core.exceptions.nexus_error import NexusError
 from virtual_labs.core.types import UserRoleEnum
 from virtual_labs.domain import labs as domain
 from virtual_labs.domain.invite import AddUser
+from virtual_labs.external.accounting.account import create_virtual_lab_account
 from virtual_labs.external.nexus.create_organization import create_nexus_organization
 from virtual_labs.infrastructure.db import models
 from virtual_labs.infrastructure.kc.models import AuthUser, CreatedGroup
+from virtual_labs.infrastructure.settings import settings
 from virtual_labs.infrastructure.stripe.config import stripe_client
 from virtual_labs.repositories import labs as repository
 from virtual_labs.repositories.group_repo import GroupMutationRepository
@@ -216,7 +218,22 @@ async def create_virtual_lab(
             http_status_code=HTTPStatus.BAD_GATEWAY,
         )
 
-    # 3. Save lab to db
+    # 3. Create virtual lab account in accounting system
+    if settings.ACCOUNTING_BASE_URL is not None:
+        try:
+            await create_virtual_lab_account(
+                virtual_lab_id=new_lab_id,
+                name=lab.name,
+            )
+        except Exception as ex:
+            logger.error(f"Error when creating virtual lab account {ex}")
+            raise VliError(
+                error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
+                http_status_code=HTTPStatus.BAD_GATEWAY,
+                message="Virtual lab account creation failed",
+            )
+
+    # 4. Save lab to db
     try:
         # Save lab to db
         lab_with_ids = repository.VirtualLabDbCreate(
