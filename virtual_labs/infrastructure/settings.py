@@ -94,7 +94,10 @@ class Settings(BaseSettings):
     def ensure_accounting_base_url(
         cls, value: Optional[str], values: ValidationInfo
     ) -> Any:
-        if value is None and values.data.get("DEPLOYMENT_ENV") != "development":
+        if value is None and values.data.get("DEPLOYMENT_ENV") not in [
+            "development",
+            "testing",
+        ]:
             raise ValueError(
                 "ACCOUNTING_BASE_URL should be set for non-local deployments"
             )
