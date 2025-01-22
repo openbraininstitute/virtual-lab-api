@@ -221,7 +221,7 @@ async def create_new_project_use_case(
                 name=payload.name,
             )
         except Exception as ex:
-            logger.error(f"Error when creating virtual lab account {ex}")
+            logger.error(f"Error when creating project account {ex}")
             raise VliError(
                 error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
                 http_status_code=status.BAD_GATEWAY,
