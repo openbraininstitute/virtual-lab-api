@@ -69,6 +69,8 @@ class Settings(BaseSettings):
     STRIPE_DEVICE_NAME: str = ""
     STRIPE_WEBHOOK_SECRET: str = getenv("STRIPE_WEBHOOK_SECRET", "")
 
+    ACCOUNTING_BASE_URL: str | None = None
+
     SENTRY_DSN: str | None = None
     SENTRY_TRACES_SAMPLE_RATE: float = 1.0
     SENTRY_PROFILES_SAMPLE_RATE: float = 1.0
@@ -86,6 +88,20 @@ class Settings(BaseSettings):
             port=values.data.get("POSTGRES_PORT"),
             path=f"{values.data.get('POSTGRES_DB') or ''}",
         )
+
+    @field_validator("ACCOUNTING_BASE_URL")
+    @classmethod
+    def ensure_accounting_base_url(
+        cls, value: Optional[str], values: ValidationInfo
+    ) -> Any:
+        if value is None and values.data.get("DEPLOYMENT_ENV") not in [
+            "development",
+            "testing",
+        ]:
+            raise ValueError(
+                "ACCOUNTING_BASE_URL should be set for non-local deployments"
+            )
+        return value
 
 
 settings = Settings()

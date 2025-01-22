@@ -22,6 +22,7 @@ from virtual_labs.infrastructure.db.models import Project as DbProject
 from virtual_labs.infrastructure.db.models import VirtualLab
 from virtual_labs.infrastructure.email.email_service import EmailDetails, send_invite
 from virtual_labs.infrastructure.kc.models import AuthUser
+from virtual_labs.infrastructure.settings import settings
 from virtual_labs.repositories.group_repo import GroupMutationRepository
 from virtual_labs.repositories.invite_repo import InviteMutationRepository
 from virtual_labs.repositories.labs import get_undeleted_virtual_lab
@@ -34,6 +35,7 @@ from virtual_labs.repositories.user_repo import (
     UserQueryRepository,
 )
 from virtual_labs.shared.utils.auth import get_user_id_from_auth
+from virtual_labs.usecases import accounting as accounting_cases
 
 
 async def invite_project_members(
@@ -210,6 +212,21 @@ async def create_new_project_use_case(
             message="Nexus Project creation failed",
             details=ex.type,
         )
+
+    if settings.ACCOUNTING_BASE_URL is not None:
+        try:
+            await accounting_cases.create_project_account(
+                virtual_lab_id=virtual_lab_id,
+                project_id=project_id,
+                name=payload.name,
+            )
+        except Exception as ex:
+            logger.error(f"Error when creating project account {ex}")
+            raise VliError(
+                error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
+                http_status_code=status.BAD_GATEWAY,
+                message="Project account creation failed",
+            )
 
     try:
         project = await pmr.create_new_project(
