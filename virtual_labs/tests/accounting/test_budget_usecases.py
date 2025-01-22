@@ -3,17 +3,17 @@ from uuid import uuid4
 
 import pytest
 
-from virtual_labs.external.accounting.budget import (
-    assign,
-    move,
-    reverse,
-    top_up,
-)
 from virtual_labs.external.accounting.models import (
     BudgetAssignResponse,
     BudgetMoveResponse,
     BudgetReverseResponse,
     BudgetTopUpResponse,
+)
+from virtual_labs.usecases.accounting import (
+    assign_project_budget,
+    move_project_budget,
+    reverse_project_budget,
+    top_up_virtual_lab_budget,
 )
 
 
@@ -24,7 +24,7 @@ async def test_top_up() -> None:
     mock_response_data = {"message": "Top-up operation executed", "data": None}
 
     with patch("httpx.AsyncClient") as mock_client, patch(
-        "virtual_labs.external.accounting.budget.get_client_token"
+        "virtual_labs.infrastructure.kc.auth.get_client_token"
     ) as mock_token:
         mock_token.return_value = "test-token"
 
@@ -36,7 +36,7 @@ async def test_top_up() -> None:
         client_instance.post.return_value = mock_response
         mock_client.return_value.__aenter__.return_value = client_instance
 
-        result = await top_up(vlab_id, amount)
+        result = await top_up_virtual_lab_budget(vlab_id, amount)
 
         assert isinstance(result, BudgetTopUpResponse)
 
@@ -52,7 +52,7 @@ async def test_assign() -> None:
     }
 
     with patch("httpx.AsyncClient") as mock_client, patch(
-        "virtual_labs.external.accounting.budget.get_client_token"
+        "virtual_labs.infrastructure.kc.auth.get_client_token"
     ) as mock_token:
         mock_token.return_value = "test-token"
 
@@ -64,7 +64,7 @@ async def test_assign() -> None:
         client_instance.post.return_value = mock_response
         mock_client.return_value.__aenter__.return_value = client_instance
 
-        result = await assign(vlab_id, project_id, amount)
+        result = await assign_project_budget(vlab_id, project_id, amount)
 
         assert isinstance(result, BudgetAssignResponse)
 
@@ -80,7 +80,7 @@ async def test_reverse() -> None:
     }
 
     with patch("httpx.AsyncClient") as mock_client, patch(
-        "virtual_labs.external.accounting.budget.get_client_token"
+        "virtual_labs.infrastructure.kc.auth.get_client_token"
     ) as mock_token:
         mock_token.return_value = "test-token"
 
@@ -92,7 +92,7 @@ async def test_reverse() -> None:
         client_instance.post.return_value = mock_response
         mock_client.return_value.__aenter__.return_value = client_instance
 
-        result = await reverse(vlab_id, project_id, amount)
+        result = await reverse_project_budget(vlab_id, project_id, amount)
 
         assert isinstance(result, BudgetReverseResponse)
 
@@ -109,7 +109,7 @@ async def test_move() -> None:
     }
 
     with patch("httpx.AsyncClient") as mock_client, patch(
-        "virtual_labs.external.accounting.budget.get_client_token"
+        "virtual_labs.infrastructure.kc.auth.get_client_token"
     ) as mock_token:
         mock_token.return_value = "test-token"
 
@@ -121,6 +121,6 @@ async def test_move() -> None:
         client_instance.post.return_value = mock_response
         mock_client.return_value.__aenter__.return_value = client_instance
 
-        result = await move(vlab_id, debited_from, credited_to, amount)
+        result = await move_project_budget(vlab_id, debited_from, credited_to, amount)
 
         assert isinstance(result, BudgetMoveResponse)

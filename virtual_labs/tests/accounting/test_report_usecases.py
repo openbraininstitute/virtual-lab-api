@@ -7,7 +7,7 @@ from virtual_labs.external.accounting.models import (
     ProjectReportsResponse,
     VirtualLabReportsResponse,
 )
-from virtual_labs.external.accounting.report import (
+from virtual_labs.usecases.accounting import (
     get_project_reports,
     get_virtual_lab_reports,
 )
@@ -50,7 +50,7 @@ async def test_get_virtual_lab_reports() -> None:
     }
 
     with patch("httpx.AsyncClient") as mock_client, patch(
-        "virtual_labs.external.accounting.report.get_client_token"
+        "virtual_labs.infrastructure.kc.auth.get_client_token"
     ) as mock_token:
         mock_token.return_value = "test-token"
 
@@ -107,7 +107,7 @@ async def test_get_project_reports() -> None:
     }
 
     with patch("httpx.AsyncClient") as mock_client, patch(
-        "virtual_labs.external.accounting.report.get_client_token"
+        "virtual_labs.infrastructure.kc.auth.get_client_token"
     ) as mock_token:
         mock_token.return_value = "test-token"
 

@@ -17,7 +17,6 @@ from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.core.types import UserRoleEnum
 from virtual_labs.domain.invite import AddUser
 from virtual_labs.domain.project import FailedInvite, ProjectCreationBody, ProjectVlOut
-from virtual_labs.external.accounting.account import create_project_account
 from virtual_labs.external.nexus.project_instance import instantiate_nexus_project
 from virtual_labs.infrastructure.db.models import Project as DbProject
 from virtual_labs.infrastructure.db.models import VirtualLab
@@ -36,6 +35,7 @@ from virtual_labs.repositories.user_repo import (
     UserQueryRepository,
 )
 from virtual_labs.shared.utils.auth import get_user_id_from_auth
+from virtual_labs.usecases import accounting as accounting_cases
 
 
 async def invite_project_members(
@@ -215,7 +215,7 @@ async def create_new_project_use_case(
 
     if settings.ACCOUNTING_BASE_URL is not None:
         try:
-            await create_project_account(
+            await accounting_cases.create_project_account(
                 virtual_lab_id=virtual_lab_id,
                 project_id=project_id,
                 name=payload.name,
@@ -225,7 +225,7 @@ async def create_new_project_use_case(
             raise VliError(
                 error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
                 http_status_code=status.BAD_GATEWAY,
-                message="Virtual lab account creation failed",
+                message="Project account creation failed",
             )
 
     try:

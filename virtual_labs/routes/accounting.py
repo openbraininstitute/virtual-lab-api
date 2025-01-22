@@ -5,8 +5,6 @@ from pydantic import UUID4
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.authorization import verify_project_read, verify_vlab_read
-from virtual_labs.external.accounting import balance as accounting_balance
-from virtual_labs.external.accounting import report as accounting_report
 from virtual_labs.external.accounting.models import (
     ProjBalanceResponse,
     ProjectReportsResponse,
@@ -16,6 +14,7 @@ from virtual_labs.external.accounting.models import (
 from virtual_labs.infrastructure.db.config import default_session_factory
 from virtual_labs.infrastructure.kc.auth import verify_jwt
 from virtual_labs.infrastructure.kc.models import AuthUser
+from virtual_labs.usecases import accounting as accounting_cases
 
 router = APIRouter(
     prefix="/virtual-labs",
@@ -39,7 +38,7 @@ async def get_vl_account_balance(
     session: AsyncSession = Depends(default_session_factory),
     auth: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> VlabBalanceResponse:
-    return await accounting_balance.get_virtual_lab_balance(
+    return await accounting_cases.get_virtual_lab_balance(
         virtual_lab_id, include_projects
     )
 
@@ -56,7 +55,7 @@ async def get_proj_account_balance(
     session: AsyncSession = Depends(default_session_factory),
     auth: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> ProjBalanceResponse:
-    return await accounting_balance.get_project_balance(project_id)
+    return await accounting_cases.get_project_balance(project_id)
 
 
 # Reports endpoints
@@ -76,7 +75,7 @@ async def get_vl_accounting_reports(
     session: AsyncSession = Depends(default_session_factory),
     auth: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> VirtualLabReportsResponse:
-    return await accounting_report.get_virtual_lab_reports(
+    return await accounting_cases.get_virtual_lab_reports(
         virtual_lab_id, page, page_size
     )
 
@@ -95,4 +94,4 @@ async def get_proj_accounting_reports(
     session: AsyncSession = Depends(default_session_factory),
     auth: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> ProjectReportsResponse:
-    return await accounting_report.get_project_reports(project_id, page, page_size)
+    return await accounting_cases.get_project_reports(project_id, page, page_size)

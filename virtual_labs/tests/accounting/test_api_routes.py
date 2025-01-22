@@ -58,7 +58,7 @@ async def test_get_virtual_lab_balance(
     }
 
     with patch(
-        "virtual_labs.external.accounting.balance.get_virtual_lab_balance"
+        "virtual_labs.usecases.accounting.get_virtual_lab_balance"
     ) as mock_balance:
         mock_balance.return_value = mock_balance_response
 
@@ -83,9 +83,7 @@ async def test_get_project_balance(
         "data": {"proj_id": str(project_id), "balance": "100", "reservation": "15.20"},
     }
 
-    with patch(
-        "virtual_labs.external.accounting.balance.get_project_balance"
-    ) as mock_balance:
+    with patch("virtual_labs.usecases.accounting.get_project_balance") as mock_balance:
         mock_balance.return_value = mock_balance_response
 
         response = await client.get(
@@ -137,7 +135,7 @@ async def test_get_virtual_lab_reports(
     }
 
     with patch(
-        "virtual_labs.external.accounting.report.get_virtual_lab_reports"
+        "virtual_labs.usecases.accounting.get_virtual_lab_reports"
     ) as mock_reports:
         mock_reports.return_value = mock_reports_response
 

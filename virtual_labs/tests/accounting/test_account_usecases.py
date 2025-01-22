@@ -3,13 +3,13 @@ from uuid import uuid4
 
 import pytest
 
-from virtual_labs.external.accounting.account import (
-    create_project_account,
-    create_virtual_lab_account,
-)
 from virtual_labs.external.accounting.models import (
     ProjAccountCreationResponse,
     VlabAccountCreationResponse,
+)
+from virtual_labs.usecases.accounting import (
+    create_project_account,
+    create_virtual_lab_account,
 )
 
 
@@ -26,7 +26,7 @@ async def test_create_virtual_lab_account() -> None:
     }
 
     with patch("httpx.AsyncClient") as mock_client, patch(
-        "virtual_labs.external.accounting.account.get_client_token"
+        "virtual_labs.infrastructure.kc.auth.get_client_token"
     ) as mock_token:
         mock_token.return_value = "test-token"
 
@@ -59,7 +59,7 @@ async def test_create_project_account() -> None:
     }
 
     with patch("httpx.AsyncClient") as mock_client, patch(
-        "virtual_labs.external.accounting.account.get_client_token"
+        "virtual_labs.infrastructure.kc.auth.get_client_token"
     ) as mock_token:
         mock_token.return_value = "test-token"
 

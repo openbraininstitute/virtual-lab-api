@@ -14,7 +14,6 @@ from virtual_labs.core.exceptions.nexus_error import NexusError
 from virtual_labs.core.types import UserRoleEnum
 from virtual_labs.domain import labs as domain
 from virtual_labs.domain.invite import AddUser
-from virtual_labs.external.accounting.account import create_virtual_lab_account
 from virtual_labs.external.nexus.create_organization import create_nexus_organization
 from virtual_labs.infrastructure.db import models
 from virtual_labs.infrastructure.kc.models import AuthUser, CreatedGroup
@@ -28,6 +27,7 @@ from virtual_labs.repositories.user_repo import (
     UserQueryRepository,
 )
 from virtual_labs.shared.utils.auth import get_user_id_from_auth
+from virtual_labs.usecases import accounting as accounting_cases
 from virtual_labs.usecases.labs.invite_user_to_lab import send_email_to_user_or_rollback
 from virtual_labs.usecases.plans.verify_plan import verify_plan
 
@@ -221,7 +221,7 @@ async def create_virtual_lab(
     # 3. Create virtual lab account in accounting system
     if settings.ACCOUNTING_BASE_URL is not None:
         try:
-            await create_virtual_lab_account(
+            await accounting_cases.create_virtual_lab_account(
                 virtual_lab_id=new_lab_id,
                 name=lab.name,
             )
