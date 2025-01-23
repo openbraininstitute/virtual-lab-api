@@ -94,6 +94,7 @@ services:
 
   delta:
     container_name: delta
+    platform: linux/amd64
     depends_on:
       keycloak:
         condition: service_started
@@ -128,7 +129,8 @@ services:
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.12.1
     environment:
-      ES_JAVA_OPTS: "-Xms2G"
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m -XX:UseSVE=0"
+      CLI_JAVA_OPTS: "-XX:UseSVE=0"
       discovery.type: "single-node"
       bootstrap.memory_lock: "true"
       xpack.security.enabled: "true"

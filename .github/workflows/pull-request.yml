@@ -1,0 +1,119 @@
+name: Pre-merge Review
+
+on: [pull_request]
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      python-cache-key: ${{ steps.cache-deps.outputs.cache-hit }}
+    steps:
+      # Step 1: Checkout code
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Step 2: Set up Python with caching
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      
+      - name: Cache Python dependencies
+        id: cache-deps
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/pypoetry/virtualenvs
+            .venv
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/poetry.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      # Step 3: Install dependencies
+      - name: Install dependencies
+        run: |
+          pip install poetry
+          poetry sync
+
+  lint:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Use Python cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/pypoetry/virtualenvs
+            .venv
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/poetry.lock') }}
+
+      - name: Install Poetry
+        run: |
+          pip install poetry
+
+      - name: Run styling checks
+        run: make style-check
+
+  type-check:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Use Python cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/pypoetry/virtualenvs
+            .venv
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/poetry.lock') }}
+
+      - name: Install Poetry
+        run: |
+          pip install poetry
+
+      - name: Run type checks
+        run: make type-check
+
+  test:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Use Python cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/pypoetry/virtualenvs
+            .venv
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/poetry.lock') }}
+
+      - name: Install Poetry
+        run: |
+          pip install poetry
+
+      - name: Start services
+        run: |
+          IS_CI="True" make init
+
+      - name: Check database schema migrations
+        run: make check-db-schema
+
+      - name: Run tests
+        env:
+          TEST_STRIPE_SECRET_KEY: ${{ secrets.TEST_STRIPE_SECRET_KEY }}
+        run: |
+          echo STRIPE_SECRET_KEY=${{ secrets.TEST_STRIPE_SECRET_KEY }} >> .env.local
+          echo STRIPE_DEVICE_NAME=CI >> .env.local
+          DEPLOYMENT_ENV=testing poetry run pytest
+      - name: Cleanup resources
+        if: ${{ always() }}
+        run: |
+          make kill
+          docker system prune --force --volumes

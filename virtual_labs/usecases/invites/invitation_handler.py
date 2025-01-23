@@ -65,6 +65,7 @@ async def invitation_handler(
                         "status": "already_accepted",
                     },
                 )
+
             if vlab_invite.user_email != auth[0].email:
                 raise UserMismatch(
                     "Invite email not match the authenticated user email"

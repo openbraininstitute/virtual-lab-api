@@ -8,11 +8,16 @@ KC_REALM_NAME="obp-realm"
 CLIENT_ID="obpapp"
 CLIENT_SECRET="obp-secret"
 
+if [ "$1" == "amd" ]; then
+    COMPOSE_FILE="env-prep/docker-compose-dev-amd.yml"
+else
+    COMPOSE_FILE="env-prep/docker-compose-dev.yml"
+fi
 
 # Start containers
 chmod +x ./env-prep/init/init-aws.sh
 ls -l ./env-prep/init/init-aws.sh
-docker compose -f env-prep/docker-compose-dev.yml -p vlm-project up --wait
+docker compose -f "$COMPOSE_FILE" -p vlm-project up --wait
 
 # Check that delta ready to accept connections
 echo "Checking that delta is ready to accept connections..."
@@ -35,6 +40,7 @@ curl -XPUT \
       }'
 
 echo "Initialize nexus"
+
 python3 env-prep/init/init.py
 
 echo "📦 Initialize Vl database"
