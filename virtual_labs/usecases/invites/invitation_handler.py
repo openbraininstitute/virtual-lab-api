@@ -100,9 +100,10 @@ async def invitation_handler(
             project_invite = await invite_query_repo.get_project_invite_by_id(
                 invite_id=UUID(invite_id)
             )
-            project, _ = await project_query_repo.retrieve_one_project_by_id(
+            project, vlab = await project_query_repo.retrieve_one_project_by_id(
                 project_id=UUID(str(project_invite.project_id))
             )
+
             if project_invite.accepted:
                 return VliResponse.new(
                     message="Invite for project: {}/{} already accepted".format(
@@ -131,19 +132,25 @@ async def invitation_handler(
                 if project_invite.role == UserRoleEnum.admin.value
                 else project.member_group_id
             )
-
             user_mut_repo.attach_user_to_group(
                 user_id=UUID(user.id),
                 group_id=str(group_id),
             )
+            # user should be added to vlab members too
+            # if not the user can not fetch the vlab details
+            user_mut_repo.attach_user_to_group(
+                user_id=UUID(user.id),
+                group_id=str(vlab.member_group_id),
+            )
+
             await invite_mut_repo.update_project_invite(
                 invite_id=UUID(str(project_invite.id)),
                 properties={"accepted": True, "updated_at": func.now()},
             )
             await session.refresh(project)
+
             virtual_lab_id = project.virtual_lab_id
             project_id = project.id
-
         else:
             raise ValueError(f"Origin {origin} is not allowed.")
 
