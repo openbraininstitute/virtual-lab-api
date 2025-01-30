@@ -191,10 +191,16 @@ async def invitation_handler(
             http_status_code=status.BAD_REQUEST,
             message=str(ex),
         )
+    except UserMismatch:
+        raise VliError(
+            error_code=VliErrorCode.DATA_CONFLICT,
+            http_status_code=status.BAD_REQUEST,
+            message="The email in the invitation does not match the email from the request.",
+        )
     except IdentityError:
         raise VliError(
             error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
-            http_status_code=status.BAD_REQUEST,
+            http_status_code=status.BAD_GATEWAY,
             message="Could not attach user to group",
         )
     except Exception as ex:
