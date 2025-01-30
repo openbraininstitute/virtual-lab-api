@@ -223,13 +223,8 @@ services:
       context: ./  
       dockerfile: Dockerfile.dev
 
-    develop:
-      watch:
-        - action: sync
-          path: .
-          target: /app
-        - action: rebuild
-          path: pyproject.tom
+    volumes:
+      - .:/app
     
     depends_on:
       delta:
