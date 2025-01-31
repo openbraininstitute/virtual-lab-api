@@ -373,7 +373,7 @@ async def update_project_star_status(
     summary="Retrieve users per project",
     response_model=VliAppResponse[ProjectUsersOut],
 )
-@verify_vlab_or_project_write
+@verify_vlab_or_project_read
 async def retrieve_project_users(
     virtual_lab_id: UUID4,
     project_id: UUID4,
