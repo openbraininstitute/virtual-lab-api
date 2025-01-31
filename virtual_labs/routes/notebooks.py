@@ -1,4 +1,4 @@
-from typing import Annotated, Generic, TypedDict, TypeVar
+from typing import Annotated, TypedDict
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
@@ -16,29 +16,25 @@ from virtual_labs.infrastructure.db.models import Notebook
 
 router = APIRouter(prefix="/projects/{project_id}/notebooks", tags=["Notebooks"])
 
-T = TypeVar("T")
 
-ModelType = TypeVar("ModelType", bound=DeclarativeBase)
-
-
-class VLResponse(TypedDict, Generic[T]):
+class VLResponse[T](TypedDict):
     message: str
     data: T
 
 
-class Paginated(TypedDict, Generic[T]):
+class Paginated[T](TypedDict):
     total: int
     page: int
     page_size: int
     results: list[T]
 
 
-class PaginatedResponse(TypedDict, Generic[T]):
+class PaginatedResponse[T](TypedDict):
     message: str
     data: Paginated[T]
 
 
-class QueryPagination:
+class QueryPagination[M: DeclarativeBase]:
     def __init__(
         self,
         session: Annotated[AsyncSession, Depends(default_session_factory)],
@@ -54,17 +50,15 @@ class QueryPagination:
         self.size = size
         self.session = session
 
-    def total_query(self, query: Select[tuple[ModelType]]) -> Select[tuple[int]]:
+    def total_query(self, query: Select[tuple[M]]) -> Select[tuple[int]]:
         return query.with_only_columns(func.coalesce(func.count(), 0)).order_by(None)
 
-    def paginate_query(
-        self, query: Select[tuple[ModelType]]
-    ) -> Select[tuple[ModelType]]:
+    def paginate_query(self, query: Select[tuple[M]]) -> Select[tuple[M]]:
         return query.offset((self.page - 1) * self.size).limit(self.size)
 
     async def get_paginated_response(
-        self, query: Select[tuple[ModelType]]
-    ) -> PaginatedResponse[ModelType]:
+        self, query: Select[tuple[M]]
+    ) -> PaginatedResponse[M]:
         paginated_query = self.paginate_query(query)
 
         total_query = self.total_query(query)
@@ -84,7 +78,7 @@ class QueryPagination:
 @router.get("/", response_model=VliAppResponse[PaginatedResultsResponse[NotebookRead]])
 async def list_notebooks(
     project_id: UUID,
-    pagination: Annotated[QueryPagination, Depends(QueryPagination)],
+    pagination: Annotated[QueryPagination[Notebook], Depends()],
 ) -> PaginatedResponse[Notebook]:
     query = select(Notebook).where(Notebook.project_id == project_id)
 
