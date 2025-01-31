@@ -60,7 +60,7 @@ async def invitation_handler_test(
             user_mut_repo.attach_user_to_group(user_id=user_id, group_id=str(group_id))
             await invite_mut_repo.update_project_invite(
                 invite_id=UUID(str(project_invite.id)),
-                properties={"accepted": True, "updated_at": func.utcnow()},
+                properties={"accepted": True, "updated_at": func.now()},
             )
         elif origin == InviteOrigin.LAB:
             vlab_invite = await invite_query_repo.get_vlab_invite_by_id(

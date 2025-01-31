@@ -35,7 +35,7 @@ class VirtualLabTopup(Base):
         ForeignKey("virtual_lab.id"), index=True
     )
     amount: Mapped[int] = mapped_column()
-    created_at: Mapped[datetime] = mapped_column(default=func.utcnow())
+    created_at: Mapped[datetime] = mapped_column(default=func.now())
     stripe_event_id: Mapped[str] = mapped_column()
 
 
@@ -58,8 +58,8 @@ class VirtualLab(Base):
     budget_amount = Column(Integer, nullable=False, default=0)
 
     deleted = Column(Boolean, default=False, index=True)
-    created_at = Column(DateTime, default=func.utcnow())
-    updated_at = Column(DateTime, onupdate=func.utcnow())
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, onupdate=func.now())
     deleted_at = Column(DateTime)
     deleted_by = Column(UUID(as_uuid=True))
 
@@ -95,8 +95,8 @@ class Project(Base):
     deleted = Column(Boolean, default=False)
     budget_amount = Column(Integer, nullable=False, default=0)
 
-    created_at = Column(DateTime, default=func.utcnow())
-    updated_at = Column(DateTime, onupdate=func.utcnow(), default=func.utcnow())
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, onupdate=func.now(), default=func.now())
     deleted_at = Column(DateTime)
     deleted_by = Column(UUID(as_uuid=True))
 
@@ -125,8 +125,8 @@ class ProjectStar(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
-    created_at = Column(DateTime, default=func.utcnow())
-    updated_at = Column(DateTime, onupdate=func.utcnow(), default=func.utcnow())
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, onupdate=func.now(), default=func.now())
 
     user_id = Column(UUID, nullable=False)
     project_id = Column(UUID, ForeignKey("project.id"), index=True)
@@ -153,8 +153,8 @@ class ProjectInvite(Base):
     user_email = Column(String, nullable=False)
     role = Column(String, nullable=False)
 
-    created_at = Column(DateTime, default=func.utcnow())
-    updated_at = Column(DateTime, onupdate=func.utcnow(), default=func.utcnow())
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, onupdate=func.now(), default=func.now())
 
     project_id = Column(UUID(as_uuid=True), ForeignKey("project.id"), index=True)
     project = relationship("Project", back_populates="invites")
@@ -173,8 +173,8 @@ class VirtualLabInvite(Base):
 
     accepted = Column(Boolean, default=False)
 
-    created_at = Column(DateTime, default=func.utcnow())
-    updated_at = Column(DateTime, onupdate=func.utcnow(), default=func.utcnow())
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, onupdate=func.now(), default=func.now())
 
 
 class PaymentMethod(Base):
@@ -191,8 +191,8 @@ class PaymentMethod(Base):
     cardholder_email = Column(String, nullable=False)
     expire_at = Column(String, nullable=False)
 
-    created_at = Column(DateTime, default=func.utcnow())
-    updated_at = Column(DateTime, onupdate=func.utcnow())
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, onupdate=func.now())
 
     virtual_lab_id = Column(
         "virtual_lab_id", UUID(as_uuid=True), ForeignKey("virtual_lab.id"), index=True
@@ -218,7 +218,7 @@ class Bookmark(Base):
 
     # Since we are not using MappedColumn (recommended by SQLAlchemy) mypy is not able to infer correct types here. See https://github.com/sqlalchemy/sqlalchemy/discussions/9941#discussioncomment-6155861
     category = Column(SAEnum(BookmarkCategory), nullable=False)  # type: ignore[var-annotated]
-    created_at = Column(DateTime, default=func.utcnow())
+    created_at = Column(DateTime, default=func.now())
 
     project_id = Column(UUID(as_uuid=True), ForeignKey("project.id"), index=True)
     project = relationship("Project", back_populates="bookmarks")
@@ -239,9 +239,9 @@ class Notebook(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
-    created_at: Mapped[datetime] = mapped_column(default=func.utcnow(), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
-        default=func.utcnow(), onupdate=func.utcnow(), nullable=False
+        default=func.now(), onupdate=func.now(), nullable=False
     )
 
     project_id: Mapped[uuid.UUID] = mapped_column(

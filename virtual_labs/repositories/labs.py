@@ -123,7 +123,7 @@ async def update_virtual_lab(
                 "reference_email": data_to_update.get(
                     "reference_email", current.reference_email
                 ),
-                "updated_at": func.utcnow(),
+                "updated_at": func.now(),
                 "plan_id": data_to_update.get("plan_id", current.plan_id),
                 "entity": data_to_update.get("entity", current.entity),
             }
@@ -137,7 +137,7 @@ async def update_virtual_lab(
 async def delete_virtual_lab(
     db: AsyncSession, lab_id: UUID4, user_id: UUID4
 ) -> VirtualLab:
-    now = func.utcnow()
+    now = func.now()
     # Mark virtual lab as deleted
     await db.execute(
         update(VirtualLab)

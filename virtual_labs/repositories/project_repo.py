@@ -350,7 +350,7 @@ class ProjectMutationRepository:
             .where(
                 and_(Project.id == project_id, Project.virtual_lab_id == virtual_lab_id)
             )
-            .values(deleted=True, deleted_at=func.utcnow(), deleted_by=user_id)
+            .values(deleted=True, deleted_at=func.now(), deleted_by=user_id)
             .returning(
                 Project.id,
                 Project.deleted,
