@@ -238,9 +238,8 @@ class Notebook(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
+    created_at: Mapped[datetime] = mapped_column(default=func.utcnow(), nullable=False)  
+    updated_at: Mapped[datetime] = mapped_column(default=func.utcnow(), onupdate=func.utcnow(), nullable=False) 
 
-    project_id = Column(UUID(as_uuid=True), ForeignKey("project.id"), index=True)
-    
-
-
-
+    project_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("project.id"), index=True)
+    github_file_url: Mapped[str] = mapped_column(nullable=False, unique=True)
