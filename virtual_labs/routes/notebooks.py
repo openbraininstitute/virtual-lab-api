@@ -43,7 +43,7 @@ class QueryPagination:
 
     def __init__(
         self,
-        page_params: PageParams,
+        page_params: Annotated[PageParams, Depends()],
         session: Annotated[AsyncSession, Depends(default_session_factory)],
     ):
         self.page_params = page_params
