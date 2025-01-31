@@ -95,7 +95,7 @@ async def invite_user_to_project(
         else:
             await invite_repo.update_project_invite(
                 invite_id=UUID(str(invite.id)),
-                properties={"updated_at": func.now()},
+                properties={"updated_at": func.utcnow()},
             )
             await session.refresh(invite)
             await session.refresh(project)

@@ -138,7 +138,7 @@ async def invitation_handler(
             )
             await invite_mut_repo.update_project_invite(
                 invite_id=UUID(str(project_invite.id)),
-                properties={"accepted": True, "updated_at": func.now()},
+                properties={"accepted": True, "updated_at": func.utcnow()},
             )
             await session.refresh(project)
             virtual_lab_id = project.virtual_lab_id

@@ -127,7 +127,7 @@ class InviteMutationRepository:
         statement = (
             update(VirtualLabInvite)
             .where(VirtualLabInvite.id == invite_id)
-            .values(accepted=accepted, updated_at=func.now())
+            .values(accepted=accepted, updated_at=func.utcnow())
         )
         await self.session.execute(statement=statement)
         await self.session.commit()

@@ -43,4 +43,4 @@ TOKEN_RESPONSE=$(curl -s -X POST \
 ACCESS_TOKEN=$(echo "$TOKEN_RESPONSE" | jq -r '.access_token')
 echo "$ACCESS_TOKEN"
 
-poetry run uvicorn virtual_labs.api:app --reload
+poetry run uvicorn virtual_labs.api:app --reload --host 0.0.0.0
