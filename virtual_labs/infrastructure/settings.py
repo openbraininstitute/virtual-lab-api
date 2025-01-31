@@ -2,8 +2,8 @@ from os import getenv
 from typing import Any, Literal, Optional, TypeGuard, get_args
 
 from dotenv import load_dotenv
-from pydantic import EmailStr, PostgresDsn, ValidationInfo, field_validator
-from pydantic_core import MultiHostUrl, Url
+from pydantic import EmailStr, PostgresDsn, SecretStr, ValidationInfo, field_validator
+from pydantic_core import Url
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 load_dotenv("")
@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     POSTGRES_USER: str = "vlm"
     POSTGRES_PASSWORD: str = "vlm"
     POSTGRES_DB: str = "vlm"
-    DATABASE_URI: PostgresDsn = MultiHostUrl(
+    DATABASE_URI: PostgresDsn = PostgresDsn(
         f"postgresql+asyncpg://vlm:vlm@{POSTGRES_HOST}:15432/vlm"
     )
     NEXUS_DELTA_URI: Url = Url(f"http://{DELTA_HOST}:8080/v1")
@@ -55,7 +55,7 @@ class Settings(BaseSettings):
     VLAB_ADMIN_PATH: str = "{}/mmb-beta/virtual-lab/lab/{}/admin?panel=billing"
 
     MAIL_USERNAME: str = "dummyusername"
-    MAIL_PASSWORD: str = "dummypassword"
+    MAIL_PASSWORD: SecretStr = SecretStr("dummypassword")
     MAIL_FROM: EmailStr = "obp@bbp.org"
     MAIL_PORT: int = 1025
     MAIL_SERVER: str = "localhost"
