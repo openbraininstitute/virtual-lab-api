@@ -14,5 +14,3 @@ class NotebookRead(BaseModel):
     github_file_url: str
     created_at: datetime
     updated_at: datetime
-
-

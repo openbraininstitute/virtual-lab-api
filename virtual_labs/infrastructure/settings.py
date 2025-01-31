@@ -31,10 +31,12 @@ class Settings(BaseSettings):
     BASE_PATH: str = ""
     DEBUG_DATABASE_ECHO: bool = False
     CORS_ORIGINS: list[str] = []
-    POSTGRES_HOST: str = "virtual-lab-db" if DEPLOYMENT_ENV == 'docker-dev' else "localhost"
-    KEYCLOAK_HOST: str = "keycloak" if DEPLOYMENT_ENV == 'docker-dev' else "localhost"
-    DELTA_HOST: str = "delta" if DEPLOYMENT_ENV == 'docker-dev' else "localhost"
-    POSTGRES_PORT: int = 5432 if DEPLOYMENT_ENV == 'docker-dev' else 15432
+    POSTGRES_HOST: str = (
+        "virtual-lab-db" if DEPLOYMENT_ENV == "docker-dev" else "localhost"
+    )
+    KEYCLOAK_HOST: str = "keycloak" if DEPLOYMENT_ENV == "docker-dev" else "localhost"
+    DELTA_HOST: str = "delta" if DEPLOYMENT_ENV == "docker-dev" else "localhost"
+    POSTGRES_PORT: int = 5432 if DEPLOYMENT_ENV == "docker-dev" else 15432
     POSTGRES_USER: str = "vlm"
     POSTGRES_PASSWORD: str = "vlm"
     POSTGRES_DB: str = "vlm"
@@ -43,7 +45,7 @@ class Settings(BaseSettings):
     )
     NEXUS_DELTA_URI: Url = Url(f"http://{DELTA_HOST}:8080/v1")
 
-    KC_SERVER_URI: str = F"http://{KEYCLOAK_HOST}:9090/"
+    KC_SERVER_URI: str = f"http://{KEYCLOAK_HOST}:9090/"
     KC_USER_NAME: str = "admin"
     KC_PASSWORD: str = "admin"
     KC_CLIENT_ID: str = "obpapp"
@@ -99,7 +101,7 @@ class Settings(BaseSettings):
         if value is None and values.data.get("DEPLOYMENT_ENV") not in [
             "development",
             "testing",
-            'docker-dev'
+            "docker-dev",
         ]:
             raise ValueError(
                 "ACCOUNTING_BASE_URL should be set for non-local deployments"
