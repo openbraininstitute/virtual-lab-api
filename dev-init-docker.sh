@@ -7,6 +7,9 @@ KC_REALM_NAME="obp-realm"
 CLIENT_ID="obpapp"
 CLIENT_SECRET="obp-secret"
 
+chmod +x ./env-prep/init/init-aws.sh
+ls -l ./env-prep/init/init-aws.sh
+
 # Register created realm on delta
 echo "Registering realm in delta"
 curl -XPUT \
@@ -41,6 +44,7 @@ TOKEN_RESPONSE=$(curl -s -X POST \
 
 # extracting the access token using jq
 ACCESS_TOKEN=$(echo "$TOKEN_RESPONSE" | jq -r '.access_token')
-echo "$ACCESS_TOKEN"
+echo "$ACCESS_TOKEN" > .dev_token
+echo "Access token saved in .dev_token"
 
 poetry run uvicorn virtual_labs.api:app --reload --host 0.0.0.0
