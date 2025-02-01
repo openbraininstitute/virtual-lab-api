@@ -1,14 +1,14 @@
 from os import getenv
-from typing import Any, Literal, Optional, TypeGuard, cast, get_args
+from typing import Any, Literal, Optional, TypeGuard, get_args
 
 from dotenv import load_dotenv
-from pydantic import EmailStr, PostgresDsn, SecretStr, ValidationInfo, field_validator
+from pydantic import EmailStr, PostgresDsn, ValidationInfo, field_validator
 from pydantic_core import Url
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 load_dotenv("")
 
-_ENVS = Literal["development", "testing", "staging", "production", "docker-dev"]
+_ENVS = Literal["development", "testing", "staging", "production"]
 
 
 def _is_valid_env(env: str | None) -> TypeGuard[_ENVS]:
@@ -31,21 +31,17 @@ class Settings(BaseSettings):
     BASE_PATH: str = ""
     DEBUG_DATABASE_ECHO: bool = False
     CORS_ORIGINS: list[str] = []
-    POSTGRES_HOST: str = (
-        "virtual-lab-db" if DEPLOYMENT_ENV == "docker-dev" else "localhost"
-    )
-    KEYCLOAK_HOST: str = "keycloak" if DEPLOYMENT_ENV == "docker-dev" else "localhost"
-    DELTA_HOST: str = "delta" if DEPLOYMENT_ENV == "docker-dev" else "localhost"
-    POSTGRES_PORT: int = 5432 if DEPLOYMENT_ENV == "docker-dev" else 15432
+    POSTGRES_HOST: str = "localhost"
+    POSTGRES_PORT: int = 15432
     POSTGRES_USER: str = "vlm"
     POSTGRES_PASSWORD: str = "vlm"
     POSTGRES_DB: str = "vlm"
     DATABASE_URI: PostgresDsn = PostgresDsn(
         f"postgresql+asyncpg://vlm:vlm@{POSTGRES_HOST}:15432/vlm"
     )
-    NEXUS_DELTA_URI: Url = Url(f"http://{DELTA_HOST}:8080/v1")
+    NEXUS_DELTA_URI: Url = Url("http://localhost:8080/v1")
 
-    KC_SERVER_URI: str = f"http://{KEYCLOAK_HOST}:9090/"
+    KC_SERVER_URI: str = "http://localhost:9090/"
     KC_USER_NAME: str = "admin"
     KC_PASSWORD: str = "admin"
     KC_CLIENT_ID: str = "obpapp"
@@ -55,7 +51,7 @@ class Settings(BaseSettings):
     VLAB_ADMIN_PATH: str = "{}/mmb-beta/virtual-lab/lab/{}/admin?panel=billing"
 
     MAIL_USERNAME: str = "dummyusername"
-    MAIL_PASSWORD: SecretStr = cast(SecretStr, "dummypassword")
+    MAIL_PASSWORD: str = "dummypassword"
     MAIL_FROM: EmailStr = "obp@bbp.org"
     MAIL_PORT: int = 1025
     MAIL_SERVER: str = "localhost"
@@ -101,7 +97,6 @@ class Settings(BaseSettings):
         if value is None and values.data.get("DEPLOYMENT_ENV") not in [
             "development",
             "testing",
-            "docker-dev",
         ]:
             raise ValueError(
                 "ACCOUNTING_BASE_URL should be set for non-local deployments"
