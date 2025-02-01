@@ -23,13 +23,13 @@ class QueryPaginator:
         page: Annotated[
             int, Query(ge=1, description="Page number, starting from 1")
         ] = 1,
-        size: Annotated[
+        page_size: Annotated[
             int,
             Query(ge=1, le=100, description="Number of items per page (1-100)"),
         ] = 50,
     ):
         self.page = page
-        self.size = size
+        self.size = page_size
         self.session = session
 
     def total_query(self, query: Select[tuple[M]]) -> Select[tuple[int]]:
