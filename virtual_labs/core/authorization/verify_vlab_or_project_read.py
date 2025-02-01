@@ -110,11 +110,14 @@ def verify_vlab_or_project_read(f: Callable[..., Any]) -> Callable[..., Any]:
     return wrapper
 
 
+AuthorizedReadProjectId = UUID
+
+
 async def verify_vlab_or_project_read_dep(
     project_id: UUID,
     session: AsyncSession = Depends(default_session_factory),
     authenticated_user_id: str = Depends(authenticated_user_id),
-) -> bool:
+) -> AuthorizedReadProjectId:
     """
     This decorator to check if the user is in one of the admins groups
     either VL or Project admin groups or project members to perform this action
@@ -134,14 +137,14 @@ async def verify_vlab_or_project_read_dep(
         )
 
         if authenticated_user_id in project_members:
-            return True
+            return project_id
 
         project_admins = await gqr.a_retrieve_group_user_ids(
             group_id=str(project.admin_group_id)
         )
 
         if authenticated_user_id in project_admins:
-            return True
+            return project_id
 
         if vlab is None:
             raise PermissionError
@@ -151,9 +154,9 @@ async def verify_vlab_or_project_read_dep(
         )
 
         if authenticated_user_id in vlab_admins:
-            return True
+            return project_id
 
-        return False
+        raise PermissionError
 
     except NoResultFound:
         raise VliError(

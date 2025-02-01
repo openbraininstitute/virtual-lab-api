@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from enum import Enum
 from typing import Generic, TypeVar
 
@@ -20,6 +21,12 @@ class UserRoleEnum(Enum):
 
 
 T = TypeVar("T")
+
+
+@dataclass
+class VliAppResponseType(Generic[T]):
+    message: str
+    data: T | None
 
 
 class VliAppResponse(BaseModel, Generic[T]):

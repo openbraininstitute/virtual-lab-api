@@ -1,42 +1,28 @@
-from typing import Annotated, Generic, TypedDict, TypeVar
+from typing import Annotated, TypeVar
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import func
+from sqlalchemy import func, insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.sql.selectable import Select
 
 from virtual_labs.core.authorization import verify_vlab_or_project_read_dep
-from virtual_labs.core.types import VliAppResponse
-from virtual_labs.domain.common import PaginatedResultsResponse
-from virtual_labs.domain.notebooks import NotebookRead
+from virtual_labs.core.types import VliAppResponse, VliAppResponseType
+from virtual_labs.domain.common import (
+    PaginatedResultsResponse,
+    PaginatedResultsResponseType,
+)
+from virtual_labs.domain.notebooks import Notebook as NotebookResult
+from virtual_labs.domain.notebooks import NotebookCreate
 from virtual_labs.infrastructure.db.config import default_session_factory
 from virtual_labs.infrastructure.db.models import Notebook
 
 router = APIRouter(prefix="/projects/{project_id}/notebooks", tags=["Notebooks"])
 
 
-T = TypeVar("T")
 M = TypeVar("M", bound=DeclarativeBase)
-
-
-class VLResponse(TypedDict, Generic[T]):
-    message: str
-    data: T
-
-
-class Paginated(TypedDict, Generic[T]):
-    total: int
-    page: int
-    page_size: int
-    results: list[T]
-
-
-class PaginatedResponse(TypedDict, Generic[T]):
-    message: str
-    data: Paginated[T]
 
 
 class QueryPagination:
@@ -63,30 +49,50 @@ class QueryPagination:
 
     async def get_paginated_response(
         self, query: Select[tuple[M]]
-    ) -> PaginatedResponse[M]:
+    ) -> VliAppResponseType[PaginatedResultsResponseType[M]]:
         paginated_query = self.paginate_query(query)
 
         total_query = self.total_query(query)
         total_result = await self.session.execute(total_query)
         result = await self.session.execute(paginated_query)
-        return {
-            "message": "Success",
-            "data": {
-                "total": total_result.scalar() or 0,
-                "page": self.page,
-                "page_size": self.size,
-                "results": list(result.scalars().all()),
-            },
-        }
+        notebooks = list(result.scalars().all())
+        return VliAppResponseType(
+            message="Found!",
+            data=PaginatedResultsResponseType(
+                total=total_result.scalar() or 0,
+                page=self.page,
+                page_size=len(notebooks),
+                results=notebooks,
+            ),
+        )
 
 
-@router.get("/", response_model=VliAppResponse[PaginatedResultsResponse[NotebookRead]])
+@router.get(
+    "/", response_model=VliAppResponse[PaginatedResultsResponse[NotebookResult]]
+)
 async def list_notebooks(
-    project_id: UUID,
     pagination: QueryPagination = Depends(),
-    _is_user_authorized: str = Depends(verify_vlab_or_project_read_dep),
-) -> PaginatedResponse[Notebook]:
-    query = select(Notebook).where(Notebook.project_id == project_id)
+    auth_project_id: UUID = Depends(verify_vlab_or_project_read_dep),
+) -> VliAppResponseType[PaginatedResultsResponseType[Notebook]]:
+    query = select(Notebook).where(Notebook.project_id == auth_project_id)
 
-    res = await pagination.get_paginated_response(query)
-    return res
+    return await pagination.get_paginated_response(query)
+
+
+@router.post("/")
+async def create_notebook(
+    create_notebook: NotebookCreate,
+    session: Annotated[AsyncSession, Depends(default_session_factory)],
+    auth_project_id: UUID = Depends(verify_vlab_or_project_read_dep),
+) -> VliAppResponse[NotebookResult]:
+    stmt = (
+        insert(Notebook)
+        .values(**create_notebook.model_dump(), project_id=auth_project_id)
+        .returning(Notebook)
+    )
+
+    res = (await session.execute(stmt)).scalar_one()
+
+    return VliAppResponse(
+        message="Notebook created successfully", data=NotebookResult.model_validate(res)
+    )
