@@ -40,7 +40,7 @@ class QueryPaginator:
 
     async def get_paginated_results(
         self, query: Select[tuple[M]], results_validator: Type[PM]
-    ) -> PaginatedResultsResponse[BaseModel]:
+    ) -> PaginatedResultsResponse[PM]:
         paginated_query = self.paginate_query(query)
 
         total_query = self.total_query(query)
@@ -51,11 +51,9 @@ class QueryPaginator:
             results_validator.model_validate(n) for n in result.scalars().all()
         ]
 
-        return (
-            PaginatedResultsResponse(
-                total=total_result.scalar() or 0,
-                page=self.page,
-                page_size=len(notebooks),
-                results=notebooks,
-            ),
+        return PaginatedResultsResponse(
+            total=total_result.scalar() or 0,
+            page=self.page,
+            page_size=len(notebooks),
+            results=notebooks,
         )

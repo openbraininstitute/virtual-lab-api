@@ -22,7 +22,7 @@ router = APIRouter(prefix="/projects/{project_id}/notebooks", tags=["Notebooks"]
 M = TypeVar("M", bound=DeclarativeBase)
 
 
-@router.get("/", response_model=None)
+@router.get("/")
 async def list_notebooks(
     paginator: QueryPaginator = Depends(),
     auth_project_id: UUID = Depends(verify_vlab_or_project_read_dep),
