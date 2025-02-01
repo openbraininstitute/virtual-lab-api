@@ -31,14 +31,11 @@ class Settings(BaseSettings):
     BASE_PATH: str = ""
     DEBUG_DATABASE_ECHO: bool = False
     CORS_ORIGINS: list[str] = []
-    POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: int = 15432
     POSTGRES_USER: str = "vlm"
     POSTGRES_PASSWORD: str = "vlm"
     POSTGRES_DB: str = "vlm"
-    DATABASE_URI: PostgresDsn = PostgresDsn(
-        f"postgresql+asyncpg://vlm:vlm@{POSTGRES_HOST}:15432/vlm"
-    )
+    DATABASE_URI: PostgresDsn = "postgresql+asyncpg://vlm:vlm@localhost:15432/vlm"
     NEXUS_DELTA_URI: Url = Url("http://localhost:8080/v1")
 
     KC_SERVER_URI: str = "http://localhost:9090/"

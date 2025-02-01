@@ -39,6 +39,9 @@ dev-p:
 init:
 	./dev-init.sh $(filter-out $@,$(MAKECMDGOALS))
 
+kill-amd: 
+	cd env-prep && docker compose -f docker-compose-dev-amd.yml -p vlm-project down --remove-orphans --volumes
+
 kill: 
 	cd env-prep && docker compose -f docker-compose-dev.yml -p vlm-project down --remove-orphans --volumes
 
