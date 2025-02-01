@@ -66,7 +66,7 @@ async def test_get_lab_by_id(
         "plan_id": lab["plan_id"],
         "created_at": lab["created_at"],
         "nexus_organization_id": lab["nexus_organization_id"],
-        "updated_at": None,
+        "updated_at": lab["created_at"],
     }
     actual_response = response.json()["data"]["virtual_lab"]
     assert actual_response == expected_response
