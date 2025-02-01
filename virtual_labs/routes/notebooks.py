@@ -1,4 +1,4 @@
-from typing import Annotated, TypeVar
+from typing import TypeVar
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
@@ -35,7 +35,7 @@ async def list_notebooks(
 @router.post("/", response_model=None)
 async def create_notebook(
     create_notebook: NotebookCreate,
-    session: Annotated[AsyncSession, Depends(default_session_factory)],
+    session: AsyncSession = Depends(default_session_factory),
     auth_project_id: UUID = Depends(verify_vlab_or_project_read_dep),
 ) -> VliAppResponse[NotebookResult]:
     res = await create_notebook_usecase(auth_project_id, create_notebook, session)

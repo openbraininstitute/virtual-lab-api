@@ -119,8 +119,9 @@ async def verify_vlab_or_project_read_dep(
     authenticated_user_id: str = Depends(authenticated_user_id),
 ) -> AuthorizedReadProjectId:
     """
-    This decorator to check if the user is in one of the admins groups
-    either VL or Project admin groups or project members to perform this action
+    Dependency that checks if users is a member or admin of project or
+    admin of that project vlab, returns the id of the authorized project
+    for convenient reuse in handlers.
     """
 
     try:
