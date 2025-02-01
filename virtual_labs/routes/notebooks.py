@@ -1,4 +1,4 @@
-from typing import Annotated, TypedDict
+from typing import Annotated, Generic, TypedDict, TypeVar
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
@@ -17,19 +17,23 @@ from virtual_labs.infrastructure.db.models import Notebook
 router = APIRouter(prefix="/projects/{project_id}/notebooks", tags=["Notebooks"])
 
 
-class VLResponse[T](TypedDict):
+T = TypeVar("T")
+M = TypeVar("M", bound=DeclarativeBase)
+
+
+class VLResponse(TypedDict, Generic[T]):
     message: str
     data: T
 
 
-class Paginated[T](TypedDict):
+class Paginated(TypedDict, Generic[T]):
     total: int
     page: int
     page_size: int
     results: list[T]
 
 
-class PaginatedResponse[T](TypedDict):
+class PaginatedResponse(TypedDict, Generic[T]):
     message: str
     data: Paginated[T]
 
@@ -50,17 +54,13 @@ class QueryPagination:
         self.size = size
         self.session = session
 
-    def total_query[M: DeclarativeBase](
-        self, query: Select[tuple[M]]
-    ) -> Select[tuple[int]]:
+    def total_query(self, query: Select[tuple[M]]) -> Select[tuple[int]]:
         return query.with_only_columns(func.coalesce(func.count(), 0)).order_by(None)
 
-    def paginate_query[M: DeclarativeBase](
-        self, query: Select[tuple[M]]
-    ) -> Select[tuple[M]]:
+    def paginate_query(self, query: Select[tuple[M]]) -> Select[tuple[M]]:
         return query.offset((self.page - 1) * self.size).limit(self.size)
 
-    async def get_paginated_response[M: DeclarativeBase](
+    async def get_paginated_response(
         self, query: Select[tuple[M]]
     ) -> PaginatedResponse[M]:
         paginated_query = self.paginate_query(query)

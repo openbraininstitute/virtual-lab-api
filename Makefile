@@ -1,3 +1,5 @@
+.PHONY: init
+
 SHELL := /bin/bash
 
 SERVICE_NAME=virtual-lab-manager
@@ -29,12 +31,6 @@ help:
 
 dev:
 	poetry run uvicorn virtual_labs.api:app --reload
-
-docker-dev:
-	docker compose -f docker-compose-dev-amd.yml up --build
-
-docker-dev-kill:
-	docker compose -f docker-compose-dev-amd.yml down --remove-orphans
 
 dev-p:
 	@poetry run dotenv -f .env.local set STRIPE_WEBHOOK_SECRET $$(poetry run dotenv -f env-prep/stripe-data/.env.local get STRIPE_WEBHOOK_SECRET) > /dev/null
