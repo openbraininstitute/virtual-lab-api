@@ -34,7 +34,7 @@ class PaginatedResponse[T](TypedDict):
     data: Paginated[T]
 
 
-class QueryPagination[M: DeclarativeBase]:
+class QueryPagination:
     def __init__(
         self,
         session: Annotated[AsyncSession, Depends(default_session_factory)],
@@ -50,13 +50,17 @@ class QueryPagination[M: DeclarativeBase]:
         self.size = size
         self.session = session
 
-    def total_query(self, query: Select[tuple[M]]) -> Select[tuple[int]]:
+    def total_query[M: DeclarativeBase](
+        self, query: Select[tuple[M]]
+    ) -> Select[tuple[int]]:
         return query.with_only_columns(func.coalesce(func.count(), 0)).order_by(None)
 
-    def paginate_query(self, query: Select[tuple[M]]) -> Select[tuple[M]]:
+    def paginate_query[M: DeclarativeBase](
+        self, query: Select[tuple[M]]
+    ) -> Select[tuple[M]]:
         return query.offset((self.page - 1) * self.size).limit(self.size)
 
-    async def get_paginated_response(
+    async def get_paginated_response[M: DeclarativeBase](
         self, query: Select[tuple[M]]
     ) -> PaginatedResponse[M]:
         paginated_query = self.paginate_query(query)
@@ -78,8 +82,9 @@ class QueryPagination[M: DeclarativeBase]:
 @router.get("/", response_model=VliAppResponse[PaginatedResultsResponse[NotebookRead]])
 async def list_notebooks(
     project_id: UUID,
-    pagination: Annotated[QueryPagination[Notebook], Depends()],
+    pagination: QueryPagination = Depends(),
 ) -> PaginatedResponse[Notebook]:
     query = select(Notebook).where(Notebook.project_id == project_id)
 
-    return await pagination.get_paginated_response(query)
+    res = await pagination.get_paginated_response(query)
+    return res

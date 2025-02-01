@@ -1,5 +1,5 @@
 from os import getenv
-from typing import Any, Literal, Optional, TypeGuard, get_args
+from typing import Any, Literal, Optional, TypeGuard, cast, get_args
 
 from dotenv import load_dotenv
 from pydantic import EmailStr, PostgresDsn, SecretStr, ValidationInfo, field_validator
@@ -55,7 +55,7 @@ class Settings(BaseSettings):
     VLAB_ADMIN_PATH: str = "{}/mmb-beta/virtual-lab/lab/{}/admin?panel=billing"
 
     MAIL_USERNAME: str = "dummyusername"
-    MAIL_PASSWORD: SecretStr = SecretStr("dummypassword")
+    MAIL_PASSWORD: SecretStr = cast(SecretStr, "dummypassword")
     MAIL_FROM: EmailStr = "obp@bbp.org"
     MAIL_PORT: int = 1025
     MAIL_SERVER: str = "localhost"
