@@ -8,6 +8,7 @@ from sqlalchemy.future import select
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.sql.selectable import Select
 
+from virtual_labs.core.authorization import verify_vlab_or_project_read_dep
 from virtual_labs.core.types import VliAppResponse
 from virtual_labs.domain.common import PaginatedResultsResponse
 from virtual_labs.domain.notebooks import NotebookRead
@@ -83,6 +84,7 @@ class QueryPagination:
 async def list_notebooks(
     project_id: UUID,
     pagination: QueryPagination = Depends(),
+    _is_user_authorized: str = Depends(verify_vlab_or_project_read_dep),
 ) -> PaginatedResponse[Notebook]:
     query = select(Notebook).where(Notebook.project_id == project_id)
 
