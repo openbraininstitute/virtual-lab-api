@@ -36,7 +36,7 @@ class VirtualLabTopup(Base):
     )
     amount: Mapped[int] = mapped_column()
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
+        DateTime(timezone=True), default=func.now()
     )
     stripe_event_id: Mapped[str] = mapped_column()
 
@@ -61,10 +61,10 @@ class VirtualLab(Base):
 
     deleted = Column(Boolean, default=False, index=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
+        DateTime(timezone=True), default=func.now()
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+        DateTime(timezone=True), default=func.now(), onupdate=func.now()
     )
     deleted_at = Column(DateTime)
     deleted_by = Column(UUID(as_uuid=True))
@@ -102,10 +102,10 @@ class Project(Base):
     budget_amount = Column(Integer, nullable=False, default=0)
 
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
+        DateTime(timezone=True), default=func.now()
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+        DateTime(timezone=True), default=func.now(), onupdate=func.now()
     )
     deleted_at = Column(DateTime)
     deleted_by = Column(UUID(as_uuid=True))
@@ -136,10 +136,10 @@ class ProjectStar(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
+        DateTime(timezone=True), default=func.now()
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+        DateTime(timezone=True), default=func.now(), onupdate=func.now()
     )
 
     user_id = Column(UUID, nullable=False)
@@ -168,10 +168,10 @@ class ProjectInvite(Base):
     role = Column(String, nullable=False)
 
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
+        DateTime(timezone=True), default=func.now()
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+        DateTime(timezone=True), default=func.now(), onupdate=func.now()
     )
 
     project_id = Column(UUID(as_uuid=True), ForeignKey("project.id"), index=True)
@@ -192,10 +192,10 @@ class VirtualLabInvite(Base):
     accepted = Column(Boolean, default=False)
 
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
+        DateTime(timezone=True), default=func.now()
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+        DateTime(timezone=True), default=func.now(), onupdate=func.now()
     )
 
 
@@ -214,10 +214,10 @@ class PaymentMethod(Base):
     expire_at = Column(String, nullable=False)
 
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
+        DateTime(timezone=True), default=func.now()
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+        DateTime(timezone=True), default=func.now(), onupdate=func.now()
     )
 
     virtual_lab_id = Column(
@@ -244,7 +244,7 @@ class Bookmark(Base):
 
     category = Column(SAEnum(BookmarkCategory), nullable=False)  # type: ignore[var-annotated]
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
+        DateTime(timezone=True), default=func.now()
     )
 
     project_id = Column(UUID(as_uuid=True), ForeignKey("project.id"), index=True)
@@ -267,10 +267,10 @@ class Notebook(Base):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
+        DateTime(timezone=True), default=func.now()
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+        DateTime(timezone=True), default=func.now(), onupdate=func.now()
     )
 
     project_id: Mapped[uuid.UUID] = mapped_column(
