@@ -311,6 +311,7 @@ code-workspace.json
 
 # Mock email data
 env-prep/email-data/ 
+env-prep/vlm_data
 
 # End of https://www.toptal.com/developers/gitignore/api/visualstudiocode,intellij,python
 
