@@ -1,4 +1,4 @@
-from typing import Annotated, cast
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import Depends
@@ -16,13 +16,11 @@ from virtual_labs.infrastructure.db.models import Notebook
 
 
 async def get_notebooks_usecase(
-    project_id: UUID, query_paginator: QueryPaginator[Notebook]
+    project_id: UUID, query_paginator: QueryPaginator
 ) -> PaginatedResultsResponse[NotebookResult]:
     query = select(Notebook).where(Notebook.project_id == project_id)
-    return cast(
-        PaginatedResultsResponse[NotebookResult],
-        await query_paginator.get_paginated_results(query),
-    )
+
+    return await query_paginator.get_paginated_results(query, NotebookResult)
 
 
 async def create_notebook_usecase(

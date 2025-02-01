@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from typing import Generic, TypeVar
 
 from pydantic import BaseModel, Field
@@ -11,14 +10,6 @@ class PageParams(BaseModel):
 
 
 T = TypeVar("T")
-
-
-@dataclass
-class PaginatedResultsResponseType(Generic[T]):
-    total: int
-    page: int
-    page_size: int
-    results: list[T]
 
 
 class PaginatedResultsResponse(BaseModel, Generic[T]):

@@ -14,3 +14,6 @@ class Notebook(BaseModel):
     github_file_url: str
     created_at: datetime
     updated_at: datetime
+
+    class Config:
+        from_attributes = True

@@ -1,23 +1,20 @@
 from typing import Annotated, TypeVar
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
-from sqlalchemy import func, insert
+from fastapi import APIRouter, Depends
+from sqlalchemy import insert
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
 from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy.sql.selectable import Select
 
 from virtual_labs.core.authorization import verify_vlab_or_project_read_dep
-from virtual_labs.core.types import VliAppResponse, VliAppResponseType
-from virtual_labs.domain.common import (
-    PaginatedResultsResponse,
-    PaginatedResultsResponseType,
-)
+from virtual_labs.core.pagination import QueryPaginator
+from virtual_labs.core.types import VliAppResponse
+from virtual_labs.domain.common import PaginatedResultsResponse
 from virtual_labs.domain.notebooks import Notebook as NotebookResult
 from virtual_labs.domain.notebooks import NotebookCreate
 from virtual_labs.infrastructure.db.config import default_session_factory
 from virtual_labs.infrastructure.db.models import Notebook
+from virtual_labs.usecases.notebooks import get_notebooks_usecase
 
 router = APIRouter(prefix="/projects/{project_id}/notebooks", tags=["Notebooks"])
 
@@ -25,58 +22,13 @@ router = APIRouter(prefix="/projects/{project_id}/notebooks", tags=["Notebooks"]
 M = TypeVar("M", bound=DeclarativeBase)
 
 
-class QueryPagination:
-    def __init__(
-        self,
-        session: Annotated[AsyncSession, Depends(default_session_factory)],
-        page: Annotated[
-            int, Query(ge=1, description="Page number, starting from 1")
-        ] = 1,
-        size: Annotated[
-            int,
-            Query(ge=1, le=100, description="Number of items per page (1-100)"),
-        ] = 50,
-    ):
-        self.page = page
-        self.size = size
-        self.session = session
-
-    def total_query(self, query: Select[tuple[M]]) -> Select[tuple[int]]:
-        return query.with_only_columns(func.coalesce(func.count(), 0)).order_by(None)
-
-    def paginate_query(self, query: Select[tuple[M]]) -> Select[tuple[M]]:
-        return query.offset((self.page - 1) * self.size).limit(self.size)
-
-    async def get_paginated_response(
-        self, query: Select[tuple[M]]
-    ) -> VliAppResponseType[PaginatedResultsResponseType[M]]:
-        paginated_query = self.paginate_query(query)
-
-        total_query = self.total_query(query)
-        total_result = await self.session.execute(total_query)
-        result = await self.session.execute(paginated_query)
-        notebooks = list(result.scalars().all())
-        return VliAppResponseType(
-            message="Found!",
-            data=PaginatedResultsResponseType(
-                total=total_result.scalar() or 0,
-                page=self.page,
-                page_size=len(notebooks),
-                results=notebooks,
-            ),
-        )
-
-
-@router.get(
-    "/", response_model=VliAppResponse[PaginatedResultsResponse[NotebookResult]]
-)
+@router.get("/", response_model=None)
 async def list_notebooks(
-    pagination: QueryPagination = Depends(),
+    paginator: QueryPaginator = Depends(),
     auth_project_id: UUID = Depends(verify_vlab_or_project_read_dep),
-) -> VliAppResponseType[PaginatedResultsResponseType[Notebook]]:
-    query = select(Notebook).where(Notebook.project_id == auth_project_id)
-
-    return await pagination.get_paginated_response(query)
+) -> VliAppResponse[PaginatedResultsResponse[NotebookResult]]:
+    notebooks = await get_notebooks_usecase(auth_project_id, paginator)
+    return VliAppResponse(message="Found!", data=notebooks)
 
 
 @router.post("/")
