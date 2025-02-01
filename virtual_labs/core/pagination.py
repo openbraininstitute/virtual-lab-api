@@ -47,13 +47,13 @@ class QueryPaginator:
         total_result = await self.session.execute(total_query)
         result = await self.session.execute(paginated_query)
 
-        notebooks = [
+        validated_results = [
             results_validator.model_validate(n) for n in result.scalars().all()
         ]
 
         return PaginatedResultsResponse(
             total=total_result.scalar() or 0,
             page=self.page,
-            page_size=len(notebooks),
-            results=notebooks,
+            page_size=len(validated_results),
+            results=validated_results,
         )

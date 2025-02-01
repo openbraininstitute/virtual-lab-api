@@ -1,9 +1,7 @@
-from typing import TypeVar
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import DeclarativeBase
 
 from virtual_labs.core.authorization import verify_vlab_or_project_read_dep
 from virtual_labs.core.pagination import QueryPaginator
@@ -18,9 +16,6 @@ from virtual_labs.usecases.notebooks import (
 )
 
 router = APIRouter(prefix="/projects/{project_id}/notebooks", tags=["Notebooks"])
-
-
-M = TypeVar("M", bound=DeclarativeBase)
 
 
 @router.get("/", response_model=None)
