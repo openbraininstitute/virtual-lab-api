@@ -3,7 +3,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import Depends
-from sqlalchemy import select
+from sqlalchemy import desc, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,7 +18,11 @@ from virtual_labs.infrastructure.db.models import Notebook
 async def get_notebooks_usecase(
     project_id: UUID, query_paginator: QueryPaginator
 ) -> PaginatedResults[Notebook]:
-    query = select(Notebook).where(Notebook.project_id == project_id)
+    query = (
+        select(Notebook)
+        .where(Notebook.project_id == project_id)
+        .order_by(desc(Notebook.created_at))
+    )
 
     return await query_paginator.get_paginated_results(query)
 
