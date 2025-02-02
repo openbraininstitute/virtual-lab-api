@@ -8,10 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
-from virtual_labs.core.pagination import QueryPaginator
-from virtual_labs.domain.common import (
-    PaginatedResultsResponse,
-)
+from virtual_labs.core.pagination import PaginatedResults, QueryPaginator
 from virtual_labs.domain.notebooks import Notebook as NotebookResult
 from virtual_labs.domain.notebooks import NotebookCreate
 from virtual_labs.infrastructure.db.config import default_session_factory
@@ -20,10 +17,10 @@ from virtual_labs.infrastructure.db.models import Notebook
 
 async def get_notebooks_usecase(
     project_id: UUID, query_paginator: QueryPaginator
-) -> PaginatedResultsResponse[NotebookResult]:
+) -> PaginatedResults[Notebook]:
     query = select(Notebook).where(Notebook.project_id == project_id)
 
-    return await query_paginator.get_paginated_results(query, NotebookResult)
+    return await query_paginator.get_paginated_results(query)
 
 
 async def create_notebook_usecase(
@@ -39,10 +36,10 @@ async def create_notebook_usecase(
         await session.refresh(notebook)
 
         return NotebookResult.model_validate(notebook)
-    except IntegrityError as error:
+    except IntegrityError:
         raise VliError(
             message="Notebook already exists",
             error_code=VliErrorCode.ENTITY_ALREADY_EXISTS,
             http_status_code=HTTPStatus.CONFLICT,
-            details=str(error),
+            details="A notebook with that url already exists",
         )

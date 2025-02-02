@@ -1,19 +1,21 @@
-from typing import Annotated, Type, TypeVar
+from typing import Annotated, Generic, TypedDict, TypeVar
 
 from fastapi import Depends, Query
-from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.sql.selectable import Select
 
-from virtual_labs.domain.common import (
-    PaginatedResultsResponse,
-)
 from virtual_labs.infrastructure.db.config import default_session_factory
 
 M = TypeVar("M", bound=DeclarativeBase)
-PM = TypeVar("PM", bound=BaseModel)
+
+
+class PaginatedResults(TypedDict, Generic[M]):
+    total: int
+    page: int
+    page_size: int
+    results: list[M]
 
 
 class QueryPaginator:
@@ -39,21 +41,18 @@ class QueryPaginator:
         return query.offset((self.page - 1) * self.size).limit(self.size)
 
     async def get_paginated_results(
-        self, query: Select[tuple[M]], results_validator: Type[PM]
-    ) -> PaginatedResultsResponse[PM]:
+        self, query: Select[tuple[M]]
+    ) -> PaginatedResults[M]:
         paginated_query = self.paginate_query(query)
 
         total_query = self.total_query(query)
         total_result = await self.session.execute(total_query)
         result = await self.session.execute(paginated_query)
+        results = list(result.scalars().all())
 
-        validated_results = [
-            results_validator.model_validate(n) for n in result.scalars().all()
-        ]
-
-        return PaginatedResultsResponse(
+        return PaginatedResults(
             total=total_result.scalar() or 0,
             page=self.page,
-            page_size=len(validated_results),
-            results=validated_results,
+            page_size=len(results),
+            results=results,
         )

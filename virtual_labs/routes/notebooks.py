@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.authorization import verify_vlab_or_project_read_dep
 from virtual_labs.core.pagination import QueryPaginator
-from virtual_labs.core.types import VliAppResponse
+from virtual_labs.core.types import Response, VliAppResponse
 from virtual_labs.domain.common import PaginatedResultsResponse
 from virtual_labs.domain.notebooks import Notebook as NotebookResult
 from virtual_labs.domain.notebooks import NotebookCreate
@@ -18,16 +18,18 @@ from virtual_labs.usecases.notebooks import (
 router = APIRouter(prefix="/projects/{project_id}/notebooks", tags=["Notebooks"])
 
 
-@router.get("/", response_model=None)
+@router.get(
+    "/",
+)
 async def list_notebooks(
     paginator: QueryPaginator = Depends(),
     auth_project_id: UUID = Depends(verify_vlab_or_project_read_dep),
 ) -> VliAppResponse[PaginatedResultsResponse[NotebookResult]]:
     notebooks = await get_notebooks_usecase(auth_project_id, paginator)
-    return VliAppResponse(message="Found!", data=notebooks)
+    return Response(message="Found!", data=notebooks)  # type: ignore[return-value]
 
 
-@router.post("/", response_model=None)
+@router.post("/")
 async def create_notebook(
     create_notebook: NotebookCreate,
     session: AsyncSession = Depends(default_session_factory),
@@ -35,4 +37,4 @@ async def create_notebook(
 ) -> VliAppResponse[NotebookResult]:
     res = await create_notebook_usecase(auth_project_id, create_notebook, session)
 
-    return VliAppResponse(message="Notebook created successfully", data=res)
+    return Response(message="Notebook created successfully", data=res)  # type: ignore[return-value]

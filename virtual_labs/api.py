@@ -129,19 +129,6 @@ async def validation_exception_handler(
     )
 
 
-@app.exception_handler(Exception)
-async def uncaught_exception_handler(request: Request, exception: Exception):
-    logger.critical(f"{request.method} {request.url} failed: {exception.args}")
-    return vli_exception_handler(
-        request,
-        VliError(
-            message="Uncaught exception",
-            error_code=VliErrorCode.UNCAUGHT_EXCEPTION,
-            details=exception.args,
-        ),
-    )
-
-
 @base_router.get("/")
 def root() -> str:
     return "Server is running."
