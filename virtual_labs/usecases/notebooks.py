@@ -1,10 +1,13 @@
+from http import HTTPStatus
 from typing import Annotated
 from uuid import UUID
 
 from fastapi import Depends
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.pagination import QueryPaginator
 from virtual_labs.domain.common import (
     PaginatedResultsResponse,
@@ -28,10 +31,18 @@ async def create_notebook_usecase(
     notebook_create: NotebookCreate,
     session: Annotated[AsyncSession, Depends(default_session_factory)],
 ) -> NotebookResult:
-    notebook = Notebook(**notebook_create.model_dump(), project_id=project_id)
+    try:
+        notebook = Notebook(**notebook_create.model_dump(), project_id=project_id)
 
-    session.add(notebook)
-    await session.commit()
-    await session.refresh(notebook)
+        session.add(notebook)
+        await session.commit()
+        await session.refresh(notebook)
 
-    return NotebookResult.model_validate(notebook)
+        return NotebookResult.model_validate(notebook)
+    except IntegrityError as error:
+        raise VliError(
+            message="Notebook already exists",
+            error_code=VliErrorCode.ENTITY_ALREADY_EXISTS,
+            http_status_code=HTTPStatus.CONFLICT,
+            details=str(error),
+        )
