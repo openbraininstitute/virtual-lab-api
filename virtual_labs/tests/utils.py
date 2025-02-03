@@ -16,6 +16,7 @@ from stripe import SetupIntent
 from virtual_labs.infrastructure.db.config import session_pool
 from virtual_labs.infrastructure.db.models import (
     Bookmark,
+    Notebook,
     PaymentMethod,
     Project,
     ProjectInvite,
@@ -171,6 +172,10 @@ async def cleanup_resources(client: AsyncClient, lab_id: str) -> None:
 
             await session.execute(
                 statement=delete(Bookmark).where(Bookmark.project_id == project_id)
+            )
+
+            await session.execute(
+                statement=delete(Notebook).where(Notebook.project_id == project_id)
             )
 
             logger.debug(f"Deleting project {project_id}")
