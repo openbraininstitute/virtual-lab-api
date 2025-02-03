@@ -4,7 +4,7 @@
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-    <title>OBBP Invitation Email</title>
+    <title>OBI Invitation Email</title>
     <style media="all" type="text/css">
         /* -------------------------------------
     GLOBAL RESETS
@@ -35,24 +35,17 @@
         /* -------------------------------------
     BODY & CONTAINER
 ------------------------------------- */
-
-        body {
-            background: #003A8C;
-            background-repeat: no-repeat;
-            margin: 0;
-            padding: 0;
-        }
-
         .body {
-            background: center / contain no-repeat url(cid:hippocampus) #003a8c;
-            background-repeat: no-repeat;
             width: 100%;
             padding-top: 140px;
             padding-bottom: 140px;
         }
 
         .container {
-            margin: 0 auto !important;
+            margin-left: auto !important;
+            margin-right: auto !important;
+            margin-top: 0 !important;
+            margin-bottom: 0 !important;
             max-width: 600px;
             padding: 0;
             padding-top: 24px;
@@ -62,7 +55,10 @@
         .content {
             box-sizing: border-box;
             display: block;
-            margin: 0 auto;
+            margin-left: auto;
+            margin-right: auto;
+            margin-top: 0;
+            margin-bottom: 0;
             max-width: 600px;
             padding: 0;
         }
@@ -71,10 +67,12 @@
     HEADER, FOOTER, MAIN
 ------------------------------------- */
         .logo {
-            width: 147px;
-            height: 50px;
+            width: 150px;
+            height: 49px;
         }
-
+        .bg-image-container {
+            background-color: #003A8C;
+        }
         .main {
             color: #003A8C;
             border-radius: 0px;
@@ -112,7 +110,10 @@
             font-size: 16px;
             font-weight: normal;
             line-height: 22px;
-            margin: 0;
+            margin-left: 0;
+            margin-right: 0;
+            margin-top: 0;
+            margin-bottom: 0;
         }
 
         a {
@@ -140,6 +141,16 @@
         .light {
             font-size: 14px !important;
             font-weight: 400 !important;
+            text-align: justify;
+        }
+        .discover-btn {
+            font-size: 14px !important;
+            font-weight: 400 !important;
+        }
+        .discover-btn:hover {
+            background-color: #1890FF;
+            font-weight: 700 !important;
+            color: white;
         }
 
         /* -------------------------------------
@@ -171,7 +182,10 @@
             display: inline-block;
             font-size: 16px;
             font-weight: bold;
-            margin: 0;
+            margin-left: 0;
+            margin-right: 0;
+            margin-top: 0;
+            margin-bottom: 0;
             padding: 12px 32px;
             text-decoration: none;
             text-transform: capitalize;
@@ -269,7 +283,15 @@
             .main span {
                 font-size: 16px !important;
             }
-
+            body {
+                background-color: #003A8C;
+            }
+            .bg-image-container{
+                background-color: #003A8C;
+            }
+            .bg-image {
+                display: none !important;
+            }
             .wrapper {
                 padding: 8px !important;
             }
@@ -279,11 +301,14 @@
             }
 
             .container {
-                padding: 0 !important;
+                padding: 8px !important;
                 padding-top: 8px !important;
                 width: 100% !important;
             }
-
+            .body {
+                padding-top: 80px !important; /* Reduced padding for mobile */
+                padding-bottom: 80px !important;
+            }
             .main {
                 border-left-width: 0 !important;
                 border-radius: 0 !important;
@@ -339,29 +364,43 @@
             }
         }
     </style>
+    <!--[if mso]>
+        <style>
+            .background-container { display: none !important; }
+            .body { background: #003A8C !important; }
+        </style>
+    <![endif]-->
 </head>
 
 <body>
-    <table role="presentation" border="0" cellpadding="0" cellspacing="0" class="body" bgcolor="#003A8C"
-        style="background:center / contain no-repeat url(cid:hippocampus) #003a8c;">
+    <!--[if gte mso 9]>
+    <v:background xmlns:v="urn:schemas-microsoft-com:vml" fill="true">
+        <v:fill type="tile" src="https://tinypic.host/images/2025/02/03/Hippocampus_004_SM-CUT.png" color="#003A8C"/>
+    </v:background>
+    <![endif]-->
+    <table 
+        role="presentation" border="0" cellpadding="0" cellspacing="0" class="body" 
+        style="position: relative; z-index: 1; width: 100%; max-width: 800px; margin-top: 0; margin-bottom: 0; margin-left: auto; margin-right: auto;
+            background: #003A8C url('https://tinypic.host/images/2025/02/03/Hippocampus_004_SM-CUT.png') center/cover no-repeat;"
+    >
         <tr>
             <td>&nbsp;</td>
             <td class="container">
                 <div class="content">
-                    <img class="logo" src="cid:logo" alt="Open Blue Brain Platform" />
+                    <img class="logo" src="cid:logo" alt="Open Brain Institute" />
                     <!-- START CENTERED WHITE CONTAINER -->
-                    <span class="preheader">Invitation to Open Brain Platform {{origin}}</span>
+                    <span class="preheader">Invitation to OBI  {{origin}}</span>
                     <table role="presentation" border="0" cellpadding="0" cellspacing="0" class="main">
 
                         <!-- START MAIN CONTENT AREA -->
                         <tr>
                             <td class="wrapper invitation">
                                 <p>
-                                    Great news{% if invitee_name %}<span class="person-name">
-                                        {{invitee_name}}</span>{% endif %}! You have been invited to {{origin}}
+                                    Great news! {% if inviter_name %}<span class="person-name" style="text-transform: capitalize;">
+                                        {{inviter_name}}</span>{% endif %} invited you to join the {{origin}}
+                                        
                                 </p>
-                                <p><span class="invited-to" style="color: #ffffff;">{{invited_to}}</span> by <span
-                                        class="person-name">{{inviter_name}}</span></p>
+                                <p><span class="invited-to" style="color: #ffffff;">{{invited_to}}</span> on the Open Brain Platform.</p>
                                 <table role="presentation" border="0" cellpadding="0" cellspacing="0"
                                     class="btn btn-primary">
                                     <tbody>
@@ -399,12 +438,9 @@
                         <tr>
                             <td class="wrapper align-left description" style="color: #ffffff;">
                                 <h3>
-                                    What is Open Brain Platform?
+                                    What is Open Brain Institute ?
                                 </h3>
-                                <p class="light">OBP is the next generation platform that connects explorative features
-                                    with a powerful set of models building tools that lead to simulation experiments. 
-                                    From ion channels to the whole brain, OBP empower scientific in their daily tasks. Explore,
-                                    collect and use real biological data to digitally simulate neurons.</p>
+                                <p class="light">OBI is the next generation platform that connects explorative features with a powerful set of model-building tools for conducting simulation experiments. From ion channel to whole-brain modeling, OBI supports neuroscientists in their research efforts. Explore, collect, and use real biological data to digitally simulate neurons.</p>
                                 <table role="presentation" border="0" cellpadding="0" cellspacing="0"
                                     class="btn btn-secondary" style="color: #ffffff;">
                                     <tbody>
@@ -414,7 +450,7 @@
                                                     <tbody>
                                                         <tr>
                                                             <td> <a href="{{discover_link}}" target="_blank"
-                                                                    class="light">Discover more</a> </td>
+                                                                    class="discover-btn">Discover more</a> </td>
                                                         </tr>
                                                     </tbody>
                                                 </table>
