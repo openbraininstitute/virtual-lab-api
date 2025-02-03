@@ -276,4 +276,8 @@ class Notebook(Base):
     project_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("project.id"), index=True
     )
-    github_file_url: Mapped[str] = mapped_column(nullable=False, unique=True)
+    github_file_url: Mapped[str] = mapped_column(nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("project_id", "github_file_url", name="uq_project_file_url"),
+    )
