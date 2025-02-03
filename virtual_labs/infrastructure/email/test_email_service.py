@@ -6,9 +6,8 @@ import pytest
 from requests import get
 
 from virtual_labs.core.exceptions.email_error import EmailError
-from virtual_labs.infrastructure.email.email_service import EmailDetails
+from virtual_labs.infrastructure.email.email_service import EmailDetails, send_invite
 from virtual_labs.infrastructure.email.email_service import __name__ as EmailService
-from virtual_labs.infrastructure.email.email_service import send_invite
 from virtual_labs.infrastructure.email.email_utils import (
     InviteOrigin,
     get_expiry_datetime_from_token,
@@ -53,9 +52,8 @@ async def test_email_invite_sent_for_virtual_lab() -> None:
     assert "?token=" in invite_link
     assert "?token=" in email_body
     assert mock_lab_name in email_body
-    assert "been invited to virtual lab" in email_body
+    assert "invited you to join the virtual lab" in email_body
     assert inviter in email_body
-    assert invitee in email_body
 
     assert decoded_token["invite_id"] == str(mock_invite_id)
     assert decoded_token["origin"] == InviteOrigin.LAB.value
@@ -94,7 +92,7 @@ async def test_email_invite_sent_for_project() -> None:
     assert "?token=" in invite_link
     assert "?token=" in email_body
     assert mock_project_name in email_body
-    assert "been invited to project" in email_body
+    assert "invited you to join the project" in email_body
     assert "Great news!" in email_body
     assert "None" not in email_body
     assert inviter in email_body

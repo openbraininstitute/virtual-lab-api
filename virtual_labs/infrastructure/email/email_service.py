@@ -54,20 +54,11 @@ async def send_invite(details: EmailDetails) -> str:
         )
 
         message = MessageSchema(
-            subject=f"Invitation to OBBP {display_origin}",
+            subject=f"Invitation to OBI {display_origin}",
             recipients=[details.recipient],
             body=invite_html,
             subtype=MessageType.html,
             attachments=[
-                {
-                    "file": "virtual_labs/infrastructure/email/assets/hippocampus_bg.jpg",
-                    "headers": {
-                        "Content-ID": "hippocampus",
-                        "Content-Disposition": 'inline; filename="hippocampus_bg.jpg"',  # For inline images only
-                    },
-                    "mime_type": "image",
-                    "mime_subtype": "jpg",
-                },
                 {
                     "file": "virtual_labs/infrastructure/email/assets/logo.png",
                     "headers": {
@@ -83,7 +74,7 @@ async def send_invite(details: EmailDetails) -> str:
                 "invitee_name": details.invitee_name,
                 "inviter_name": details.inviter_name,
                 "invite_link": invite_link,
-                "discover_link": f"{settings.DEPLOYMENT_NAMESPACE}/mmb-beta",
+                "discover_link": f"{settings.LANDING_NAMESPACE}",
                 "origin": display_origin,
                 "invited_to": details.lab_name
                 if origin is InviteOrigin.LAB
