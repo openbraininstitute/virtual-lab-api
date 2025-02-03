@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 from typing import AsyncGenerator, TypedDict
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import pytest
 import pytest_asyncio
@@ -19,7 +19,7 @@ from virtual_labs.tests.utils import cleanup_resources, get_headers
 async def mock_projects(
     request: FixtureRequest,
     async_test_client: AsyncClient,
-) -> AsyncGenerator[tuple[AsyncClient, str, str, dict[str, str]], None]:
+) -> AsyncGenerator[list[str], None]:
     client = async_test_client
     body = {
         "name": f"Test Lab {uuid4()}",
@@ -32,10 +32,10 @@ async def mock_projects(
 
     project_ids: list[str] = []
 
-    for _ in range(getattr(request, "param", False) and request.param[0] or 1):
-        lab_response = await client.post("/virtual-labs", json=body, headers=headers)
-        lab_id = lab_response.json()["data"]["virtual_lab"]["id"]
+    lab_response = await client.post("/virtual-labs", json=body, headers=headers)
+    lab_id = lab_response.json()["data"]["virtual_lab"]["id"]
 
+    for _ in range(getattr(request, "param", False) and request.param or 1):
         project_body = {"name": f"Test Project {uuid4()}", "description": "Test"}
         project_response = await client.post(
             f"/virtual-labs/{lab_id}/projects", json=project_body, headers=headers
@@ -47,7 +47,7 @@ async def mock_projects(
 
 
 class MockNotebook(TypedDict):
-    project_id: UUID
+    project_id: str
     github_file_url: str
     created_at: datetime
 
@@ -80,6 +80,37 @@ async def test_create_notebook(
 ) -> None:
     response = await async_test_client.post(
         f"/projects/{mock_projects[0]}/notebooks/",
+        headers=get_headers(),
+        json={"github_file_url": "http://example_notebook"},
+    )
+
+    assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("mock_projects", [2], indirect=True)
+async def test_create_duplicate_notebook(
+    mock_projects: list[str],
+    async_test_client: AsyncClient,
+) -> None:
+    response = await async_test_client.post(
+        f"/projects/{mock_projects[0]}/notebooks/",
+        headers=get_headers(),
+        json={"github_file_url": "http://example_notebook"},
+    )
+
+    assert response.status_code == 200
+
+    response = await async_test_client.post(
+        f"/projects/{mock_projects[0]}/notebooks/",
+        headers=get_headers(),
+        json={"github_file_url": "http://example_notebook"},
+    )
+
+    assert response.status_code == 409
+
+    response = await async_test_client.post(
+        f"/projects/{mock_projects[1]}/notebooks/",
         headers=get_headers(),
         json={"github_file_url": "http://example_notebook"},
     )
