@@ -83,6 +83,28 @@ async def test_create_notebook(
 
 
 @pytest.mark.asyncio
+async def test_create_duplicate_notebook(
+    mock_project: UUID,
+    async_test_client: AsyncClient,
+) -> None:
+    response = await async_test_client.post(
+        f"/projects/{mock_project}/notebooks/",
+        headers=get_headers(),
+        json={"github_file_url": "http://example_notebook_1"},
+    )
+
+    assert response.status_code == 200
+
+    response = await async_test_client.post(
+        f"/projects/{mock_project}/notebooks/",
+        headers=get_headers(),
+        json={"github_file_url": "http://example_notebook_1"},
+    )
+
+    assert response.status_code == 409
+
+
+@pytest.mark.asyncio
 async def test_get_notebooks(
     mock_project: UUID,
     mock_notebooks: list[MockNotebook],
