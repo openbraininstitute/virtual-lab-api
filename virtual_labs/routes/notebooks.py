@@ -19,9 +19,7 @@ from virtual_labs.usecases.notebooks import (
 router = APIRouter(prefix="/projects/{project_id}/notebooks", tags=["Notebooks"])
 
 
-@router.get(
-    "/",
-)
+@router.get("/")
 async def list_notebooks(
     paginator: QueryPaginator = Depends(),
     auth_project_id: UUID = Depends(verify_vlab_or_project_read_dep),
