@@ -161,7 +161,7 @@ async def verify_vlab_or_project_read_dep(
 
     except NoResultFound:
         raise VliError(
-            error_code=VliErrorCode.DATABASE_ERROR,
+            error_code=VliErrorCode.ENTITY_NOT_FOUND,
             http_status_code=status.NOT_FOUND,
             message="No project with this id found",
         )

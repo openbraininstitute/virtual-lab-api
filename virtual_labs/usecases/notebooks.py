@@ -3,7 +3,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import Depends
-from sqlalchemy import desc, select
+from sqlalchemy import delete, desc, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -47,3 +47,25 @@ async def create_notebook_usecase(
             http_status_code=HTTPStatus.CONFLICT,
             details="A notebook with that url already exists",
         )
+
+
+async def delete_notebook_usecase(
+    project_id: UUID,
+    notebook_id: UUID,
+    session: Annotated[AsyncSession, Depends(default_session_factory)],
+) -> None:
+    result = await session.execute(
+        delete(Notebook).filter_by(id=notebook_id, project_id=project_id)
+    )
+
+    await session.commit()
+
+    if result.rowcount == 0:
+        raise VliError(
+            message="Notebook doesn't exist",
+            error_code=VliErrorCode.ENTITY_NOT_FOUND,
+            http_status_code=HTTPStatus.NOT_FOUND,
+            details="Notebook doesn't exist in the specified project",
+        )
+
+    return None

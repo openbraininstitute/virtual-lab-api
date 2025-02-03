@@ -54,23 +54,31 @@ class MockNotebook(TypedDict):
 
 @pytest_asyncio.fixture
 async def mock_notebooks(
-    async_test_session: AsyncSession, mock_projects: list[str]
-) -> list[MockNotebook]:
+    request: FixtureRequest, async_test_session: AsyncSession, mock_projects: list[str]
+) -> list[Notebook]:
     current_time = datetime(2000, 1, 1)
+
+    n = getattr(request, "param", False) and request.param or 3
+
     notebooks = [
         MockNotebook(
             project_id=mock_projects[0],
             github_file_url=f"https://test_notebook_{i}",
             created_at=current_time + timedelta(hours=i),
         )
-        for i in range(3)
+        for i in range(n)
     ]
 
-    stmt = insert(Notebook).values(notebooks)
-    await async_test_session.execute(stmt)
+    stmt = insert(Notebook).values(notebooks).returning(Notebook)
+    res = await async_test_session.execute(stmt)
+    inserted_notebooks = res.scalars().all()
+
     await async_test_session.commit()
 
-    return notebooks
+    for n in inserted_notebooks:
+        await async_test_session.refresh(n)
+
+    return list(inserted_notebooks)
 
 
 @pytest.mark.asyncio
@@ -85,6 +93,19 @@ async def test_create_notebook(
     )
 
     assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_create_notebook_no_project(
+    async_test_client: AsyncClient,
+) -> None:
+    response = await async_test_client.post(
+        f"/projects/{str(uuid4())}/notebooks/",
+        headers=get_headers(),
+        json={"github_file_url": "http://example_notebook"},
+    )
+
+    assert response.status_code == 404
 
 
 @pytest.mark.asyncio
@@ -121,7 +142,7 @@ async def test_create_duplicate_notebook(
 @pytest.mark.asyncio
 async def test_get_notebooks(
     mock_projects: list[str],
-    mock_notebooks: list[MockNotebook],
+    mock_notebooks: list[Notebook],
     async_test_client: AsyncClient,
 ) -> None:
     response = await async_test_client.get(
@@ -134,7 +155,7 @@ async def test_get_notebooks(
     notebooks = response.json()["data"]["results"]
 
     urls = [n["github_file_url"] for n in notebooks]
-    original_urls_desc = list(reversed([n["github_file_url"] for n in mock_notebooks]))
+    original_urls_desc = list(reversed([n.github_file_url for n in mock_notebooks]))
 
     assert urls == original_urls_desc
 
@@ -142,7 +163,7 @@ async def test_get_notebooks(
 @pytest.mark.asyncio
 async def test_paginated_notebooks(
     mock_projects: list[str],
-    mock_notebooks: list[MockNotebook],
+    mock_notebooks: list[Notebook],
     async_test_client: AsyncClient,
 ) -> None:
     page = 2
@@ -161,7 +182,7 @@ async def test_paginated_notebooks(
     assert len(notebooks) == 1  # Only one record in last page
 
     paginated_urls = [n["github_file_url"] for n in notebooks]
-    original_urls_desc = list(reversed([n["github_file_url"] for n in mock_notebooks]))
+    original_urls_desc = list(reversed([n.github_file_url for n in mock_notebooks]))
     expected_urls = original_urls_desc[(page - 1) * page_size : page * page_size]
 
     assert paginated_urls == expected_urls
@@ -169,3 +190,29 @@ async def test_paginated_notebooks(
     total_notebooks = len(mock_notebooks)
 
     assert response.json()["data"]["total"] == total_notebooks
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("mock_notebooks", [1], indirect=True)
+async def test_delete_notebook(
+    mock_notebooks: list[Notebook],
+    async_test_client: AsyncClient,
+) -> None:
+    response = await async_test_client.delete(
+        f"/projects/{mock_notebooks[0].project_id}/notebooks/{mock_notebooks[0].id}",
+        headers=get_headers(),
+    )
+
+    assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_delete_notebook_no_project(
+    async_test_client: AsyncClient,
+) -> None:
+    response = await async_test_client.delete(
+        f"/projects/{str(uuid4())}/notebooks/{str(uuid4())}",
+        headers=get_headers(),
+    )
+
+    assert response.status_code == 404

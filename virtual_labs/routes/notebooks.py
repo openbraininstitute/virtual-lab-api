@@ -12,6 +12,7 @@ from virtual_labs.domain.notebooks import NotebookCreate
 from virtual_labs.infrastructure.db.config import default_session_factory
 from virtual_labs.usecases.notebooks import (
     create_notebook_usecase,
+    delete_notebook_usecase,
     get_notebooks_usecase,
 )
 
@@ -38,3 +39,14 @@ async def create_notebook(
     res = await create_notebook_usecase(auth_project_id, create_notebook, session)
 
     return Response(message="Notebook created successfully", data=res)  # type: ignore[return-value]
+
+
+@router.delete("/{id}")
+async def delete_notebook(
+    id: UUID,
+    session: AsyncSession = Depends(default_session_factory),
+    auth_project_id: UUID = Depends(verify_vlab_or_project_read_dep),
+) -> VliAppResponse[None]:
+    await delete_notebook_usecase(auth_project_id, id, session)
+
+    return Response(message="Notebook deleted successfully", data=None)  # type: ignore[return-value]
