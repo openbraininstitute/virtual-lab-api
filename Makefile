@@ -1,3 +1,5 @@
+.PHONY: init
+
 SHELL := /bin/bash
 
 SERVICE_NAME=virtual-lab-manager
