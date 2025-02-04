@@ -104,9 +104,9 @@ def verify_jwt(
         )
 
 
-async def authenticated_user_id(
+async def a_verify_jwt(
     header: HTTPAuthorizationCredentials = Depends(auth_header),
-) -> str:
+) -> Tuple[AuthUser, str]:
     if not header:
         raise VliError(
             error_code=VliErrorCode.AUTHORIZATION_ERROR,
@@ -166,7 +166,7 @@ async def authenticated_user_id(
 
     try:
         user = AuthUser(**decoded_token)
-        return user.sub
+        return (user, token)
     except Exception:
         raise VliError(
             error_code=VliErrorCode.INVALID_REQUEST,
@@ -174,6 +174,12 @@ async def authenticated_user_id(
             message="Generating authentication details failed",
             details="The user details is not correct",
         )
+
+
+async def authenticated_user_id(
+    auth: Tuple[AuthUser, str] = Depends(a_verify_jwt),
+) -> str:
+    return auth[0].sub
 
 
 def get_client_token() -> str:
