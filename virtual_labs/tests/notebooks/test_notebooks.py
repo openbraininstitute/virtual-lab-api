@@ -89,7 +89,7 @@ async def test_create_notebook(
     response = await async_test_client.post(
         f"/projects/{mock_projects[0]}/notebooks/",
         headers=get_headers(),
-        json={"github_file_url": "http://example_notebook"},
+        json={"github_file_url": "https://example_notebook"},
     )
 
     assert response.status_code == 200
@@ -102,7 +102,7 @@ async def test_create_notebook_no_project(
     response = await async_test_client.post(
         f"/projects/{str(uuid4())}/notebooks/",
         headers=get_headers(),
-        json={"github_file_url": "http://example_notebook"},
+        json={"github_file_url": "https://example_notebook"},
     )
 
     assert response.status_code == 404
@@ -117,7 +117,7 @@ async def test_create_duplicate_notebook(
     response = await async_test_client.post(
         f"/projects/{mock_projects[0]}/notebooks/",
         headers=get_headers(),
-        json={"github_file_url": "http://example_notebook"},
+        json={"github_file_url": "https://example_notebook"},
     )
 
     assert response.status_code == 200
@@ -125,7 +125,7 @@ async def test_create_duplicate_notebook(
     response = await async_test_client.post(
         f"/projects/{mock_projects[0]}/notebooks/",
         headers=get_headers(),
-        json={"github_file_url": "http://example_notebook"},
+        json={"github_file_url": "https://example_notebook"},
     )
 
     assert response.status_code == 409
@@ -133,7 +133,7 @@ async def test_create_duplicate_notebook(
     response = await async_test_client.post(
         f"/projects/{mock_projects[1]}/notebooks/",
         headers=get_headers(),
-        json={"github_file_url": "http://example_notebook"},
+        json={"github_file_url": "https://example_notebook"},
     )
 
     assert response.status_code == 200
