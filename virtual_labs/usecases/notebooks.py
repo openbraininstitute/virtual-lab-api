@@ -3,7 +3,6 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import Depends
-from sqlalchemy import delete, desc, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,17 +12,17 @@ from virtual_labs.domain.notebooks import Notebook as NotebookResult
 from virtual_labs.domain.notebooks import NotebookCreate
 from virtual_labs.infrastructure.db.config import default_session_factory
 from virtual_labs.infrastructure.db.models import Notebook
+from virtual_labs.repositories.notebook_repo import (
+    create_notebook,
+    delete_notebook,
+    get_notebooks,
+)
 
 
 async def get_notebooks_usecase(
     project_id: UUID, query_paginator: QueryPaginator
 ) -> PaginatedResults[Notebook]:
-    query = (
-        select(Notebook)
-        .where(Notebook.project_id == project_id)
-        .order_by(desc(Notebook.created_at))
-    )
-
+    query = get_notebooks(project_id)
     return await query_paginator.get_paginated_results(query)
 
 
@@ -33,12 +32,10 @@ async def create_notebook_usecase(
     session: Annotated[AsyncSession, Depends(default_session_factory)],
 ) -> NotebookResult:
     try:
-        notebook = Notebook(**notebook_create.model_dump(), project_id=project_id)
-
+        notebook = create_notebook(notebook_create, project_id)
         session.add(notebook)
         await session.commit()
         await session.refresh(notebook)
-
         return NotebookResult.model_validate(notebook)
     except IntegrityError:
         raise VliError(
@@ -54,9 +51,8 @@ async def delete_notebook_usecase(
     notebook_id: UUID,
     session: Annotated[AsyncSession, Depends(default_session_factory)],
 ) -> None:
-    result = await session.execute(
-        delete(Notebook).filter_by(id=notebook_id, project_id=project_id)
-    )
+    q = delete_notebook(notebook_id, project_id)
+    result = await session.execute(q)
 
     await session.commit()
 
