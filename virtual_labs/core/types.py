@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Generic, TypeVar
+from typing import Generic, TypedDict, TypeVar
 
 from pydantic import BaseModel
 
@@ -20,6 +20,11 @@ class UserRoleEnum(Enum):
 
 
 T = TypeVar("T")
+
+
+class Response(TypedDict, Generic[T]):
+    message: str
+    data: T
 
 
 class VliAppResponse(BaseModel, Generic[T]):

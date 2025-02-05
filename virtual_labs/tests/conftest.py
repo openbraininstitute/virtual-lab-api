@@ -6,6 +6,7 @@ import pytest_asyncio
 from httpx import AsyncClient, Response
 
 from virtual_labs.api import app
+from virtual_labs.infrastructure.db.config import default_session_factory
 from virtual_labs.tests.utils import cleanup_resources, get_headers
 
 VL_COUNT = 2
@@ -23,6 +24,9 @@ async def async_test_client() -> AsyncGenerator[AsyncClient, None]:
         headers=headers,
     ) as ac:
         yield ac
+
+
+async_test_session = pytest_asyncio.fixture(default_session_factory)
 
 
 @pytest_asyncio.fixture(scope="session", autouse=True)

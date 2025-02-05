@@ -62,7 +62,6 @@ services:
     environment:
       POSTGRES_USER: vlm
       POSTGRES_PASSWORD: vlm
-      PGDATA: vlm_data
       POSTGRES_DB: vlm
     ports:
       - 15432:5432
