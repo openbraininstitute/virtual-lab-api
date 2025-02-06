@@ -45,7 +45,7 @@ services:
     command: 
       - start-dev
       - --http-port=9090
-      - --hostname=keycloak
+      - --hostname=localhost
       - --hostname-port=9090
       - --hostname-strict-backchannel=true
       - --import-realm

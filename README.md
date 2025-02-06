@@ -73,13 +73,8 @@ Access token:
 
 # Accessing local (or test) keycloak UI
 
-Add keycloak as host for address 127.0.0.1 in /etc/host file
+Navigate to http://localhost:9090 to load the keycloak web interface
 
-```bash
-echo "127.0.0.1 keycloak" | sudo tee -a /etc/hosts # This adds a line "127.0.0.1 keycloak" to /etc/hosts 
-```
-
-Now navigating to http://localhost:9090 or http://keycloak:9090 should load the keycloak web interface
 
 # Generating db migrations
 
