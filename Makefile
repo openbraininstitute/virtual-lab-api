@@ -1,3 +1,5 @@
+.PHONY: init
+
 SHELL := /bin/bash
 
 SERVICE_NAME=virtual-lab-manager
@@ -37,8 +39,11 @@ dev-p:
 init:
 	./dev-init.sh $(filter-out $@,$(MAKECMDGOALS))
 
+kill-amd: 
+	docker compose -f ./env-prep/docker-compose-dev-amd.yml -p vlm-project down --remove-orphans --volumes
+
 kill: 
-	cd env-prep && docker compose -f docker-compose-dev.yml -p vlm-project down --remove-orphans --volumes
+	docker compose -f ./env-prep/docker-compose-dev.yml -p vlm-project down --remove-orphans --volumes
 
 build:
 	docker build -t $(SERVICE_NAME) . --platform=linux/amd64

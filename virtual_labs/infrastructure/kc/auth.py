@@ -104,6 +104,84 @@ def verify_jwt(
         )
 
 
+async def a_verify_jwt(
+    header: HTTPAuthorizationCredentials = Depends(auth_header),
+) -> Tuple[AuthUser, str]:
+    if not header:
+        raise VliError(
+            error_code=VliErrorCode.AUTHORIZATION_ERROR,
+            http_status_code=status.UNAUTHORIZED,
+            message="No Authentication was provided",
+            details="The supplied authentication is not authorized to access",
+        )
+
+    try:
+        token = header.credentials
+        decoded_token = await kc_auth.a_decode_token(token=token, validate=True)
+    except KeycloakError as exception:
+        logger.error(
+            f"Keyclock error while decoding token CODE: {exception.response_code} BODY: {exception.response_body} MESSAGE: {exception.error_message}"
+        )
+        logger.exception(f"Keycloak decode exception {exception}")
+        raise VliError(
+            error_code=VliErrorCode.AUTHORIZATION_ERROR,
+            http_status_code=exception.response_code or status.UNAUTHORIZED,
+            message="Invalid authentication session",
+            details=str(exception),
+        ) from exception
+    except Exception as error:
+        logger.exception(f"Auth Error {error}")
+        raise VliError(
+            error_code=VliErrorCode.AUTHORIZATION_ERROR,
+            http_status_code=status.UNAUTHORIZED,
+            message="Invalid authentication credentials",
+        )
+
+    try:
+        introspected_token = await kc_auth.a_introspect(
+            token=token,
+        )
+
+        if introspected_token and introspected_token["active"] is False:
+            raise IdentityError(
+                message="Session not active",
+                detail="Session is dead or user not found",
+            )
+    except KeycloakError as exception:
+        logger.error(f"Keyclock error while token introspection {exception.__str__}")
+        logger.exception(f"Keycloak introspection exception {exception}")
+        raise VliError(
+            error_code=VliErrorCode.AUTHORIZATION_ERROR,
+            http_status_code=exception.response_code or status.UNAUTHORIZED,
+            message="Invalid authentication session",
+            details=str(exception),
+        ) from exception
+    except Exception as exception:
+        raise VliError(
+            error_code=VliErrorCode.AUTHORIZATION_ERROR,
+            http_status_code=status.UNAUTHORIZED,
+            message="Invalid authentication session",
+            details=str(exception),
+        ) from exception
+
+    try:
+        user = AuthUser(**decoded_token)
+        return (user, token)
+    except Exception:
+        raise VliError(
+            error_code=VliErrorCode.INVALID_REQUEST,
+            http_status_code=status.BAD_REQUEST,
+            message="Generating authentication details failed",
+            details="The user details is not correct",
+        )
+
+
+async def authenticated_user_id(
+    auth: Tuple[AuthUser, str] = Depends(a_verify_jwt),
+) -> str:
+    return auth[0].sub
+
+
 def get_client_token() -> str:
     try:
         kc_realm.connection.get_token()  # This refreshes client token
