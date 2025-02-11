@@ -1,7 +1,10 @@
 from datetime import datetime
 from enum import Enum
+from typing import Generic, TypeVar
 
 from pydantic import UUID4, BaseModel, HttpUrl
+
+T = TypeVar("T")
 
 
 class VlabAccount(BaseModel):
@@ -76,9 +79,8 @@ class JobSubtype(Enum):
     SINGLE_CELL_SIM = "single-cell-sim"
 
 
-class JobReport(BaseModel):
+class ProjectJobReport(BaseModel):
     job_id: UUID4
-    proj_id: UUID4
     type: JobType
     subtype: JobSubtype
     reserved_at: datetime | None = None
@@ -87,6 +89,10 @@ class JobReport(BaseModel):
     count: int
     reserved_amount: str
     reserved_count: int
+
+
+class VirtualLabJobReport(ProjectJobReport):
+    proj_id: UUID4
 
 
 class PaginatedMeta(BaseModel):
@@ -104,15 +110,15 @@ class PaginatedLinks(BaseModel):
     last: HttpUrl
 
 
-class ReportsResponseData(BaseModel):
-    items: list[JobReport]
+class ReportsResponseData(BaseModel, Generic[T]):
+    items: list[T]
     meta: PaginatedMeta
     links: PaginatedLinks
 
 
 class VirtualLabReportsResponse(BaseAccountingResponse):
-    data: ReportsResponseData
+    data: ReportsResponseData[VirtualLabJobReport]
 
 
 class ProjectReportsResponse(BaseAccountingResponse):
-    data: ReportsResponseData
+    data: ReportsResponseData[ProjectJobReport]
