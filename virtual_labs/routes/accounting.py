@@ -143,7 +143,7 @@ async def assign_project_budget(
     budget_assign_request: BudgetAssignRequest,
     session: AsyncSession = Depends(default_session_factory),
     auth: Tuple[AuthUser, str] = Depends(verify_jwt),
-) -> BudgetTopUpResponse:
+) -> BudgetAssignResponse:
     return await accounting_cases.assign_project_budget(
         virtual_lab_id, project_id, budget_assign_request.amount
     )
@@ -162,7 +162,7 @@ async def reverse_project_budget(
     budget_reverse_request: BudgetReverseRequest,
     session: AsyncSession = Depends(default_session_factory),
     auth: Tuple[AuthUser, str] = Depends(verify_jwt),
-) -> BudgetTopUpResponse:
+) -> BudgetReverseResponse:
     return await accounting_cases.reverse_project_budget(
         virtual_lab_id, project_id, budget_reverse_request.amount
     )
