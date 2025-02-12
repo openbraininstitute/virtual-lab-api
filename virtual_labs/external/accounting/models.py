@@ -79,8 +79,10 @@ class JobSubtype(Enum):
     SINGLE_CELL_SIM = "single-cell-sim"
 
 
+# TODO: Update according to the STORAGE report type
 class ProjectJobReport(BaseModel):
     job_id: UUID4
+    user_id: UUID4
     type: JobType
     subtype: JobSubtype
     reserved_at: datetime | None = None

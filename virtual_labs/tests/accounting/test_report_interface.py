@@ -45,6 +45,7 @@ async def test_get_virtual_lab_reports_success(
             "items": [
                 {
                     "job_id": str(uuid4()),
+                    "user_id": str(uuid4()),
                     "proj_id": str(uuid4()),
                     "type": "oneshot",
                     "subtype": "ml-llm",
@@ -115,6 +116,7 @@ async def test_get_project_reports_success(
             "items": [
                 {
                     "job_id": str(uuid4()),
+                    "user_id": str(uuid4()),
                     "type": "oneshot",
                     "subtype": "ml-llm",
                     "reserved_at": "2025-01-10T10:12:03Z",
