@@ -1,6 +1,6 @@
 from typing import Tuple
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.types import VliAppResponse
@@ -26,7 +26,7 @@ async def initiate_email_verification(
     payload: InitiateEmailVerificationPayload,
     session: AsyncSession = Depends(default_session_factory),
     auth: Tuple[AuthUser, str] = Depends(a_verify_jwt),
-):
+) -> Response:
     return await email_verification_usecases.initiate_email_verification(
         session,
         email=payload.email,
@@ -45,7 +45,7 @@ async def complete_email_verification(
     payload: EmailVerificationPayload,
     session: AsyncSession = Depends(default_session_factory),
     auth: Tuple[AuthUser, str] = Depends(a_verify_jwt),
-):
+) -> Response:
     return await email_verification_usecases.verify_email_code(
         session=session,
         email=payload.email,

@@ -2,8 +2,9 @@ import secrets
 from datetime import datetime, timedelta
 from http import HTTPStatus as status
 from typing import Tuple
+from uuid import UUID
 
-from fastapi.responses import Response
+from fastapi import Response
 from loguru import logger
 from pydantic import EmailStr
 from sqlalchemy.exc import SQLAlchemyError
@@ -44,7 +45,7 @@ async def initiate_email_verification(
     """Start email verification process"""
     es = EmailValidationQueryRepository(session)
     esm = EmailValidationMutationRepository(session)
-    user_id = auth[0].sub
+    user_id = UUID(auth[0].sub)
 
     try:
         # Check if the email (user, virtual-lab) is already verified
@@ -56,6 +57,13 @@ async def initiate_email_verification(
         ):
             raise EmailVerificationException(
                 "Email already registered",
+                data={
+                    "code_sent": False,
+                    "is_verified": True,
+                    "remaining_time": 0,
+                    "remaining_attempts": 0,
+                    "locked": False,
+                },
             )
 
         now = datetime.utcnow()
@@ -89,6 +97,8 @@ async def initiate_email_verification(
                 raise EmailVerificationException(
                     f"Too many attempts. Try again in {remaining_time} minutes",
                     data={
+                        "code_sent": False,
+                        "is_verified": False,
                         "remaining_time": remaining_time,
                         "remaining_attempts": MAX_ATTEMPTS
                         - verification_code_entry.attempts,
@@ -101,21 +111,30 @@ async def initiate_email_verification(
                 verification_code_entry.locked_until = datetime.utcnow() + timedelta(
                     minutes=LOCK_TIME_MINUTES
                 )
+
             await session.commit()
+            await session.refresh(verification_code_entry)
 
         # Generate a new verification code if the previous one has expired
         if verification_code_entry and verification_code_entry.expires_at >= now:
             code = verification_code_entry.code
+            expire_at_minutes = int(
+                (verification_code_entry.expires_at - now).total_seconds() / 60
+            )
         else:
             code = _generate_verification_code()
-            await esm.generate_verification_token(
+            code, expire_at = await esm.generate_verification_token(
                 email, user_id, virtual_lab_name, code, 1
             )
+            expire_at_minutes = int((expire_at - now).total_seconds() / 60)
 
         await send_verification_code_email(
             VerificationCodeEmailDetails(
                 recipient=email,
                 code=code,
+                virtual_lab_name=virtual_lab_name,
+                # expire at in mins
+                expire_at=f"{expire_at_minutes}",
             )
         )
     except EmailVerificationException as e:
@@ -145,6 +164,9 @@ async def initiate_email_verification(
             message="Verification email sent successfully",
             data={
                 "code_sent": True,
-                "email": email,
+                "is_verified": False,
+                "remaining_time": 0,
+                "remaining_attempts": 0,
+                "locked": False,
             },
         )

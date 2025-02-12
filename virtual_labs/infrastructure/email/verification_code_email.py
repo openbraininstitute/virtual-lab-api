@@ -9,11 +9,9 @@ from virtual_labs.infrastructure.email.email_utils import (
 )
 
 
-async def send_verification_code_email(details: VerificationCodeEmailDetails) -> str:
+async def send_verification_code_email(details: VerificationCodeEmailDetails) -> None:
     try:
-        invite_html = generate_email_verification_html(
-            code=details.code,
-        )
+        invite_html = generate_email_verification_html(details)
         message = MessageSchema(
             subject="Your Verification Code",
             recipients=[details.recipient],
@@ -33,15 +31,15 @@ async def send_verification_code_email(details: VerificationCodeEmailDetails) ->
             ],
             template_body={
                 "code": details.code,
+                "virtual_lab_name": details.virtual_lab_name,
+                "expire_at": details.expire_at,
             },
         )
         fm = FastMail(email_config)
         await fm.send_message(message, template_name="email_verification_code.html")
     except Exception as error:
-        logger.error(
-            f"Invite ID {details.invite_id} could not be emailed to user {details.recipient} because of error {error}"
-        )
+        logger.info("Error during sending verification code email")
         raise EmailError(
-            message=f"Invite ID {details.invite_id} could not be emailed to user {details.recipient}",
+            message=f"sending verification code email failed to  {details.recipient}",
             detail=str(error),
         ) from error

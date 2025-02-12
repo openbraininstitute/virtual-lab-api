@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Annotated
 
 import dns.resolver
@@ -43,3 +44,19 @@ class EmailVerificationPayload(Email):
 class VerificationCodeEmailDetails(BaseModel):
     recipient: EmailStr
     code: EmailVerificationCode
+    virtual_lab_name: str
+    expire_at: str
+
+
+class VerificationCodeEmailResponseData(BaseModel):
+    verified_at: datetime | None = None
+    is_verified: bool
+    remaining_attempts: int
+    remaining_time: int
+    locked: bool
+    code_sent: bool | None = None
+
+
+class VerificationCodeEmailResponse(BaseModel):
+    message: str
+    data: VerificationCodeEmailResponseData

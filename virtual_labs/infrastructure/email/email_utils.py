@@ -5,7 +5,9 @@ from typing import TypedDict, cast
 import jwt
 from pydantic import UUID4
 
-from virtual_labs.domain.email import EmailVerificationCode
+from virtual_labs.domain.email import (
+    VerificationCodeEmailDetails,
+)
 from virtual_labs.infrastructure.settings import settings
 
 InviteToken = TypedDict("InviteToken", {"invite_id": str, "exp": str, "origin": str})
@@ -70,8 +72,12 @@ def get_expiry_datetime_from_token(invite_token: InviteToken) -> datetime:
     return datetime.fromtimestamp(expiry / 1000)
 
 
-def generate_email_verification_html(code: EmailVerificationCode) -> str:
+def generate_email_verification_html(details: VerificationCodeEmailDetails) -> str:
     return f"""
-        To complete your registration and verify the administrator of the virtual lab, we need to verify your email address.
-        Please use this code {code} to complete the process of creation new virtual lab.
+        Email Verification Required
+        You have requested to validate the administrator email for the virtual lab {details.virtual_lab_name}
+        Please use the verification code {details.code} to complete the process
+        This code will expire in {details.expire_at} minutes.
+
+        If you did not request this verification, please ignore this email or contact support at support@openbraininstitute.org.
     """

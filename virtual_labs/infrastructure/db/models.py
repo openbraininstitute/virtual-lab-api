@@ -297,6 +297,7 @@ class EmailVerificationCode(Base):
     locked_until: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, nullable=False
     )
