@@ -1,9 +1,11 @@
 import uuid
 from datetime import datetime
+from uuid import uuid4
 
 from sqlalchemy import (
     JSON,
     Boolean,
+    CheckConstraint,
     Column,
     DateTime,
     Float,
@@ -56,8 +58,6 @@ class VirtualLab(Base):
     description = Column(Text)
     reference_email = Column(String(255))
     entity = Column(String, nullable=False)
-
-    budget_amount = Column(Integer, nullable=False, default=0)
 
     deleted = Column(Boolean, default=False, index=True)
     created_at: Mapped[datetime] = mapped_column(
@@ -280,4 +280,31 @@ class Notebook(Base):
 
     __table_args__ = (
         UniqueConstraint("project_id", "github_file_url", name="uq_project_file_url"),
+    )
+
+
+class EmailVerificationToken(Base):
+    __tablename__ = "email_verification_tokens"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True, default=uuid4, server_default=func.gen_random_uuid()
+    )
+
+    email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    token: Mapped[str] = mapped_column(String(6), nullable=False, index=True)
+    attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    locked_until: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    is_used: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, nullable=False
+    )
+
+    __table_args__ = (
+        # Ensure the token is exactly 6 digits
+        CheckConstraint("token ~* '^[0-9]{6}$'", name="valid_token_check"),
+        # Composite index for email and token
+        Index("ix_verification_tokens_email_token", "email", "token"),
+        # Index for created_at (useful for cleanup jobs)
+        Index("ix_verification_tokens_created_at", "created_at"),
     )
