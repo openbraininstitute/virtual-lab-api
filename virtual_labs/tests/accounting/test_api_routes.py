@@ -107,6 +107,7 @@ async def test_get_virtual_lab_reports(
             "items": [
                 {
                     "job_id": str(uuid4()),
+                    "user_id": str(uuid4()),
                     "proj_id": str(proj_id),
                     "type": "oneshot",
                     "subtype": "ml-llm",
