@@ -25,7 +25,6 @@ from virtual_labs.routes.accounting import router as accounting_router
 from virtual_labs.routes.billing import router as billing_router
 from virtual_labs.routes.bookmarks import router as bookmarks_router
 from virtual_labs.routes.common import router as common_router
-from virtual_labs.routes.email_verification import router as email_verification_router
 from virtual_labs.routes.invites import router as invite_router
 from virtual_labs.routes.labs import router as virtual_lab_router
 from virtual_labs.routes.notebooks import router as notebook_router
@@ -152,6 +151,5 @@ base_router.include_router(payments_router)
 base_router.include_router(bookmarks_router)
 base_router.include_router(accounting_router)
 base_router.include_router(notebook_router)
-base_router.include_router(email_verification_router)
 
 app.include_router(base_router)

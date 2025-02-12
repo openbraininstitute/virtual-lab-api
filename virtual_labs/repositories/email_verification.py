@@ -1,7 +1,8 @@
 from datetime import datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import select, update
+from pydantic import EmailStr
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.expression import false, true
 
@@ -16,10 +17,10 @@ class EmailValidationQueryRepository:
 
     async def check_email_verified(
         self,
-        email: str,
+        email: EmailStr,
         virtual_lab_name: str,
         user_id: UUID,
-    ):
+    ) -> bool:
         """Check if an email already exists and validated in the database."""
 
         query = select(EmailVerificationCode).filter(
@@ -37,7 +38,7 @@ class EmailValidationQueryRepository:
         email: str,
         user_id: UUID,
         virtual_lab_name: str,
-    ):
+    ) -> EmailVerificationCode | None:
         now = datetime.utcnow()
         result = await self.session.execute(
             select(EmailVerificationCode)
@@ -58,7 +59,7 @@ class EmailValidationQueryRepository:
         email: str,
         user_id: UUID,
         virtual_lab_name: str,
-    ):
+    ) -> EmailVerificationCode | None:
         """Get the most recent lock time for unverified tokens"""
 
         stmt = (
@@ -84,36 +85,19 @@ class EmailValidationMutationRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
-    async def invalidate_previous_tokens(
-        self,
-        email: str,
-    ):
-        """Mark all previous unused tokens for the email as used."""
-
-        stmt = (
-            update(EmailVerificationCode)
-            .where(
-                EmailVerificationCode.email == email,
-                EmailVerificationCode.is_verified == false(),
-            )
-            .values({"is_verified": True})
-        )
-        await self.session.execute(stmt)
-        await self.session.commit()
-
     async def generate_verification_token(
         self,
         email: str,
         user_id: UUID,
         virtual_lab_name: str,
         code: str,
-        token_expiry: int = 1,
-    ) -> str:
+        code_expiry: int = 1,
+    ) -> EmailVerificationCode:
         """Generate and store a new verification token."""
 
-        expires_at = datetime.utcnow() + timedelta(hours=token_expiry)
+        expires_at = datetime.utcnow() + timedelta(hours=code_expiry)
 
-        verification_code = EmailVerificationCode(
+        entry = EmailVerificationCode(
             email=email,
             code=code,
             expires_at=expires_at,
@@ -121,8 +105,8 @@ class EmailValidationMutationRepository:
             virtual_lab_name=virtual_lab_name,
         )
 
-        self.session.add(verification_code)
+        self.session.add(entry)
         await self.session.commit()
-        await self.session.refresh(verification_code)
+        await self.session.refresh(entry)
 
-        return code
+        return entry

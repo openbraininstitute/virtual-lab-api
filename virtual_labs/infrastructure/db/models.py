@@ -293,10 +293,14 @@ class EmailVerificationCode(Base):
     virtual_lab_name: Mapped[str] = mapped_column(String(255), nullable=False)
     email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     code: Mapped[str] = mapped_column(String(6), nullable=False, index=True)
-    attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    generation_attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    verification_attempts: Mapped[int] = mapped_column(
+        Integer, default=0, nullable=False
+    )
     locked_until: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, nullable=False
     )

@@ -1,8 +1,9 @@
 from datetime import datetime, timedelta
 from http import HTTPStatus as status
 from typing import Tuple
+from uuid import UUID
 
-from fastapi.responses import Response
+from fastapi import Response
 from loguru import logger
 from pydantic import EmailStr
 from sqlalchemy.exc import SQLAlchemyError
@@ -11,7 +12,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.exceptions.email_verification import EmailVerificationException
 from virtual_labs.core.response.api_response import VliResponse
-from virtual_labs.domain.email import LOCK_TIME_MINUTES, MAX_ATTEMPTS
+from virtual_labs.domain.email import (
+    LOCK_TIME_MINUTES,
+    MAX_ATTEMPTS,
+)
 from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.repositories.email_verification import (
     EmailValidationQueryRepository,
@@ -27,8 +31,8 @@ async def verify_email_code(
     auth: Tuple[AuthUser, str],
 ) -> Response:
     es = EmailValidationQueryRepository(session)
-    user_id = auth[0].sub
-    print(f"User ID: {user_id}")
+    user_id = UUID(auth[0].sub)
+
     try:
         now = datetime.utcnow()
         verification_code_entry = await es.get_verification_code(
@@ -37,7 +41,12 @@ async def verify_email_code(
             virtual_lab_name,
         )
         if not verification_code_entry:
-            raise EmailVerificationException("No active verification code found")
+            raise EmailVerificationException(
+                "No active verification code found",
+                data={
+                    "expired": True,
+                },
+            )
 
         # Reset lock if time has passed
         if (
@@ -45,8 +54,9 @@ async def verify_email_code(
             and now > verification_code_entry.locked_until
         ):
             verification_code_entry.locked_until = None
-            verification_code_entry.attempts = 0
+            verification_code_entry.verification_attempts = 0
             await session.commit()
+            await session.refresh(verification_code_entry)
 
         # Check if the account is locked due to too many failed attempts
         if (
@@ -57,30 +67,31 @@ async def verify_email_code(
             raise EmailVerificationException(
                 f"Too many attempts. Try again in {remaining_time} minutes",
                 data={
+                    "is_verified": False,
                     "remaining_time": remaining_time,
-                    "remaining_attempts": MAX_ATTEMPTS,
+                    "remaining_attempts": 0,
                     "locked": True,
                 },
             )
 
         # Validate the user-provided code
-        if verification_code_entry.token != code.strip():
-            # Increment the failed attempt counter
-            verification_code_entry.attempts += 1
+        if verification_code_entry.code != code.strip():
+            verification_code_entry.verification_attempts += 1
 
             # Lock the account if the maximum number of attempts is reached
-            if verification_code_entry.attempts >= MAX_ATTEMPTS:
+            if verification_code_entry.verification_attempts >= MAX_ATTEMPTS:
                 verification_code_entry.locked_until = now + timedelta(
                     minutes=LOCK_TIME_MINUTES
                 )
                 await session.commit()
-                # calculate the remaining time in minutes
+                await session.refresh(verification_code_entry)
                 remaining_time = (
                     verification_code_entry.locked_until - now
                 ).seconds // 60
                 raise EmailVerificationException(
                     "Too many incorrect attempts. Code locked for 15 minutes",
                     data={
+                        "is_verified": False,
                         "remaining_time": remaining_time,
                         "remaining_attempts": 0,
                         "locked": True,
@@ -88,33 +99,40 @@ async def verify_email_code(
                 )
 
             await session.commit()
+            await session.refresh(verification_code_entry)
             # Calculate remaining attempts and raise an appropriate error
-            remaining_attempts = MAX_ATTEMPTS - verification_code_entry.attempts
+            remaining_attempts = (
+                MAX_ATTEMPTS - verification_code_entry.verification_attempts
+            )
             if remaining_attempts > 0:
                 raise EmailVerificationException(
                     f"Invalid code. {remaining_attempts} attempts remaining",
                     data={
-                        "remaining_attempts": remaining_attempts,
+                        "is_verified": False,
+                        "remaining_attempts": 0,
                         "remaining_time": 0,
                         "locked": False,
                     },
                 )
 
-        # Mark the token as used and commit the changes
         verification_code_entry.is_verified = True
-        await session.commit()
+        verification_code_entry.verified_at = now
 
-        # Return a success response (assuming Response is a custom class)
+        await session.commit()
+        await session.refresh(verification_code_entry)
+
         return VliResponse.new(
             message="Email verified successfully",
             data={
-                "email": email,
                 "verified_at": now,
                 "is_verified": True,
+                "remaining_attempts": 0,
+                "remaining_time": 0,
+                "locked": False,
             },
         )
     except EmailVerificationException as e:
-        return VliError(
+        raise VliError(
             data=e.data,
             http_status_code=status.BAD_REQUEST,
             error_code=VliErrorCode.INVALID_REQUEST,
