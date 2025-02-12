@@ -1,7 +1,7 @@
-from .initiate_verification import initiate_verification
-from .verify_code import verify_code
+from .initiate_verification import initiate_email_verification
+from .verify_code import verify_email_code
 
 __all__ = [
-    "initiate_verification",
-    "verify_code",
+    "initiate_email_verification",
+    "verify_email_code",
 ]

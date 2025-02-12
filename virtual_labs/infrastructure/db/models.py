@@ -72,7 +72,7 @@ class VirtualLab(Base):
     projects = relationship("Project", back_populates="virtual_lab")
     invites = relationship("VirtualLabInvite", back_populates="virtual_lab")
     payment_methods = relationship("PaymentMethod", back_populates="virtual_lab")
-
+    budget_amount = Column(Integer, nullable=False, default=0)
     plan_id = Column(Integer, ForeignKey("plan.id"))
     plan = relationship("Plan", back_populates="virtual_labs")
 
@@ -283,28 +283,34 @@ class Notebook(Base):
     )
 
 
-class EmailVerificationToken(Base):
-    __tablename__ = "email_verification_tokens"
+class EmailVerificationCode(Base):
+    __tablename__ = "email_verification_codes"
 
     id: Mapped[uuid.UUID] = mapped_column(
         primary_key=True, default=uuid4, server_default=func.gen_random_uuid()
     )
-
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    virtual_lab_name: Mapped[str] = mapped_column(String(255), nullable=False)
     email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
-    token: Mapped[str] = mapped_column(String(6), nullable=False, index=True)
+    code: Mapped[str] = mapped_column(String(6), nullable=False, index=True)
     attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     locked_until: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    is_used: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    is_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, nullable=False
     )
 
     __table_args__ = (
-        # Ensure the token is exactly 6 digits
-        CheckConstraint("token ~* '^[0-9]{6}$'", name="valid_token_check"),
-        # Composite index for email and token
-        Index("ix_verification_tokens_email_token", "email", "token"),
-        # Index for created_at (useful for cleanup jobs)
-        Index("ix_verification_tokens_created_at", "created_at"),
+        # ensure the token is exactly 6 digits
+        CheckConstraint("code ~* '^[0-9]{6}$'", name="valid_code_check"),
+        # composite index for email and token
+        Index(
+            "ix_verification_codes_compound_properties",
+            "email",
+            "code",
+            "virtual_lab_name",
+            "user_id",
+        ),
+        Index("ix_verification_codes_created_at", "created_at"),
     )

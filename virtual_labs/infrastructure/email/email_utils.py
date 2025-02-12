@@ -5,6 +5,7 @@ from typing import TypedDict, cast
 import jwt
 from pydantic import UUID4
 
+from virtual_labs.domain.email import EmailVerificationCode
 from virtual_labs.infrastructure.settings import settings
 
 InviteToken = TypedDict("InviteToken", {"invite_id": str, "exp": str, "origin": str})
@@ -67,3 +68,10 @@ def get_invite_details_from_token(invite_token: str) -> InviteToken:
 def get_expiry_datetime_from_token(invite_token: InviteToken) -> datetime:
     expiry = float(invite_token["exp"])
     return datetime.fromtimestamp(expiry / 1000)
+
+
+def generate_email_verification_html(code: EmailVerificationCode) -> str:
+    return f"""
+        To complete your registration and verify the administrator of the virtual lab, we need to verify your email address.
+        Please use this code {code} to complete the process of creation new virtual lab.
+    """

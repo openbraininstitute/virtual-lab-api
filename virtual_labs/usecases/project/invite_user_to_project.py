@@ -13,7 +13,7 @@ from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.exceptions.email_error import EmailError
 from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.domain.project import ProjectInviteIn, ProjectInviteOut
-from virtual_labs.infrastructure.email.email_service import EmailDetails, send_invite
+from virtual_labs.infrastructure.email.invite_email import EmailDetails, send_invite
 from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.repositories.invite_repo import (
     InviteMutationRepository,

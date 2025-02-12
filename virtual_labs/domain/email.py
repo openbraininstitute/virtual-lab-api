@@ -3,7 +3,12 @@ from typing import Annotated
 import dns.resolver
 from pydantic import BaseModel, EmailStr, StringConstraints, field_validator
 
-VerificationCode = Annotated[
+CODE_LENGTH = 6
+MAX_ATTEMPTS = 3
+LOCK_TIME_MINUTES = 15
+
+
+EmailVerificationCode = Annotated[
     str, StringConstraints(min_length=6, max_length=6, pattern=r"^\d{6}$")
 ]
 
@@ -26,5 +31,15 @@ class Email(BaseModel):
         return value
 
 
+class InitiateEmailVerificationPayload(Email):
+    virtual_lab_name: str
+
+
 class EmailVerificationPayload(Email):
-    code: VerificationCode
+    virtual_lab_name: str
+    code: EmailVerificationCode
+
+
+class VerificationCodeEmailDetails(BaseModel):
+    recipient: EmailStr
+    code: EmailVerificationCode

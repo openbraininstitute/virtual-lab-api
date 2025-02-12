@@ -108,6 +108,7 @@ async def vli_exception_handler(request: Request, exception: VliError) -> JSONRe
             message=exception.message,
             error_code=VliErrorCode(exception.error_code),
             details=exception.details,
+            data=exception.data,
         ).model_dump(),
     )
 
