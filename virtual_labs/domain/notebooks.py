@@ -18,10 +18,6 @@ class NotebookCreate(BaseModel):
         return str(TypeAdapter(HttpsUrl).validate_strings(value))
 
 
-class NotebookBulkCreate(BaseModel):
-    notebooks: list[NotebookCreate]
-
-
 class Notebook(BaseModel):
     id: UUID
     project_id: UUID
