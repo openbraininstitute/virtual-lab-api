@@ -1,5 +1,6 @@
 from enum import StrEnum
 from http import HTTPStatus
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -34,6 +35,7 @@ class VliError(Exception):
     error_code: str
     http_status_code: HTTPStatus
     details: str | None
+    data: dict[str, Any] | None
 
     def __init__(
         self,
@@ -42,16 +44,18 @@ class VliError(Exception):
         error_code: VliErrorCode,
         details: str | None = None,
         http_status_code: HTTPStatus = HTTPStatus.BAD_REQUEST,
+        data: dict[str, Any] | None = None,
     ):
         super().__init__(message, error_code, http_status_code)
         self.message = message
         self.error_code = error_code
         self.http_status_code = http_status_code
         self.details = details
+        self.data = data
 
     def __repr__(self) -> str:
         class_name = self.__class__.__name__
-        return f'{class_name}(message="{self.message}", error_code={self.error_code}, details={self.details}, http_status_code={self.http_status_code})'
+        return f'{class_name}(message="{self.message}", error_code={self.error_code}, details={self.details}, http_status_code={self.http_status_code}) data={self.data}'
 
 
 class VlmValidationError(BaseModel):

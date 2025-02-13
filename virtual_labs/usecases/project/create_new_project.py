@@ -20,7 +20,7 @@ from virtual_labs.domain.project import FailedInvite, ProjectCreationBody, Proje
 from virtual_labs.external.nexus.project_instance import instantiate_nexus_project
 from virtual_labs.infrastructure.db.models import Project as DbProject
 from virtual_labs.infrastructure.db.models import VirtualLab
-from virtual_labs.infrastructure.email.email_service import EmailDetails, send_invite
+from virtual_labs.infrastructure.email.invite_email import EmailDetails, send_invite
 from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.infrastructure.settings import settings
 from virtual_labs.repositories.group_repo import GroupMutationRepository

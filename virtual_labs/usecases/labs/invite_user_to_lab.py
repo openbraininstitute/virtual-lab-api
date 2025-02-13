@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.exceptions.email_error import EmailError
 from virtual_labs.domain.invite import AddUser
-from virtual_labs.infrastructure.email.email_service import EmailDetails, send_invite
+from virtual_labs.infrastructure.email.invite_email import EmailDetails, send_invite
 from virtual_labs.repositories import labs as lab_repo
 from virtual_labs.repositories.invite_repo import (
     InviteMutationRepository,
