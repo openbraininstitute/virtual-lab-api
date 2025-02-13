@@ -43,7 +43,7 @@ class BudgetInterface:
                 f"{self._api_url}/top-up",
                 headers=self.headers,
                 json={
-                    "vlab_idid": str(virtual_lab_id),
+                    "vlab_id": str(virtual_lab_id),
                     "amount": amount,
                 },
             )

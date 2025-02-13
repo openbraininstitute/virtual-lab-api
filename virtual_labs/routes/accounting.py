@@ -4,8 +4,18 @@ from fastapi import APIRouter, Depends
 from pydantic import UUID4
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from virtual_labs.core.authorization import verify_project_read, verify_vlab_read
+from virtual_labs.core.authorization import (
+    verify_project_read,
+    verify_vlab_read,
+    verify_vlab_write,
+)
 from virtual_labs.external.accounting.models import (
+    BudgetAssignRequest,
+    BudgetAssignResponse,
+    BudgetReverseRequest,
+    BudgetReverseResponse,
+    BudgetTopUpRequest,
+    BudgetTopUpResponse,
     ProjBalanceResponse,
     ProjectReportsResponse,
     VirtualLabReportsResponse,
@@ -95,3 +105,64 @@ async def get_proj_accounting_reports(
     auth: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> ProjectReportsResponse:
     return await accounting_cases.get_project_reports(project_id, page, page_size)
+
+
+# Budget endpoints
+
+
+# ! This endpoint is only for demo purposes
+# TODO: Replace with a proper integration with the payment provider
+@router.post(
+    "/{virtual_lab_id}/accounting/budget/top-up",
+    operation_id="top_up_virtual_lab_account",
+    summary="Top-up budget of a specific virtual lab",
+    response_model=BudgetTopUpResponse,
+)
+@verify_vlab_write
+async def top_up_virtual_lab_budget(
+    virtual_lab_id: UUID4,
+    budget_top_up_request: BudgetTopUpRequest,
+    session: AsyncSession = Depends(default_session_factory),
+    auth: Tuple[AuthUser, str] = Depends(verify_jwt),
+) -> BudgetTopUpResponse:
+    return await accounting_cases.top_up_virtual_lab_budget(
+        virtual_lab_id, budget_top_up_request.amount
+    )
+
+
+@router.post(
+    "/{virtual_lab_id}/projects/{project_id}/accounting/budget/assign",  # reverse
+    operation_id="assign_project_budget",
+    summary="Assign additional budget to a project",
+    response_model=BudgetAssignResponse,
+)
+@verify_vlab_write
+async def assign_project_budget(
+    virtual_lab_id: UUID4,
+    project_id: UUID4,
+    budget_assign_request: BudgetAssignRequest,
+    session: AsyncSession = Depends(default_session_factory),
+    auth: Tuple[AuthUser, str] = Depends(verify_jwt),
+) -> BudgetAssignResponse:
+    return await accounting_cases.assign_project_budget(
+        virtual_lab_id, project_id, budget_assign_request.amount
+    )
+
+
+@router.post(
+    "/{virtual_lab_id}/projects/{project_id}/accounting/budget/reverse",
+    operation_id="reverse_project_budget",
+    summary="Transfer some budget from a project to the virtual lab",
+    response_model=BudgetReverseResponse,
+)
+@verify_vlab_write
+async def reverse_project_budget(
+    virtual_lab_id: UUID4,
+    project_id: UUID4,
+    budget_reverse_request: BudgetReverseRequest,
+    session: AsyncSession = Depends(default_session_factory),
+    auth: Tuple[AuthUser, str] = Depends(verify_jwt),
+) -> BudgetReverseResponse:
+    return await accounting_cases.reverse_project_budget(
+        virtual_lab_id, project_id, budget_reverse_request.amount
+    )

@@ -49,12 +49,24 @@ class VlabBalanceResponse(BaseAccountingResponse):
     data: VlabBalance
 
 
+class BudgetTopUpRequest(BaseModel):
+    amount: float
+
+
 class BudgetTopUpResponse(BaseAccountingResponse):
     data: None
 
 
+class BudgetAssignRequest(BaseModel):
+    amount: float
+
+
 class BudgetAssignResponse(BaseAccountingResponse):
     data: None
+
+
+class BudgetReverseRequest(BaseModel):
+    amount: float
 
 
 class BudgetReverseResponse(BaseAccountingResponse):
@@ -124,3 +136,7 @@ class VirtualLabReportsResponse(BaseAccountingResponse):
 
 class ProjectReportsResponse(BaseAccountingResponse):
     data: ReportsResponseData[ProjectJobReport]
+
+
+class VirtualLabTopUpResponse(BaseAccountingResponse):
+    data: None
