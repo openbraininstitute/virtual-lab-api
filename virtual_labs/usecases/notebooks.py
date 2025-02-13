@@ -55,9 +55,12 @@ async def bulk_create_notebooks_usecase(
     try:
         stmt = bulk_create_notebook(notebook_create, project_id)
         result = await session.execute(stmt)
+        notebooks = [
+            NotebookResult.model_validate(notebook)
+            for notebook in result.scalars().all()
+        ]
         await session.commit()
-        notebooks = result.scalars().all()
-        return [NotebookResult.model_validate(notebook) for notebook in notebooks]
+        return notebooks
     except IntegrityError:
         raise VliError(
             message="Notebook already exists",

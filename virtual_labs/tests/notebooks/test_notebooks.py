@@ -103,10 +103,12 @@ async def test_bulk_create_notebooks(
     response = await async_test_client.post(
         f"/projects/{mock_projects[0]}/notebooks/bulk_create/",
         headers=get_headers(),
-        json=[
-            {"github_file_url": "https://example_notebook"},
-            {"github_file_url": "https://example_notebook_2"},
-        ],
+        json={
+            "notebooks": [
+                {"github_file_url": "https://example_notebook"},
+                {"github_file_url": "https://example_notebook_2"},
+            ]
+        },
     )
 
     assert response.status_code == 200
