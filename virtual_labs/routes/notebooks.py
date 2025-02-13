@@ -1,16 +1,14 @@
-from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
-from pydantic import conlist
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.authorization import verify_vlab_or_project_read_dep
 from virtual_labs.core.pagination import QueryPaginator
 from virtual_labs.core.types import Response, VliAppResponse
 from virtual_labs.domain.common import PaginatedResultsResponse
+from virtual_labs.domain.notebooks import BulkNotebookCreate, NotebookCreate
 from virtual_labs.domain.notebooks import Notebook as NotebookResult
-from virtual_labs.domain.notebooks import NotebookCreate
 from virtual_labs.infrastructure.db.config import default_session_factory
 from virtual_labs.usecases.notebooks import (
     bulk_create_notebooks_usecase,
@@ -42,14 +40,12 @@ async def create_notebook(
     return Response(message="Notebook created successfully", data=res)  # type: ignore[return-value]
 
 
-@router.post("/bulk_create")
+@router.post("/bulk_create/")
 async def bulk_create_notebook(
-    create_notebooks: Annotated[
-        list[NotebookCreate], conlist(NotebookCreate, max_items=100, unique_items=True)
-    ],
+    create_notebooks: BulkNotebookCreate,
     session: AsyncSession = Depends(default_session_factory),
     auth_project_id: UUID = Depends(verify_vlab_or_project_read_dep),
-) -> VliAppResponse[NotebookResult]:
+) -> VliAppResponse[list[NotebookResult]]:
     res = await bulk_create_notebooks_usecase(
         auth_project_id, create_notebooks, session
     )

@@ -96,6 +96,24 @@ async def test_create_notebook(
 
 
 @pytest.mark.asyncio
+async def test_bulk_create_notebooks(
+    mock_projects: list[str],
+    async_test_client: AsyncClient,
+) -> None:
+    response = await async_test_client.post(
+        f"/projects/{mock_projects[0]}/notebooks/bulk_create/",
+        headers=get_headers(),
+        json=[
+            {"github_file_url": "https://example_notebook"},
+            {"github_file_url": "https://example_notebook_2"},
+        ],
+    )
+
+    assert response.status_code == 200
+    assert len(response.json()["data"]) == 2
+
+
+@pytest.mark.asyncio
 async def test_create_notebook_no_project(
     async_test_client: AsyncClient,
 ) -> None:

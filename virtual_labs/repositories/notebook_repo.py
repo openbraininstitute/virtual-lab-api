@@ -4,7 +4,7 @@ from sqlalchemy import delete, desc, insert, select
 from sqlalchemy.sql import Delete, Insert
 from sqlalchemy.sql.selectable import Select
 
-from virtual_labs.domain.notebooks import NotebookBulkCreate, NotebookCreate
+from virtual_labs.domain.notebooks import BulkNotebookCreate, NotebookCreate
 from virtual_labs.infrastructure.db.models import Notebook
 
 
@@ -16,7 +16,7 @@ def create_notebook(
 
 
 def bulk_create_notebook(
-    notebook_create: NotebookBulkCreate,
+    notebook_create: BulkNotebookCreate,
     project_id: UUID,
 ) -> Insert:
     data = [
