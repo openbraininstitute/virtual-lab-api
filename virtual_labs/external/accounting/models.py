@@ -83,12 +83,16 @@ class JobType(Enum):
     STORAGE = "storage"
 
 
+# TODO: Get these types from the accounting SDK module
 class JobSubtype(Enum):
     ML_LLM = "ml-llm"
     ML_RAG = "ml-rag"
     ML_RETRIEVAL = "ml-retrieval"
-    STORAGE = "storage"
+    SINGLE_CELL_BUILD = "single-cell-build"
     SINGLE_CELL_SIM = "single-cell-sim"
+    STORAGE = "storage"
+    SYNAPTOME_BUILD = "synaptome-build"
+    SYNAPTOME_SIM = "synaptome-sim"
 
 
 # TODO: Update according to the STORAGE report type
