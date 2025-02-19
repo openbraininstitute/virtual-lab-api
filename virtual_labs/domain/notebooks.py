@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
-from pydantic import BaseModel, TypeAdapter, UrlConstraints, field_validator
+from pydantic import BaseModel, TypeAdapter, UrlConstraints, conlist, field_validator
 from pydantic_core import Url
 
 
@@ -19,7 +19,7 @@ class NotebookCreate(BaseModel):
 
 
 class BulkNotebookCreate(BaseModel):
-    notebooks: list[NotebookCreate]
+    notebooks: conlist(NotebookCreate, max_length=100)  # type: ignore
 
 
 class Notebook(BaseModel):
