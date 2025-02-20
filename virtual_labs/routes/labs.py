@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends
+from typing import Tuple
+
+from fastapi import APIRouter, Depends, Response
 from pydantic import UUID4, EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -7,8 +9,13 @@ from virtual_labs.core.authorization import (
     verify_vlab_read,
     verify_vlab_write,
 )
-from virtual_labs.core.types import UserRoleEnum
+from virtual_labs.core.types import UserRoleEnum, VliAppResponse
 from virtual_labs.domain.common import PageParams, PaginatedResultsResponse
+from virtual_labs.domain.email import (
+    EmailVerificationPayload,
+    InitiateEmailVerificationPayload,
+    VerificationCodeEmailResponse,
+)
 from virtual_labs.domain.invite import AddUser
 from virtual_labs.domain.labs import (
     CreateLabOut,
@@ -23,9 +30,10 @@ from virtual_labs.domain.labs import (
     VirtualLabUsers,
 )
 from virtual_labs.infrastructure.db.config import default_session_factory
-from virtual_labs.infrastructure.kc.auth import verify_jwt
+from virtual_labs.infrastructure.kc.auth import a_verify_jwt, verify_jwt
 from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.shared.utils.auth import get_user_id_from_auth
+from virtual_labs.usecases import email_verification as email_verification_usecases
 from virtual_labs.usecases import labs as usecases
 from virtual_labs.usecases.labs.check_virtual_lab_name_exists import LabExists
 
@@ -123,6 +131,45 @@ async def create_virtual_lab(
 ) -> LabResponse[CreateLabOut]:
     result = await usecases.create_virtual_lab(session, lab, auth)
     return LabResponse[CreateLabOut](message="Newly created virtual lab", data=result)
+
+
+@router.post(
+    "/email/initiate-verification",
+    operation_id="initiate_email_verification",
+    summary="initiate email verification",
+    response_model=VliAppResponse[VerificationCodeEmailResponse],
+)
+async def initiate_email_verification(
+    payload: InitiateEmailVerificationPayload,
+    session: AsyncSession = Depends(default_session_factory),
+    auth: Tuple[AuthUser, str] = Depends(a_verify_jwt),
+) -> Response:
+    return await email_verification_usecases.initiate_email_verification(
+        session,
+        email=payload.email,
+        virtual_lab_name=payload.name,
+        auth=auth,
+    )
+
+
+@router.post(
+    "/email/verify-code",
+    operation_id="verify_code_email_verification",
+    summary="finish email verification",
+    response_model=VliAppResponse[VerificationCodeEmailResponse],
+)
+async def complete_email_verification(
+    payload: EmailVerificationPayload,
+    session: AsyncSession = Depends(default_session_factory),
+    auth: Tuple[AuthUser, str] = Depends(a_verify_jwt),
+) -> Response:
+    return await email_verification_usecases.verify_email_code(
+        session=session,
+        email=payload.email,
+        code=payload.code,
+        virtual_lab_name=payload.name,
+        auth=auth,
+    )
 
 
 @router.patch("/{virtual_lab_id}", response_model=LabResponse[VirtualLabOut])
