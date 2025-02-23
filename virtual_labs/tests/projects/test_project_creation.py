@@ -135,7 +135,12 @@ async def test_aggregate_views_created_on_project_creation(
     (response, headers, payload) = mock_create_project
 
     project_id = response.json()["data"]["project"]["id"]
+
+    print("ᦨ #  test_project_creation.py:139 #  project_id:", project_id)
+
     virtual_lab_id = response.json()["data"]["project"]["virtual_lab_id"]
+
+    print("ᦨ #  test_project_creation.py:143 #  virtual_lab_id:", virtual_lab_id)
 
     async def views_created() -> bool:
         async with httpx.AsyncClient() as client:
@@ -144,6 +149,19 @@ async def test_aggregate_views_created_on_project_creation(
                 headers=get_client_headers(),
             )
         data = nexus_views.json()
+
+        print("ᦨ #  test_project_creation.py:153 #  data:", data)
+
+        print(
+            "ᦨ #  test_project_creation.py:150 #  url",
+            f"{settings.NEXUS_DELTA_URI}/views/{virtual_lab_id}/{str(project_id)}",
+        )
+        print(
+            "ᦨ #  test_project_creation.py:151 #  get_client_headers:",
+            get_client_headers(),
+        )
+        print("ᦨ #  test_project_creation.py:153 #  data:", data.get("_results"))
+
         agg_view = [
             view
             for view in data.get("_results")
@@ -152,5 +170,5 @@ async def test_aggregate_views_created_on_project_creation(
         return len(agg_view) == 1
 
     # Nexus takes some time to return the created views that's why wait until is needed here
-    aggregate_view_created = await wait_until(views_created, 5, 0.25)
+    aggregate_view_created = await wait_until(views_created, 10, 0.25)
     assert aggregate_view_created is True

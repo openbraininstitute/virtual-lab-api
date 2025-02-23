@@ -9,7 +9,7 @@ from virtual_labs.infrastructure.email.email_utils import (
 )
 
 
-async def send_verification_code_email(details: VerificationCodeEmailDetails) -> None:
+async def send_verification_code_email(details: VerificationCodeEmailDetails) -> str:
     try:
         invite_html = generate_email_verification_html(details)
         message = MessageSchema(
@@ -37,6 +37,7 @@ async def send_verification_code_email(details: VerificationCodeEmailDetails) ->
         )
         fm = FastMail(email_config)
         await fm.send_message(message, template_name="email_verification_code.html")
+        return "email sent successfully"
     except Exception as error:
         logger.info("Error during sending verification code email")
         raise EmailError(

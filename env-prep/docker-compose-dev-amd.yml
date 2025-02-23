@@ -109,7 +109,7 @@ services:
       DELTA_PLUGINS: "/opt/docker/plugins/"
       DELTA_EXTERNAL_CONF: "/config/delta-postgres.conf"
       KAMON_ENABLED: "false"
-    image: bluebrain/nexus-delta:latest
+    image: bluebrain/nexus-delta:1.11.0
     entrypoint:
       - '/bin/bash'
       - '-c'

@@ -54,6 +54,22 @@ class EmailValidationQueryRepository:
         )
         return result.scalar_one_or_none()
 
+    async def get_verified_entry_by_definition_tuple(
+        self,
+        email: str,
+        user_id: UUID,
+        virtual_lab_name: str,
+    ) -> EmailVerificationCode | None:
+        result = await self.session.execute(
+            select(EmailVerificationCode).filter(
+                EmailVerificationCode.email == email,
+                EmailVerificationCode.user_id == user_id,
+                EmailVerificationCode.virtual_lab_name == virtual_lab_name,
+                EmailVerificationCode.is_verified == true(),
+            )
+        )
+        return result.scalar_one_or_none()
+
     async def get_latest_verification_code_entry(
         self,
         email: str,
