@@ -67,7 +67,7 @@ type-check:
 	poetry run mypy . --strict
 
 test:
-	poetry run pytest
+	poetry run pytest -s
 
 init-db:
 	poetry run alembic upgrade head

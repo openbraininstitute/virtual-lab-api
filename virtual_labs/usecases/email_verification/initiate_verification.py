@@ -19,6 +19,7 @@ from virtual_labs.domain.email import (
     MAX_ATTEMPTS,
     EmailVerificationCode,
     VerificationCodeEmailDetails,
+    VerificationCodeStatus,
 )
 from virtual_labs.infrastructure.email.verification_code_email import (
     send_verification_code_email,
@@ -45,8 +46,8 @@ async def initiate_email_verification(
 ) -> Response:
     """Start email verification process"""
     es = EmailValidationQueryRepository(session)
-
     esm = EmailValidationMutationRepository(session)
+
     user_id = UUID(auth[0].sub)
 
     try:
@@ -60,21 +61,20 @@ async def initiate_email_verification(
             if await get_virtual_lab_by_definition_tuple(
                 session,
                 user_id,
-                ref_email=email,
                 name=virtual_lab_name,
             ):
                 raise EmailVerificationException(
-                    "Email already registered",
+                    "Virtual lab already registered with this details",
                     data={
-                        "code_sent": False,
-                        "is_verified": True,
-                        "remaining_time": 0,
-                        "remaining_attempts": 0,
-                        "locked": False,
+                        "message": "Virtual lab already registered with this details",
+                        "status": VerificationCodeStatus.REGISTERED,
+                        "remaining_time": None,
+                        "remaining_attempts": None,
                     },
                 )
 
         now = datetime.utcnow()
+
         verification_code_entry = await es.get_latest_verification_code_entry(
             email=email,
             user_id=user_id,
@@ -105,12 +105,11 @@ async def initiate_email_verification(
                 raise EmailVerificationException(
                     f"Too many attempts. Try again in {remaining_time} minutes",
                     data={
-                        "code_sent": False,
-                        "is_verified": False,
+                        "message": f"Too many attempts. Try again in {remaining_time} minutes",
+                        "status": VerificationCodeStatus.LOCKED,
                         "remaining_time": remaining_time,
                         "remaining_attempts": MAX_ATTEMPTS
                         - verification_code_entry.generation_attempts,
-                        "locked": True,
                     },
                 )
             # update attempts and lock the account if the attempts exceed the limit
@@ -138,15 +137,15 @@ async def initiate_email_verification(
                 (verification_code_entry.expires_at - now).total_seconds() / 60
             )
 
-        await send_verification_code_email(
-            VerificationCodeEmailDetails(
-                recipient=email,
-                code=code,
-                virtual_lab_name=virtual_lab_name,
-                # expire at in mins
-                expire_at=f"{expire_at_minutes}",
-            )
+        email_details = VerificationCodeEmailDetails(
+            recipient=email,
+            code=code,
+            virtual_lab_name=virtual_lab_name,
+            expire_at=f"{expire_at_minutes}",
         )
+
+        await send_verification_code_email(details=email_details)
+
     except EmailVerificationException as e:
         raise VliError(
             error_code=VliErrorCode.ENTITY_ALREADY_EXISTS,
@@ -171,13 +170,11 @@ async def initiate_email_verification(
         )
     else:
         return VliResponse.new(
-            message="Verification email sent successfully",
+            message="Verification code email sent successfully",
             data={
-                "code_sent": True,
-                "is_verified": False,
-                "remaining_time": 0,
-                "remaining_attempts": MAX_ATTEMPTS
-                - verification_code_entry.generation_attempts,
-                "locked": False,
+                "message": "Verification code email sent successfully",
+                "status": VerificationCodeStatus.CODE_SENT,
+                "remaining_time": None,
+                "remaining_attempts": None,
             },
         )
