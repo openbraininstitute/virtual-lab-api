@@ -15,11 +15,13 @@ from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.domain.email import (
     LOCK_TIME_MINUTES,
     MAX_ATTEMPTS,
+    VerificationCodeStatus,
 )
 from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.repositories.email_verification import (
     EmailValidationQueryRepository,
 )
+from virtual_labs.repositories.labs import get_virtual_lab_by_definition_tuple
 
 
 async def verify_email_code(
@@ -31,10 +33,27 @@ async def verify_email_code(
     auth: Tuple[AuthUser, str],
 ) -> Response:
     es = EmailValidationQueryRepository(session)
+
     user_id = UUID(auth[0].sub)
 
     try:
         now = datetime.utcnow()
+
+        if await get_virtual_lab_by_definition_tuple(
+            session,
+            user_id,
+            name=virtual_lab_name,
+        ):
+            raise EmailVerificationException(
+                "Virtual lab already registered with this details",
+                data={
+                    "message": "Virtual lab already registered with this details",
+                    "status": VerificationCodeStatus.REGISTERED,
+                    "remaining_time": None,
+                    "remaining_attempts": None,
+                },
+            )
+
         verification_code_entry = await es.get_verification_code(
             email,
             user_id,
@@ -44,7 +63,10 @@ async def verify_email_code(
             raise EmailVerificationException(
                 "No active verification code found",
                 data={
-                    "expired": True,
+                    "message": "No active verification code found or code expired",
+                    "status": VerificationCodeStatus.EXPIRED,
+                    "remaining_time": None,
+                    "remaining_attempts": None,
                 },
             )
 
@@ -67,10 +89,10 @@ async def verify_email_code(
             raise EmailVerificationException(
                 f"Too many attempts. Try again in {remaining_time} minutes",
                 data={
-                    "is_verified": False,
+                    "message": f"Too many attempts. Try again in {remaining_time} minutes",
+                    "status": VerificationCodeStatus.LOCKED,
                     "remaining_time": remaining_time,
                     "remaining_attempts": 0,
-                    "locked": True,
                 },
             )
 
@@ -91,10 +113,10 @@ async def verify_email_code(
                 raise EmailVerificationException(
                     "Too many incorrect attempts. Code locked for 15 minutes",
                     data={
-                        "is_verified": False,
+                        "message": "Too many incorrect attempts. sending code locked for 15 minutes",
+                        "status": VerificationCodeStatus.LOCKED,
                         "remaining_time": remaining_time,
                         "remaining_attempts": 0,
-                        "locked": True,
                     },
                 )
 
@@ -108,10 +130,10 @@ async def verify_email_code(
                 raise EmailVerificationException(
                     f"Invalid code. {remaining_attempts} attempts remaining",
                     data={
-                        "is_verified": False,
-                        "remaining_attempts": 0,
-                        "remaining_time": 0,
-                        "locked": False,
+                        "message": f"Invalid code. {remaining_attempts} attempts remaining",
+                        "status": VerificationCodeStatus.LOCKED,
+                        "remaining_time": None,
+                        "remaining_attempts": remaining_attempts,
                     },
                 )
 
@@ -124,11 +146,11 @@ async def verify_email_code(
         return VliResponse.new(
             message="Email verified successfully",
             data={
-                "verified_at": now,
-                "is_verified": True,
-                "remaining_attempts": 0,
-                "remaining_time": 0,
-                "locked": False,
+                "message": "Email verified successfully",
+                "status": VerificationCodeStatus.VERIFIED,
+                "remaining_attempts": None,
+                "remaining_time": None,
+                "verified_at": verification_code_entry.verified_at,
             },
         )
     except EmailVerificationException as e:

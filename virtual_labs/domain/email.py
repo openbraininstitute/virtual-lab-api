@@ -1,4 +1,4 @@
-from datetime import datetime
+from enum import Enum
 from typing import Annotated
 
 from pydantic import BaseModel, EmailStr, StringConstraints
@@ -11,6 +11,14 @@ LOCK_TIME_MINUTES = 15
 EmailVerificationCode = Annotated[
     str, StringConstraints(min_length=6, max_length=6, pattern=r"^\d{6}$")
 ]
+
+
+class VerificationCodeStatus(Enum):
+    LOCKED = "locked"
+    REGISTERED = "registered"
+    CODE_SENT = "code_sent"
+    EXPIRED = "expired"
+    VERIFIED = "verified"
 
 
 class Email(BaseModel):
@@ -56,12 +64,10 @@ class VerificationCodeEmailDetails(BaseModel):
 
 
 class VerificationCodeEmailResponseData(BaseModel):
-    verified_at: datetime | None = None
-    is_verified: bool
-    remaining_attempts: int
-    remaining_time: int
-    locked: bool
-    code_sent: bool | None = None
+    message: str
+    status: VerificationCodeStatus
+    remaining_time: int | None
+    remaining_attempts: int | None
 
 
 class VerificationCodeEmailResponse(BaseModel):
