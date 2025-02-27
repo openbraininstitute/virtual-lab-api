@@ -4,8 +4,6 @@ from typing import Annotated
 from pydantic import BaseModel, EmailStr, StringConstraints
 
 CODE_LENGTH = 6
-MAX_ATTEMPTS = 3
-LOCK_TIME_MINUTES = 15
 
 
 EmailVerificationCode = Annotated[
@@ -15,6 +13,7 @@ EmailVerificationCode = Annotated[
 
 class VerificationCodeStatus(Enum):
     LOCKED = "locked"
+    NOT_MATCH = "not_match"
     REGISTERED = "registered"
     CODE_SENT = "code_sent"
     EXPIRED = "expired"
