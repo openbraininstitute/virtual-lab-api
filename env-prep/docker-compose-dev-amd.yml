@@ -2,6 +2,7 @@ volumes:
   keycloak_data: {}
   vlm_data: {}
   delta_data: {}
+  redis-data: {}
 
 networks:
   ls:
@@ -207,3 +208,16 @@ services:
       ls:
         # Set the container IP address in the 10.0.2.0/24 subnet
         ipv4_address: 10.0.2.20
+
+  redis:
+    image: bitnami/redis:7.0
+    environment:
+      - REDIS_PASSWORD=redis
+      - REDIS_DISABLE_COMMANDS=FLUSHDB,FLUSHALL
+      - REDIS_AOF_ENABLED=yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/bitnami/redis/data
+    networks:
+      - ls

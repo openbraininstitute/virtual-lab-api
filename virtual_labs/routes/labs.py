@@ -32,6 +32,11 @@ from virtual_labs.domain.labs import (
 from virtual_labs.infrastructure.db.config import default_session_factory
 from virtual_labs.infrastructure.kc.auth import a_verify_jwt, verify_jwt
 from virtual_labs.infrastructure.kc.models import AuthUser
+from virtual_labs.infrastructure.redis import RateLimiter, get_rate_limiter
+from virtual_labs.infrastructure.redis.email_rate_limit import (
+    rate_limit_initiate,
+    rate_limit_verify,
+)
 from virtual_labs.shared.utils.auth import get_user_id_from_auth
 from virtual_labs.usecases import email_verification as email_verification_usecases
 from virtual_labs.usecases import labs as usecases
@@ -142,10 +147,13 @@ async def create_virtual_lab(
 async def initiate_email_verification(
     payload: InitiateEmailVerificationPayload,
     session: AsyncSession = Depends(default_session_factory),
+    rl: RateLimiter = Depends(get_rate_limiter),
     auth: Tuple[AuthUser, str] = Depends(a_verify_jwt),
+    _: int | None = Depends(rate_limit_initiate),
 ) -> Response:
     return await email_verification_usecases.initiate_email_verification(
         session,
+        rl,
         email=payload.email,
         virtual_lab_name=payload.name,
         auth=auth,
@@ -161,10 +169,13 @@ async def initiate_email_verification(
 async def complete_email_verification(
     payload: EmailVerificationPayload,
     session: AsyncSession = Depends(default_session_factory),
+    rl: RateLimiter = Depends(get_rate_limiter),
     auth: Tuple[AuthUser, str] = Depends(a_verify_jwt),
+    _: int | None = Depends(rate_limit_verify),
 ) -> Response:
     return await email_verification_usecases.verify_email_code(
-        session=session,
+        session,
+        rl,
         email=payload.email,
         code=payload.code,
         virtual_lab_name=payload.name,
@@ -180,10 +191,10 @@ async def update_virtual_lab(
     session: AsyncSession = Depends(default_session_factory),
     auth: tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> LabResponse[VirtualLabOut]:
-    udpated_lab = await usecases.update_virtual_lab(
+    updated_lab = await usecases.update_virtual_lab(
         session, virtual_lab_id, lab=lab, user_id=get_user_id_from_auth(auth)
     )
-    return LabResponse[VirtualLabOut](message="Updated virtual lab", data=udpated_lab)
+    return LabResponse[VirtualLabOut](message="Updated virtual lab", data=updated_lab)
 
 
 @router.post(
