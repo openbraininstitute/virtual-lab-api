@@ -67,7 +67,7 @@ async def initiate_email_verification(
                     "Virtual lab already registered with this details",
                     data={
                         "message": "Virtual lab already registered with this details",
-                        "status": VerificationCodeStatus.REGISTERED,
+                        "status": VerificationCodeStatus.REGISTERED.value,
                         "remaining_time": None,
                         "remaining_attempts": None,
                     },
@@ -106,7 +106,7 @@ async def initiate_email_verification(
                     f"Too many attempts. Try again in {remaining_time} minutes",
                     data={
                         "message": f"Too many attempts. Try again in {remaining_time} minutes",
-                        "status": VerificationCodeStatus.LOCKED,
+                        "status": VerificationCodeStatus.LOCKED.value,
                         "remaining_time": remaining_time,
                         "remaining_attempts": MAX_ATTEMPTS
                         - verification_code_entry.generation_attempts,
@@ -173,7 +173,7 @@ async def initiate_email_verification(
             message="Verification code email sent successfully",
             data={
                 "message": "Verification code email sent successfully",
-                "status": VerificationCodeStatus.CODE_SENT,
+                "status": VerificationCodeStatus.CODE_SENT.value,
                 "remaining_time": None,
                 "remaining_attempts": None,
             },

@@ -48,7 +48,7 @@ async def verify_email_code(
                 "Virtual lab already registered with this details",
                 data={
                     "message": "Virtual lab already registered with this details",
-                    "status": VerificationCodeStatus.REGISTERED,
+                    "status": VerificationCodeStatus.REGISTERED.value,
                     "remaining_time": None,
                     "remaining_attempts": None,
                 },
@@ -64,7 +64,7 @@ async def verify_email_code(
                 "No active verification code found",
                 data={
                     "message": "No active verification code found or code expired",
-                    "status": VerificationCodeStatus.EXPIRED,
+                    "status": VerificationCodeStatus.EXPIRED.value,
                     "remaining_time": None,
                     "remaining_attempts": None,
                 },
@@ -90,7 +90,7 @@ async def verify_email_code(
                 f"Too many attempts. Try again in {remaining_time} minutes",
                 data={
                     "message": f"Too many attempts. Try again in {remaining_time} minutes",
-                    "status": VerificationCodeStatus.LOCKED,
+                    "status": VerificationCodeStatus.LOCKED.value,
                     "remaining_time": remaining_time,
                     "remaining_attempts": 0,
                 },
@@ -114,7 +114,7 @@ async def verify_email_code(
                     "Too many incorrect attempts. Code locked for 15 minutes",
                     data={
                         "message": "Too many incorrect attempts. sending code locked for 15 minutes",
-                        "status": VerificationCodeStatus.LOCKED,
+                        "status": VerificationCodeStatus.LOCKED.value,
                         "remaining_time": remaining_time,
                         "remaining_attempts": 0,
                     },
@@ -131,7 +131,7 @@ async def verify_email_code(
                     f"Invalid code. {remaining_attempts} attempts remaining",
                     data={
                         "message": f"Invalid code. {remaining_attempts} attempts remaining",
-                        "status": VerificationCodeStatus.LOCKED,
+                        "status": VerificationCodeStatus.LOCKED.value,
                         "remaining_time": None,
                         "remaining_attempts": remaining_attempts,
                     },
@@ -147,7 +147,7 @@ async def verify_email_code(
             message="Email verified successfully",
             data={
                 "message": "Email verified successfully",
-                "status": VerificationCodeStatus.VERIFIED,
+                "status": VerificationCodeStatus.VERIFIED.value,
                 "remaining_attempts": None,
                 "remaining_time": None,
                 "verified_at": verification_code_entry.verified_at,
