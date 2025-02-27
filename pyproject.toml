@@ -29,6 +29,7 @@ stripe = "^9.6.0"
 sentry-sdk = {extras = ["fastapi"], version = "^2.14.0"}
 requests = "^2.32.3"
 email-validator = "^2.2.0"
+redis = "^5.2.1"
 
 
 [tool.poetry.group.dev.dependencies]
