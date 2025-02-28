@@ -2,6 +2,7 @@ volumes:
   keycloak_data: {}
   vlm_data: {}
   delta_data: {}
+  redis-data: {}
 
 networks:
   ls:
@@ -206,3 +207,17 @@ services:
       ls:
         # Set the container IP address in the 10.0.2.0/24 subnet
         ipv4_address: 10.0.2.20
+
+  redis:
+    image: "redis:7.2.3"
+    command: redis-server /usr/local/etc/redis/redis.conf
+    volumes:
+      - ./init/redis.conf:/usr/local/etc/redis/redis.conf
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: [ "CMD", "redis-cli","ping" ]
+      interval: 10s
+      retries: 5
+      start_period: 5s
+      timeout: 10s

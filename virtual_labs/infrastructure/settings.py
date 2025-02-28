@@ -76,6 +76,13 @@ class Settings(BaseSettings):
     SENTRY_TRACES_SAMPLE_RATE: float = 1.0
     SENTRY_PROFILES_SAMPLE_RATE: float = 1.0
 
+    REDIS_HOST: str = "localhost"
+    REDIS_PORT: int = 6379
+
+    MAX_INIT_ATTEMPTS: int = 3
+    MAX_VERIFY_ATTEMPTS: int = 5
+    LOCK_TIME_SECONDS: int = 3600
+
     @field_validator("DATABASE_URI", mode="before")
     @classmethod
     def build_db_connection(cls, v: Optional[str], values: ValidationInfo) -> Any:

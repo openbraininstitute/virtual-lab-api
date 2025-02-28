@@ -43,7 +43,7 @@ kill-amd:
 	docker compose -f ./env-prep/docker-compose-dev-amd.yml -p vlm-project down --remove-orphans --volumes
 
 kill: 
-	docker compose -f ./env-prep/docker-compose-dev.yml -p vlm-project down --remove-orphans --volumes
+	docker compose -f ./env-prep/docker-compose-dev-amd.yml -p vlm-project down --remove-orphans --volumes
 
 build:
 	docker build -t $(SERVICE_NAME) . --platform=linux/amd64
