@@ -111,7 +111,40 @@ Tests can be run using the following command:
 make test
 ```
 
-### Test Billing endpoints
+## Testing Subscription Flow
+
+A comprehensive test script is available to test the complete subscription and payment flow:
+
+1. Creating a virtual lab (which creates a Stripe customer)
+2. Testing topup balance functionality
+3. Adding multiple payment methods
+4. Creating a subscription (selecting a plan, paying for it)
+5. Paying for subscription periods
+6. Testing subscription auto-renewal
+7. Canceling a subscription
+
+To run the subscription test:
+
+1. Set up your environment:
+   ```bash
+   # Copy the example .env file
+   cp scripts/.env.subscription_test.example scripts/.env
+   
+   # Get an authentication token
+   python scripts/get_test_token.py
+   
+   # Edit the .env file to add your Stripe test keys
+   nano scripts/.env
+   ```
+
+2. Run the test script:
+   ```bash
+   python scripts/test_subscription_flow.py
+   ```
+
+For more details, see the [subscription test documentation](scripts/README_subscription_test.md).
+
+## Test Billing endpoints
 
 The following section explains how to test attaching a payment method to a customer using Stripe's Setup Intents. This operation primarily involves frontend interactions to verify and confirm the Setup Intent. Therefore, it's crucial to conduct this part of the API testing manually.
 

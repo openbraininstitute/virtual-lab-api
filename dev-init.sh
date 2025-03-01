@@ -7,23 +7,19 @@ KC_SERVER_URI="http://localhost:9090"
 KC_REALM_NAME="obp-realm"
 CLIENT_ID="obpapp"
 CLIENT_SECRET="obp-secret"
+COMPOSE_FILE="docker-compose.yml"
 
-if [ "$1" == "amd" ]; then
-    COMPOSE_FILE="env-prep/docker-compose-dev-amd.yml"
-else
-    COMPOSE_FILE="env-prep/docker-compose-dev.yml"
-fi
 
 # Start containers
 chmod +x ./env-prep/init/init-aws.sh
 ls -l ./env-prep/init/init-aws.sh
-docker compose -f "$COMPOSE_FILE" -p vlm-project up --wait
+docker compose --env-file ./.env.local -f "$COMPOSE_FILE" -p vlm-project up --wait
 
 # Check that delta ready to accept connections
 echo "Checking that delta is ready to accept connections..."
 if ! curl --retry 30 --fail --retry-all-errors --retry-delay 2 -v "http://localhost:8080/v1/version"; then 
   # Show delta logs if curl failed
-  docker compose -f env-prep/docker-compose-dev.yml -p vlm-project logs delta
+  docker compose -f "$COMPOSE_FILE" -p vlm-project logs delta
   exit 1
 fi 
 echo "Delta is ready! 🚀"

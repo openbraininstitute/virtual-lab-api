@@ -79,6 +79,7 @@ async def init_vl_budget_topup(
                 ),
                 "metadata": {
                     "vlab": str(virtual_lab_id),
+                    "topup_balance": "true",
                     "payment_method_id": str(payment_method_id),
                 },
             }

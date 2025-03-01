@@ -49,3 +49,16 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.pytest.ini_options]
 norecursedirs = ["tests/labs"]
+
+[tool.mypy]
+exclude = "scripts/*"
+
+[tool.ruff]
+# Exclude scripts directory from linting
+exclude = [
+    ".git",
+    ".ruff_cache",
+    ".venv",
+    "__pycache__",
+    "scripts",
+]

@@ -1,5 +1,7 @@
 import uuid
 from datetime import datetime
+from enum import Enum
+from typing import Any, Dict
 from uuid import uuid4
 
 from sqlalchemy import (
@@ -52,7 +54,9 @@ class VirtualLab(Base):
     member_group_id = Column(String, nullable=False, unique=True)
 
     nexus_organization_id = Column(String, nullable=False, unique=True)
-    stripe_customer_id = Column(String, nullable=False, unique=True)
+    stripe_customer_id: Mapped[str] = mapped_column(
+        String(255), nullable=False, index=True
+    )
 
     name = Column(String(250), index=True)
     description = Column(Text)
@@ -308,4 +312,158 @@ class EmailVerificationCode(Base):
             "user_id",
         ),
         Index("ix_verification_codes_created_at", "created_at"),
+    )
+
+
+class SubscriptionStatus(str, Enum):
+    """
+    Enum representing Stripe subscription statuses.
+    ref: https://stripe.com/docs/api/subscriptions/object#subscription_object-status
+    """
+
+    ACTIVE = "active"  # the subscription is in good standing and the customer is being charged
+    PAST_DUE = "past_due"  # payment failed but the subscription is still active
+    UNPAID = "unpaid"  # payment failed and the subscription is no longer active
+    CANCELED = "canceled"  # the subscription has been canceled
+    INCOMPLETE = "incomplete"  # the subscription has not been fully created yet
+    INCOMPLETE_EXPIRED = "incomplete_expired"  # the initial payment failed and the subscription was not created
+    PAUSED = "paused"  # the subscription is paused
+
+
+class PaymentStatus(str, Enum):
+    """
+    Enum representing Stripe payment statuses.
+    """
+
+    SUCCEEDED = "succeeded"
+    PENDING = "pending"
+    FAILED = "failed"
+    REFUNDED = "refunded"
+    PARTIALLY_REFUNDED = "partially_refunded"
+
+
+class SubscriptionPayment(Base):
+    """
+    tracks individual payments for a subscription.
+    each subscription will have multiple payments over time.
+    it also track individual payments for a subscription.
+    """
+
+    __tablename__ = "subscription_payment"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True, default=uuid4, server_default=func.gen_random_uuid()
+    )
+
+    subscription_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("subscription.id"), index=True
+    )
+
+    stripe_invoice_id: Mapped[str | None] = mapped_column(
+        String(255), nullable=True, index=True
+    )
+    stripe_payment_intent_id: Mapped[str] = mapped_column(
+        String(255),
+    )
+    stripe_charge_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    # Card details
+    card_brand: Mapped[str] = mapped_column(String(50), nullable=False)
+    card_last4: Mapped[str] = mapped_column(String(4), nullable=False)
+    card_exp_month: Mapped[int] = mapped_column(Integer, nullable=False)
+    card_exp_year: Mapped[int] = mapped_column(Integer, nullable=False)
+    cardholder_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    cardholder_email: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    amount_paid: Mapped[int] = mapped_column(Integer, nullable=False)  # Amount in cents
+    currency: Mapped[str] = mapped_column(String(3), nullable=False, default="usd")
+    status: Mapped[PaymentStatus] = mapped_column(
+        SAEnum(PaymentStatus), nullable=False, index=True
+    )
+
+    period_start: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    period_end: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+    payment_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+    invoice_pdf: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    receipt_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    stripe_metadata: Mapped[Dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    standalone: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    subscription = relationship("Subscription", back_populates="payments")
+
+
+class Subscription(Base):
+    """
+    tracks a subscription for a virtual lab.
+    each virtual lab can have only one subscription at a time.
+    """
+
+    __tablename__ = "subscription"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True, default=uuid4, server_default=func.gen_random_uuid()
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, index=True
+    )
+    virtual_lab_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("virtual_lab.id"), nullable=False, index=True
+    )
+
+    stripe_subscription_id: Mapped[str] = mapped_column(
+        String(255), nullable=False, unique=True, index=True
+    )
+    stripe_price_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    customer_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    current_period_start: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    current_period_end: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    status: Mapped[SubscriptionStatus] = mapped_column(
+        SAEnum(SubscriptionStatus), nullable=False, index=True
+    )
+
+    cancel_at_period_end: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False
+    )
+    canceled_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    billing_cycle_anchor: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True
+    )
+    default_payment_method: Mapped[str | None] = mapped_column(
+        String(255), nullable=True
+    )
+    latest_invoice: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    auto_renew: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    amount: Mapped[int] = mapped_column(Integer, nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False, default="usd")
+    interval: Mapped[str] = mapped_column(String(50), nullable=False)  # 'month', 'year'
+
+    stripe_metadata: Mapped[Dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    # Relationships
+    virtual_lab = relationship("VirtualLab")
+    payments = relationship("SubscriptionPayment", back_populates="subscription")
+
+    __table_args__ = (
+        Index("ix_subscription_status_period_end", "status", "current_period_end"),
     )

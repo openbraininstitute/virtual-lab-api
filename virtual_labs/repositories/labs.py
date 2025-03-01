@@ -207,6 +207,9 @@ async def topup_virtual_lab(
     stripe_event_id: str,
 ) -> None:
     lab = await db.get(VirtualLab, lab_id)
+
+    print("ᦨ #  labs.py:239 #  lab:", lab)
+
     assert lab
     db.add(
         VirtualLabTopup(

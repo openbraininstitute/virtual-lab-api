@@ -32,6 +32,7 @@ from virtual_labs.routes.labs import router as virtual_lab_router
 from virtual_labs.routes.notebooks import router as notebook_router
 from virtual_labs.routes.payments import router as payments_router
 from virtual_labs.routes.projects import router as project_router
+from virtual_labs.routes.subscription import router as subscription_router
 
 _redis_client: Optional[Redis] = None
 
@@ -157,5 +158,6 @@ base_router.include_router(payments_router)
 base_router.include_router(bookmarks_router)
 base_router.include_router(accounting_router)
 base_router.include_router(notebook_router)
+base_router.include_router(subscription_router)
 
 app.include_router(base_router)
