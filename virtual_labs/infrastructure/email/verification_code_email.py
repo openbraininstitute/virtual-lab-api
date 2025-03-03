@@ -13,7 +13,7 @@ async def send_verification_code_email(details: VerificationCodeEmailDetails) ->
     try:
         invite_html = generate_email_verification_html(details)
         message = MessageSchema(
-            subject="Your Verification Code",
+            subject=f"Action Required: Verify your email for {details.virtual_lab_name}",
             recipients=[details.recipient],
             body=invite_html,
             subtype=MessageType.html,
@@ -22,7 +22,7 @@ async def send_verification_code_email(details: VerificationCodeEmailDetails) ->
                     "file": "virtual_labs/infrastructure/email/assets/logo.png",
                     "headers": {
                         "Content-ID": "logo",
-                        "Content-Disposition": 'inline; filename="logo.png"',  # For inline images only
+                        "Content-Disposition": 'inline; filename="logo.png"',
                     },
                     "mime_type": "image",
                     "mime_subtype": "png",

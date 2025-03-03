@@ -35,8 +35,8 @@ class EmailValidationQueryRepository:
 
     async def get_verification_code(
         self,
-        email: str,
         user_id: UUID,
+        email: str,
         virtual_lab_name: str,
     ) -> EmailVerificationCode | None:
         now = datetime.utcnow()
@@ -74,7 +74,6 @@ class EmailValidationQueryRepository:
         self,
         email: str,
         user_id: UUID,
-        virtual_lab_name: str,
     ) -> EmailVerificationCode | None:
         """Get the most recent lock time for unverified tokens"""
 
@@ -83,7 +82,6 @@ class EmailValidationQueryRepository:
             .filter(
                 EmailVerificationCode.email == email,
                 EmailVerificationCode.user_id == user_id,
-                EmailVerificationCode.virtual_lab_name == virtual_lab_name,
                 EmailVerificationCode.is_verified == false(),
                 EmailVerificationCode.expires_at >= datetime.utcnow(),
             )
@@ -103,8 +101,8 @@ class EmailValidationMutationRepository:
 
     async def generate_verification_token(
         self,
-        email: str,
         user_id: UUID,
+        email: str,
         virtual_lab_name: str,
         code: str,
         code_expiry: int = 1,

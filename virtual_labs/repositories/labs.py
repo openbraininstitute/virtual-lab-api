@@ -1,4 +1,4 @@
-from pydantic import UUID4
+from pydantic import UUID4, EmailStr
 from sqlalchemy import func, select, update
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -73,12 +73,13 @@ async def get_undeleted_virtual_lab(db: AsyncSession, lab_id: UUID4) -> VirtualL
 
 
 async def get_virtual_lab_by_definition_tuple(
-    db: AsyncSession, owner_id: UUID4, name: str
+    db: AsyncSession, owner_id: UUID4, name: str, email: EmailStr
 ) -> VirtualLab | None:
     """Returns a non-deleted virtual lab matching the owner_id, and name."""
     result = await db.execute(
         select(VirtualLab).filter(
             VirtualLab.owner_id == owner_id,
+            VirtualLab.reference_email == email,
             VirtualLab.name == name,
             ~VirtualLab.deleted,
         )

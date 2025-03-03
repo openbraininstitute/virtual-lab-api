@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
 from http import HTTPStatus
-from typing import Any, Generator
+from typing import Any, Generator, Optional
 
 import sentry_sdk
 from fastapi import FastAPI, Request
@@ -10,6 +10,7 @@ from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
 from fastapi.routing import APIRouter
 from loguru import logger
+from redis.asyncio import Redis
 from sentry_sdk.integrations.asgi import SentryAsgiMiddleware
 from starlette.middleware.cors import CORSMiddleware
 
@@ -20,6 +21,7 @@ from virtual_labs.core.exceptions.api_error import (
 )
 from virtual_labs.core.schemas import api
 from virtual_labs.infrastructure.db.config import session_pool
+from virtual_labs.infrastructure.redis import get_redis
 from virtual_labs.infrastructure.settings import settings
 from virtual_labs.routes.accounting import router as accounting_router
 from virtual_labs.routes.billing import router as billing_router
@@ -32,12 +34,18 @@ from virtual_labs.routes.payments import router as payments_router
 from virtual_labs.routes.plans import router as plans_router
 from virtual_labs.routes.projects import router as project_router
 
+_redis_client: Optional[Redis] = None
+
 
 @asynccontextmanager  # type: ignore
 async def lifespan(app: FastAPI) -> Generator[None, Any, None]:  # type: ignore
+    global _redis_client
+    _redis_client = await get_redis()
     yield
     if session_pool._engine is not None:
         await session_pool.close()
+    if _redis_client is not None:
+        await _redis_client.close()
 
 
 sentry_sdk.init(

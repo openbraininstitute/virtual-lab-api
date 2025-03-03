@@ -1,5 +1,5 @@
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime
 from http import HTTPStatus as status
 from typing import Tuple
 from uuid import UUID
@@ -15,8 +15,6 @@ from virtual_labs.core.exceptions.email_verification import EmailVerificationExc
 from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.domain.email import (
     CODE_LENGTH,
-    LOCK_TIME_MINUTES,
-    MAX_ATTEMPTS,
     EmailVerificationCode,
     VerificationCodeEmailDetails,
     VerificationCodeStatus,
@@ -25,11 +23,12 @@ from virtual_labs.infrastructure.email.verification_code_email import (
     send_verification_code_email,
 )
 from virtual_labs.infrastructure.kc.models import AuthUser
+from virtual_labs.infrastructure.redis import RateLimiter
+from virtual_labs.infrastructure.settings import settings
 from virtual_labs.repositories.email_verification import (
     EmailValidationMutationRepository,
     EmailValidationQueryRepository,
 )
-from virtual_labs.repositories.labs import get_virtual_lab_by_definition_tuple
 
 
 def _generate_verification_code() -> EmailVerificationCode:
@@ -39,6 +38,7 @@ def _generate_verification_code() -> EmailVerificationCode:
 
 async def initiate_email_verification(
     session: AsyncSession,
+    rl: RateLimiter,
     *,
     email: EmailStr,
     virtual_lab_name: str,
@@ -49,81 +49,17 @@ async def initiate_email_verification(
     esm = EmailValidationMutationRepository(session)
 
     user_id = UUID(auth[0].sub)
+    rd_key = rl.build_key("initiate", str(user_id), email)
 
     try:
-        # Check if the email (user, virtual-lab) is already verified
-        # the combination of email, user_id, and virtual_lab_name should be unique
-        if await es.check_email_verified(
-            email=email,
-            user_id=user_id,
-            virtual_lab_name=virtual_lab_name,
-        ):
-            if await get_virtual_lab_by_definition_tuple(
-                session,
-                user_id,
-                name=virtual_lab_name,
-            ):
-                raise EmailVerificationException(
-                    "Virtual lab already registered with this details",
-                    data={
-                        "message": "Virtual lab already registered with this details",
-                        "status": VerificationCodeStatus.REGISTERED.value,
-                        "remaining_time": None,
-                        "remaining_attempts": None,
-                    },
-                )
-
-        now = datetime.utcnow()
-
         verification_code_entry = await es.get_latest_verification_code_entry(
             email=email,
             user_id=user_id,
-            virtual_lab_name=virtual_lab_name,
         )
 
-        # Reset lock if lock time has passed
-        if (
-            verification_code_entry
-            and verification_code_entry.locked_until
-            and now > verification_code_entry.locked_until
-        ):
-            verification_code_entry.locked_until = None
-            verification_code_entry.generation_attempts = 0
-            await session.commit()
-            await session.refresh(verification_code_entry)
-
-        if verification_code_entry:
-            # Check if the account is locked due to too many failed attempts
-            # and the lock time has not passed yet, return the remaining time
-            if (
-                verification_code_entry.locked_until
-                and verification_code_entry.locked_until > now
-            ):
-                remaining_time = (
-                    verification_code_entry.locked_until - now
-                ).seconds // 60
-                raise EmailVerificationException(
-                    f"Too many attempts. Try again in {remaining_time} minutes",
-                    data={
-                        "message": f"Too many attempts. Try again in {remaining_time} minutes",
-                        "status": VerificationCodeStatus.LOCKED.value,
-                        "remaining_time": remaining_time,
-                        "remaining_attempts": MAX_ATTEMPTS
-                        - verification_code_entry.generation_attempts,
-                    },
-                )
-            # update attempts and lock the account if the attempts exceed the limit
-            verification_code_entry.generation_attempts += 1
-            if verification_code_entry.generation_attempts >= 3:
-                verification_code_entry.locked_until = datetime.utcnow() + timedelta(
-                    minutes=LOCK_TIME_MINUTES
-                )
-
-            await session.commit()
-            await session.refresh(verification_code_entry)
-
         # Generate a new verification code if the previous one has expired
-        if verification_code_entry and verification_code_entry.expires_at >= now:
+        now = datetime.utcnow()
+        if verification_code_entry:
             code = verification_code_entry.code
             expire_at_minutes = int(
                 (verification_code_entry.expires_at - now).total_seconds() / 60
@@ -131,7 +67,7 @@ async def initiate_email_verification(
         else:
             code = _generate_verification_code()
             verification_code_entry = await esm.generate_verification_token(
-                email, user_id, virtual_lab_name, code, 1
+                user_id, email, virtual_lab_name, code, 1
             )
             expire_at_minutes = int(
                 (verification_code_entry.expires_at - now).total_seconds() / 60
@@ -145,7 +81,18 @@ async def initiate_email_verification(
         )
 
         await send_verification_code_email(details=email_details)
+        attempts = await rl.get_count(rd_key)
+        remaining_attempts = settings.MAX_INIT_ATTEMPTS - (attempts or 0)
 
+        return VliResponse.new(
+            message="Verification code email sent successfully",
+            data={
+                "message": "Verification code email sent successfully",
+                "status": VerificationCodeStatus.CODE_SENT.value,
+                "remaining_time": None,
+                "remaining_attempts": remaining_attempts,
+            },
+        )
     except EmailVerificationException as e:
         raise VliError(
             error_code=VliErrorCode.ENTITY_ALREADY_EXISTS,
@@ -167,14 +114,4 @@ async def initiate_email_verification(
             error_code=VliErrorCode.SERVER_ERROR,
             http_status_code=status.INTERNAL_SERVER_ERROR,
             message="Error during email verification initiation",
-        )
-    else:
-        return VliResponse.new(
-            message="Verification code email sent successfully",
-            data={
-                "message": "Verification code email sent successfully",
-                "status": VerificationCodeStatus.CODE_SENT.value,
-                "remaining_time": None,
-                "remaining_attempts": None,
-            },
         )
