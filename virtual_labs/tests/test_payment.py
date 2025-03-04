@@ -2,7 +2,6 @@ import json
 import time
 from typing import Any, AsyncGenerator
 
-import pytest
 import pytest_asyncio
 import stripe
 from httpx import AsyncClient, Response
@@ -10,8 +9,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.infrastructure.db.config import session_pool
 from virtual_labs.infrastructure.settings import settings
-from virtual_labs.repositories.labs import get_virtual_lab_async
-from virtual_labs.tests.utils import get_headers
 
 AMOUNT = 1999
 BUDGET = 19.99
@@ -102,23 +99,3 @@ async def mock_payment_event(
 async def session() -> AsyncGenerator[AsyncSession, None]:
     async with session_pool.session() as session:
         yield session
-
-
-@pytest.mark.asyncio
-async def test_payment(
-    session: AsyncSession,
-    async_test_client: AsyncClient,
-    mock_payment_event: tuple[dict[str, Any], Response, AsyncClient, dict[str, str]],
-) -> None:
-    client = async_test_client
-    body, response, client, headers = mock_payment_event
-    assert response.status_code == 204, "Payment event was not processed!"
-    lab_id = body["data"]["object"]["metadata"]["vlab"]
-
-    vlab = await get_virtual_lab_async(session, lab_id)
-    assert vlab.budget_amount == AMOUNT, "Virtual lab DB budget amount is wrong!"
-
-    lab_response = await client.get(f"/virtual-labs/{lab_id}", headers=get_headers())
-    assert (
-        lab_response.json()["data"]["virtual_lab"]["budget"] == BUDGET
-    ), "Virtual lab DTO budget amount is wrong!"

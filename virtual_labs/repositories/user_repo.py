@@ -86,6 +86,10 @@ class UserQueryRepository:
     def get_all_users_count(self) -> int:
         return len(self.Kc.get_users())
 
+    async def get_group_user_count(self, group_id: str) -> int:
+        members = await self.Kc.a_get_group_members(group_id=group_id)
+        return len(members)
+
 
 class UserMutationRepository:
     Kc: KeycloakAdmin

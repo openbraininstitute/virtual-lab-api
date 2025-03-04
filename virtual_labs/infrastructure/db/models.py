@@ -72,9 +72,6 @@ class VirtualLab(Base):
     projects = relationship("Project", back_populates="virtual_lab")
     invites = relationship("VirtualLabInvite", back_populates="virtual_lab")
     payment_methods = relationship("PaymentMethod", back_populates="virtual_lab")
-    budget_amount = Column(Integer, nullable=False, default=0)
-    plan_id = Column(Integer, ForeignKey("plan.id"))
-    plan = relationship("Plan", back_populates="virtual_labs")
 
     # Virtual lab name should be unique among non-deleted labs
     __table_args__ = (
@@ -147,6 +144,7 @@ class ProjectStar(Base):
     project = relationship("Project", back_populates="project_stars")
 
 
+# TODO: Remove this table in subscription migration
 class Plan(Base):
     __tablename__ = "plan"
 
@@ -154,7 +152,6 @@ class Plan(Base):
     name = Column(String(50), nullable=False, unique=True, index=True)
     price = Column(Float, nullable=False)
     features = Column(JSON, nullable=False)
-    virtual_labs = relationship("VirtualLab", back_populates="plan")
 
 
 class ProjectInvite(Base):

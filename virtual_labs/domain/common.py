@@ -1,7 +1,9 @@
-from typing import Generic, TypeVar
+from typing import Generic, List, TypeVar
 
 from pydantic import BaseModel, Field
 from typing_extensions import Annotated
+
+from virtual_labs.domain.labs import VirtualLabWithInviteDetails
 
 
 class PageParams(BaseModel):
@@ -10,6 +12,7 @@ class PageParams(BaseModel):
 
 
 T = TypeVar("T")
+K = TypeVar("K")
 
 
 class PaginatedResultsResponse(BaseModel, Generic[T]):
@@ -17,3 +20,10 @@ class PaginatedResultsResponse(BaseModel, Generic[T]):
     page: int
     page_size: int
     results: list[T]
+
+
+class LabListWithPending(BaseModel, Generic[T]):
+    pending_labs: List[VirtualLabWithInviteDetails]
+    virtual_lab: T | None
+    members_count: int | None
+    projects_count: int | None

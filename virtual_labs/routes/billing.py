@@ -18,7 +18,6 @@ from virtual_labs.domain.payment_method import (
     PaymentMethodsOut,
     SetupIntentOut,
     StripePaymentOut,
-    VlabBalanceOut,
 )
 from virtual_labs.infrastructure.db.config import default_session_factory
 from virtual_labs.infrastructure.kc.auth import verify_jwt
@@ -186,29 +185,4 @@ async def init_vl_budget_topup(
         payment_method_id=payment_method_id,
         credit=credit,
         auth=auth,
-    )
-
-
-@router.get(
-    "/{virtual_lab_id}/billing/balance",
-    operation_id="retrieve_virtual_lab_balance",
-    summary="""
-    retrieve current balance (budget, total_spent) for a virtual lab
-    """,
-    description=dedent(
-        """
-    **The total spent is dummy value for the moment (waiting for the dedicated service to be ready)**
-    """
-    ),
-    response_model=VliAppResponse[VlabBalanceOut],
-)
-@verify_vlab_read
-async def retrieve_virtual_lab_balance(
-    virtual_lab_id: UUID4,
-    session: AsyncSession = Depends(default_session_factory),
-    auth: Tuple[AuthUser, str] = Depends(verify_jwt),
-) -> Response:
-    return await billing_cases.retrieve_virtual_lab_balance(
-        session,
-        virtual_lab_id=virtual_lab_id,
     )

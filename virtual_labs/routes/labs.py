@@ -10,7 +10,7 @@ from virtual_labs.core.authorization import (
     verify_vlab_write,
 )
 from virtual_labs.core.types import UserRoleEnum, VliAppResponse
-from virtual_labs.domain.common import PageParams, PaginatedResultsResponse
+from virtual_labs.domain.common import LabListWithPending
 from virtual_labs.domain.email import (
     EmailVerificationPayload,
     InitiateEmailVerificationPayload,
@@ -42,24 +42,21 @@ from virtual_labs.usecases import email_verification as email_verification_useca
 from virtual_labs.usecases import labs as usecases
 from virtual_labs.usecases.labs.check_virtual_lab_name_exists import LabExists
 
-PaginatedLabs = LabResponse[PaginatedResultsResponse[VirtualLabDetails]]
+PaginatedLabs = LabResponse[LabListWithPending[VirtualLabDetails]]
 router = APIRouter(prefix="/virtual-labs", tags=["Virtual Labs Endpoints"])
 
 
-@router.get("", response_model=PaginatedLabs)
+@router.get("", response_model=LabResponse[LabListWithPending[VirtualLabDetails]])
 @verify_user_authenticated
 async def get_paginated_virtual_labs_for_user(
-    page: int = 1,
-    size: int = 50,
     db: AsyncSession = Depends(default_session_factory),
-    auth: tuple[AuthUser, str] = Depends(verify_jwt),
-) -> PaginatedLabs:
+    auth: tuple[AuthUser, str] = Depends(a_verify_jwt),
+) -> LabResponse[LabListWithPending[VirtualLabDetails | None]]:
     return LabResponse(
-        message="Paginated virtual labs for user",
-        data=await usecases.paginated_labs_for_user(
+        message="List of user virtual lab and pending labs from invites",
+        data=await usecases.list_user_virtual_labs(
             db,
-            page_params=PageParams(page=page, size=size),
-            user_id=get_user_id_from_auth(auth),
+            auth=auth,
         ),
     )
 

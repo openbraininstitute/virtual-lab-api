@@ -20,7 +20,6 @@ from .search_projects_by_name import search_projects_by_name_use_case
 from .search_projects_per_lab_by_name import (
     search_projects_per_virtual_lab_by_name_use_case,
 )
-from .update_project_budget import update_project_budget_use_case
 from .update_project_data import update_project_data
 from .update_star_project_status import update_star_project_status_use_case
 from .update_user_role_in_project import update_user_role_in_project

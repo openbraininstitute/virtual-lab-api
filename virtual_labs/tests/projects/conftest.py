@@ -6,8 +6,7 @@ from httpx import AsyncClient, Response
 from pytest import FixtureRequest
 from sqlalchemy import update
 
-from virtual_labs.infrastructure.db.models import Project, VirtualLab
-from virtual_labs.shared.utils.billing import amount_to_float
+from virtual_labs.infrastructure.db.models import Project
 from virtual_labs.tests.utils import (
     cleanup_resources,
     create_mock_lab,
@@ -54,22 +53,10 @@ async def mock_create_project(
 async def mock_create_projects(
     async_test_client: AsyncClient,
     mock_lab_create: tuple[Response, dict[str, str]],
-) -> AsyncGenerator[tuple[UUID, float, list[UUID], dict[str, str]], None]:
+) -> AsyncGenerator[tuple[UUID, list[UUID], dict[str, str]], None]:
     client = async_test_client
     vl_response, headers = mock_lab_create
     virtual_lab_id = vl_response.json()["data"]["virtual_lab"]["id"]
-
-    # mock the budget for virtual lab (instead using the stripe webhook)
-    async with session_context_factory() as session:
-        virtual_lab_budget = (
-            await session.execute(
-                statement=update(VirtualLab)
-                .where(VirtualLab.id == UUID(virtual_lab_id))
-                .values(budget_amount=VL_BUDGET_AMOUNT)
-                .returning(VirtualLab.budget_amount)
-            )
-        ).scalar_one()
-        await session.commit()
 
     projects: list[UUID] = []
 
@@ -97,7 +84,6 @@ async def mock_create_projects(
 
     yield (
         cast(UUID, virtual_lab_id),
-        amount_to_float(virtual_lab_budget),
         projects,
         headers,
     )

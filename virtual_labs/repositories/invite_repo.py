@@ -1,12 +1,17 @@
-from typing import Any, Dict
+from typing import Any, Dict, List, Tuple
+from uuid import UUID
 
 from pydantic import UUID4, EmailStr
-from sqlalchemy import and_, func, or_, select, update
+from sqlalchemy import and_, false, func, or_, select, update
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.types import UserRoleEnum
-from virtual_labs.infrastructure.db.models import ProjectInvite, VirtualLabInvite
+from virtual_labs.infrastructure.db.models import (
+    ProjectInvite,
+    VirtualLab,
+    VirtualLabInvite,
+)
 
 
 class InviteQueryRepository:
@@ -73,6 +78,22 @@ class InviteQueryRepository:
                 )
             )
         ).scalar()
+
+    async def get_user_invited_virtual_labs_by_email(
+        self,
+        email: EmailStr,
+    ) -> List[Tuple[VirtualLab, UUID]]:
+        stmt = (
+            select(VirtualLab, VirtualLabInvite.id.label("invite_id"))
+            .join(VirtualLabInvite, VirtualLabInvite.virtual_lab_id == VirtualLab.id)
+            .where(
+                (VirtualLabInvite.user_email == email)
+                & (VirtualLab.deleted == false())
+                & (VirtualLabInvite.accepted == false())
+            )
+        )
+        result = await self.session.execute(stmt)
+        return [tuple(row) for row in result.all()]
 
 
 class InviteMutationRepository:
