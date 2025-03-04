@@ -96,7 +96,6 @@ class Project(Base):
     name = Column(String(250), index=True)
     description = Column(Text)
     deleted = Column(Boolean, default=False)
-    budget_amount = Column(Integer, nullable=False, default=0)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=func.now()

@@ -17,7 +17,6 @@ async def mock_lab_create(
         "name": f"Test Lab {uuid4()}",
         "description": "Test",
         "reference_email": "user@test.org",
-        "plan_id": 1,
         "entity": "EPFL, Switzerland",
     }
     headers = get_headers()
@@ -41,7 +40,6 @@ async def test_update_lab(
 
     update_body = {
         "name": "New Name",
-        "plan_id": 2,
         "entity": "Max Planck",
     }
     response = await client.patch(
@@ -50,6 +48,4 @@ async def test_update_lab(
     assert response.status_code == 200
     data = response.json()["data"]["virtual_lab"]
     assert data["name"] == update_body["name"]
-    assert data["plan_id"] == update_body["plan_id"]
-    assert data["budget"] == 0.0, "Should be updated only through payment topup event!"
     assert data["entity"] == update_body["entity"]

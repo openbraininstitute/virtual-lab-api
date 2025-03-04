@@ -30,7 +30,6 @@ class VirtualLabUpdate(BaseModel):
     name: str | None = None
     description: str | None = None
     reference_email: EmailStr | None = None
-    plan_id: int | None = None
     entity: str | None = None
 
 

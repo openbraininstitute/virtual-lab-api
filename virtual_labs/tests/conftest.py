@@ -1,16 +1,24 @@
 import asyncio
+from contextlib import asynccontextmanager
 from typing import Any, AsyncGenerator
 from uuid import uuid4
 
 import pytest_asyncio
 from httpx import AsyncClient, Response
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.api import app
-from virtual_labs.infrastructure.db.config import default_session_factory
+from virtual_labs.infrastructure.db.config import default_session_factory, session_pool
 from virtual_labs.tests.utils import cleanup_resources, get_headers
 
 VL_COUNT = 2
 PROJECTS_PER_VL_COUNT = 2
+
+
+@asynccontextmanager
+async def session_context_factory() -> AsyncGenerator[AsyncSession, None]:
+    async with session_pool.session() as session:
+        yield session
 
 
 @pytest_asyncio.fixture()
@@ -46,7 +54,6 @@ async def mock_lab_create(
         "name": f"Test Lab {uuid4()}",
         "description": "Test",
         "reference_email": "user@test.org",
-        "plan_id": 1,
         "entity": "EPFL, Switzerland",
     }
     headers = get_headers()

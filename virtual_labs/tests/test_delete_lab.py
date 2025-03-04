@@ -21,8 +21,6 @@ async def mock_lab_create(
         "name": f"Test Lab {uuid4()}",
         "description": "Test",
         "reference_email": "user@test.org",
-        "budget": 10,
-        "plan_id": 3,
         "entity": "EPFL, Switzerland",
     }
     headers = get_headers()
@@ -56,7 +54,6 @@ async def create_mock_lab_with_project(
             "name": f"Test Lab {uuid4()}",
             "description": "Test",
             "reference_email": "user@test.org",
-            "plan_id": 1,
             "entity": "EPFL, Switzerland",
         }
         headers = get_headers("test")

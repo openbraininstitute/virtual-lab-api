@@ -10,15 +10,12 @@ from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.domain import labs as domain
 from virtual_labs.infrastructure.stripe.config import stripe_client
 from virtual_labs.repositories import labs as repository
-from virtual_labs.usecases.plans.verify_plan import verify_plan
 
 
 async def update_virtual_lab(
     db: AsyncSession, lab_id: UUID4, lab: domain.VirtualLabUpdate, user_id: UUID4
 ) -> domain.VirtualLabOut:
     try:
-        if lab.plan_id is not None:
-            await verify_plan(db, lab.plan_id)
         db_lab = await repository.update_virtual_lab(db, lab_id, lab)
 
         await stripe_client.customers.update_async(

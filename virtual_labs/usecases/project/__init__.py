@@ -9,7 +9,6 @@ from .retrieve_all_user_projects_per_vl import (
     retrieve_all_user_projects_per_vl_use_case,
 )
 from .retrieve_all_users_per_project import retrieve_all_users_per_project_use_case
-from .retrieve_project_budget import retrieve_project_budget_use_case
 from .retrieve_projects_per_lab_count import (
     retrieve_projects_count_per_virtual_lab_use_case,
 )
@@ -28,7 +27,6 @@ __all__ = [
     "retrieve_all_user_projects_per_vl_use_case",
     "retrieve_all_user_projects_use_case",
     "retrieve_all_users_per_project_use_case",
-    "retrieve_project_budget_use_case",
     "retrieve_projects_count_per_virtual_lab_use_case",
     "retrieve_single_project_use_case",
     "retrieve_starred_projects_use_case",
@@ -38,7 +36,6 @@ __all__ = [
     "check_project_existence_use_case",
     "create_new_project_use_case",
     "delete_project_use_case",
-    "update_project_budget_use_case",
     "update_star_project_status_use_case",
     "update_user_role_in_project",
     "detach_user_from_project",

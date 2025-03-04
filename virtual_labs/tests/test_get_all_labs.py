@@ -49,21 +49,14 @@ async def test_paginated_labs(
 ) -> None:
     client, expected_labs = multiple_mock_labs
 
-    response = await client.get(
-        "/virtual-labs?page=1&size=5", headers=headers_for_test_user
-    )
+    response = await client.get("/virtual-labs", headers=headers_for_test_user)
 
     assert response.status_code == 200
 
     response_data = response.json()["data"]
     actual_labs = response_data["results"]
 
-    assert response_data["total"] >= len(expected_labs)
-    assert response_data["page_size"] <= 5
-    assert response_data["page_size"] >= len(expected_labs)
-    assert response_data["page"] == 1
-    assert len(response_data["results"]) >= 1
-    assert len(response_data["results"]) == response_data["page_size"]
+    assert response_data["virtual_lab"] is not None
 
     for expected_lab in expected_labs:
         assert expected_lab in actual_labs

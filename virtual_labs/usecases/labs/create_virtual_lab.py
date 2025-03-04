@@ -151,6 +151,7 @@ async def create_virtual_lab(
             owner_id=user_id,
         )
         if has_vlab:
+            print("------")
             raise ForbiddenOperation()
 
         new_lab_id = uuid4()

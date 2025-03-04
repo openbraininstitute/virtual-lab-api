@@ -19,7 +19,6 @@ async def mock_lab_create(
         "name": f"Test Lab {uuid4()}",
         "description": "Test",
         "reference_email": "user@test.org",
-        "plan_id": 1,
         "entity": "EPFL, Switzerland",
     }
     headers = get_headers()
@@ -61,9 +60,7 @@ async def test_get_lab_by_id(
         "name": lab["name"],
         "description": lab["description"],
         "reference_email": lab["reference_email"],
-        "budget": 0.0,
         "entity": lab["entity"],
-        "plan_id": lab["plan_id"],
         "created_at": lab["created_at"],
         "nexus_organization_id": lab["nexus_organization_id"],
         "updated_at": lab["created_at"],
@@ -85,23 +82,3 @@ def assert_get_and_delete_body_are_same(
     )
 
     assert delete_body == get_body
-
-
-@pytest.mark.asyncio
-async def test_get_udpate_delete_response_are_same(
-    mock_lab_create: tuple[AsyncClient, dict[str, str], dict[str, str]],
-) -> None:
-    client, lab, headers = mock_lab_create
-    lab_id = lab["id"]
-    update_response = await client.patch(
-        f"/virtual-labs/{lab_id}", headers=headers, json={"plan_id": 2}
-    )
-    get_response = await client.get(f"/virtual-labs/{lab_id}", headers=headers)
-
-    assert update_response.status_code == get_response.status_code == HTTPStatus.OK
-    assert update_response.json()["data"] == get_response.json()["data"]
-
-    delete_response = await client.delete(f"/virtual-labs/{lab_id}", headers=headers)
-    assert delete_response.status_code == get_response.status_code == HTTPStatus.OK
-    assert_get_and_delete_body_are_same(get_response, delete_response)
-    assert_get_and_delete_body_are_same(get_response, delete_response)

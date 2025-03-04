@@ -16,7 +16,6 @@ from virtual_labs.tests.utils import (
 
 VL_COUNT = 2
 PROJECTS_PER_VL_COUNT = 2
-VL_BUDGET_AMOUNT = 100050  # in cent (1000.50$)
 VL_PROJECTS_COUNT = 3
 
 
@@ -73,10 +72,7 @@ async def mock_create_projects(
         project_id = response.json()["data"]["project"]["id"]
         async with session_context_factory() as session:
             await session.execute(
-                statement=update(Project)
-                .where(Project.id == UUID(project_id))
-                .values(budget_amount=int(VL_BUDGET_AMOUNT / VL_PROJECTS_COUNT))
-                .returning(Project.budget_amount)
+                statement=update(Project).where(Project.id == UUID(project_id))
             )
             await session.commit()
 

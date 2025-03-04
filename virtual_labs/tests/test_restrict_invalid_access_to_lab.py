@@ -21,8 +21,6 @@ async def mock_lab_create(
         "name": f"Search Test Lab {uuid4()}",
         "description": "Test",
         "reference_email": "user@test.org",
-        "budget": 10,
-        "plan_id": 1,
         "entity": "EPFL, Switzerland",
     }
     headers = get_headers(member_user)

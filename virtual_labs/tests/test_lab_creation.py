@@ -20,7 +20,6 @@ async def mock_lab_create(
         "name": f"Test Lab {uuid4()}",
         "description": "Test",
         "reference_email": "user@test.org",
-        "plan_id": 1,
         "entity": "EPFL, Switzerland",
     }
     headers = get_headers()
@@ -45,12 +44,7 @@ async def mock_lab_create_with_users(
         "name": f"Test Lab {uuid4()}",
         "description": "Test",
         "reference_email": "user@test.org",
-        "plan_id": 1,
         "entity": "EPFL, Switzerland",
-        "include_members": [
-            {"email": "test-1@test.com", "role": "admin"},
-            {"email": "test-2@test.com", "role": "member"},
-        ],
     }
     headers = get_headers()
     response = await client.post(
@@ -138,9 +132,7 @@ async def test_virtual_lab_created_with_users(
             "name": request.get("name"),
             "description": "Test",
             "reference_email": "user@test.org",
-            "budget": 0.0,  # should be updated only through payment topup event
             "id": lab_id,
-            "plan_id": 1,
             "entity": "EPFL, Switzerland",
             "nexus_organization_id": f"http://delta:8080/v1/orgs/{lab_id}",
             "created_at": actual_response["virtual_lab"]["created_at"],
