@@ -8,6 +8,7 @@ KC_REALM_NAME="obp-realm"
 CLIENT_ID="obpapp"
 CLIENT_SECRET="obp-secret"
 COMPOSE_FILE="docker-compose.yml"
+COMPOSE_FILE_CI="docker-compose.ci.yml"
 
 # Parse command line arguments
 ENV_FILE=""
@@ -34,8 +35,8 @@ if [ "$USE_ENV_FILE" = true ]; then
   echo "Using environment file: $ENV_FILE"
   docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" -p vlm-project up --wait
 else
-  echo "No environment file specified"
-  docker compose -f "$COMPOSE_FILE" -p vlm-project up --wait
+  echo "No environment file specified, using CI configuration"
+  docker compose -f "$COMPOSE_FILE_CI" -p vlm-project up --wait
 fi
 
 # Check that delta ready to accept connections
@@ -45,7 +46,7 @@ if ! curl --retry 30 --fail --retry-all-errors --retry-delay 2 -v "http://localh
   if [ "$USE_ENV_FILE" = true ]; then
     docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" -p vlm-project logs delta
   else
-    docker compose -f "$COMPOSE_FILE" -p vlm-project logs delta
+    docker compose -f "$COMPOSE_FILE_CI" -p vlm-project logs delta
   fi
   exit 1
 fi 

@@ -44,7 +44,7 @@ kill:
 	docker compose --env-file ./.env.local -f docker-compose.yml -p vlm-project down --remove-orphans --volumes
 
 kill-ci:
-	docker compose -f docker-compose.yml -p vlm-project down --remove-orphans --volumes
+	docker compose -f docker-compose.ci.yml -p vlm-project down --remove-orphans --volumes
 
 build:
 	docker build -t $(SERVICE_NAME) . --platform=linux/amd64

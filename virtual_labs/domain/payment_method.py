@@ -12,7 +12,7 @@ class PaymentMethod(BaseModel):
     card_number: str
     expire_at: str
     default: Optional[bool] = False
-
+    cardholder_name: str
     created_at: datetime
     updated_at: datetime | None
 

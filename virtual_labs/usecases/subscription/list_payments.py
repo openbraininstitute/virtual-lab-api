@@ -47,9 +47,10 @@ async def list_payments(
 
     try:
         payment_repo = PaymentRepository(session)
-        virtual_lab = await get_user_virtual_lab(session=session, owner_id=user_id)
-
-        print("ᦨ #  list_payments.py:52 #  virtual_lab:", virtual_lab)
+        virtual_lab = await get_user_virtual_lab(
+            db=session,
+            owner_id=user_id,
+        )
 
         if virtual_lab is None:
             raise ValueError("No virtual lab for this user")
