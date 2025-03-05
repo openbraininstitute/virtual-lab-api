@@ -116,7 +116,8 @@ class StripeRepository:
 
         try:
             payment_intent = await self.stripe.payment_intents.retrieve_async(
-                payment_intent_id, params={"expand": ["payment_method"]}
+                payment_intent_id,
+                params={"expand": ["payment_method", "latest_charge", "invoice"]},
             )
             return payment_intent
         except Exception as e:
@@ -129,7 +130,7 @@ class StripeRepository:
         self, payment_method_id: str
     ) -> Optional[Dict[str, Any]]:
         """
-        Retrieve a payment method from Stripe
+        retrieve a payment method from Stripe
         """
         try:
             payment_method = await self.stripe.payment_methods.retrieve_async(

@@ -17,6 +17,7 @@ from virtual_labs.repositories.billing_repo import (
     BillingQueryRepository,
 )
 from virtual_labs.repositories.labs import get_undeleted_virtual_lab
+from virtual_labs.shared.utils.auth import get_user_id_from_auth
 from virtual_labs.shared.utils.billing import amount_to_cent
 
 
@@ -29,7 +30,7 @@ async def init_vl_budget_topup(
     auth: Tuple[AuthUser, str],
 ) -> Response:
     billing_query_repo = BillingQueryRepository(session)
-
+    user_id = get_user_id_from_auth(auth)
     try:
         vlab = await get_undeleted_virtual_lab(session, virtual_lab_id)
     except SQLAlchemyError as ex:
@@ -70,7 +71,7 @@ async def init_vl_budget_topup(
         payment_intent = await stripe_client.payment_intents.create_async(
             {
                 "amount": amount_to_cent(credit),
-                "currency": "usd",
+                "currency": "chf",
                 "customer": str(vlab.stripe_customer_id),
                 "payment_method": stripe_payment_method.id,
                 "confirm": True,
@@ -78,10 +79,12 @@ async def init_vl_budget_topup(
                     settings.DEPLOYMENT_NAMESPACE, virtual_lab_id
                 ),
                 "metadata": {
-                    "vlab": str(virtual_lab_id),
-                    "topup_balance": "true",
+                    "standalone": "true",
+                    "user_id": str(user_id),
+                    "virtual_lab_id": str(virtual_lab_id),
                     "payment_method_id": str(payment_method_id),
                 },
+                "expand": ["latest_charge"],
             }
         )
 

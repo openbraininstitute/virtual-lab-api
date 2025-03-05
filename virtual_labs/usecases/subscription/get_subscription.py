@@ -2,8 +2,9 @@ from http import HTTPStatus
 from typing import Tuple
 from uuid import UUID
 
-from fastapi import HTTPException, Response
+from fastapi import Response
 from loguru import logger
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
@@ -15,51 +16,44 @@ from virtual_labs.repositories.subscription_repo import SubscriptionRepository
 
 async def get_subscription(
     subscription_id: UUID,
-    db: AsyncSession,
+    session: AsyncSession,
     auth: Tuple[AuthUser, str],
 ) -> Response:
     """
-    Get details for a specific subscription.
-
-    Returns the subscription details including status, billing period, and payment information.
+    get details for a specific subscription.
+    returns the subscription details including status
     """
     try:
-        # Get subscription from database
-        subscription_repo = SubscriptionRepository(db)
+        subscription_repo = SubscriptionRepository(db_session=session)
         subscription = await subscription_repo.get_subscription_by_id(subscription_id)
 
         if not subscription:
-            raise VliError(
-                error_code=VliErrorCode.ENTITY_NOT_FOUND,
-                http_status_code=HTTPStatus.NOT_FOUND,
-                message=f"Subscription with ID {subscription_id} not found",
-            )
+            raise ValueError("Subscription not found")
 
-        details = SubscriptionDetails(
-            id=subscription.id,
-            stripe_subscription_id=subscription.stripe_subscription_id,
-            status=subscription.status,
-            current_period_start=subscription.current_period_start,
-            current_period_end=subscription.current_period_end,
-            amount=subscription.amount,
-            currency=subscription.currency,
-            interval=subscription.interval,
-            auto_renew=subscription.auto_renew,
-            cancel_at_period_end=subscription.cancel_at_period_end,
-            canceled_at=subscription.canceled_at,
-        )
+        await session.refresh(subscription)
+        details = SubscriptionDetails.from_subscription(subscription)
 
         return VliResponse.new(
             message="Subscription details retrieved successfully",
             data={"subscription": details.model_dump()},
         )
-
-    except HTTPException:
-        raise
+    except ValueError:
+        raise VliError(
+            error_code=VliErrorCode.ENTITY_NOT_FOUND,
+            http_status_code=HTTPStatus.NOT_FOUND,
+            message=f"Subscription with id {subscription_id} not found",
+        )
+    except SQLAlchemyError as e:
+        logger.error(f"Database error while fetching subscription: {str(e)}")
+        raise VliError(
+            error_code=VliErrorCode.DATABASE_ERROR,
+            http_status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            message="Failed to fetch subscription due to database error",
+        )
     except Exception as e:
-        logger.exception(f"Error fetching subscription: {str(e)}")
+        logger.error(f"Unexpected error while fetching subscription: {str(e)}")
         raise VliError(
             error_code=VliErrorCode.INTERNAL_SERVER_ERROR,
             http_status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-            message=f"Failed to fetch subscription: {str(e)}",
+            message="An unexpected error occurred while fetching the subscription",
         )

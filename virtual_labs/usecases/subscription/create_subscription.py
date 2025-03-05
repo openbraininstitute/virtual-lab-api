@@ -2,7 +2,7 @@ from datetime import datetime
 from http import HTTPStatus
 from typing import Tuple
 
-from fastapi import HTTPException, Response
+from fastapi import Response
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,7 +12,11 @@ from virtual_labs.domain.subscription import (
     CreateSubscriptionRequest,
     SubscriptionDetails,
 )
-from virtual_labs.infrastructure.db.models import Subscription, SubscriptionStatus
+from virtual_labs.infrastructure.db.models import (
+    PaidSubscription,
+    SubscriptionStatus,
+    SubscriptionType,
+)
 from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.infrastructure.stripe import get_stripe_repository
 from virtual_labs.repositories.labs import get_undeleted_virtual_lab
@@ -22,27 +26,25 @@ from virtual_labs.shared.utils.auth import get_user_id_from_auth
 
 async def create_subscription(
     payload: CreateSubscriptionRequest,
-    db: AsyncSession,
+    session: AsyncSession,
     auth: Tuple[AuthUser, str],
 ) -> Response:
     """
     create a new subscription for a virtual lab.
 
-    1. Validates the virtual lab exists and user has permission
-    2. Creates a subscription in Stripe
-    3. Stores the subscription details in the database
-    4. Returns the subscription details with payment link
+    1. validates the virtual lab exists and user has permission
+    2. creates a subscription in Stripe
+    3. stores the subscription details in the database
 
-    The user will need to complete payment using the returned payment link.
     """
     try:
-        subscription_repo = SubscriptionRepository(db)
+        subscription_repo = SubscriptionRepository(db_session=session)
         stripe_service = get_stripe_repository()
 
         user_id = get_user_id_from_auth(auth)
 
         # verify the virtual lab exists and user has permission
-        vlab = await get_undeleted_virtual_lab(db, payload.virtual_lab_id)
+        vlab = await get_undeleted_virtual_lab(session, payload.virtual_lab_id)
         if not vlab:
             raise VliError(
                 error_code=VliErrorCode.ENTITY_NOT_FOUND,
@@ -51,13 +53,13 @@ async def create_subscription(
             )
 
         # check if there's already an active subscription for this lab
-        existing_subscription = (
+        existing_active_subscription = (
             await subscription_repo.get_active_subscription_by_lab_id(
                 payload.virtual_lab_id
             )
         )
 
-        if existing_subscription:
+        if existing_active_subscription:
             raise VliError(
                 error_code=VliErrorCode.ENTITY_ALREADY_EXISTS,
                 http_status_code=HTTPStatus.CONFLICT,
@@ -83,9 +85,11 @@ async def create_subscription(
                 message="Failed to create subscription in Stripe",
             )
 
-        subscription = Subscription()
+        subscription = PaidSubscription()
         subscription.user_id = user_id
         subscription.virtual_lab_id = payload.virtual_lab_id
+        subscription.type = "paid"
+        subscription.subscription_type = SubscriptionType.PRO
 
         subscription.stripe_subscription_id = str(
             getattr(stripe_subscription, "id", "")
@@ -137,32 +141,24 @@ async def create_subscription(
                 if recurring:
                     subscription.interval = getattr(recurring, "interval", "month")
 
-        db.add(subscription)
-        await db.commit()
-        await db.refresh(subscription)
+        session.add(subscription)
+        await session.commit()
+        await session.refresh(subscription)
 
         details = SubscriptionDetails(
             id=subscription.id,
-            stripe_subscription_id=subscription.stripe_subscription_id,
             status=subscription.status,
             current_period_start=subscription.current_period_start,
             current_period_end=subscription.current_period_end,
-            amount=subscription.amount,
-            currency=subscription.currency,
-            interval=subscription.interval,
-            auto_renew=subscription.auto_renew,
-            cancel_at_period_end=subscription.cancel_at_period_end,
-            canceled_at=subscription.canceled_at,
+            type=subscription.subscription_type,
         )
 
         return VliResponse.new(
             message="Subscription created successfully",
             data={"subscription": details.model_dump()},
         )
-    except HTTPException:
-        raise
     except Exception as e:
-        logger.exception(f"Error creating subscription: {str(e)}")
+        logger.error(f"Error creating subscription: {str(e)}")
         raise VliError(
             error_code=VliErrorCode.INTERNAL_SERVER_ERROR,
             http_status_code=HTTPStatus.INTERNAL_SERVER_ERROR,

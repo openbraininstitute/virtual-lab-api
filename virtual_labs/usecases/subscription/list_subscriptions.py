@@ -11,10 +11,11 @@ from virtual_labs.domain.subscription import SubscriptionDetails
 from virtual_labs.infrastructure.db.models import SubscriptionStatus
 from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.repositories.subscription_repo import SubscriptionRepository
+from virtual_labs.shared.utils.auth import get_user_id_from_auth
 
 
 async def list_subscriptions(
-    db: AsyncSession,
+    session: AsyncSession,
     auth: Tuple[AuthUser, str],
     status: Optional[SubscriptionStatus] = None,
 ) -> Response:
@@ -24,31 +25,19 @@ async def list_subscriptions(
     can filter subscription status.
     """
     try:
-        subscription_repo = SubscriptionRepository(db)
+        subscription_repo = SubscriptionRepository(session)
+        user_id = get_user_id_from_auth(auth)
+
         subscriptions = await subscription_repo.list_subscriptions(
+            user_id=user_id,
             status=status,
         )
 
-        subscription_details = [
-            SubscriptionDetails(
-                id=sub.id,
-                stripe_subscription_id=sub.stripe_subscription_id,
-                status=sub.status,
-                current_period_start=sub.current_period_start,
-                current_period_end=sub.current_period_end,
-                amount=sub.amount,
-                currency=sub.currency,
-                interval=sub.interval,
-                auto_renew=sub.auto_renew,
-                cancel_at_period_end=sub.cancel_at_period_end,
-                canceled_at=sub.canceled_at,
-            )
-            for sub in subscriptions
-        ]
+        result = [SubscriptionDetails.from_subscription(sub) for sub in subscriptions]
 
         return VliResponse.new(
             message="Subscriptions retrieved successfully",
-            data={"subscriptions": [sub.model_dump() for sub in subscription_details]},
+            data={"subscriptions": result},
         )
 
     except HTTPException:

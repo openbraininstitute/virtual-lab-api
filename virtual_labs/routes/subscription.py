@@ -7,7 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.domain.payment import PaymentFilter, PaymentListResponse, PaymentType
 from virtual_labs.domain.subscription import (
-    CancelSubscriptionRequest,
     CreateSubscriptionRequest,
     SubscriptionDetails,
     SubscriptionPlan,
@@ -52,25 +51,6 @@ async def create_subscription(
 
 
 @router.get(
-    "/{subscription_id}",
-    operation_id="get_subscription",
-    summary="Get subscription details",
-    response_model=SubscriptionDetails,
-)
-async def get_subscription(
-    subscription_id: UUID,
-    db: AsyncSession = Depends(default_session_factory),
-    auth: Tuple[AuthUser, str] = Depends(a_verify_jwt),
-) -> Response:
-    """
-    get details for a specific subscription.
-
-    returns the subscription details including status, billing period, and payment information.
-    """
-    return await get_subscription_usecase(subscription_id, db, auth)
-
-
-@router.get(
     "/plans",
     operation_id="list_subscription_plans",
     summary="List available subscription plans",
@@ -94,7 +74,6 @@ async def list_subscription_plans(
     response_model=SubscriptionDetails,
 )
 async def cancel_subscription(
-    request: CancelSubscriptionRequest,
     db: AsyncSession = Depends(default_session_factory),
     auth: Tuple[AuthUser, str] = Depends(a_verify_jwt),
 ) -> Response:
@@ -102,7 +81,7 @@ async def cancel_subscription(
     cancel the user's active subscription at the end of the current billing period.
     the subscription will remain active until the end of the paid period.
     """
-    return await cancel_subscription_usecase(request, db, auth)
+    return await cancel_subscription_usecase(db, auth)
 
 
 @router.get(
@@ -181,3 +160,22 @@ async def list_payments(
     )
 
     return await list_payments_usecase(db, filters, auth)
+
+
+@router.get(
+    "/{subscription_id}",
+    operation_id="get_subscription",
+    summary="Get subscription details",
+    response_model=SubscriptionDetails,
+)
+async def get_subscription(
+    subscription_id: UUID,
+    db: AsyncSession = Depends(default_session_factory),
+    auth: Tuple[AuthUser, str] = Depends(a_verify_jwt),
+) -> Response:
+    """
+    get details for a specific subscription.
+
+    returns the subscription details including status, billing period, and payment information.
+    """
+    return await get_subscription_usecase(subscription_id, db, auth)

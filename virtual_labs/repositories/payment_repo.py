@@ -39,6 +39,7 @@ class PaymentRepository:
 
     async def list_payments(
         self,
+        customer_id: str,
         filters: PaymentFilter,
     ) -> Tuple[List[SubscriptionPayment], int]:
         """
@@ -46,8 +47,8 @@ class PaymentRepository:
         returns a tuple of (payments, total_count)
         """
         subscription_query = select(SubscriptionPayment)
+        subscription_query.filter(SubscriptionPayment.customer_id == customer_id)
         subscription_query = self._apply_filters(subscription_query, filters)
-
         count_query = select(func.count()).select_from(subscription_query.subquery())
         total_count = await self.session.scalar(count_query) or 0
 

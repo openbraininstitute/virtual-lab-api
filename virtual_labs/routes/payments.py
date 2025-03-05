@@ -61,6 +61,7 @@ async def handle_stripe_webhook(
         if (
             event_type in webhook_service.subscription_update_events
             or event_type in webhook_service.payment_update_events
+            or event_type in webhook_service.standalone_payment_events
         ):
             result = await webhook_service.handle_webhook_event(event, db)
 
@@ -81,6 +82,6 @@ async def handle_stripe_webhook(
         }
 
     except Exception as e:
-        logger.exception(f"Error processing Stripe webhook: {str(e)}")
+        logger.error(f"Error processing Stripe webhook: {str(e)}")
         # Always return 200 to Stripe even on error to prevent retries
         return {"success": False, "error": str(e)}

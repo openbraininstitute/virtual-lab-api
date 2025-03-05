@@ -52,15 +52,11 @@ class PaymentDetails(BaseModel):
     card_last4: str
     card_exp_month: int
     card_exp_year: int
-    cardholder_name: str
-    cardholder_email: str
 
     # Receipt info
     receipt_url: Optional[str] = None
     invoice_pdf: Optional[str] = None
 
-    # Subscription info (if applicable)
-    subscription_id: Optional[UUID] = None
     period_start: Optional[datetime] = None
     period_end: Optional[datetime] = None
 

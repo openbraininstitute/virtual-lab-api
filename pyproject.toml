@@ -62,3 +62,6 @@ exclude = [
     "__pycache__",
     "scripts",
 ]
+
+[tool.poetry.scripts]
+populate-plans = "scripts.populate_subscription_plans:run_async"

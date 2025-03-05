@@ -10,8 +10,6 @@ class PaymentMethod(BaseModel):
     id: UUID4
     brand: str
     card_number: str
-    cardholder_name: str
-    cardholder_email: str
     expire_at: str
     default: Optional[bool] = False
 

@@ -9,17 +9,44 @@ CLIENT_ID="obpapp"
 CLIENT_SECRET="obp-secret"
 COMPOSE_FILE="docker-compose.yml"
 
+# Parse command line arguments
+ENV_FILE=""
+USE_ENV_FILE=false
+
+while [[ "$#" -gt 0 ]]; do
+  case $1 in
+    --env-file) 
+      ENV_FILE="$2"
+      USE_ENV_FILE=true
+      shift 
+      ;;
+    *) echo "Unknown parameter: $1"; exit 1 ;;
+  esac
+  shift
+done
 
 # Start containers
 chmod +x ./env-prep/init/init-aws.sh
 ls -l ./env-prep/init/init-aws.sh
-docker compose --env-file ./.env.local -f "$COMPOSE_FILE" -p vlm-project up --wait
+
+# Use environment file only if specified
+if [ "$USE_ENV_FILE" = true ]; then
+  echo "Using environment file: $ENV_FILE"
+  docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" -p vlm-project up --wait
+else
+  echo "No environment file specified"
+  docker compose -f "$COMPOSE_FILE" -p vlm-project up --wait
+fi
 
 # Check that delta ready to accept connections
 echo "Checking that delta is ready to accept connections..."
 if ! curl --retry 30 --fail --retry-all-errors --retry-delay 2 -v "http://localhost:8080/v1/version"; then 
   # Show delta logs if curl failed
-  docker compose -f "$COMPOSE_FILE" -p vlm-project logs delta
+  if [ "$USE_ENV_FILE" = true ]; then
+    docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" -p vlm-project logs delta
+  else
+    docker compose -f "$COMPOSE_FILE" -p vlm-project logs delta
+  fi
   exit 1
 fi 
 echo "Delta is ready! 🚀"

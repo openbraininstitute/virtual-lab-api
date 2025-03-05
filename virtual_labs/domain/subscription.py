@@ -1,10 +1,13 @@
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, TypedDict
 from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from virtual_labs.infrastructure.db.models import SubscriptionStatus
+from virtual_labs.infrastructure.db.models import (
+    Subscription,
+    SubscriptionStatus,
+)
 
 
 class PriceOption(BaseModel):
@@ -35,13 +38,22 @@ class SubscriptionPlan(BaseModel):
     )
 
 
+class SubscriptionDetailsDict(TypedDict):
+    """Type definition for subscription details dictionary"""
+
+    id: UUID
+    status: SubscriptionStatus
+    current_period_start: datetime
+    current_period_end: datetime
+    type: str
+
+
 class SubscriptionDetails(BaseModel):
     """
     subscription details
     """
 
     id: UUID = Field(..., description="subscription id")
-    stripe_subscription_id: str = Field(..., description="stripe subscription id")
     status: SubscriptionStatus = Field(..., description="current subscription status")
     current_period_start: datetime = Field(
         ..., description="start of current billing period"
@@ -49,20 +61,40 @@ class SubscriptionDetails(BaseModel):
     current_period_end: datetime = Field(
         ..., description="end of current billing period"
     )
-    amount: int = Field(..., description="subscription amount in cents")
-    currency: str = Field(..., description="subscription currency")
-    interval: str = Field(..., description="billing interval ('month', 'year')")
+    type: str = Field(..., description="either free or paid")
+    # amount: Optional[int] = Field(..., description="subscription amount in cents")
+    # currency: Optional[str] = Field(..., description="subscription currency")
+    # interval: Optional[str] = Field(
+    #     ..., description="billing interval ('month', 'year')"
+    # )
 
-    auto_renew: bool = Field(
-        ..., description="whether the subscription will automatically renew"
-    )
-    cancel_at_period_end: Optional[bool] = Field(
-        None,
-        description="whether the subscription will be canceled at the end of the current period",
-    )
-    canceled_at: Optional[datetime] = Field(
-        None, description="when the subscription was canceled, if applicable"
-    )
+    # cancel_at_period_end: Optional[bool] = Field(
+    #     None,
+    #     description="whether the subscription will be canceled at the end of the current period",
+    # )
+    # canceled_at: Optional[datetime] = Field(
+    #     None, description="when the subscription was canceled, if applicable"
+    # )
+
+    @classmethod
+    def from_subscription(cls, subscription: Subscription) -> "SubscriptionDetails":
+        """Convert a Subscription model to SubscriptionDetails"""
+        subscription_dict: SubscriptionDetailsDict = {
+            "id": subscription.id,
+            "status": subscription.status,
+            "current_period_start": subscription.current_period_start,
+            "current_period_end": subscription.current_period_end,
+            "type": subscription.subscription_type,
+            # "amount": getattr(subscription, "amount", 0),
+            # "currency": getattr(subscription, "currency", None),
+            # "interval": getattr(subscription, "interval", None),
+            # "cancel_at_period_end": getattr(
+            #     subscription, "cancel_at_period_end", None
+            # ),
+            # "canceled_at": getattr(subscription, "canceled_at", None),
+        }
+
+        return cls(**subscription_dict)
 
 
 class CreateSubscriptionRequest(BaseModel):
@@ -78,9 +110,3 @@ class CreateSubscriptionRequest(BaseModel):
     metadata: Optional[Dict[str, str]] = Field(
         default_factory=dict, description="additional metadata for the subscription"
     )
-
-
-class CancelSubscriptionRequest(BaseModel):
-    """Request model for canceling a subscription"""
-
-    pass

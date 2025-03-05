@@ -10,8 +10,10 @@ define HELPTEXT
 	
 	Commands:
 		dev		Run development api server.
-		init		Run project (keycloak and postgres) containers
-		kill		Kill project (keycloak and postgres) containers
+		init		Run project with .env.local file (for local development)
+		init-ci		Run project without env file (for CI/CD environments)
+		kill		Kill project containers (with .env.local)
+		kill-ci		Kill project containers (without env file)
 		build		Build docker image
 		format          Check formatting of files and fixes any formatting issues
 		format-check    Only check formatting of files but do not modify them to fix formatting issues 
@@ -32,15 +34,17 @@ help:
 dev:
 	poetry run uvicorn virtual_labs.api:app --reload
 
-dev-p:
-	@poetry run dotenv -f .env.local set STRIPE_WEBHOOK_SECRET $$(poetry run dotenv -f env-prep/stripe-data/.env.local get STRIPE_WEBHOOK_SECRET) > /dev/null
-	poetry run uvicorn virtual_labs.api:app --reload
-
 init:
+	./dev-init.sh --env-file ./.env.local
+
+init-ci:
 	./dev-init.sh
 
 kill: 
 	docker compose --env-file ./.env.local -f docker-compose.yml -p vlm-project down --remove-orphans --volumes
+
+kill-ci:
+	docker compose -f docker-compose.yml -p vlm-project down --remove-orphans --volumes
 
 build:
 	docker build -t $(SERVICE_NAME) . --platform=linux/amd64
