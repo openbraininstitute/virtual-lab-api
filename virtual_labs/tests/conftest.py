@@ -11,7 +11,7 @@ from virtual_labs.api import app
 from virtual_labs.infrastructure.db.config import default_session_factory, session_pool
 from virtual_labs.tests.utils import cleanup_resources, get_headers
 
-VL_COUNT = 2
+VL_COUNT = 1
 PROJECTS_PER_VL_COUNT = 2
 
 

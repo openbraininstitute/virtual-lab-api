@@ -5,7 +5,7 @@ import pytest
 import pytest_asyncio
 from httpx import AsyncClient, Response
 
-from virtual_labs.tests.test_accept_lab_invite import get_invite_token_from_email
+from virtual_labs.tests.labs.test_accept_lab_invite import get_invite_token_from_email
 from virtual_labs.tests.utils import get_headers
 
 

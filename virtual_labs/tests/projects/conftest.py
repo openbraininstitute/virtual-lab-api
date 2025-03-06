@@ -14,7 +14,7 @@ from virtual_labs.tests.utils import (
     session_context_factory,
 )
 
-VL_COUNT = 2
+VL_COUNT = 1
 PROJECTS_PER_VL_COUNT = 2
 VL_PROJECTS_COUNT = 3
 

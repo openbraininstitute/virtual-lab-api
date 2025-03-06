@@ -74,6 +74,7 @@ async def create_mock_lab(
         json=body,
         headers=headers,
     )
+
     assert response.status_code == 200
     return response
 
