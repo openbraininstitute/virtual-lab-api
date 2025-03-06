@@ -33,6 +33,8 @@ class SubscriptionPlan(BaseModel):
     prices: List[PriceOption] = Field(
         ..., description="list of available price options (monthly, yearly)"
     )
+    currency: str = Field(..., description="currency of the plan")
+    sanity_id: Optional[str] = Field(None, description="sanity id for the plan")
     metadata: Dict[str, str] = Field(
         default_factory=dict, description="additional metadata about the plan"
     )

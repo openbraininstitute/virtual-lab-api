@@ -58,13 +58,14 @@ async def create_subscription(
 )
 async def list_subscription_plans(
     auth: Tuple[AuthUser, str] = Depends(a_verify_jwt),
+    db: AsyncSession = Depends(default_session_factory),
 ) -> Response:
     """
     list all available subscription plans with pricing information.
 
     Returns a list of subscription plans
     """
-    return await list_subscription_plans_usecase(auth)
+    return await list_subscription_plans_usecase(auth, db)
 
 
 @router.patch(

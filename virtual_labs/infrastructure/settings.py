@@ -22,7 +22,8 @@ _DEPLOYMENT_ENV = _ENV if _is_valid_env(_ENV) else "development"
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         # `.env.local` takes priority over `.env`
-        env_file=(".env", f".env.{_DEPLOYMENT_ENV}", ".env.local")
+        env_file=(".env", f".env.{_DEPLOYMENT_ENV}", ".env.local"),
+        extra="allow",
     )
 
     APP_NAME: str = "virtual-lab-manager service"

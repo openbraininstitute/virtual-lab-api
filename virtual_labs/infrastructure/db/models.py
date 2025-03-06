@@ -548,7 +548,7 @@ class SubscriptionPlan(Base):
         String(255), nullable=True
     )
     monthly_amount: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-
+    currency: Mapped[str] = mapped_column(String(3), nullable=False, default="usd")
     stripe_yearly_price_id: Mapped[Optional[str]] = mapped_column(
         String(255), nullable=True
     )
@@ -556,6 +556,32 @@ class SubscriptionPlan(Base):
 
     features: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
     plan_metadata: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+
+class StripeUser(Base):
+    """
+    user stripe customer id
+    """
+
+    __tablename__ = "stripe_user"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    stripe_costumer_id: Mapped[Optional[str]] = mapped_column(
+        String(255), nullable=False, unique=True
+    )
+    user_id = Column(UUID(as_uuid=True), nullable=False)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=func.now(), nullable=False

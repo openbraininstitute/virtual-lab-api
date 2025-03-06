@@ -43,6 +43,15 @@ class EntityNotFound(Exception):
         return self.message
 
 
+class EntityNotCreated(Exception):
+    def __init__(self, message: str = "Entity not created") -> None:
+        self.message = message
+        super().__init__(self.message)
+
+    def __str__(self) -> str:
+        return self.message
+
+
 class ForbiddenOperation(Exception):
     def __init__(self, message: str = "Forbidden operation") -> None:
         self.message = message

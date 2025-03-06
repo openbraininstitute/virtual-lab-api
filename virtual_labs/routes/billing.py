@@ -1,4 +1,3 @@
-from textwrap import dedent
 from typing import Annotated, Tuple
 
 from fastapi import APIRouter, Body, Depends
@@ -16,7 +15,6 @@ from virtual_labs.domain.payment_method import (
     PaymentMethodDeletionOut,
     PaymentMethodOut,
     PaymentMethodsOut,
-    SetupIntentOut,
     StripePaymentOut,
 )
 from virtual_labs.infrastructure.db.config import default_session_factory
@@ -113,52 +111,6 @@ async def delete_payment_method(
         session,
         virtual_lab_id=virtual_lab_id,
         payment_method_id=payment_method_id,
-        auth=auth,
-    )
-
-
-@router.post(
-    "/{virtual_lab_id}/billing/setup-intent",
-    operation_id="generate_setup_intent",
-    summary="generate setup intent for a specific stripe customer (customer == virtual lab)",
-    description=dedent(
-        """
-    This endpoint will only generate the setup intent, to be able to use it correctly in attaching
-    the payment method to a specific virtual lab, you have to confirm it.
-
-    To confirm the setup intent without using the frontend app, you can access the stripe api docs
-    and use the builtin-CLI to confirm the setup intent id.
-
-    ### Stripe dashboard CLI
-    You have to use test mode of the stripe account 
-    [Stripe Builtin-CLI](https://docs.stripe.com/api/setup_intents/confirm?shell=true&api=true&resource=setup_intents&action=confirm) 
-
-    ### Local machine Stripe CLI
-
-    ```shell 
-    stripe setup_intents confirm {setup_intent_id} --payment-method={payment_method}
-    ```
-    where:
-    ```py
-    setup_intent_id = `seti_1Mm2cBLkdIwHu7ixaiKW3ElR` # the generated setupIntent 
-    payment_method = `pm_card_visa` 
-    # it can be any payment method, available in test cards page
-    ```
-
-    [Stripe Test cards](https://docs.stripe.com/testing?testing-method=payment-methods)
-    """
-    ),
-    response_model=VliAppResponse[SetupIntentOut],
-)
-@verify_vlab_write
-async def generate_setup_intent(
-    virtual_lab_id: UUID4,
-    session: AsyncSession = Depends(default_session_factory),
-    auth: Tuple[AuthUser, str] = Depends(verify_jwt),
-) -> Response:
-    return await billing_cases.generate_setup_intent(
-        session,
-        virtual_lab_id=virtual_lab_id,
         auth=auth,
     )
 
