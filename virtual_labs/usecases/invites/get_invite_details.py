@@ -45,10 +45,6 @@ async def get_invite_details(
         invite_id = decoded_token.get("invite_id")
         origin = decoded_token.get("origin")
 
-        # virtual_lab_id, project_id = None, None
-        # virtual_lab_name, project_name = None, None
-        # inviter_full_name = None
-
         invite: VirtualLabInvite | ProjectInvite | None = None
         project = None
         vlab = None
