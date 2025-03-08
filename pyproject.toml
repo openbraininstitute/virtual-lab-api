@@ -64,4 +64,4 @@ exclude = [
 ]
 
 [tool.poetry.scripts]
-populate-plans = "scripts.populate_subscription_plans:run_async"
+populate-tiers = "scripts.populate_subscription_tiers:run_async"

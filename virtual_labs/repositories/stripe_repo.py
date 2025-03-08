@@ -1,4 +1,5 @@
-from typing import Any, Dict, List, Optional, cast
+from typing import Dict, List, Optional, cast
+from uuid import UUID
 
 import stripe
 from loguru import logger
@@ -126,11 +127,15 @@ class StripeRepository:
             )
             return None
 
-    async def get_payment_method(
-        self, payment_method_id: str
-    ) -> Optional[Dict[str, Any]]:
+    async def get_payment_method(self, payment_method_id: str) -> stripe.PaymentMethod:
         """
-        retrieve a payment method from Stripe
+        Retrieve a payment method from Stripe.
+
+        Args:
+            payment_method_id: The ID of the payment method to retrieve
+
+        Returns:
+            The payment method details
         """
         try:
             payment_method = await self.stripe.payment_methods.retrieve_async(
@@ -138,10 +143,8 @@ class StripeRepository:
             )
             return payment_method
         except Exception as e:
-            logger.warning(
-                f"Error retrieving payment method {payment_method_id}: {str(e)}"
-            )
-            return None
+            logger.error(f"Error retrieving payment method: {str(e)}")
+            raise
 
     async def get_charge(self, charge_id: str) -> Optional[stripe.Charge]:
         """
@@ -241,13 +244,19 @@ class StripeRepository:
             subscription = await self.stripe.subscriptions.create_async(
                 params={
                     "customer": customer_id,
+                    "default_payment_method": payment_method_id,
+                    "payment_behavior": "error_if_incomplete",  # NOTE: this important to not create stale subscription
                     "items": [
                         {
                             "price": price_id,
                         }
                     ],
                     "expand": ["latest_invoice.payment_intent"],
+                    "collection_method": "charge_automatically",  # NOTE: this is to charge the user at creation time
                     "metadata": metadata or {},
+                    "payment_settings": {
+                        "save_default_payment_method": "on_subscription"
+                    },
                 }
             )
             return subscription
@@ -264,7 +273,7 @@ class StripeRepository:
         cancel a subscription in Stripe.
 
         Args:
-            subscription_id: The Stripe subscription ID
+            subscription_id: stripe subscription id
             cancel_immediately: Whether to cancel immediately or at period end
 
         Returns:
@@ -285,4 +294,73 @@ class StripeRepository:
             logger.exception(
                 f"Error canceling subscription {subscription_id}: {str(e)}"
             )
+            raise
+
+    async def create_customer(
+        self,
+        user_id: UUID,
+        email: str,
+        name: Optional[str] = None,
+    ) -> Optional[stripe.Customer]:
+        """
+        create a new stripe customer.
+
+        Args:
+            user_id: The user's id
+            email: The customer's email address
+            name: The customer's name (optional)
+        Returns:
+            The created Stripe customer object or None if creation failed
+        """
+        try:
+            customer_data = stripe.Customer.CreateParams(
+                metadata={
+                    "user_id": str(user_id),
+                    "email": str(email),
+                    "name": str(name),
+                }
+            )
+
+            customer = await self.stripe.customers.create_async(customer_data)
+            return customer
+        except stripe.StripeError as e:
+            logger.error(f"Failed to create Stripe customer: {str(e)}")
+            return None
+
+    async def create_payment_intent(
+        self,
+        amount: int,
+        currency: str,
+        customer_id: str,
+        payment_method_id: str,
+        metadata: Optional[Dict[str, str]] = None,
+    ) -> stripe.PaymentIntent:
+        """
+        create a payment intent in Stripe.
+
+        Args:
+            amount: Amount to charge in cents
+            currency: Currency code (e.g., 'usd')
+            customer_id: Stripe customer ID
+            payment_method_id: Stripe payment method ID
+            metadata: Optional metadata for the payment
+
+        Returns:
+            The created payment intent
+        """
+        try:
+            payment_intent = await self.stripe.payment_intents.create_async(
+                params={
+                    "amount": amount,
+                    "currency": currency,
+                    "customer": customer_id,
+                    "payment_method": payment_method_id,
+                    "metadata": metadata or {},
+                    "confirm": True,
+                    "return_url": settings.DEPLOYMENT_NAMESPACE,
+                },
+            )
+            return payment_intent
+        except Exception as e:
+            logger.error(f"Error creating payment intent: {str(e)}")
             raise

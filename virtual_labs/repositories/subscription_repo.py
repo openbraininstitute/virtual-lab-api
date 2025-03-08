@@ -1,15 +1,17 @@
 from datetime import datetime
-from typing import Optional
+from typing import Literal, Optional, Union, overload
 from uuid import UUID
 
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import with_polymorphic
 
 from virtual_labs.infrastructure.db.models import (
     FreeSubscription,
     PaidSubscription,
     Subscription,
     SubscriptionStatus,
+    SubscriptionTier,
     SubscriptionType,
 )
 
@@ -56,79 +58,144 @@ class SubscriptionRepository:
         result = await self.db_session.execute(stmt)
         return result.scalars().first()
 
-    async def get_active_subscription_by_lab_id(
-        self, virtual_lab_id: UUID
+    async def get_active_subscription_by_user_id(
+        self, user_id: UUID, subscription_type: Optional[Literal["free", "paid"]] = None
     ) -> Optional[Subscription]:
         """
-        get the active subscription for a virtual lab.
+        get active subscription for a user (type free or paid)
 
         Args:
-            virtual_lab_id: The id of the virtual lab
+            user_id: The ID of the user
+            subscription_type: Optional filter by subscription type ("free" or "paid")
 
         Returns:
-            the active subscription if found, None otherwise
+            The active subscription if found, None otherwise
         """
-        stmt = select(Subscription).where(
-            Subscription.virtual_lab_id == virtual_lab_id,
+        filters = [
+            Subscription.user_id == user_id,
             Subscription.status == SubscriptionStatus.ACTIVE,
-        )
-        result = await self.db_session.execute(stmt)
-        return result.scalars().first()
+        ]
 
-    async def get_active_subscription_by_user_id(
-        self, user_id: UUID
-    ) -> Optional[Subscription]:
-        """get active subscription for a user."""
-        stmt = select(Subscription).where(
-            and_(
-                Subscription.user_id == user_id,
-                Subscription.status == SubscriptionStatus.ACTIVE,
-            )
-        )
+        if subscription_type:
+            if subscription_type.lower() == "free":
+                stmt = select(FreeSubscription).where(and_(*filters))
+                result = await self.db_session.execute(stmt)
+                return result.scalars().first()
+            elif subscription_type.lower() == "paid":
+                stmt = select(PaidSubscription).where(and_(*filters))  # type: ignore
+                result = await self.db_session.execute(stmt)
+                return result.scalars().first()
+
+        # If no subscription_type specified, return any active subscription
+        stmt = select(Subscription).where(and_(*filters))  # type: ignore
         result = await self.db_session.execute(stmt)
+
         return result.scalars().first()
 
     async def get_free_subscription_by_user_id(
-        self, user_id: UUID
+        self, user_id: UUID, status: Optional[SubscriptionStatus] = None
     ) -> Optional[FreeSubscription]:
-        """get free not active subscription for a user."""
-        stmt = select(FreeSubscription).where(
-            and_(
-                Subscription.user_id == user_id,
-                Subscription.status != SubscriptionStatus.ACTIVE,
-            )
-        )
+        """
+        get free subscription for a user with optional status filtering.
+
+        Args:
+            user_id: The ID of the user
+            status: Optional filter by subscription status. If None, returns non-active subscriptions.
+
+        Returns:
+            The free subscription if found, None otherwise
+        """
+        filters = [FreeSubscription.user_id == user_id]
+
+        if status:
+            # Filter by the specific status provided
+            filters.append(FreeSubscription.status == status)
+        else:
+            # Default behavior: return non-active subscriptions
+            filters.append(FreeSubscription.status != SubscriptionStatus.ACTIVE)
+
+        stmt = select(FreeSubscription).where(and_(*filters))
         result = await self.db_session.execute(stmt)
         return result.scalars().first()
+
+    @overload
+    async def list_subscriptions(
+        self,
+        user_id: Optional[UUID] = None,
+        status: Optional[SubscriptionStatus] = None,
+        subscription_type: Literal["free"] = "free",
+    ) -> list[FreeSubscription]:
+        ...
+
+    @overload
+    async def list_subscriptions(
+        self,
+        user_id: Optional[UUID] = None,
+        status: Optional[SubscriptionStatus] = None,
+        subscription_type: Literal["paid"] = "paid",
+    ) -> list[PaidSubscription]:
+        ...
 
     async def list_subscriptions(
         self,
         user_id: Optional[UUID] = None,
         status: Optional[SubscriptionStatus] = None,
-    ) -> list[Subscription]:
+        subscription_type: Optional[str] = None,
+    ) -> Union[list[Subscription], list[FreeSubscription], list[PaidSubscription]]:
         """
         list subscriptions with optional filtering.
 
         Args:
             user_id: filter by user id
             status: Optional filter by subscription status
+            subscription_type: Optional filter by subscription type ("free" or "paid")
 
         Returns:
-            List of subscriptions matching the filters
+            list of subscriptions matching the filters. Returns specific subscription types
+            (FreeSubscription or PaidSubscription) when subscription_type is specified.
         """
+        if subscription_type:
+            if subscription_type.lower() == "free":
+                # Query specifically for FreeSubscription
+                stmt = select(FreeSubscription)
+                filters = []
+                if user_id:
+                    filters.append(FreeSubscription.user_id == user_id)
+                if status:
+                    filters.append(FreeSubscription.status == status)
+                if filters:
+                    stmt = stmt.where(*filters)
+                stmt = stmt.order_by(FreeSubscription.created_at.desc())
+                result = await self.db_session.execute(stmt)
+                return list(result.scalars().all())
+            elif subscription_type.lower() == "paid":
+                stmt = select(PaidSubscription)
+                filters = []
+                if user_id:
+                    filters.append(PaidSubscription.user_id == user_id)
+                if status:
+                    filters.append(PaidSubscription.status == status)
+                if filters:
+                    stmt = stmt.where(*filters)
+                stmt = stmt.order_by(PaidSubscription.created_at.desc())
+                result = await self.db_session.execute(stmt)
+                return list(result.scalars().all())
 
-        stmt = select(Subscription)
+        poly_subscription = with_polymorphic(
+            Subscription, [FreeSubscription, PaidSubscription]
+        )
+        stmt = select(poly_subscription)
 
         filters = []
         if user_id:
-            filters.append(Subscription.user_id == str(user_id))
+            filters.append(poly_subscription.user_id == user_id)
         if status:
-            filters.append(Subscription.status == status)
+            filters.append(poly_subscription.status == status)
 
         if filters:
             stmt = stmt.where(*filters)
 
-        stmt = stmt.order_by(Subscription.created_at.desc())
+        stmt = stmt.order_by(poly_subscription.created_at.desc())
 
         result = await self.db_session.execute(stmt)
         return list(result.scalars().all())
@@ -184,30 +251,58 @@ class SubscriptionRepository:
         return subscription
 
     async def downgrade_to_free(
-        self, paid_subscription: PaidSubscription
+        self, user_id: UUID, virtual_lab_id: Optional[UUID] = None
     ) -> FreeSubscription:
         """Downgrade a paid subscription to free."""
-        free_subscription = await self.get_free_subscription_by_user_id(
-            paid_subscription.user_id
-        )
+        free_subscription = await self.get_free_subscription_by_user_id(user_id)
         if free_subscription:
             free_subscription.status = SubscriptionStatus.ACTIVE
             free_subscription.current_period_start = datetime.now()
             free_subscription.current_period_end = datetime.max
+            free_subscription.usage_count += 1
         else:
             free_subscription = FreeSubscription(
-                user_id=paid_subscription.user_id,
-                virtual_lab_id=paid_subscription.virtual_lab_id,
+                user_id=user_id,
+                virtual_lab_id=virtual_lab_id,
                 subscription_type=SubscriptionType.FREE,
                 status=SubscriptionStatus.ACTIVE,
                 current_period_start=datetime.now(),
                 current_period_end=datetime.max,
             )
+
         self.db_session.add(free_subscription)
         await self.db_session.commit()
         await self.db_session.refresh(free_subscription)
 
         return free_subscription
+
+    async def deactivate_free_subscription(
+        self,
+        user_id: UUID,
+    ) -> Optional[FreeSubscription]:
+        """
+        deactivate a user's free subscription.
+        This is typically called when upgrading a user to a paid plan.
+
+        Args:
+            user_id: The user ID
+
+        Returns:
+            The deactivated free subscription if found, None otherwise
+        """
+
+        free_subscription = await self.get_free_subscription_by_user_id(
+            user_id, status=SubscriptionStatus.ACTIVE
+        )
+
+        if free_subscription:
+            free_subscription.status = SubscriptionStatus.PAUSED
+            self.db_session.add(free_subscription)
+            await self.db_session.commit()
+            await self.db_session.refresh(free_subscription)
+            return free_subscription
+
+        return None
 
     async def get_virtual_lab_subscription(
         self, virtual_lab_id: UUID
@@ -229,3 +324,15 @@ class SubscriptionRepository:
         )
         result = await self.db_session.execute(stmt)
         return list(result.scalars().all())
+
+    # get subscription plan by id
+    async def get_subscription_tier_by_id(
+        self, subscription_tier_id: UUID
+    ) -> Optional[SubscriptionTier]:
+        """get subscription tier by id."""
+
+        stmt = select(SubscriptionTier).where(
+            SubscriptionTier.id == subscription_tier_id
+        )
+        result = await self.db_session.execute(stmt)
+        return result.scalars().first()

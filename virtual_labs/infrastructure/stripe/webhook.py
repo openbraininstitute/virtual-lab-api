@@ -4,7 +4,7 @@ from uuid import UUID
 
 import stripe
 from loguru import logger
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.infrastructure.db.models import (
@@ -15,6 +15,7 @@ from virtual_labs.infrastructure.db.models import (
     SubscriptionType,
 )
 from virtual_labs.repositories.stripe_repo import StripeRepository
+from virtual_labs.repositories.stripe_user_repo import StripeUserQueryRepository
 from virtual_labs.repositories.subscription_repo import SubscriptionRepository
 
 
@@ -34,7 +35,6 @@ class StripeWebhook:
     payment_update_events = {
         "invoice.payment_succeeded",
         "invoice.payment_failed",
-        "invoice.paid",
     }
 
     standalone_payment_events = {
@@ -47,9 +47,11 @@ class StripeWebhook:
         self,
         stripe_repository: StripeRepository,
         subscription_repository: SubscriptionRepository,
+        stripe_user_repository: StripeUserQueryRepository,
     ):
         self.stripe_repository = stripe_repository
         self.subscription_repository = subscription_repository
+        self.stripe_user_repository = stripe_user_repository
 
     async def handle_webhook_event(
         self, event_json: stripe.Event, db_session: AsyncSession
@@ -73,13 +75,11 @@ class StripeWebhook:
                 f"Processing Stripe webhook event: {event_type} (ID: {event_id})"
             )
 
-            # Group events by category for efficient processing
             if event_type in self.subscription_update_events:
                 return await self._handle_subscription_event(event_json, db_session)
             elif event_type in self.payment_update_events:
                 return await self._handle_payment_event(event_json, db_session)
             elif event_type in self.standalone_payment_events:
-                # Check if this is actually a standalone payment
                 metadata = (
                     event_json.get("data", {}).get("object", {}).get("metadata", {})
                 )
@@ -109,104 +109,6 @@ class StripeWebhook:
                 "status": "error",
                 "message": str(e),
             }
-
-    async def _handle_subscription_event(
-        self, event_json: Dict[str, Any], db_session: AsyncSession
-    ) -> Dict[str, Any]:
-        """
-        handle subscription related events by fetching the latest subscription data
-        and updating the database.
-        """
-        event_type = event_json.get("type")
-        subscription_id = event_json.get("data", {}).get("object", {}).get("id")
-
-        if not subscription_id:
-            logger.warning(f"No subscription ID found in event: {event_type}")
-            return {
-                "status": "error",
-                "message": "No subscription ID in event",
-            }
-
-        # fetch the latest subscription data from Stripe
-        stripe_subscription = await self.stripe_repository.get_subscription(
-            subscription_id
-        )
-
-        if not stripe_subscription:
-            logger.warning(
-                f"Could not fetch subscription {subscription_id} from Stripe"
-            )
-            return {"status": "error", "message": "Subscription not found in Stripe"}
-
-        # update or create subscription record
-        await self._update_subscription_record(
-            stripe_subscription, str(event_type), db_session
-        )
-
-        return {
-            "status": "success",
-            "event_type": event_type,
-            "subscription_id": subscription_id,
-        }
-
-    async def _handle_payment_event(
-        self, event_json: Dict[str, Any], db_session: AsyncSession
-    ) -> Dict[str, Any]:
-        """
-        handle invoice payment events by updating payment records.
-        """
-        event_type: str = str(event_json.get("type"))
-        event_data: Dict[str, Any] = event_json.get("data", {}).get("object", {})
-
-        # get ids from invoice event
-        subscription_id = event_data.get("subscription")
-        payment_intent_id = event_data.get("payment_intent")
-        invoice_id = event_data.get("id")
-
-        if not invoice_id:
-            logger.warning(f"No invoice ID found in event: {event_type}")
-            return {
-                "status": "error",
-                "message": "No invoice ID in event",
-            }
-
-        # try to get subscription details if not provided
-        if not subscription_id:
-            invoice = await self.stripe_repository.get_invoice(invoice_id)
-            if invoice:
-                subscription_id = invoice.get("subscription")
-
-        # get virtual lab ID from metadata
-        metadata = event_data.get("metadata", {})
-        virtual_lab_id = metadata.get("virtual_lab_id")
-
-        # if we have a subscription ID, fetch and update subscription record
-        stripe_subscription = None
-        if subscription_id:
-            stripe_subscription = await self.stripe_repository.get_subscription(
-                subscription_id
-            )
-            if stripe_subscription:
-                await self._update_subscription_record(
-                    stripe_subscription, event_type, db_session
-                )
-
-        # update payment record
-        await self._update_payment_record(
-            subscription_id=subscription_id,
-            payment_intent_id=payment_intent_id,
-            invoice_id=invoice_id,
-            event_type=event_type,
-            event_data=event_data,
-            db_session=db_session,
-        )
-
-        return {
-            "status": "success",
-            "event_type": event_type,
-            "subscription_id": subscription_id,
-            "virtual_lab_id": virtual_lab_id,
-        }
 
     async def _handle_standalone_payment_event(
         self, event_json: Dict[str, Any], db_session: AsyncSession
@@ -251,7 +153,7 @@ class StripeWebhook:
         try:
             # Create or update standalone payment record
             payment = await self._create_standalone_payment_record(
-                payment_intent_id=payment_intent_id,  # Now we know this is a string
+                payment_intent_id=payment_intent_id,
                 user_id=user_id,
                 event_type=event_type,
                 event_data=event_data,
@@ -285,8 +187,6 @@ class StripeWebhook:
         event_data: Dict[str, Any],
         db_session: AsyncSession,
     ) -> Optional[SubscriptionPayment]:
-        print("ᦨ #  webhook.py:284 #  event_data:", event_data)
-
         """
         create or update a standalone payment record based on payment intent data.
         this is used for one-time payments that are not tied to an invoice.
@@ -295,17 +195,16 @@ class StripeWebhook:
             logger.error("Cannot create payment record without payment intent ID")
             return None
 
-        # find existing payment by payment intent id
         stmt = select(SubscriptionPayment).where(
             SubscriptionPayment.stripe_payment_intent_id == payment_intent_id
         )
         result = await db_session.execute(stmt)
         payment = result.scalars().first()
         customer_id = event_data.get("customer")
-        # try to find the subscription in database
         subscription = None
         try:
-            # get the subscription from database using user_id
+            if subscription:
+                payment.subscription_id = subscription.id
             subscription = (
                 await self.subscription_repository.get_active_subscription_by_user_id(
                     UUID(user_id),
@@ -323,12 +222,10 @@ class StripeWebhook:
             payment.stripe_payment_intent_id = payment_intent_id
             payment.customer_id = customer_id  # type: ignore
 
-            # link to subscription if available
             if subscription:
                 payment.subscription_id = subscription.id
 
         try:
-            # get payment intent details
             payment_intent = await self.stripe_repository.get_payment_intent(
                 payment_intent_id
             )
@@ -345,7 +242,6 @@ class StripeWebhook:
                         payment.card_exp_month = card.get("exp_month", 1)
                         payment.card_exp_year = card.get("exp_year", 2000)
 
-            # set payment status based on event type
             if "succeeded" in event_type or "paid" in event_type:
                 payment.status = PaymentStatus.SUCCEEDED
             elif "failed" in event_type or "canceled" in event_type:
@@ -353,14 +249,12 @@ class StripeWebhook:
             else:
                 payment.status = PaymentStatus.PENDING
 
-            # update payment details
             amount = event_data.get("amount", 0)
             if isinstance(amount, str):
                 amount = int(amount)
             payment.amount_paid = amount
             payment.currency = event_data.get("currency", "usd")
 
-            # set payment date for succeeded payments
             if payment.status == PaymentStatus.SUCCEEDED:
                 # TODO: popup credits to accounting
                 payment.payment_date = datetime.now()
@@ -389,9 +283,50 @@ class StripeWebhook:
             logger.exception(f"Failed to create standalone payment record: {str(e)}")
             raise
 
+    async def _handle_subscription_event(
+        self, event_json: Dict[str, Any], db_session: AsyncSession
+    ) -> Dict[str, Any]:
+        """
+        handle subscription related events by fetching the latest subscription data
+        and updating the database.
+        """
+        event_type = event_json.get("type")
+        subscription_id = event_json.get("data", {}).get("object", {}).get("id")
+        event_data: Dict[str, Any] = event_json.get("data", {}).get("object", {})
+        metadata = event_data.get("metadata", {})
+        user_id = metadata.get("user_id")
+
+        if not subscription_id:
+            logger.warning(f"No subscription ID found in event: {event_type}")
+            return {
+                "status": "error",
+                "message": "No subscription ID in event",
+            }
+
+        stripe_subscription = await self.stripe_repository.get_subscription(
+            subscription_id
+        )
+
+        if not stripe_subscription:
+            logger.warning(
+                f"Could not fetch subscription {subscription_id} from Stripe"
+            )
+            return {"status": "error", "message": "Subscription not found in Stripe"}
+
+        await self._update_subscription_record(
+            stripe_subscription, user_id, str(event_type), db_session
+        )
+
+        return {
+            "status": "success",
+            "event_type": event_type,
+            "subscription_id": subscription_id,
+        }
+
     async def _update_subscription_record(
         self,
         stripe_subscription: Dict[str, Any],
+        user_id: str,
         event_type: str,
         db_session: AsyncSession,
     ) -> PaidSubscription:
@@ -400,26 +335,26 @@ class StripeWebhook:
         Only handles PaidSubscription since this comes from Stripe.
         """
         subscription_id: str = str(stripe_subscription.get("id"))
-
-        # Query for existing paid subscription
         stmt = select(PaidSubscription).where(
             PaidSubscription.stripe_subscription_id == subscription_id
         )
+        if user_id:
+            stmt = stmt.where(or_(PaidSubscription.user_id == UUID(user_id)))
+
         result = await db_session.execute(stmt)
         subscription = result.scalars().first()
 
-        # If no subscription exists, create new paid subscription
+        # if no subscription exists, create new paid subscription
         if subscription is None:
             subscription = PaidSubscription()
             subscription.stripe_subscription_id = subscription_id
 
-        # Determine subscription type based on price/product data
+        # determine subscription type based on price/product data for future
         items_data = stripe_subscription.get("items", {}).get("data", [])
         if items_data:
             item = items_data[0]
             price = item.get("price", {})
-            # TODO: use product to det
-            # You might want to determine PRO vs PREMIUM on product
+            # TODO: use product to determine PRO vs PREMIUM
             subscription.subscription_type = SubscriptionType.PRO
 
         subscription.status = SubscriptionStatus(stripe_subscription.get("status"))
@@ -479,15 +414,77 @@ class StripeWebhook:
             if recurring:
                 subscription.interval = recurring.get("interval", "month")
 
-        if event_type == "customer.subscription.deleted":
-            # TODO: update the user custom property "plan" to "free"
-            await self.subscription_repository.downgrade_to_free(subscription)
+        if (
+            event_type == "customer.subscription.deleted"
+            or subscription.status != "active"
+        ):
+            # TODO: update the user custom property "plan" to "free" in KC
+            await self.subscription_repository.downgrade_to_free(
+                user_id=subscription.user_id
+            )
 
         db_session.add(subscription)
         await db_session.commit()
         await db_session.refresh(subscription)
 
         return subscription
+
+    async def _handle_payment_event(
+        self, event_json: Dict[str, Any], db_session: AsyncSession
+    ) -> Dict[str, Any]:
+        """
+        handle invoice payment events by updating payment records.
+        """
+        event_type: str = str(event_json.get("type"))
+        event_data: Dict[str, Any] = event_json.get("data", {}).get("object", {})
+
+        print("ᦨ #  webhook.py:162 #  event_data:", event_data)
+
+        subscription_id = event_data.get("subscription")
+        payment_intent_id = event_data.get("payment_intent")
+        invoice_id = event_data.get("id")
+        user_id = (
+            event_data.get("subscription_details", {})
+            .get("metadata", {})
+            .get("user_id")
+        )
+
+        if not invoice_id:
+            logger.warning(f"No invoice ID found in event: {event_type}")
+            return {
+                "status": "error",
+                "message": "No invoice ID in event",
+            }
+
+        if not subscription_id:
+            invoice = await self.stripe_repository.get_invoice(invoice_id)
+            if invoice:
+                subscription_id = invoice.get("subscription")
+
+        stripe_subscription = None
+        if subscription_id:
+            stripe_subscription = await self.stripe_repository.get_subscription(
+                subscription_id
+            )
+            if stripe_subscription:
+                await self._update_subscription_record(
+                    stripe_subscription, user_id, event_type, db_session
+                )
+
+        await self._update_payment_record(
+            subscription_id=subscription_id,
+            payment_intent_id=payment_intent_id,
+            invoice_id=invoice_id,
+            event_type=event_type,
+            event_data=event_data,
+            db_session=db_session,
+        )
+
+        return {
+            "status": "success",
+            "event_type": event_type,
+            "subscription_id": subscription_id,
+        }
 
     async def _update_payment_record(
         self,
@@ -501,7 +498,7 @@ class StripeWebhook:
         """
         update or create a payment record based on invoice event data.
         """
-        # try to find existing payment by invoice id
+
         invoice_stmt = select(SubscriptionPayment).where(
             SubscriptionPayment.stripe_invoice_id == invoice_id
         )
@@ -580,7 +577,7 @@ class StripeWebhook:
         except Exception as e:
             logger.warning(f"Failed to fetch invoice details: {str(e)}")
 
-        # Link to subscription if available
+        # link to subscription
         if subscription_id:
             stmt = select(PaidSubscription).where(
                 PaidSubscription.stripe_subscription_id == subscription_id
@@ -590,7 +587,7 @@ class StripeWebhook:
             if subscription:
                 payment.subscription_id = subscription.id
 
-        # Set payment status based on event type
+        # payment status based on event type
         if "succeeded" in event_type or "paid" in event_type:
             payment.status = PaymentStatus.SUCCEEDED
         elif "failed" in event_type:
@@ -605,6 +602,14 @@ class StripeWebhook:
         if "succeeded" in event_type or "paid" in event_type:
             # TODO: popup credits to accounting
             payment.payment_date = datetime.now()
+        else:
+            user = await self.stripe_user_repository.get_by_stripe_customer_id(
+                stripe_customer_id=str(customer_id)
+            )
+            if user:
+                await self.subscription_repository.downgrade_to_free(
+                    user_id=UUID(str(user.user_id)),
+                )
 
         db_session.add(payment)
         await db_session.commit()

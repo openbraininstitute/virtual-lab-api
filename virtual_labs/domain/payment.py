@@ -76,3 +76,13 @@ class PaymentListResponse(BaseModel):
     has_next: bool
     has_previous: bool
     payments: List[PaymentDetails]
+
+
+class CreateStandalonePaymentRequest(BaseModel):
+    """
+    creating a standalone payment
+    """
+
+    amount: int = Field(..., description="Amount to charge in cents")
+    currency: str = Field("usd", description="Currency code (e.g., 'chf')")
+    payment_method_id: str = Field(..., description="stripe payment method id")

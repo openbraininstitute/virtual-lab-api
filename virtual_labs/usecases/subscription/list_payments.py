@@ -7,6 +7,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
+from virtual_labs.core.exceptions.generic_exceptions import EntityNotFound
 from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.domain.payment import (
     PaymentDetails,
@@ -16,8 +17,8 @@ from virtual_labs.domain.payment import (
 )
 from virtual_labs.infrastructure.db.models import SubscriptionPayment
 from virtual_labs.infrastructure.kc.models import AuthUser
-from virtual_labs.repositories.labs import get_user_virtual_lab
 from virtual_labs.repositories.payment_repo import PaymentRepository
+from virtual_labs.repositories.stripe_user_repo import StripeUserQueryRepository
 from virtual_labs.shared.utils.auth import get_user_id_from_auth
 
 
@@ -39,25 +40,29 @@ async def list_payments(
     - Payment type (subscription or standalone)
     - Virtual lab id
 
-    returns a paginated list of payments with their details.
+    Args:
+        db: database session
+        auth: Auth header
+        filters: PaymentFilter
+
+    Returns a paginated list of payments with their details.
     """
     user_id = get_user_id_from_auth(auth)
+    stripe_user_repo = StripeUserQueryRepository(db_session=session)
 
     print("ᦨ #  list_payments.py:46 #  user_id:", user_id)
 
     try:
         payment_repo = PaymentRepository(session)
-        virtual_lab = await get_user_virtual_lab(
-            db=session,
-            owner_id=user_id,
-        )
+        stripe_user = await stripe_user_repo.get_by_user_id(user_id=user_id)
 
-        if virtual_lab is None:
-            raise ValueError("No virtual lab for this user")
+        if not stripe_user:
+            raise EntityNotFound
+        assert stripe_user.stripe_costumer_id, "No stripe customer id"
 
         payments, total_count = await payment_repo.list_payments(
-            virtual_lab.stripe_customer_id,
-            filters,
+            customer_id=stripe_user.stripe_costumer_id,
+            filters=filters,
         )
 
         total_pages = (total_count + filters.page_size - 1) // filters.page_size
@@ -103,7 +108,13 @@ async def list_payments(
             message="Payments retrieved successfully",
             data=response.model_dump(),
         )
-
+    except EntityNotFound as e:
+        logger.error(f"Entity not found while listing payments: {str(e)}")
+        raise VliError(
+            error_code=VliErrorCode.ENTITY_NOT_FOUND,
+            http_status_code=HTTPStatus.NOT_FOUND,
+            message="Customer not found",
+        )
     except SQLAlchemyError as e:
         logger.error(f"Database error while fetching payments: {str(e)}")
         raise VliError(

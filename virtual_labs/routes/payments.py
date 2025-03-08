@@ -8,7 +8,9 @@ from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.types import VliAppResponse
+from virtual_labs.domain.payment import CreateStandalonePaymentRequest
 from virtual_labs.domain.payment_method import SetupIntentOut
+from virtual_labs.domain.subscription import StandalonePaymentResponse
 from virtual_labs.infrastructure.db.config import default_session_factory
 from virtual_labs.infrastructure.kc.auth import a_verify_jwt
 from virtual_labs.infrastructure.kc.models import AuthUser
@@ -115,6 +117,7 @@ async def handle_stripe_webhook(
     ```shell 
     stripe setup_intents confirm {setup_intent_id} --payment-method={payment_method}
     ```
+
     where:
     ```py
     setup_intent_id = `seti_1Mm2cBLkdIwHu7ixaiKW3ElR` # the generated setupIntent 
@@ -133,5 +136,43 @@ async def generate_setup_intent(
 ) -> Response:
     return await payment_cases.generate_setup_intent(
         session,
+        auth=auth,
+    )
+
+
+@router.post(
+    "/standalone",
+    operation_id="create_standalone_payment",
+    summary="Create a standalone payment for the authenticated user",
+    description=dedent(
+        """
+    This endpoint creates a standalone payment for the authenticated user.
+    
+    It ensures the user has a Stripe customer ID, creates one if needed,
+    and then processes the payment using the provided payment method.
+    
+    The payment is recorded in the database as a standalone payment
+    (not associated with any subscription).
+    
+    ### Example request:
+    ```json
+    {
+        "amount": 5000,  // $50.00
+        "currency": "chf",
+        "payment_method_id": "pm_card_visa",
+    }
+    ```
+    """
+    ),
+    response_model=VliAppResponse[StandalonePaymentResponse],
+)
+async def create_standalone_payment(
+    payload: CreateStandalonePaymentRequest,
+    session: AsyncSession = Depends(default_session_factory),
+    auth: Tuple[AuthUser, str] = Depends(a_verify_jwt),
+) -> Response:
+    return await payment_cases.create_standalone_payment(
+        payload=payload,
+        session=session,
         auth=auth,
     )

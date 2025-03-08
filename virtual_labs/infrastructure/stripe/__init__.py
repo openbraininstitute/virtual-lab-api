@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import (
 from virtual_labs.infrastructure.db.config import default_session_factory
 from virtual_labs.infrastructure.stripe.webhook import StripeWebhook
 from virtual_labs.repositories.stripe_repo import StripeRepository
+from virtual_labs.repositories.stripe_user_repo import StripeUserQueryRepository
 from virtual_labs.repositories.subscription_repo import SubscriptionRepository
 
 
@@ -29,10 +30,25 @@ def get_subscription_repository(
     )
 
 
+def get_stripe_user_repository(
+    session: AsyncSession = Depends(default_session_factory),
+) -> StripeUserQueryRepository:
+    """
+    dependency for getting the db subscription repository.
+    """
+
+    return StripeUserQueryRepository(
+        db_session=session,
+    )
+
+
 def get_stripe_webhook_service(
     stripe_repository: StripeRepository = Depends(get_stripe_repository),
     subscription_repository: SubscriptionRepository = Depends(
         get_subscription_repository
+    ),
+    stripe_user_repository: StripeUserQueryRepository = Depends(
+        get_stripe_user_repository
     ),
 ) -> StripeWebhook:
     """
@@ -42,4 +58,5 @@ def get_stripe_webhook_service(
     return StripeWebhook(
         stripe_repository=stripe_repository,
         subscription_repository=subscription_repository,
+        stripe_user_repository=stripe_user_repository,
     )

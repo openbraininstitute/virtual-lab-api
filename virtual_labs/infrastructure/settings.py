@@ -50,7 +50,7 @@ class Settings(BaseSettings):
     KC_REALM_NAME: str = "obp-realm"
     DEPLOYMENT_NAMESPACE: str = "https://openbrainplatform.org"
     LANDING_NAMESPACE: str = "https://openbraininstitute.org"
-    VLAB_ADMIN_PATH: str = "{}/mmb-beta/virtual-lab/lab/{}/admin?panel=billing"
+    VLAB_ADMIN_PATH: str = "/app/virtual-lab/account/subscription"
 
     MAIL_USERNAME: str = "dummyusername"
     MAIL_PASSWORD: str = "dummypassword"

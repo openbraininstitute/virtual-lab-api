@@ -8,7 +8,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.domain import labs as domain
-from virtual_labs.infrastructure.stripe.config import stripe_client
 from virtual_labs.repositories import labs as repository
 
 
@@ -17,14 +16,6 @@ async def update_virtual_lab(
 ) -> domain.VirtualLabOut:
     try:
         db_lab = await repository.update_virtual_lab(db, lab_id, lab)
-
-        await stripe_client.customers.update_async(
-            str(db_lab.stripe_customer_id),
-            {
-                "name": str(db_lab.name),
-                "email": str(db_lab.reference_email),
-            },
-        )
 
         return domain.VirtualLabOut(
             virtual_lab=domain.VirtualLabDetails.model_validate(db_lab)

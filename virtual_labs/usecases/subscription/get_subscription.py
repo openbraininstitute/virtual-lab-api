@@ -22,6 +22,11 @@ async def get_subscription(
     """
     get details for a specific subscription.
     returns the subscription details including status
+
+    Args:
+        subscription_id: subscription id
+        db: database session
+        auth: Auth header
     """
     try:
         subscription_repo = SubscriptionRepository(db_session=session)

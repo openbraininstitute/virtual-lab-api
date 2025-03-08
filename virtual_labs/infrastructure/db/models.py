@@ -54,9 +54,6 @@ class VirtualLab(Base):
     member_group_id = Column(String, nullable=False, unique=True)
 
     nexus_organization_id = Column(String, nullable=False, unique=True)
-    stripe_customer_id: Mapped[str] = mapped_column(
-        String(255), nullable=False, index=True
-    )
 
     name = Column(String(250), index=True)
     description = Column(Text)
@@ -377,7 +374,7 @@ class Subscription(Base):
         UUID(as_uuid=True), nullable=False, index=True
     )
     virtual_lab_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("virtual_lab.id"), nullable=False, index=True
+        UUID(as_uuid=True), ForeignKey("virtual_lab.id"), nullable=True, index=True
     )
 
     subscription_type: Mapped[str] = mapped_column(String(50))
@@ -420,6 +417,8 @@ class FreeSubscription(Subscription):
         UUID(as_uuid=True), ForeignKey("subscription.id"), primary_key=True
     )
 
+    usage_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
     __mapper_args__ = {"polymorphic_identity": "free"}
 
 
@@ -459,6 +458,8 @@ class PaidSubscription(Subscription):
     amount: Mapped[int] = mapped_column(Integer, nullable=False)
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="usd")
     interval: Mapped[str] = mapped_column(String(50), nullable=False)  # 'month', 'year'
+
+    cancellation_reason: Mapped[str] = mapped_column(String(300), nullable=True)
 
     __mapper_args__ = {"polymorphic_identity": "paid"}
 
@@ -523,12 +524,12 @@ class SubscriptionPayment(Base):
         return f"{self.card_exp_month:02d}/{str(self.card_exp_year)[-2:]}"
 
 
-class SubscriptionPlan(Base):
+class SubscriptionTier(Base):
     """
     app plans
     """
 
-    __tablename__ = "subscription_plan"
+    __tablename__ = "subscription_tier"
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -548,11 +549,13 @@ class SubscriptionPlan(Base):
         String(255), nullable=True
     )
     monthly_amount: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    monthly_discount: Mapped[int] = mapped_column(Integer, nullable=True, default=0)
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="usd")
     stripe_yearly_price_id: Mapped[Optional[str]] = mapped_column(
         String(255), nullable=True
     )
     yearly_amount: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    yearly_discount: Mapped[int] = mapped_column(Integer, nullable=True, default=0)
 
     features: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
     plan_metadata: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)

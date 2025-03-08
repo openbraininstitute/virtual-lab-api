@@ -19,10 +19,10 @@ class StripeUserQueryRepository:
 
     async def get_by_user_id(self, user_id: UUID) -> Optional[StripeUser]:
         """
-        Get a StripeUser by user_id.
+        get a StripeUser by user_id.
 
         Args:
-            user_id: The owner's UUID
+            user_id: user id
 
         Returns:
             Optional[StripeUser]: The StripeUser if found, None otherwise
@@ -69,7 +69,7 @@ class StripeUserMutationRepository:
         self, user_id: UUID, stripe_customer_id: str
     ) -> Optional[StripeUser]:
         """
-        Create a new StripeUser.
+        create a new StripeUser.
 
         Args:
             user_id: The owner's UUID

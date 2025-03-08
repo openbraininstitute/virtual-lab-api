@@ -5,11 +5,17 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from virtual_labs.core.types import VliAppResponse
 from virtual_labs.domain.payment import PaymentFilter, PaymentListResponse, PaymentType
 from virtual_labs.domain.subscription import (
+    CancelSubscriptionRequest,
     CreateSubscriptionRequest,
+    NextPaymentDateResponse,
     SubscriptionDetails,
-    SubscriptionPlan,
+    SubscriptionStatusResponse,
+    SubscriptionTiersListResponse,
+    UserSubscriptionResponse,
+    UserSubscriptionsResponse,
 )
 from virtual_labs.infrastructure.db.config import default_session_factory
 from virtual_labs.infrastructure.db.models import SubscriptionStatus
@@ -17,11 +23,15 @@ from virtual_labs.infrastructure.kc.auth import a_verify_jwt
 from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.usecases.subscription import (
     cancel_subscription_usecase,
+    check_user_subscription_usecase,
     create_subscription_usecase,
+    get_next_payment_date_usecase,
     get_subscription_usecase,
+    get_user_active_subscription_usecase,
     list_payments_usecase,
-    list_subscription_plans_usecase,
+    list_subscription_tiers_usecase,
     list_subscriptions_usecase,
+    list_user_subscriptions_history_usecase,
 )
 
 router = APIRouter(prefix="/subscriptions", tags=["Subscriptions"])
@@ -31,7 +41,7 @@ router = APIRouter(prefix="/subscriptions", tags=["Subscriptions"])
     "",
     operation_id="create_subscription",
     summary="Create a new subscription",
-    response_model=SubscriptionDetails,
+    response_model=VliAppResponse[SubscriptionDetails],
 )
 async def create_subscription(
     payload: CreateSubscriptionRequest,
@@ -51,30 +61,31 @@ async def create_subscription(
 
 
 @router.get(
-    "/plans",
-    operation_id="list_subscription_plans",
-    summary="List available subscription plans",
-    response_model=List[SubscriptionPlan],
+    "/tiers",
+    operation_id="list_subscription_tiers",
+    summary="List available subscription tiers",
+    response_model=VliAppResponse[SubscriptionTiersListResponse],
 )
-async def list_subscription_plans(
+async def list_subscription_tiers(
     auth: Tuple[AuthUser, str] = Depends(a_verify_jwt),
     db: AsyncSession = Depends(default_session_factory),
 ) -> Response:
     """
-    list all available subscription plans with pricing information.
+    list all available subscription tiers with pricing information.
 
     Returns a list of subscription plans
     """
-    return await list_subscription_plans_usecase(auth, db)
+    return await list_subscription_tiers_usecase(auth, db)
 
 
-@router.patch(
-    "/cancel",
+@router.delete(
+    "",
     operation_id="cancel_subscription",
     summary="Cancel the user's active subscription",
-    response_model=SubscriptionDetails,
+    response_model=VliAppResponse[SubscriptionDetails],
 )
 async def cancel_subscription(
+    payload: CancelSubscriptionRequest,
     db: AsyncSession = Depends(default_session_factory),
     auth: Tuple[AuthUser, str] = Depends(a_verify_jwt),
 ) -> Response:
@@ -82,14 +93,14 @@ async def cancel_subscription(
     cancel the user's active subscription at the end of the current billing period.
     the subscription will remain active until the end of the paid period.
     """
-    return await cancel_subscription_usecase(db, auth)
+    return await cancel_subscription_usecase(payload, db, auth)
 
 
 @router.get(
     "",
     operation_id="list_subscriptions",
     summary="List subscriptions",
-    response_model=List[SubscriptionDetails],
+    response_model=VliAppResponse[List[SubscriptionDetails]],
 )
 async def list_subscriptions(
     status: Optional[SubscriptionStatus] = None,
@@ -108,7 +119,7 @@ async def list_subscriptions(
     "/payments",
     operation_id="list_payments",
     summary="List payments with filters",
-    response_model=PaymentListResponse,
+    response_model=VliAppResponse[PaymentListResponse],
 )
 async def list_payments(
     start_date: Optional[datetime] = Query(
@@ -164,10 +175,90 @@ async def list_payments(
 
 
 @router.get(
+    "/active",
+    operation_id="get_user_active_subscription",
+    summary="Get subscription details for a user",
+    description="Retrieves details of a user's active subscription including its type (free or paid)",
+    response_model=VliAppResponse[UserSubscriptionResponse],
+)
+async def get_user_subscription(
+    db: AsyncSession = Depends(default_session_factory),
+    auth: Tuple[AuthUser, str] = Depends(a_verify_jwt),
+) -> Response:
+    """
+    get the current subscription for a specific user.
+
+    Returns details of the subscription along with the 'type' property
+    indicating whether it's 'free' or 'paid'.
+    """
+    return await get_user_active_subscription_usecase(db, auth)
+
+
+@router.get(
+    "/next-payment",
+    operation_id="get_next_payment_date",
+    summary="Get the next payment date for the current user's paid subscription",
+    description="Retrieves the next payment date for the user's active paid subscription",
+    response_model=VliAppResponse[NextPaymentDateResponse],
+)
+async def get_next_payment_date(
+    db: AsyncSession = Depends(default_session_factory),
+    auth: Tuple[AuthUser, str] = Depends(a_verify_jwt),
+) -> Response:
+    """
+    get the next payment date for a paid subscription.
+
+    For Stripe subscriptions, this is the end date of the current billing period
+    unless the subscription is set to be canceled.
+    """
+    return await get_next_payment_date_usecase(db, auth)
+
+
+@router.get(
+    "/check",
+    operation_id="check_user_subscription",
+    summary="Check if a user has an active subscription",
+    description="Determines whether a user has an active subscription and returns its type (free or paid)",
+    response_model=VliAppResponse[SubscriptionStatusResponse],
+)
+async def check_user_subscription(
+    db: AsyncSession = Depends(default_session_factory),
+    auth: Tuple[AuthUser, str] = Depends(a_verify_jwt),
+) -> Response:
+    """
+    check if a user has an active subscription.
+
+    Returns information about the existence and type ('free' or 'paid') of the subscription.
+    """
+    return await check_user_subscription_usecase(db, auth)
+
+
+@router.get(
+    "/history",
+    operation_id="list_user_subscriptions_with_payments",
+    summary="List all subscriptions of the current user with payment history",
+    description="Retrieves all subscriptions (active and inactive) for the authenticated user with detailed payment information",
+    response_model=VliAppResponse[UserSubscriptionsResponse],
+)
+async def list_user_subscriptions_with_payments(
+    db: AsyncSession = Depends(default_session_factory),
+    auth: Tuple[AuthUser, str] = Depends(a_verify_jwt),
+) -> Response:
+    """
+    list all subscriptions of the authenticated user with their corresponding payments.
+
+    retrieves the complete subscription history for the current user,
+    including both active and inactive subscriptions, along with detailed payment
+    information for each subscription.
+    """
+    return await list_user_subscriptions_history_usecase(db, auth)
+
+
+@router.get(
     "/{subscription_id}",
     operation_id="get_subscription",
     summary="Get subscription details",
-    response_model=SubscriptionDetails,
+    response_model=VliAppResponse[SubscriptionDetails],
 )
 async def get_subscription(
     subscription_id: UUID,

@@ -22,7 +22,7 @@ from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
-from virtual_labs.infrastructure.db.models import SubscriptionPlan
+from virtual_labs.infrastructure.db.models import SubscriptionTier
 from virtual_labs.infrastructure.stripe.config import stripe_client as stripe
 
 load_dotenv(".env.local")
@@ -38,11 +38,13 @@ PREMIUM_SANITY_ID = os.getenv("PREMIUM_SANITY_ID")
 FREE_PLAN = {
     "stripe_product_id": None,
     "name": "Free",
-    "description": "Free tier with free features",
+    "description": "Free plan",
     "active": True,
     "sanity_id": FREE_SANITY_ID,
     "stripe_monthly_price_id": None,
     "monthly_amount": 0,
+    "monthly_discount": 0,
+    "yearly_discount": 0,
     "stripe_yearly_price_id": None,
     "yearly_amount": 0,
     "features": None,
@@ -55,13 +57,15 @@ FREE_PLAN = {
 PRO_PLAN = {
     "stripe_product_id": PROD_ID,
     "name": "Pro",
-    "description": "Professional plan with advanced features",
+    "description": "Pro plan with advanced features",
     "active": True,
     "sanity_id": PRO_SANITY_ID,
     "stripe_monthly_price_id": "price_ProMonthlyExample123", 
-    "monthly_amount": 50, 
+    "monthly_amount": 5000, 
+    "monthly_discount": 2500,
+    "yearly_discount": 27500,
     "stripe_yearly_price_id": "price_ProYearlyExample456",
-    "yearly_amount": 550, 
+    "yearly_amount": 55000, 
     "features": None,
     "currency": "chf",
     "plan_metadata": {
@@ -72,11 +76,13 @@ PRO_PLAN = {
 PREMIUM_PLAN = {
     "stripe_product_id": None,
     "name": "Premium",
-    "description": "Enterprise grade plan with maximum features",
+    "description": "Premium plan with tailored requirements",
     "active": True,
     "sanity_id": PREMIUM_SANITY_ID, 
     "stripe_monthly_price_id": None,
     "monthly_amount": 0,
+    "monthly_discount": 0,
+    "yearly_discount": 0,
     "stripe_yearly_price_id":None,
     "yearly_amount": 0, 
     "features": None,
@@ -95,7 +101,6 @@ async def fetch_stripe_data_for_plan(plan_name: str) -> Dict:
         return PREMIUM_PLAN
 
     try:
-        
         product = await stripe.products.retrieve_async(PROD_ID)
         prices = await stripe.prices.list_async(
             params={
@@ -103,7 +108,6 @@ async def fetch_stripe_data_for_plan(plan_name: str) -> Dict:
             }
         )
 
-        print("ᦨ #  populate_subscription_plans.py:107 #  prices:", prices);
 
         monthly_price =  next((p for p in prices.data if p.recurring.interval == "month"), None)
         yearly_price = next((p for p in prices.data if p.recurring.interval == "year"), None)
@@ -124,11 +128,15 @@ async def fetch_stripe_data_for_plan(plan_name: str) -> Dict:
             "sanity_id": PRO_SANITY_ID,
             "stripe_monthly_price_id": monthly_price.id,
             "monthly_amount": monthly_price.unit_amount,
+            "monthly_discount": monthly_price.unit_amount /2,
             "stripe_yearly_price_id": yearly_price.id,
             "yearly_amount": yearly_price.unit_amount,
+            "yearly_discount": yearly_price.unit_amount /2,
             "currency": monthly_price.currency,
             "features": json.loads(product.metadata.get("features", '{}')),
-            "plan_metadata": product.metadata
+            "plan_metadata":{
+                "tier": "pro",
+            }
         }
         return plan_data
     except Exception as e:
@@ -139,7 +147,7 @@ async def fetch_stripe_data_for_plan(plan_name: str) -> Dict:
             raise ValueError(f"Unknown plan name: {plan_name}")
 
 
-async def populate_subscription_plans():
+async def populate_subscription_tiers():
     if not DATABASE_URL:
         logger.error("DATABASE_URL environment variable is not set")
         return
@@ -155,15 +163,16 @@ async def populate_subscription_plans():
                 plan_name = t_plan["name"]
                 
                 plan_data = await fetch_stripe_data_for_plan(plan_name)
+
                 existing_plan = None
                 try:
                     if plan_data["stripe_product_id"]:
                         result = await session.execute(
-                            f"SELECT id FROM subscription_plan WHERE stripe_product_id = '{plan_data['stripe_product_id']}'"
+                            f"SELECT id FROM subscription_tier WHERE stripe_product_id = '{plan_data['stripe_product_id']}'"
                         )
                     else:
                         result = await session.execute(
-                            f"SELECT id FROM subscription_plan WHERE name = '{plan_data['name']}'"
+                            f"SELECT id FROM subscription_tier WHERE name = '{plan_data['name']}'"
                         )
                     existing_plan = result.scalar_one_or_none()
                 except Exception as e:
@@ -174,7 +183,7 @@ async def populate_subscription_plans():
                     continue
                     
 
-                plan = SubscriptionPlan(
+                tier = SubscriptionTier(
                     stripe_product_id=plan_data["stripe_product_id"],
                     name=plan_data["name"],
                     description=plan_data["description"],
@@ -182,6 +191,8 @@ async def populate_subscription_plans():
                     sanity_id=plan_data["sanity_id"],
                     stripe_monthly_price_id=plan_data["stripe_monthly_price_id"],
                     monthly_amount=plan_data["monthly_amount"],
+                    monthly_discount=plan_data["monthly_discount"],
+                    yearly_discount=plan_data["yearly_discount"],
                     stripe_yearly_price_id=plan_data["stripe_yearly_price_id"],
                     yearly_amount=plan_data["yearly_amount"],
                     currency=plan_data["currency"],
@@ -189,11 +200,11 @@ async def populate_subscription_plans():
                     plan_metadata=plan_data["plan_metadata"]
                 )
                 
-                session.add(plan)
+                session.add(tier)
                 await session.commit()
-                await session.refresh(plan)
+                await session.refresh(tier)
                 
-                logger.success(f"Added {plan.name} plan")
+                logger.success(f"Added {tier.name} plan")
 
             logger.success("Successfully populated all subscription plans")
 
@@ -204,7 +215,7 @@ async def populate_subscription_plans():
 
 
 if __name__ == "__main__":
-    asyncio.run(populate_subscription_plans()) 
+    asyncio.run(populate_subscription_tiers()) 
 
 def run_async():
     """
@@ -212,6 +223,6 @@ def run_async():
     """
 
     logger.info("Starting subscription plan population via Poetry")
-    asyncio.run(populate_subscription_plans())
+    asyncio.run(populate_subscription_tiers())
     logger.info("Subscription plan population completed")
     return 0 

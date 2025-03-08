@@ -43,9 +43,8 @@ async def generate_setup_intent(
         Response: A response containing the setup intent details
     """
     try:
-        auth_user, _ = auth
         user_id = get_user_id_from_auth(auth)
-        user_metadata = get_user_metadata(auth_user)
+        user_metadata = get_user_metadata(auth_user=auth[0])
 
         stripe_user_repo = StripeUserQueryRepository(db_session=session)
         mutation_repo = StripeUserMutationRepository(db_session=session)
@@ -55,9 +54,8 @@ async def generate_setup_intent(
         if not stripe_user:
             customer = await stripe_client.customers.create_async(
                 {
-                    "email": auth_user.email,
-                    "name": auth_user.name,
-                    "metadata": user_metadata,
+                    "email": user_metadata["email"],
+                    "name": user_metadata["full_name"],
                 }
             )
 

@@ -2,7 +2,6 @@ from http import HTTPStatus
 from typing import Literal, TypedDict
 from uuid import UUID, uuid4
 
-import stripe
 from loguru import logger
 from pydantic import UUID4
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -19,10 +18,10 @@ from virtual_labs.external.nexus.create_organization import create_nexus_organiz
 from virtual_labs.infrastructure.db import models
 from virtual_labs.infrastructure.kc.models import AuthUser, CreatedGroup
 from virtual_labs.infrastructure.settings import settings
-from virtual_labs.infrastructure.stripe.config import stripe_client
 from virtual_labs.repositories import labs as repository
 from virtual_labs.repositories.group_repo import GroupMutationRepository
 from virtual_labs.repositories.invite_repo import InviteMutationRepository
+from virtual_labs.repositories.subscription_repo import SubscriptionRepository
 from virtual_labs.repositories.user_repo import (
     UserMutationRepository,
     UserQueryRepository,
@@ -143,6 +142,7 @@ async def create_virtual_lab(
     db: AsyncSession, lab: domain.VirtualLabCreate, auth: tuple[AuthUser, str]
 ) -> domain.CreateLabOut:
     group_repo = GroupMutationRepository()
+    subscription_repo = SubscriptionRepository(db_session=db)
     user_id = get_user_id_from_auth(auth)
     # 1. Create kc groups and add user to admin group
     try:
@@ -151,7 +151,6 @@ async def create_virtual_lab(
             owner_id=user_id,
         )
         if has_vlab:
-            print("------")
             raise ForbiddenOperation()
 
         new_lab_id = uuid4()
@@ -213,24 +212,6 @@ async def create_virtual_lab(
             message="Nexus organization creation failed",
         )
 
-    try:
-        customer = await stripe_client.customers.create_async(
-            {
-                "name": lab.name,
-                "email": str(lab.reference_email),
-                "metadata": {
-                    "virtual_lab_id": str(new_lab_id),
-                },
-            }
-        )
-    except stripe.StripeError as ex:
-        logger.error(f"Error during creating stripe customer :({ex})")
-        raise VliError(
-            message="creating stripe customer failed",
-            error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
-            http_status_code=HTTPStatus.BAD_GATEWAY,
-        )
-
     # 3. Create virtual lab account in accounting system
     if settings.ACCOUNTING_BASE_URL is not None:
         try:
@@ -255,15 +236,21 @@ async def create_virtual_lab(
             nexus_organization_id=nexus_org.self,
             admin_group_id=groups["admin_group"]["id"],
             member_group_id=groups["member_group"]["id"],
-            stripe_customer_id=customer.id,
             **lab.model_dump(),
         )
         db_lab = await repository.create_virtual_lab(db, lab_with_ids)
+        lab_details = domain.VirtualLabDetails.model_validate(db_lab)
+
+        # create free subscription
+        await subscription_repo.create_free_subscription(
+            user_id=user_id, virtual_lab_id=UUID(str(db_lab.id))
+        )
 
         return domain.CreateLabOut(
-            virtual_lab=domain.VirtualLabDetails.model_validate(db_lab),
+            virtual_lab=lab_details,
         )
     except IntegrityError as error:
+        await db.rollback()
         logger.error(
             "Virtual lab could not be created due to database error {}".format(error)
         )
@@ -273,6 +260,7 @@ async def create_virtual_lab(
             http_status_code=HTTPStatus.CONFLICT,
         )
     except SQLAlchemyError as error:
+        await db.rollback()
         logger.error(
             "Virtual lab could not be created due to an unknown database error {}".format(
                 error
@@ -284,8 +272,10 @@ async def create_virtual_lab(
             http_status_code=HTTPStatus.BAD_REQUEST,
         )
     except VliError as error:
+        await db.rollback()
         raise error
     except Exception as error:
+        await db.rollback()
         logger.error(
             "Virtual lab could not be created due to an unknown error {}".format(error)
         )

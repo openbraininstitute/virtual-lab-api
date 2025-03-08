@@ -1,7 +1,7 @@
 from http import HTTPStatus
 from typing import Optional, Tuple
 
-from fastapi import HTTPException, Response
+from fastapi import Response
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -40,8 +40,6 @@ async def list_subscriptions(
             data={"subscriptions": result},
         )
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.exception(f"Error listing subscriptions: {str(e)}")
         raise VliError(
