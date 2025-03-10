@@ -32,8 +32,6 @@ async def get_user_profile(
 
         kc_user = await user_repo.get_user_info(token=token)
 
-        print("ᦨ #  get_user_profile.py:35 #  kc_user:", kc_user)
-
         if not kc_user:
             raise EntityNotFound
 

@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 import httpx
+from loguru import logger
 import stripe
 from pydantic import UUID4, EmailStr
 
@@ -76,7 +77,7 @@ async def create_subscription(args):
     # First, we need to create a payment method
     payment_method = await create_payment_method(args)
     if not payment_method:
-        print("Failed to create payment method")
+        logger.info("Failed to create payment method")
         return None
     
     # Get available subscription plans

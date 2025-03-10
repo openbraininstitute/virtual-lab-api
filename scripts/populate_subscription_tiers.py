@@ -15,6 +15,7 @@ Environment variables:
 import asyncio
 import json
 import os
+import stripe
 from typing import Dict
 
 from dotenv import load_dotenv
@@ -23,8 +24,6 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 from virtual_labs.infrastructure.db.models import SubscriptionTier
-from virtual_labs.infrastructure.stripe.config import stripe_client as stripe
-
 load_dotenv(".env.local")
 
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -33,6 +32,10 @@ PROD_ID = os.getenv("PROD_ID")
 FREE_SANITY_ID = os.getenv("FREE_SANITY_ID")
 PRO_SANITY_ID = os.getenv("PRO_SANITY_ID")
 PREMIUM_SANITY_ID = os.getenv("PREMIUM_SANITY_ID")
+
+stripe_client = stripe.StripeClient(
+    api_key=STRIPE_API_KEY,
+)
 
 
 FREE_PLAN = {
@@ -101,8 +104,9 @@ async def fetch_stripe_data_for_plan(plan_name: str) -> Dict:
         return PREMIUM_PLAN
 
     try:
-        product = await stripe.products.retrieve_async(PROD_ID)
-        prices = await stripe.prices.list_async(
+
+        product = await stripe_client.products.retrieve_async(PROD_ID)
+        prices = await stripe_client.prices.list_async(
             params={
                 "product": PROD_ID
             }
@@ -200,6 +204,56 @@ async def populate_subscription_tiers():
                     plan_metadata=plan_data["plan_metadata"]
                 )
                 
+                # Create a clean dictionary of values
+                values_dict = {
+                    k: v for k, v in tier.__dict__.items() 
+                    if not k.startswith('_')
+                }
+                
+                # Generate a raw SQL query instead of using SQLAlchemy's compile
+                columns = []
+                placeholders = []
+                values = []
+                
+                for key, value in values_dict.items():
+                    columns.append(key)
+                    placeholders.append("%s")
+                    
+                    # Handle JSON fields
+                    if key in ['features', 'plan_metadata'] and value is not None:
+                        values.append(json.dumps(value))
+                    else:
+                        values.append(value)
+                
+                columns_str = ", ".join(columns)
+                placeholders_str = ", ".join(placeholders)
+                
+                # format values for display
+                display_values = []
+                for val in values:
+                    if val is None:
+                        display_values.append("NULL")
+                    elif isinstance(val, str):
+                        # Escape single quotes in strings
+                        escaped_val = val.replace("'", "''")
+                        display_values.append(f"'{escaped_val}'")
+                    elif isinstance(val, bool):
+                        display_values.append(str(val).lower())
+                    else:
+                        display_values.append(str(val))
+                
+
+                sql_query = f"""
+                    -- SQL Query for {plan_name} plan
+                    INSERT INTO subscription_tier (
+                        {',\n    '.join(columns)}
+                    ) VALUES (
+                        {',\n    '.join(display_values)}
+                    );
+                    """
+                print(sql_query)
+                
+
                 session.add(tier)
                 await session.commit()
                 await session.refresh(tier)

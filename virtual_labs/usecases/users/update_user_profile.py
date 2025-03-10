@@ -83,10 +83,6 @@ async def update_user_profile(
 
             update_data["attributes"] = merged_attributes
 
-        print("ᦨ #  update_user_profile.py:75 #  update_data:", update_data)
-        print(
-            "ᦨ #  update_user_profile.py:75 #  updated_attributes:", updated_attributes
-        )
         if update_data:
             user_mutation_repo.Kc.update_user(user_id=str(user_id), payload=update_data)
 

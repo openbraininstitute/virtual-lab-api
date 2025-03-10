@@ -50,8 +50,6 @@ async def list_payments(
     user_id = get_user_id_from_auth(auth)
     stripe_user_repo = StripeUserQueryRepository(db_session=session)
 
-    print("ᦨ #  list_payments.py:46 #  user_id:", user_id)
-
     try:
         payment_repo = PaymentRepository(session)
         stripe_user = await stripe_user_repo.get_by_user_id(user_id=user_id)

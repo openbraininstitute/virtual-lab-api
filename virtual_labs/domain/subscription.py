@@ -17,7 +17,6 @@ class StandalonePaymentResponse(BaseModel):
     Response model for standalone payments
     """
 
-    payment_id: str = Field(..., description="ID of the payment")
     amount: float = Field(..., description="Amount paid in dollars")
     currency: str = Field(..., description="Currency code (e.g., 'usd')")
     status: str = Field(..., description="Payment status")

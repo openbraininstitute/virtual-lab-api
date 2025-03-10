@@ -1,4 +1,3 @@
-from datetime import datetime
 from http import HTTPStatus
 from typing import Optional, Tuple
 
@@ -17,7 +16,6 @@ from virtual_labs.domain.payment import CreateStandalonePaymentRequest
 from virtual_labs.domain.subscription import StandalonePaymentResponse
 from virtual_labs.infrastructure.db.models import (
     PaymentStatus,
-    SubscriptionPayment,
 )
 from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.infrastructure.stripe import get_stripe_repository
@@ -105,37 +103,13 @@ async def create_standalone_payment(
             if charge:
                 receipt_url = charge.get("receipt_url", None)
 
-        payment = SubscriptionPayment(
-            subscription_id=subscription.id,
-            customer_id=customer_id,
-            stripe_payment_intent_id=payment_intent["id"],
-            stripe_charge_id=charge_id if isinstance(charge_id, str) else None,
-            card_brand=payment_method.get("card", {}).get("brand", "unknown"),
-            card_last4=payment_method.get("card", {}).get("last4", "0000"),
-            card_exp_month=payment_method.get("card", {}).get("exp_month", 1),
-            card_exp_year=payment_method.get("card", {}).get("exp_year", 2000),
-            amount_paid=payload.amount,
+        payment_response = StandalonePaymentResponse(
+            amount=payload.amount,
             currency=payload.currency,
             status=PaymentStatus(payment_intent.status),
-            period_start=datetime.fromtimestamp(payment_intent.created),
-            period_end=datetime.fromtimestamp(payment_intent.created),
-            payment_date=datetime.fromtimestamp(payment_intent.created),
             receipt_url=receipt_url,
-            standalone=True,
-        )
-
-        session.add(payment)
-        await session.commit()
-        await session.refresh(payment)
-
-        payment_response = StandalonePaymentResponse(
-            payment_id=str(payment.id),
-            amount=payment.amount_paid / 100,  # Convert to dollars
-            currency=payment.currency,
-            status=payment.status.value,
-            receipt_url=payment.receipt_url,
-            card_last4=payment.card_last4,
-            card_brand=payment.card_brand,
+            card_last4=payment_method.get("card", {}).get("last4", "0000"),
+            card_brand=payment_method.get("card", {}).get("brand", "unknown"),
         )
 
         return VliResponse.new(

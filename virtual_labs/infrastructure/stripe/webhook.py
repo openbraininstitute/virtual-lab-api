@@ -76,27 +76,18 @@ class StripeWebhook:
             )
             logger.info(f"data: {event_json.get("data", {}).get("object", {})}")
 
+            metadata = event_json.get("data", {}).get("object", {}).get("metadata", {})
+
             if event_type in self.subscription_update_events:
                 return await self._handle_subscription_event(event_json, db_session)
-            elif event_type in self.payment_update_events:
-                return await self._handle_payment_event(event_json, db_session)
-            elif event_type in self.standalone_payment_events:
-                metadata = (
-                    event_json.get("data", {}).get("object", {}).get("metadata", {})
-                )
-
-                if not metadata.get("standalone"):
-                    logger.info(
-                        f"Ignoring non-standalone payment intent event: {event_type}"
-                    )
-                    return {
-                        "status": "ignored",
-                        "event_type": event_type,
-                        "reason": "not standalone payment",
-                    }
+            if metadata.get("standalone") and (
+                event_type in self.standalone_payment_events
+            ):
                 return await self._handle_standalone_payment_event(
                     event_json, db_session
                 )
+            elif event_type in self.payment_update_events:
+                return await self._handle_payment_event(event_json, db_session)
             else:
                 logger.info(f"Ignoring unhandled event type: {event_type}")
                 return {
@@ -201,6 +192,7 @@ class StripeWebhook:
         )
         result = await db_session.execute(stmt)
         payment = result.scalars().first()
+
         customer_id = event_data.get("customer")
         subscription = None
         try:
@@ -438,8 +430,6 @@ class StripeWebhook:
         """
         event_type: str = str(event_json.get("type"))
         event_data: Dict[str, Any] = event_json.get("data", {}).get("object", {})
-
-        print("ᦨ #  webhook.py:162 #  event_data:", event_data)
 
         subscription_id = event_data.get("subscription")
         payment_intent_id = event_data.get("payment_intent")

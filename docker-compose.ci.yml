@@ -197,7 +197,7 @@ services:
     ports:
       - 4566:4566
     volumes:
-      - "./init/init-aws.sh:/etc/localstack/init/ready.d/init-aws.sh"  # ready hook
+      - "./env-prep/init/init-aws.sh:/etc/localstack/init/ready.d/init-aws.sh"  # ready hook
       - "/var/run/docker.sock:/var/run/docker.sock"
     networks:
       ls:
