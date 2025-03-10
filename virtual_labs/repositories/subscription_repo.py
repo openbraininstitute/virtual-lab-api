@@ -251,7 +251,8 @@ class SubscriptionRepository:
         return subscription
 
     async def downgrade_to_free(
-        self, user_id: UUID, virtual_lab_id: Optional[UUID] = None
+        self,
+        user_id: UUID,
     ) -> FreeSubscription:
         """Downgrade a paid subscription to free."""
         free_subscription = await self.get_free_subscription_by_user_id(user_id)
@@ -263,7 +264,6 @@ class SubscriptionRepository:
         else:
             free_subscription = FreeSubscription(
                 user_id=user_id,
-                virtual_lab_id=virtual_lab_id,
                 subscription_type=SubscriptionType.FREE,
                 status=SubscriptionStatus.ACTIVE,
                 current_period_start=datetime.now(),
@@ -282,13 +282,13 @@ class SubscriptionRepository:
     ) -> Optional[FreeSubscription]:
         """
         deactivate a user's free subscription.
-        This is typically called when upgrading a user to a paid plan.
+        called when upgrading a user to a paid plan.
 
         Args:
-            user_id: The user ID
+            user_id: the user id
 
         Returns:
-            The deactivated free subscription if found, None otherwise
+            the deactivated free subscription if found, none otherwise
         """
 
         free_subscription = await self.get_free_subscription_by_user_id(

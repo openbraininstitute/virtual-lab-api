@@ -74,6 +74,7 @@ class StripeWebhook:
             logger.info(
                 f"Processing Stripe webhook event: {event_type} (ID: {event_id})"
             )
+            logger.info(f"data: {event_json.get("data", {}).get("object", {})}")
 
             if event_type in self.subscription_update_events:
                 return await self._handle_subscription_event(event_json, db_session)
@@ -551,7 +552,7 @@ class StripeWebhook:
                             f"Failed to fetch payment intent details: {str(e)}"
                         )
 
-                # Get payment method from payment intent
+                # get payment method from payment intent
                 if payment_intent and (
                     payment_method_details := payment_intent.get("payment_method")
                 ):

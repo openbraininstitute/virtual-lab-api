@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated, Any
+from typing import Annotated, Any, Optional
 
 from pydantic import (
     UUID4,
@@ -61,3 +61,41 @@ class UserAgentResponse(BaseModel):
     name: str
     createdAt: datetime
     type: list[str]
+
+
+class UserProfile(BaseModel):
+    """User profile information"""
+
+    id: UUID4
+    preferred_username: str
+    email: EmailStr
+    first_name: str
+    last_name: str
+    email_verified: bool
+    address: Optional[str] = None
+    postal_code: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    country: Optional[str] = None
+
+    @computed_field  # type: ignore
+    @property
+    def full_name(self) -> str:
+        return f"{self.first_name} {self.last_name}"
+
+    class Config:
+        from_attributes = True
+
+
+class UpdateUserProfileRequest(BaseModel):
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    address: Optional[str] = None
+    postal_code: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    country: Optional[str] = None
+
+
+class UserProfileResponse(BaseModel):
+    profile: UserProfile

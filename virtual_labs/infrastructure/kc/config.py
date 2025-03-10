@@ -15,7 +15,7 @@ kc_realm = KeycloakAdmin(
     realm_name=settings.KC_REALM_NAME,
 )
 
-# NOTE: this is just for testing purpose (token will be recieved from AWS-Keyclok)
+
 kc_auth = KeycloakOpenID(
     client_id=settings.KC_CLIENT_ID,
     client_secret_key=settings.KC_CLIENT_SECRET,

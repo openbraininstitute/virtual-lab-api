@@ -6,9 +6,10 @@ from loguru import logger
 from pydantic import UUID4
 
 from virtual_labs.core.exceptions.identity_error import IdentityError
-from virtual_labs.infrastructure.kc.config import kc_realm
+from virtual_labs.infrastructure.kc.config import kc_auth, kc_realm
 from virtual_labs.infrastructure.kc.models import (
     GroupRepresentation,
+    UserInfo,
     UserRepresentation,
 )
 
@@ -18,6 +19,7 @@ class UserQueryRepository:
 
     def __init__(self) -> None:
         self.Kc = kc_realm
+        self.Kc_auth = kc_auth
 
     def retrieve_user_from_kc(self, user_id: str) -> UserRepresentation:
         try:
@@ -89,6 +91,9 @@ class UserQueryRepository:
     async def get_group_user_count(self, group_id: str) -> int:
         members = await self.Kc.a_get_group_members(group_id=group_id)
         return len(members)
+
+    async def get_user_info(self, token: str) -> UserInfo:
+        return cast(UserInfo, await self.Kc_auth.a_userinfo(token=token))
 
 
 class UserMutationRepository:
