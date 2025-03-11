@@ -163,7 +163,7 @@ class ProjectInvite(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     inviter_id = Column(UUID(as_uuid=True), nullable=False)
     user_id = Column(UUID(as_uuid=True))
-    accepted = Column(Boolean)
+    accepted = Column(Boolean, default=False)
     user_email = Column(String, nullable=False)
     role = Column(String, nullable=False)
 
