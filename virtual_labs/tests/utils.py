@@ -2,6 +2,7 @@ import asyncio
 import time
 import typing
 from contextlib import asynccontextmanager
+from datetime import datetime, timedelta
 from http import HTTPStatus
 from typing import AsyncGenerator, Awaitable, cast
 from uuid import UUID, uuid4
@@ -25,6 +26,8 @@ from virtual_labs.infrastructure.db.models import (
     ProjectStar,
     Subscription,
     SubscriptionPayment,
+    SubscriptionStatus,
+    SubscriptionType,
     VirtualLab,
     VirtualLabInvite,
     VirtualLabTopup,
@@ -267,3 +270,65 @@ async def wait_until(
             return True
         await asyncio.sleep(period)
     return False
+
+
+async def create_paid_subscription_for_user(user_id: UUID) -> None:
+    """
+    Create a paid subscription for a user to enable inviting others.
+
+    Args:
+        user_id: The ID of the user to create a subscription for
+    """
+    async with session_context_factory() as session:
+        # Create a paid subscription for the user
+        now = datetime.utcnow()
+        subscription = PaidSubscription(
+            id=uuid4(),
+            user_id=user_id,
+            stripe_subscription_id="sub_xxxx",
+            customer_id="cus_xxxx",
+            stripe_price_id="price_xxxx",
+            status=SubscriptionStatus.ACTIVE,
+            amount=400,
+            interval="month",
+            current_period_start=now,
+            current_period_end=now + timedelta(days=30),
+            subscription_type=SubscriptionType.PRO,
+            created_at=now,
+            updated_at=now,
+        )
+        session.add(subscription)
+        await session.commit()
+        logger.info(f"Created paid subscription for user {user_id}")
+
+
+async def create_free_subscription_for_user(user_id: UUID) -> None:
+    """
+    Create a free subscription for a user.
+
+    Args:
+        user_id: The ID of the user to create a subscription for
+    """
+    async with session_context_factory() as session:
+        # Create a free subscription for the user
+        now = datetime.utcnow()
+        subscription = FreeSubscription(
+            id=uuid4(),
+            user_id=user_id,
+            status=SubscriptionStatus.ACTIVE,
+            current_period_start=now,
+            current_period_end=now + timedelta(days=30),
+            subscription_type=SubscriptionType.FREE,
+            created_at=now,
+            updated_at=now,
+        )
+        session.add(subscription)
+        await session.commit()
+        logger.info(f"Created free subscription for user {user_id}")
+
+
+async def get_user_id_from_test_auth(auth_header: str) -> UUID:
+    auth_user = await kc_auth.a_decode_token(
+        token=auth_header.replace("Bearer ", ""), validate=False
+    )
+    return UUID(auth_user["sub"])
