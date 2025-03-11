@@ -22,7 +22,8 @@ _DEPLOYMENT_ENV = _ENV if _is_valid_env(_ENV) else "development"
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         # `.env.local` takes priority over `.env`
-        env_file=(".env", f".env.{_DEPLOYMENT_ENV}", ".env.local")
+        env_file=(".env", f".env.{_DEPLOYMENT_ENV}", ".env.local"),
+        extra="allow",
     )
 
     APP_NAME: str = "virtual-lab-manager service"
@@ -49,7 +50,7 @@ class Settings(BaseSettings):
     KC_REALM_NAME: str = "obp-realm"
     DEPLOYMENT_NAMESPACE: str = "https://openbrainplatform.org"
     LANDING_NAMESPACE: str = "https://openbraininstitute.org"
-    VLAB_ADMIN_PATH: str = "{}/mmb-beta/virtual-lab/lab/{}/admin?panel=billing"
+    VLAB_ADMIN_PATH: str = "/app/virtual-lab/account/subscription"
 
     MAIL_USERNAME: str = "dummyusername"
     MAIL_PASSWORD: str = "dummypassword"

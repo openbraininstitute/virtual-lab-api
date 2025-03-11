@@ -100,7 +100,7 @@ jobs:
 
       - name: Start services
         run: |
-          IS_CI="True" make init
+          IS_CI="True" make init-ci
 
       - name: Check database schema migrations
         run: make check-db-schema
@@ -115,5 +115,5 @@ jobs:
       - name: Cleanup resources
         if: ${{ always() }}
         run: |
-          make kill
+          make kill-ci
           docker system prune --force --volumes

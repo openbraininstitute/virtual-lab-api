@@ -16,11 +16,15 @@ from stripe import SetupIntent
 from virtual_labs.infrastructure.db.config import session_pool
 from virtual_labs.infrastructure.db.models import (
     Bookmark,
+    FreeSubscription,
     Notebook,
+    PaidSubscription,
     PaymentMethod,
     Project,
     ProjectInvite,
     ProjectStar,
+    Subscription,
+    SubscriptionPayment,
     VirtualLab,
     VirtualLabInvite,
     VirtualLabTopup,
@@ -66,7 +70,6 @@ async def create_mock_lab(
         "name": f"Test Lab {uuid4()}",
         "description": "Test",
         "reference_email": "user@test.org",
-        "plan_id": 1,
         "entity": "EPFL, Switzerland",
     }
     headers = get_headers(owner_username)
@@ -75,6 +78,7 @@ async def create_mock_lab(
         json=body,
         headers=headers,
     )
+
     assert response.status_code == 200
     return response
 
@@ -86,7 +90,6 @@ async def create_mock_lab_with_project(
         "name": f"Test Lab {uuid4()}",
         "description": "Test",
         "reference_email": "user@test.org",
-        "plan_id": 1,
         "entity": "EPFL, Switzerland",
     }
     headers = get_headers(owner_username)
@@ -158,6 +161,10 @@ async def cleanup_resources(client: AsyncClient, lab_id: str) -> None:
     project_group_ids: list[tuple[str, str]] = []
     async with session_context_factory() as session:
         for project_id in project_ids:
+            await session.execute(statement=delete(SubscriptionPayment))
+            await session.execute(statement=delete(FreeSubscription))
+            await session.execute(statement=delete(PaidSubscription))
+            await session.execute(statement=delete(Subscription))
             await session.execute(
                 statement=delete(ProjectInvite).where(
                     ProjectInvite.project_id == project_id
@@ -214,7 +221,6 @@ async def cleanup_resources(client: AsyncClient, lab_id: str) -> None:
                 .returning(
                     VirtualLab.admin_group_id,
                     VirtualLab.member_group_id,
-                    VirtualLab.stripe_customer_id,
                 )
             )
         ).one()
@@ -228,11 +234,6 @@ async def cleanup_resources(client: AsyncClient, lab_id: str) -> None:
         group_repo.delete_group(group_id=project_group_id[1])
     group_repo.delete_group(group_id=lab_data[0])
     group_repo.delete_group(group_id=lab_data[1])
-
-    # 5. delete customer from stripe
-    await stripe_client.customers.delete_async(
-        customer=str(lab_data[2]),
-    )
 
 
 async def create_confirmed_setup_intent(customer_id: str) -> SetupIntent:

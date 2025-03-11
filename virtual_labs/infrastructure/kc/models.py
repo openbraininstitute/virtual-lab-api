@@ -55,3 +55,11 @@ class ClientToken(BaseModel):
 
 
 CreatedGroup = TypedDict("CreatedGroup", {"id": str, "name": str})
+
+
+class UserInfo(TypedDict):
+    preferred_username: str
+    email: str
+    given_name: str
+    family_name: str
+    email_verified: bool

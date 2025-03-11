@@ -45,3 +45,23 @@ python-dotenv = "^1.0.1"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+
+[tool.pytest.ini_options]
+norecursedirs = ["tests/labs"]
+
+[tool.mypy]
+exclude = "scripts/*"
+
+[tool.ruff]
+# Exclude scripts directory from linting
+exclude = [
+    ".git",
+    ".ruff_cache",
+    ".venv",
+    "__pycache__",
+    "scripts",
+]
+
+[tool.poetry.scripts]
+populate-tiers = "scripts.populate_subscription_tiers:run_async"

@@ -1,5 +1,5 @@
 from pydantic import UUID4, EmailStr
-from sqlalchemy import func, select, update
+from sqlalchemy import false, func, select, update
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import noload
@@ -17,7 +17,6 @@ class VirtualLabDbCreate(labs.VirtualLabCreate):
     admin_group_id: str
     member_group_id: str
     nexus_organization_id: str
-    stripe_customer_id: str
 
 
 async def get_paginated_virtual_labs(
@@ -105,17 +104,15 @@ async def get_virtual_lab_async(db: AsyncSession, lab_id: UUID4) -> VirtualLab:
 
 async def create_virtual_lab(db: AsyncSession, lab: VirtualLabDbCreate) -> VirtualLab:
     db_lab = VirtualLab(
-        owner_id=lab.owner_id,
         id=lab.id,
+        owner_id=lab.owner_id,
         admin_group_id=lab.admin_group_id,
         member_group_id=lab.member_group_id,
         name=lab.name,
         description=lab.description,
         reference_email=lab.reference_email,
         nexus_organization_id=str(lab.nexus_organization_id),
-        stripe_customer_id=str(lab.stripe_customer_id),
         projects=[],
-        plan_id=lab.plan_id,
         entity=lab.entity,
     )
     db.add(db_lab)
@@ -140,7 +137,6 @@ async def update_virtual_lab(
                     "reference_email", current.reference_email
                 ),
                 "updated_at": func.now(),
-                "plan_id": data_to_update.get("plan_id", current.plan_id),
                 "entity": data_to_update.get("entity", current.entity),
             }
         )
@@ -202,32 +198,6 @@ async def get_virtual_labs_with_matching_name(
     return list(result)
 
 
-async def retrieve_lab_distributed_budget(
-    session: AsyncSession,
-    *,
-    current_project_id: UUID4,
-    virtual_lab_id: UUID4,
-) -> int:
-    stmt = (
-        select(
-            func.coalesce(func.sum(Project.budget_amount), 0).label(
-                "sum_budget_projects"
-            ),
-        )
-        .where(
-            and_(
-                Project.id != current_project_id,
-                Project.budget_amount.isnot(None),
-                Project.virtual_lab_id == virtual_lab_id,
-            )
-        )
-        .group_by(Project.virtual_lab_id)
-    )
-    result = await session.execute(stmt)
-    sum_budget_projects = result.t.scalar()
-    return sum_budget_projects if sum_budget_projects else 0
-
-
 async def topup_virtual_lab(
     db: AsyncSession,
     lab_id: UUID4,
@@ -235,11 +205,23 @@ async def topup_virtual_lab(
     stripe_event_id: str,
 ) -> None:
     lab = await db.get(VirtualLab, lab_id)
+
     assert lab
-    lab.budget_amount = VirtualLab.budget_amount + amount  # type: ignore[assignment]
     db.add(
         VirtualLabTopup(
             virtual_lab_id=lab_id, amount=amount, stripe_event_id=stripe_event_id
         )
     )
     await db.commit()
+
+
+async def get_user_virtual_lab(db: AsyncSession, owner_id: UUID4) -> VirtualLab | None:
+    """Returns the virtual lab by owner_id"""
+    stmt = select(VirtualLab).where(
+        VirtualLab.owner_id == owner_id,
+        VirtualLab.deleted == false(),
+    )
+    result = await db.execute(stmt)
+    vlab = result.scalars().first()
+
+    return vlab

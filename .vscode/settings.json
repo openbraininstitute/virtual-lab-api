@@ -41,5 +41,7 @@
   ],
   "search.exclude": {
     "**/.mypy_cache": true
-  }
+  },
+  "python.analysis.extraPaths": ["./venv/lib/python3.12/site-packages"]
+
 }

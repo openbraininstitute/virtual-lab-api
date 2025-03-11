@@ -18,7 +18,7 @@ from virtual_labs.domain.email import (
 from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.infrastructure.redis import RateLimiter
 from virtual_labs.infrastructure.settings import settings
-from virtual_labs.repositories.email_verification import (
+from virtual_labs.repositories.email_verification_repo import (
     EmailValidationQueryRepository,
 )
 from virtual_labs.repositories.labs import get_virtual_lab_by_definition_tuple

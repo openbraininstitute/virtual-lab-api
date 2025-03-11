@@ -7,7 +7,6 @@ from pydantic import UUID4, EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.authorization import (
-    verify_project_read,
     verify_vlab_or_project_write,
     verify_vlab_read,
     verify_vlab_write,
@@ -19,7 +18,6 @@ from virtual_labs.core.exceptions.api_error import VliError
 from virtual_labs.core.types import UserRoleEnum, VliAppResponse
 from virtual_labs.domain.common import PageParams, PaginatedResultsResponse
 from virtual_labs.domain.project import (
-    ProjectBudgetOut,
     ProjectCreationBody,
     ProjectDeletionOut,
     ProjectExistenceOut,
@@ -28,7 +26,6 @@ from virtual_labs.domain.project import (
     ProjectOut,
     ProjectPerVLCountOut,
     ProjectUpdateBody,
-    ProjectUpdateBudgetOut,
     ProjectUpdateRoleOut,
     ProjectUserDetachOut,
     ProjectUsersCountOut,
@@ -287,53 +284,6 @@ async def delete_project(
         virtual_lab_id=virtual_lab_id,
         project_id=project_id,
         auth=auth,
-    )
-
-
-@router.get(
-    "/{virtual_lab_id}/projects/{project_id}/budget",
-    operation_id="get_project_budget",
-    summary="Retrieve project budget",
-    response_model=VliAppResponse[ProjectBudgetOut],
-)
-@verify_project_read
-async def retrieve_project_budget(
-    virtual_lab_id: UUID4,
-    project_id: UUID4,
-    session: AsyncSession = Depends(default_session_factory),
-    auth: Tuple[AuthUser, str] = Depends(verify_jwt),
-) -> Response | VliError:
-    return await project_cases.retrieve_project_budget_use_case(
-        session, virtual_lab_id=virtual_lab_id, project_id=project_id
-    )
-
-
-@router.patch(
-    "/{virtual_lab_id}/projects/{project_id}/budget",
-    operation_id="update_project_budget",
-    summary="Update project budget if the user has permission",
-    description=(
-        """
-        Allow only the User that has the right role (based on KC groups "Virtual Lab Admin")
-        to update the project budget from a specific virtual lab
-        A check will be run to verify if the Virtual lab has the requested amount for the new budget
-        """
-    ),
-    response_model=VliAppResponse[ProjectUpdateBudgetOut],
-)
-@verify_vlab_or_project_write
-async def update_project_budget(
-    virtual_lab_id: UUID4,
-    project_id: UUID4,
-    new_budget: Annotated[float, Body(embed=True)],
-    session: AsyncSession = Depends(default_session_factory),
-    auth: Tuple[AuthUser, str] = Depends(verify_jwt),
-) -> Response | VliError:
-    return await project_cases.update_project_budget_use_case(
-        session,
-        virtual_lab_id=virtual_lab_id,
-        project_id=project_id,
-        value=new_budget,
     )
 
 

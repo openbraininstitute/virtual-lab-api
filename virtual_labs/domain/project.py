@@ -6,15 +6,12 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     EmailStr,
-    Field,
     StringConstraints,
-    computed_field,
 )
 
 from virtual_labs.core.types import UserRoleEnum
 from virtual_labs.domain.invite import AddUser
 from virtual_labs.domain.user import UserWithInviteStatus
-from virtual_labs.shared.utils.billing import amount_to_float
 
 
 class VirtualLabModel(BaseModel):
@@ -63,11 +60,6 @@ class Project(BaseModel):
     description: str | None
     created_at: datetime
     updated_at: datetime | None
-    budget_amount: int = Field(exclude=True, default=0)
-
-    @computed_field
-    def budget(self) -> float:
-        return amount_to_float(self.budget_amount)
 
 
 class ProjectVlOut(Project):
@@ -104,15 +96,6 @@ class ProjectDeletionOut(BaseModel):
     project_id: UUID4
     deleted: bool
     deleted_at: datetime
-
-
-class ProjectBudgetOut(BaseModel):
-    project_id: UUID4
-    budget_amount: int = Field(exclude=True, default=0)
-
-    @computed_field
-    def budget(self) -> float:
-        return amount_to_float(self.budget_amount)
 
 
 class ProjectCountOut(BaseModel):
