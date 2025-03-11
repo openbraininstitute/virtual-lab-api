@@ -46,7 +46,7 @@ class StripeUserQueryRepository:
         """
         try:
             query = select(StripeUser).where(
-                StripeUser.stripe_costumer_id == stripe_customer_id
+                StripeUser.stripe_customer_id == stripe_customer_id
             )
             result = await self.db_session.execute(query)
             return result.scalars().first()
@@ -80,7 +80,7 @@ class StripeUserMutationRepository:
         """
         try:
             stripe_user = StripeUser(
-                user_id=user_id, stripe_costumer_id=stripe_customer_id
+                user_id=user_id, stripe_customer_id=stripe_customer_id
             )
             self.db_session.add(stripe_user)
             await self.db_session.commit()
@@ -113,7 +113,7 @@ class StripeUserMutationRepository:
             if not stripe_user:
                 return await self.create(user_id, stripe_customer_id)
 
-            stripe_user.stripe_costumer_id = stripe_customer_id
+            stripe_user.stripe_customer_id = stripe_customer_id
             await self.db_session.commit()
             await self.db_session.refresh(stripe_user)
             return stripe_user

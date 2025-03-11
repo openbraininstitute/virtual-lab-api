@@ -66,7 +66,7 @@ async def create_standalone_payment(
         customer_id: Optional[str] = None
         stripe_user = await stripe_user_query_repo.get_by_user_id(user_id)
         if stripe_user:
-            customer_id = stripe_user.stripe_costumer_id
+            customer_id = stripe_user.stripe_customer_id
         elif not stripe_user:
             customer = await stripe_service.create_customer(
                 user_id=user_id, email=user["email"], name=user["full_name"]

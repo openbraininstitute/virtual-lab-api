@@ -581,7 +581,7 @@ class StripeUser(Base):
         default=uuid4,
         server_default=func.gen_random_uuid(),
     )
-    stripe_costumer_id: Mapped[Optional[str]] = mapped_column(
+    stripe_customer_id: Mapped[Optional[str]] = mapped_column(
         String(255), nullable=False, unique=True
     )
     user_id = Column(UUID(as_uuid=True), nullable=False)

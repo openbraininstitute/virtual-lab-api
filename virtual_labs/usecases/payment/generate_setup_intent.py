@@ -66,7 +66,7 @@ async def generate_setup_intent(
 
             customer_id = customer.id
         else:
-            customer_id = cast(str, stripe_user.stripe_costumer_id)
+            customer_id = cast(str, stripe_user.stripe_customer_id)
 
         if customer_id:
             setup_intent = await stripe_client.setup_intents.create_async(
