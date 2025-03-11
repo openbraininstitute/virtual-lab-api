@@ -274,10 +274,7 @@ async def wait_until(
 
 async def create_paid_subscription_for_user(user_id: UUID) -> None:
     """
-    Create a paid subscription for a user to enable inviting others.
-
-    Args:
-        user_id: The ID of the user to create a subscription for
+    create a paid subscription for a user to enable inviting others.
     """
     async with session_context_factory() as session:
         # Create a paid subscription for the user
@@ -304,10 +301,7 @@ async def create_paid_subscription_for_user(user_id: UUID) -> None:
 
 async def create_free_subscription_for_user(user_id: UUID) -> None:
     """
-    Create a free subscription for a user.
-
-    Args:
-        user_id: The ID of the user to create a subscription for
+    create a free subscription for a user.
     """
     async with session_context_factory() as session:
         # Create a free subscription for the user
