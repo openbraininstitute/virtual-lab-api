@@ -80,8 +80,8 @@ async def create_subscription(
             )
             customer_id = stripe_customer.id
         else:
-            assert customer.stripe_costumer_id, "Customer not found"
-            customer_id = customer.stripe_costumer_id
+            assert customer.stripe_customer_id, "Customer not found"
+            customer_id = customer.stripe_customer_id
 
         subscription_tier = await subscription_repo.get_subscription_tier_by_id(
             payload.tier_id

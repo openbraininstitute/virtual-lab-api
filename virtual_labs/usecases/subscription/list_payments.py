@@ -56,10 +56,10 @@ async def list_payments(
 
         if not stripe_user:
             raise EntityNotFound
-        assert stripe_user.stripe_costumer_id, "No stripe customer id"
+        assert stripe_user.stripe_customer_id, "No stripe customer id"
 
         payments, total_count = await payment_repo.list_payments(
-            customer_id=stripe_user.stripe_costumer_id,
+            customer_id=stripe_user.stripe_customer_id,
             filters=filters,
         )
 
