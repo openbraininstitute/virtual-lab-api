@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, cast
+from typing import Any, Dict, List, Literal, Tuple, cast
 from uuid import UUID, uuid4
 
 from keycloak import KeycloakAdmin  # type: ignore
@@ -20,6 +20,10 @@ class UserQueryRepository:
     def __init__(self) -> None:
         self.Kc = kc_realm
         self.Kc_auth = kc_auth
+
+    async def get_user(self, user_id: str) -> Dict[str, Any]:
+        user = await self.Kc.a_get_user(user_id=user_id)
+        return cast(Dict[str, Any], user)
 
     def retrieve_user_from_kc(self, user_id: str) -> UserRepresentation:
         try:
@@ -101,6 +105,7 @@ class UserMutationRepository:
 
     def __init__(self) -> None:
         self.Kc = kc_realm
+        self.Kc_auth = kc_auth
 
     def attach_user_to_group(
         self,
@@ -158,3 +163,61 @@ class UserMutationRepository:
             }
         )
         return cast(UUID4, user_id)
+
+    async def update_user_custom_property(
+        self,
+        user_id: UUID,
+        field: str,
+        value: str,
+        type: Literal["multiple", "unique"] = "unique",
+    ) -> None:
+        user = await self.Kc.a_get_user(user_id=user_id)
+
+        update_data: Dict[str, Any] = {}
+        update_data["email"] = user.get("email")
+        update_data["firstName"] = user.get("firstName")
+        update_data["lastName"] = user.get("lastName")
+        attributes = user.get("attributes", {})
+
+        property_field = {field: [value] if type == "multiple" else value}
+        merged_attributes = {
+            k: v if isinstance(v, list) else [str(v)] for k, v in attributes.items()
+        }
+        merged_attributes.update(cast(Dict[Any, List[Any]], property_field))
+        update_data["attributes"] = merged_attributes
+
+        await self.Kc.a_update_user(user_id=user_id, payload=update_data)
+
+    async def update_user_custom_properties(
+        self,
+        user_id: UUID,
+        properties: List[Tuple[str, str, Literal["multiple", "unique"]]],
+    ) -> None:
+        """
+        update multiple custom properties for a user at once.
+
+        Args:
+            user_id: The UUID of the user to update
+            properties: A list of tuples containing (field, value, type)
+                        where type is either "multiple" or "unique"
+
+        """
+        user = await self.Kc.a_get_user(user_id=user_id)
+
+        update_data: Dict[str, Any] = {}
+        update_data["email"] = user.get("email")
+        update_data["firstName"] = user.get("firstName")
+        update_data["lastName"] = user.get("lastName")
+        attributes = user.get("attributes", {})
+
+        merged_attributes = {
+            k: v if isinstance(v, list) else [str(v)] for k, v in attributes.items()
+        }
+
+        for field, value, prop_type in properties:
+            property_field = {field: [value] if prop_type == "multiple" else value}
+            merged_attributes.update(cast(Dict[Any, List[Any]], property_field))
+
+        update_data["attributes"] = merged_attributes
+
+        await self.Kc.a_update_user(user_id=user_id, payload=update_data)
