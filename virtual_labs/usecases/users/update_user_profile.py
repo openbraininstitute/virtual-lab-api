@@ -95,11 +95,11 @@ async def update_user_profile(
             last_name=kc_user["family_name"] or "",
             email_verified=kc_user["email_verified"],
             address=Address(
-                street=address_data["street_address"],
-                postal_code=address_data["postal_code"],
-                locality=address_data["locality"],
-                region=address_data["region"],
-                country=address_data["country"],
+                street=address_data.get("street_address", ""),
+                postal_code=address_data.get("postal_code", ""),
+                locality=address_data.get("locality", ""),
+                region=address_data.get("region", ""),
+                country=address_data.get("country", ""),
             ),
         )
 
