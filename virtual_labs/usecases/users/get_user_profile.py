@@ -45,11 +45,11 @@ async def get_user_profile(
             last_name=kc_user.get("family_name", ""),
             email_verified=kc_user.get("email_verified", False),
             address=Address(
-                street=address_data["street_address"],
-                postal_code=address_data["postal_code"],
-                locality=address_data["locality"],
-                region=address_data["region"],
-                country=address_data["country"],
+                street=address_data.get("street_address", ""),
+                postal_code=address_data.get("postal_code", ""),
+                locality=address_data.get("locality", ""),
+                region=address_data.get("region", ""),
+                country=address_data.get("country", ""),
             ),
         )
 
