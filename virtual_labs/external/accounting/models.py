@@ -99,6 +99,7 @@ class JobSubtype(Enum):
 class ProjectJobReport(BaseModel):
     job_id: UUID4
     user_id: UUID4
+    name: str | None = None
     type: JobType
     subtype: JobSubtype
     reserved_at: datetime | None = None
