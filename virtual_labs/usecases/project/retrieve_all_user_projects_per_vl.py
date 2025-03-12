@@ -15,6 +15,7 @@ from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.repositories.group_repo import GroupQueryRepository
 from virtual_labs.repositories.project_repo import ProjectQueryRepository
 from virtual_labs.shared.utils.auth import get_user_id_from_auth
+from virtual_labs.shared.utils.uniq_list import uniq_list
 
 
 async def retrieve_all_user_projects_per_vl_use_case(
@@ -38,7 +39,20 @@ async def retrieve_all_user_projects_per_vl_use_case(
             pagination=pagination,
         )
 
-        projects = [ProjectVlOut.model_validate(p) for p, v in results.rows]
+        projects = []
+        for project, vl in results.rows:
+            # Get users from admin and member groups
+            admins = gqr.retrieve_group_users(group_id=str(project.admin_group_id))
+            members = gqr.retrieve_group_users(group_id=str(project.member_group_id))
+
+            # count unique users
+            unique_users = uniq_list([u.id for u in admins + members])
+            user_count = len(unique_users)
+
+            project_out = ProjectVlOut.model_validate(project)
+            project_out.user_count = user_count
+            projects.append(project_out)
+
     except SQLAlchemyError:
         raise VliError(
             error_code=VliErrorCode.DATABASE_ERROR,
