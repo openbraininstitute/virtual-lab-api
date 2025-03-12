@@ -78,16 +78,27 @@ class SubscriptionRepository:
 
         if subscription_type:
             if subscription_type.lower() == "free":
-                stmt = select(FreeSubscription).where(and_(*filters))
-                result = await self.db_session.execute(stmt)
+                free_stmt = (
+                    select(FreeSubscription)
+                    .where(and_(*filters))
+                    .order_by(FreeSubscription.created_at.desc())
+                )
+                result = await self.db_session.execute(free_stmt)
                 return result.scalars().first()
             elif subscription_type.lower() == "paid":
-                stmt = select(PaidSubscription).where(and_(*filters))  # type: ignore
-                result = await self.db_session.execute(stmt)
+                paid_stmt = (
+                    select(PaidSubscription)
+                    .where(and_(*filters))
+                    .order_by(PaidSubscription.created_at.desc())
+                )
+                result = await self.db_session.execute(paid_stmt)
                 return result.scalars().first()
 
-        # If no subscription_type specified, return any active subscription
-        stmt = select(Subscription).where(and_(*filters))  # type: ignore
+        stmt = (
+            select(Subscription)
+            .where(and_(*filters))
+            .order_by(Subscription.created_at.desc())
+        )
         result = await self.db_session.execute(stmt)
 
         return result.scalars().first()

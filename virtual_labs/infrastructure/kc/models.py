@@ -39,7 +39,7 @@ class GroupRepresentation(BaseModel):
 
 class AuthUser(BaseModel):
     sid: UUID4
-    sub: str  # nexus format: f:uuid4:username
+    sub: str
     username: Annotated[str, Field(alias="preferred_username")]
     email: EmailStr
     email_verified: bool
@@ -57,9 +57,18 @@ class ClientToken(BaseModel):
 CreatedGroup = TypedDict("CreatedGroup", {"id": str, "name": str})
 
 
+class Address(TypedDict):
+    street_address: str
+    postal_code: str
+    locality: str
+    region: str
+    country: str
+
+
 class UserInfo(TypedDict):
     preferred_username: str
     email: str
     given_name: str
     family_name: str
     email_verified: bool
+    address: Address

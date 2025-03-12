@@ -63,6 +63,16 @@ class UserAgentResponse(BaseModel):
     type: list[str]
 
 
+class Address(BaseModel):
+    """User address information"""
+
+    street: Optional[str] = None
+    postal_code: Optional[str] = None
+    locality: Optional[str] = None
+    region: Optional[str] = None
+    country: Optional[str] = None
+
+
 class UserProfile(BaseModel):
     """User profile information"""
 
@@ -72,11 +82,7 @@ class UserProfile(BaseModel):
     first_name: str
     last_name: str
     email_verified: bool
-    address: Optional[str] = None
-    postal_code: Optional[str] = None
-    city: Optional[str] = None
-    state: Optional[str] = None
-    country: Optional[str] = None
+    address: Optional[Address] = None
 
     @computed_field  # type: ignore
     @property
@@ -90,11 +96,7 @@ class UserProfile(BaseModel):
 class UpdateUserProfileRequest(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
-    address: Optional[str] = None
-    postal_code: Optional[str] = None
-    city: Optional[str] = None
-    state: Optional[str] = None
-    country: Optional[str] = None
+    address: Optional[Address] = None
 
 
 class UserProfileResponse(BaseModel):

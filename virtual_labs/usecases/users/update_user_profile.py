@@ -8,6 +8,7 @@ from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.exceptions.generic_exceptions import EntityNotFound
 from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.domain.user import (
+    Address,
     UpdateUserProfileRequest,
     UserProfile,
     UserProfileResponse,
@@ -45,50 +46,45 @@ async def update_user_profile(
         if not kc_user:
             raise EntityNotFound
 
-        # Update user attributes in Keycloak
         update_data: Dict[str, Any] = {}
+        update_data["email"] = kc_user["email"]
         if payload.first_name is not None:
             update_data["firstName"] = payload.first_name
         if payload.last_name is not None:
             update_data["lastName"] = payload.last_name
-        if payload.last_name is not None:
-            update_data["email"] = kc_user["email"]
-
-        attributes: Dict[str, Any] = getattr(kc_user, "attributes", {}) or {}
-
-        updated_attributes: Dict[str, list[str]] = {}
 
         if payload.address is not None:
-            updated_attributes["address"] = [payload.address]
-        if payload.postal_code is not None:
-            updated_attributes["postal_code"] = [payload.postal_code]
-        if payload.city is not None:
-            updated_attributes["city"] = [payload.city]
-        if payload.state is not None:
-            updated_attributes["state"] = [payload.state]
-        if payload.country is not None:
-            updated_attributes["country"] = [payload.country]
+            attributes = getattr(kc_user, "attributes", {}) or {}
 
-        if updated_attributes:
-            merged_attributes: Dict[str, list[str]] = {}
-            for key, value in attributes.items():
-                if isinstance(value, list):
-                    merged_attributes[key] = value
-                else:
-                    merged_attributes[key] = [str(value)]
+            address_fields = {
+                "street": payload.address.street,
+                "postal_code": payload.address.postal_code,
+                "locality": payload.address.locality,
+                "region": payload.address.region,
+                "country": payload.address.country,
+            }
 
-            # Add updated attributes
-            for key, value in updated_attributes.items():
-                merged_attributes[key] = value
+            address_updates = {
+                k: [v] for k, v in address_fields.items() if v is not None
+            }
 
-            update_data["attributes"] = merged_attributes
+            merged_attributes = {
+                k: v if isinstance(v, list) else [str(v)] for k, v in attributes.items()
+            }
+
+            merged_attributes.update(address_updates)
+
+            if merged_attributes:
+                update_data["attributes"] = merged_attributes
 
         if update_data:
-            user_mutation_repo.Kc.update_user(user_id=str(user_id), payload=update_data)
+            await user_mutation_repo.Kc.a_update_user(
+                user_id=str(user_id), payload=update_data
+            )
 
             kc_user = await user_query_repo.get_user_info(token=token)
 
-        updated_attrs: Dict[str, Any] = getattr(kc_user, "attributes", {}) or {}
+        address_data = kc_user.get("address", {})
 
         user_profile = UserProfile(
             id=user_id,
@@ -97,21 +93,13 @@ async def update_user_profile(
             first_name=kc_user["given_name"] or "",
             last_name=kc_user["family_name"] or "",
             email_verified=kc_user["email_verified"],
-            address=updated_attrs.get("address", [None])[0]
-            if "address" in updated_attrs
-            else None,
-            postal_code=updated_attrs.get("postal_code", [None])[0]
-            if "postal_code" in updated_attrs
-            else None,
-            city=updated_attrs.get("city", [None])[0]
-            if "city" in updated_attrs
-            else None,
-            state=updated_attrs.get("state", [None])[0]
-            if "state" in updated_attrs
-            else None,
-            country=updated_attrs.get("country", [None])[0]
-            if "country" in updated_attrs
-            else None,
+            address=Address(
+                street=address_data["street_address"],
+                postal_code=address_data["postal_code"],
+                locality=address_data["locality"],
+                region=address_data["region"],
+                country=address_data["country"],
+            ),
         )
 
         return VliResponse.new(

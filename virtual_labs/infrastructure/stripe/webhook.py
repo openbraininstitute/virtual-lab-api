@@ -74,7 +74,7 @@ class StripeWebhook:
             logger.info(
                 f"Processing Stripe webhook event: {event_type} (ID: {event_id})"
             )
-            logger.info(f"data: {event_json.get("data", {}).get("object", {})}")
+            logger.info(f"data: {event_json.get('data', {}).get('object', {})}")
 
             metadata = event_json.get("data", {}).get("object", {}).get("metadata", {})
 
@@ -401,18 +401,23 @@ class StripeWebhook:
 
             subscription.stripe_price_id = price.get("id")
             subscription.amount = price.get("unit_amount", 0)
-            subscription.currency = price.get("currency", "usd")
+            subscription.currency = price.get("currency", "chf")
 
             recurring = price.get("recurring")
             if recurring:
                 subscription.interval = recurring.get("interval", "month")
 
-        if (
+        if (  # if the subscription is deleted or has no active status
             event_type == "customer.subscription.deleted"
             or subscription.status != "active"
         ):
             # TODO: update the user custom property "plan" to "free" in KC
             await self.subscription_repository.downgrade_to_free(
+                user_id=subscription.user_id
+            )
+        else:  # if there is a free subscription paused it
+            # TODO: update the user custom property "plan" to "paid" in KC
+            await self.subscription_repository.deactivate_free_subscription(
                 user_id=subscription.user_id
             )
 
