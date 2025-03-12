@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError
 from virtual_labs.core.types import VliAppResponse
-from virtual_labs.domain.invite import InviteOut
+from virtual_labs.domain.invite import InviteDetailsOut, InviteOut
 from virtual_labs.infrastructure.db.config import default_session_factory
 from virtual_labs.infrastructure.email.email_utils import InviteOrigin
 from virtual_labs.infrastructure.kc.auth import verify_jwt
@@ -36,6 +36,24 @@ async def handle_test_invite(
 ) -> Response | VliError:
     return await invite_cases.invitation_handler_test(
         session, invite_id=invite_id, origin=origin
+    )
+
+
+@router.get(
+    "",
+    operation_id="get_invite_details",
+    summary="Retrieve invite details by token",
+    response_model=VliAppResponse[InviteDetailsOut],
+)
+async def get_invite_details(
+    session: AsyncSession = Depends(default_session_factory),
+    token: str = Query("", description="invitation token"),
+    auth: Tuple[AuthUser, str] = Depends(verify_jwt),
+) -> Response | VliError:
+    return await invite_cases.get_invite_details(
+        session,
+        invite_token=token,
+        auth=auth,
     )
 
 
