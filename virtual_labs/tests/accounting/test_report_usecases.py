@@ -23,6 +23,7 @@ async def test_get_virtual_lab_reports() -> None:
                 {
                     "job_id": str(uuid4()),
                     "user_id": str(uuid4()),
+                    "name": None,
                     "proj_id": str(uuid4()),
                     "type": "oneshot",
                     "subtype": "ml-llm",
