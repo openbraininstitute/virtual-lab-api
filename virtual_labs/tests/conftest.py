@@ -50,13 +50,36 @@ async def mock_lab_create(
     async_test_client: AsyncClient,
 ) -> AsyncGenerator[tuple[Response, dict[str, str]], None]:
     client = async_test_client
+    headers = get_headers()
+
+    # First, get existing labs for the user
+    existing_labs_response = await client.get(
+        "/virtual-labs",
+        headers=headers,
+    )
+
+    # Clean up any existing labs
+    if existing_labs_response.status_code == 200:
+        existing_labs = (
+            existing_labs_response.json().get("data", {}).get("virtual_labs", [])
+        )
+        for lab in existing_labs:
+            lab_id = lab.get("id")
+            if lab_id:
+                try:
+                    await cleanup_resources(client, lab_id)
+                except Exception as e:
+                    # Log the error but continue with the test
+                    print(f"Error cleaning up existing lab {lab_id}: {e}")
+
+    # Create a new lab
     body = {
         "name": f"Test Lab {uuid4()}",
         "description": "Test",
         "reference_email": "user@test.org",
         "entity": "EPFL, Switzerland",
     }
-    headers = get_headers()
+
     response = await client.post(
         "/virtual-labs",
         json=body,
@@ -65,6 +88,11 @@ async def mock_lab_create(
 
     yield response, headers
 
-    lab_id = response.json()["data"]["virtual_lab"]["id"]
-
-    await cleanup_resources(client, lab_id)
+    # Clean up the newly created lab
+    if (
+        response.status_code == 200
+        and response.json().get("data")
+        and response.json()["data"].get("virtual_lab")
+    ):
+        lab_id = response.json()["data"]["virtual_lab"]["id"]
+        await cleanup_resources(client, lab_id)
