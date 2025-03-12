@@ -142,24 +142,24 @@ async def create_virtual_lab(
     db: AsyncSession, lab: domain.VirtualLabCreate, auth: tuple[AuthUser, str]
 ) -> domain.CreateLabOut:
     group_repo = GroupMutationRepository()
+    user_repo = UserMutationRepository()
     subscription_repo = SubscriptionRepository(db_session=db)
-    user_id = get_user_id_from_auth(auth)
+    owner_id = get_user_id_from_auth(auth)
     # 1. Create kc groups and add user to admin group
     try:
         has_vlab = await repository.get_user_virtual_lab(
             db=db,
-            owner_id=user_id,
+            owner_id=owner_id,
         )
         if has_vlab:
             raise ForbiddenOperation()
 
         new_lab_id = uuid4()
-        owner_id = get_user_id_from_auth(auth)
         # Create admin & member groups
         groups = await create_keycloak_groups(new_lab_id, lab.name)
 
         # Add user as admin for this lab
-        user_repo = UserMutationRepository()
+
         user_repo.attach_user_to_group(
             user_id=owner_id, group_id=groups["admin_group"]["id"]
         )
@@ -243,7 +243,14 @@ async def create_virtual_lab(
 
         # create free subscription
         await subscription_repo.create_free_subscription(
-            user_id=user_id, virtual_lab_id=UUID(str(db_lab.id))
+            user_id=owner_id, virtual_lab_id=UUID(str(db_lab.id))
+        )
+        await user_repo.update_user_custom_properties(
+            user_id=owner_id,
+            properties=[
+                ("plan", "free", "multiple"),
+                ("virtual_lab_id", str(lab_details.id), "unique"),
+            ],
         )
 
         return domain.CreateLabOut(
