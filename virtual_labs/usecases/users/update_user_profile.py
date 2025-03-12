@@ -1,5 +1,5 @@
 from http import HTTPStatus
-from typing import Any, Dict, Tuple, cast
+from typing import Any, Dict, Tuple
 
 from fastapi import Response
 from loguru import logger
@@ -41,13 +41,13 @@ async def update_user_profile(
         user_query_repo = UserQueryRepository()
         user_mutation_repo = UserMutationRepository()
 
-        kc_user = await user_query_repo.get_user(user_id=str(user_id))
+        kc_user = await user_query_repo.get_user_info(token=token)
 
         if not kc_user:
             raise EntityNotFound
 
         update_data: Dict[str, Any] = {}
-        update_data["email"] = kc_user.get("email")
+        update_data["email"] = kc_user["email"]
         if payload.first_name is not None:
             update_data["firstName"] = payload.first_name
         if payload.last_name is not None:
@@ -71,6 +71,7 @@ async def update_user_profile(
             merged_attributes = {
                 k: v if isinstance(v, list) else [str(v)] for k, v in attributes.items()
             }
+
             merged_attributes.update(address_updates)
 
             if merged_attributes:
@@ -81,9 +82,7 @@ async def update_user_profile(
                 user_id=str(user_id), payload=update_data
             )
 
-            kc_user = cast(
-                Dict[str, Any], await user_query_repo.get_user_info(token=token)
-            )
+            kc_user = await user_query_repo.get_user_info(token=token)
 
         address_data = kc_user.get("address", {})
 
