@@ -64,6 +64,7 @@ class Project(BaseModel):
 
 class ProjectVlOut(Project):
     virtual_lab_id: UUID4
+    user_count: int = 0
 
 
 class ProjectExistenceOut(BaseModel):
