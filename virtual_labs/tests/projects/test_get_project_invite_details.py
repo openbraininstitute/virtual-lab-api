@@ -7,9 +7,11 @@ from httpx import AsyncClient, Response
 from requests import get
 
 from virtual_labs.tests.utils import (
+    create_paid_subscription_for_user,
     email_server_baseurl,
     get_headers,
     get_invite_token_from_email_body,
+    get_user_id_from_test_auth,
 )
 
 
@@ -25,6 +27,11 @@ async def mock_project_invite(
     invitee_email = "test-1@test.com"
     invitee_username = "test-1"
     invite_payload = {"email": f"{invitee_email}", "role": "member"}
+
+    user_id = await get_user_id_from_test_auth(
+        auth_header=headers.get("Authorization", "")
+    )
+    await create_paid_subscription_for_user(user_id)
 
     response = await client.post(
         f"/virtual-labs/{lab_id}/projects/{project_id}/invites",
