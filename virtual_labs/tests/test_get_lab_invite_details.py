@@ -8,9 +8,11 @@ from requests import get
 from virtual_labs.tests.utils import (
     cleanup_resources,
     create_mock_lab,
+    create_paid_subscription_for_user,
     email_server_baseurl,
     get_headers,
     get_invite_token_from_email_body,
+    get_user_id_from_test_auth,
 )
 
 
@@ -21,6 +23,11 @@ async def mock_lab_invite(
     lab_response = await create_mock_lab(async_test_client)
     lab_id = lab_response.json()["data"]["virtual_lab"]["id"]
     headers = get_headers("test")
+
+    user_id = await get_user_id_from_test_auth(
+        auth_header=headers.get("Authorization", "")
+    )
+    await create_paid_subscription_for_user(user_id)
 
     invitee_username = "test-2"
     invitee_email = "test-2@test.com"
