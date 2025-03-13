@@ -133,17 +133,45 @@ def get_invite_token_from_email(recipient_email: str) -> str:
 
 async def cleanup_resources(client: AsyncClient, lab_id: str) -> None:
     """Performs cleanup of following resources for lab_id:
-    1. Deprecates underlying nexus org/project by calling the DELETE endpoints
-    2. Deletes lab/project row along with lab_invite, project_invite, project_star, bookmarks, rows from the DB
-    3. Deletes admin and member groups from keycloak
+    1. Delete all payments and subscriptions linked to this virtual lab
+    2. Deprecates underlying nexus org/project by calling the DELETE endpoints
+    3. Deletes lab/project row along with lab_invite, project_invite, project_star, bookmarks, rows from the DB
+    4. Deletes admin and member groups from keycloak
     """
+    # 1. Delete payments and subscriptions
+    async with session_context_factory() as session:
+        await session.execute(
+            statement=delete(SubscriptionPayment).where(
+                SubscriptionPayment.subscription_id.in_(
+                    select(Subscription.id).where(
+                        Subscription.virtual_lab_id == UUID(lab_id)
+                    )
+                )
+            )
+        )
+        await session.execute(
+            statement=delete(FreeSubscription).where(
+                FreeSubscription.virtual_lab_id == UUID(lab_id)
+            )
+        )
+        await session.execute(
+            statement=delete(PaidSubscription).where(
+                PaidSubscription.virtual_lab_id == UUID(lab_id)
+            )
+        )
+        await session.execute(
+            statement=delete(Subscription).where(
+                Subscription.virtual_lab_id == UUID(lab_id)
+            )
+        )
+        await session.commit()
+
     project_ids = []
     async with session_context_factory() as session:
         stmt = select(Project.id).filter(Project.virtual_lab_id == UUID(lab_id))
         all = (await session.execute(statement=stmt)).scalars().all()
         project_ids = [str(project_id) for project_id in all]
-
-    # 1. Call DELETE endpoints (which will deprecate nexus resources)
+    # 2. Call DELETE endpoints (which will deprecate nexus resources)
     for project_id in project_ids:
         try:
             project_delete_response = await client.delete(
@@ -160,14 +188,10 @@ async def cleanup_resources(client: AsyncClient, lab_id: str) -> None:
     except Exception:
         assert lab_delete_response.status_code == HTTPStatus.NOT_FOUND
 
-    # 2. Delete database rows
+    # 3. Delete database rows
     project_group_ids: list[tuple[str, str]] = []
     async with session_context_factory() as session:
         for project_id in project_ids:
-            await session.execute(statement=delete(SubscriptionPayment))
-            await session.execute(statement=delete(FreeSubscription))
-            await session.execute(statement=delete(PaidSubscription))
-            await session.execute(statement=delete(Subscription))
             await session.execute(
                 statement=delete(ProjectInvite).where(
                     ProjectInvite.project_id == project_id
