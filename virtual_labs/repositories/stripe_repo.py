@@ -209,6 +209,7 @@ class StripeRepository:
         customer_id: str,
         price_id: str,
         payment_method_id: str,
+        discount_id: Optional[str] = None,
         metadata: Optional[Dict[str, str]] = None,
     ) -> Optional[stripe.Subscription]:
         """
@@ -224,7 +225,7 @@ class StripeRepository:
             the created subscription
         """
         try:
-            # Set the payment method as the default for the customer
+            # set the payment method as the default for the customer
             await self.stripe.payment_methods.attach_async(
                 payment_method_id,
                 params={
@@ -257,6 +258,13 @@ class StripeRepository:
                     "payment_settings": {
                         "save_default_payment_method": "on_subscription"
                     },
+                    "discounts": [
+                        {
+                            "coupon": discount_id,
+                        }
+                    ]
+                    if discount_id
+                    else "",
                 }
             )
             return subscription
