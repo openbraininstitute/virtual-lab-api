@@ -87,6 +87,7 @@ async def create_standalone_payment(
             payment_method_id=payload.payment_method_id,
             metadata={
                 "user_id": str(user_id),
+                "virtual_lab_id": str(payload.virtual_lab_id),
                 "subscription_id": str(subscription.id),
                 "standalone": "true",
             },
