@@ -121,11 +121,9 @@ class SubscriptionRepository:
         if status:
             # Filter by the specific status provided
             filters.append(FreeSubscription.status == status)
-        else:
-            # Default behavior: return non-active subscriptions
-            filters.append(FreeSubscription.status != SubscriptionStatus.ACTIVE)
 
         stmt = select(FreeSubscription).where(and_(*filters))
+
         result = await self.db_session.execute(stmt)
         return result.scalars().first()
 
