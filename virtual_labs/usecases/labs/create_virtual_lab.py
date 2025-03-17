@@ -229,7 +229,6 @@ async def create_virtual_lab(
 
     # 4. Save lab to db
     try:
-        # Save lab to db
         lab_with_ids = repository.VirtualLabDbCreate(
             id=new_lab_id,
             owner_id=owner_id,
@@ -242,14 +241,18 @@ async def create_virtual_lab(
         lab_details = domain.VirtualLabDetails.model_validate(db_lab)
 
         # create free subscription
-        await subscription_repo.create_free_subscription(
-            user_id=owner_id, virtual_lab_id=UUID(str(db_lab.id))
-        )
+        if not await subscription_repo.get_free_subscription_by_user_id(
+            user_id=owner_id
+        ):
+            await subscription_repo.create_free_subscription(
+                user_id=owner_id, virtual_lab_id=UUID(str(db_lab.id))
+            )
+
         await user_repo.update_user_custom_properties(
             user_id=owner_id,
             properties=[
                 ("plan", "free", "multiple"),
-                ("virtual_lab_id", str(lab_details.id), "unique"),
+                ("virtual_lab_id", str(lab_details.id), "multiple"),
             ],
         )
 
