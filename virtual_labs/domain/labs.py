@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Generic, Optional, TypeVar
+from typing import Generic, TypeVar
 
 from pydantic import (
     UUID4,
@@ -47,9 +47,6 @@ class VirtualLabDetails(VirtualLabBase):
     id: UUID4
     created_at: datetime
     updated_at: datetime | None = None
-    members_count: Optional[int] = None
-    projects_count: Optional[int] = None
-    invite_id: Optional[UUID4] = None
 
     class Config:
         from_attributes = True

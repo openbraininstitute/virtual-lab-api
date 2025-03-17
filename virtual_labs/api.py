@@ -124,16 +124,12 @@ async def vli_exception_handler(request: Request, exception: VliError) -> JSONRe
 async def validation_exception_handler(
     request: Request, exc: RequestValidationError
 ) -> JSONResponse:
-    errors = {}
-    for index, err in enumerate(exc.errors()):
-        loc = err.get("loc", (0, index))
-        # Safely get the field name, using index as fallback if loc tuple is too short
-        field_name = loc[1] if len(loc) > 1 else f"field_{index}"
-        error_msg = err.get(
+    errors = {
+        err.get("loc", (0, index))[1]: err.get(
             "msg", "Field value is invalid. Further details unavailable."
         )
-        errors[field_name] = error_msg
-
+        for index, err in enumerate(exc.errors())
+    }
     return JSONResponse(
         status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
         content=jsonable_encoder(

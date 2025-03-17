@@ -1,14 +1,12 @@
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 from uuid import UUID
 
 from pydantic import UUID4, EmailStr
 from sqlalchemy import and_, false, func, or_, select, update
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import noload
 
-from virtual_labs.core.types import PaginatedDbResult, UserRoleEnum
-from virtual_labs.domain.common import PageParams
+from virtual_labs.core.types import UserRoleEnum
 from virtual_labs.infrastructure.db.models import (
     ProjectInvite,
     VirtualLab,
@@ -84,9 +82,8 @@ class InviteQueryRepository:
     async def get_user_invited_virtual_labs_by_email(
         self,
         email: EmailStr,
-        page_params: Optional[PageParams] = None,
-    ) -> PaginatedDbResult[List[Tuple[VirtualLab, UUID]]]:
-        base_query = (
+    ) -> List[Tuple[VirtualLab, UUID]]:
+        stmt = (
             select(VirtualLab, VirtualLabInvite.id.label("invite_id"))
             .join(VirtualLabInvite, VirtualLabInvite.virtual_lab_id == VirtualLab.id)
             .where(
@@ -95,26 +92,8 @@ class InviteQueryRepository:
                 & (VirtualLabInvite.accepted == false())
             )
         )
-
-        count_query = select(func.count()).select_from(
-            base_query.options(noload("*")).subquery()
-        )
-        total_count = await self.session.scalar(count_query) or 0
-
-        if page_params:
-            base_query = (
-                base_query.order_by(VirtualLabInvite.created_at.desc())
-                .offset((page_params.page - 1) * page_params.size)
-                .limit(page_params.size)
-            )
-
-        result = await self.session.execute(base_query)
-        rows = [tuple(row) for row in result.all()]
-
-        return PaginatedDbResult(
-            count=total_count,
-            rows=rows,
-        )
+        result = await self.session.execute(stmt)
+        return [tuple(row) for row in result.all()]
 
 
 class InviteMutationRepository:
