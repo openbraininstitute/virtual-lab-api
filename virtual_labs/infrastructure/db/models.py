@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from decimal import Decimal
 from enum import Enum
 from typing import Any, Dict, Optional
 from uuid import uuid4
@@ -14,6 +15,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    Numeric,
     String,
     Text,
     UniqueConstraint,
@@ -592,3 +594,11 @@ class StripeUser(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=func.now(), onupdate=func.now(), nullable=False
     )
+
+
+class CreditExchangeRate(Base):
+    __tablename__ = "credit_exchange_rate"
+
+    currency: Mapped[str] = Column(String, primary_key=True, index=True)
+    rate: Mapped[Decimal] = Column(Numeric(precision=10, scale=6), nullable=False)
+    description: Mapped[str] = Column(String, nullable=True)

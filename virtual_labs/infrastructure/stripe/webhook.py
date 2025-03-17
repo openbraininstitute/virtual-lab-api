@@ -7,6 +7,7 @@ from loguru import logger
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import virtual_labs.external.accounting as accounting_service
 from virtual_labs.infrastructure.db.models import (
     PaidSubscription,
     PaymentStatus,
@@ -17,6 +18,7 @@ from virtual_labs.infrastructure.db.models import (
 from virtual_labs.repositories.stripe_repo import StripeRepository
 from virtual_labs.repositories.stripe_user_repo import StripeUserQueryRepository
 from virtual_labs.repositories.subscription_repo import SubscriptionRepository
+from virtual_labs.services.credit_converter import CreditConverter
 
 
 class StripeWebhook:
@@ -48,10 +50,12 @@ class StripeWebhook:
         stripe_repository: StripeRepository,
         subscription_repository: SubscriptionRepository,
         stripe_user_repository: StripeUserQueryRepository,
+        credit_converter: CreditConverter,
     ):
         self.stripe_repository = stripe_repository
         self.subscription_repository = subscription_repository
         self.stripe_user_repository = stripe_user_repository
+        self.credit_converter = credit_converter
 
     async def handle_webhook_event(
         self, event_json: stripe.Event, db_session: AsyncSession
@@ -249,8 +253,17 @@ class StripeWebhook:
             payment.currency = event_data.get("currency", "usd")
 
             if payment.status == PaymentStatus.SUCCEEDED:
-                # TODO: popup credits to accounting
                 payment.payment_date = datetime.now()
+
+                credits_amount = await self.credit_converter.currency_to_credits(
+                    amount,
+                    payment.currency,
+                )
+
+                if accounting_service.is_enabled:
+                    await accounting_service.top_up_virtual_lab_budget(
+                        subscription.virtual_lab_id, float(credits_amount)
+                    )
 
             # for standalone payments, use current time for period dates
             current_time = datetime.now()
@@ -596,8 +609,14 @@ class StripeWebhook:
         payment.currency = event_data.get("currency", "usd")
 
         if "succeeded" in event_type or "paid" in event_type:
-            # TODO: popup credits to accounting
             payment.payment_date = datetime.now()
+            # ! TODO: adjust credits based on subscription plan
+            credits_amount = 100
+
+            if accounting_service.is_enabled:
+                await accounting_service.top_up_virtual_lab_budget(
+                    subscription.virtual_lab_id, float(credits_amount)
+                )
         else:
             user = await self.stripe_user_repository.get_by_stripe_customer_id(
                 stripe_customer_id=str(customer_id)
