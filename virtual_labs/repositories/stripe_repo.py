@@ -340,6 +340,7 @@ class StripeRepository:
         amount: int,
         currency: str,
         customer_id: str,
+        virtual_lab_id: UUID,
         payment_method_id: str,
         metadata: Optional[Dict[str, str]] = None,
     ) -> stripe.PaymentIntent:
@@ -365,7 +366,7 @@ class StripeRepository:
                     "payment_method": payment_method_id,
                     "metadata": metadata or {},
                     "confirm": True,
-                    "return_url": settings.DEPLOYMENT_NAMESPACE,
+                    "return_url": f"{settings.DEPLOYMENT_NAMESPACE}/app/virtual-lab/lab/{str(virtual_lab_id)}/admin?panel=purchases",
                 },
             )
             return payment_intent
