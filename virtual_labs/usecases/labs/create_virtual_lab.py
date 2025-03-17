@@ -8,6 +8,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
+from virtual_labs.core.exceptions.generic_exceptions import ForbiddenOperation
 from virtual_labs.core.exceptions.identity_error import IdentityError
 from virtual_labs.core.exceptions.nexus_error import NexusError
 from virtual_labs.core.types import UserRoleEnum
@@ -146,6 +147,13 @@ async def create_virtual_lab(
     owner_id = get_user_id_from_auth(auth)
     # 1. Create kc groups and add user to admin group
     try:
+        has_vlab = await repository.get_user_virtual_lab(
+            db=db,
+            owner_id=owner_id,
+        )
+        if has_vlab:
+            raise ForbiddenOperation()
+
         new_lab_id = uuid4()
         # Create admin & member groups
         groups = await create_keycloak_groups(new_lab_id, lab.name)
@@ -154,6 +162,12 @@ async def create_virtual_lab(
 
         user_repo.attach_user_to_group(
             user_id=owner_id, group_id=groups["admin_group"]["id"]
+        )
+    except ForbiddenOperation:
+        raise VliError(
+            message="User already have a virtual lab",
+            error_code=VliErrorCode.ENTITY_ALREADY_EXISTS,
+            http_status_code=HTTPStatus.BAD_REQUEST,
         )
     except ValueError as error:
         raise VliError(
@@ -227,16 +241,15 @@ async def create_virtual_lab(
         db_lab = await repository.create_virtual_lab(db, lab_with_ids)
         lab_details = domain.VirtualLabDetails.model_validate(db_lab)
 
-        if not await subscription_repo.get_free_subscription_by_user_id(
-            user_id=owner_id
-        ):
-            await subscription_repo.create_free_subscription(
-                user_id=owner_id, virtual_lab_id=UUID(str(db_lab.id))
-            )
+        # create free subscription
+        await subscription_repo.create_free_subscription(
+            user_id=owner_id, virtual_lab_id=UUID(str(db_lab.id))
+        )
         await user_repo.update_user_custom_properties(
             user_id=owner_id,
             properties=[
                 ("plan", "free", "multiple"),
+                ("virtual_lab_id", str(lab_details.id), "unique"),
             ],
         )
 

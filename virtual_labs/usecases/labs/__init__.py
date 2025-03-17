@@ -1,6 +1,5 @@
 # ruff: noqa
-from .list_user_virtual_labs import list_user_virtual_labs
-from .list_user_pending_virtual_labs import list_user_pending_virtual_labs
+from .all_virtual_labs_for_user import list_user_virtual_labs
 from .change_user_role_for_lab import change_user_role_for_lab
 from .check_virtual_lab_name_exists import check_virtual_lab_name_exists
 from .create_virtual_lab import create_virtual_lab
@@ -16,7 +15,6 @@ from .update_virtual_lab import update_virtual_lab
 __all__ = [
     "create_virtual_lab",
     "list_user_virtual_labs",
-    "list_user_pending_virtual_labs",
     "get_virtual_lab",
     "update_virtual_lab",
     "delete_virtual_lab",
