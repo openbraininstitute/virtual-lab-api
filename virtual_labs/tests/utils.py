@@ -2,6 +2,7 @@ import asyncio
 import time
 import typing
 from contextlib import asynccontextmanager
+from datetime import datetime, timedelta
 from http import HTTPStatus
 from typing import AsyncGenerator, Awaitable, cast
 from uuid import UUID, uuid4
@@ -16,11 +17,17 @@ from stripe import SetupIntent
 from virtual_labs.infrastructure.db.config import session_pool
 from virtual_labs.infrastructure.db.models import (
     Bookmark,
+    FreeSubscription,
     Notebook,
+    PaidSubscription,
     PaymentMethod,
     Project,
     ProjectInvite,
     ProjectStar,
+    Subscription,
+    SubscriptionPayment,
+    SubscriptionStatus,
+    SubscriptionType,
     VirtualLab,
     VirtualLabInvite,
     VirtualLabTopup,
@@ -66,7 +73,6 @@ async def create_mock_lab(
         "name": f"Test Lab {uuid4()}",
         "description": "Test",
         "reference_email": "user@test.org",
-        "plan_id": 1,
         "entity": "EPFL, Switzerland",
     }
     headers = get_headers(owner_username)
@@ -75,6 +81,7 @@ async def create_mock_lab(
         json=body,
         headers=headers,
     )
+
     assert response.status_code == 200
     return response
 
@@ -86,7 +93,6 @@ async def create_mock_lab_with_project(
         "name": f"Test Lab {uuid4()}",
         "description": "Test",
         "reference_email": "user@test.org",
-        "plan_id": 1,
         "entity": "EPFL, Switzerland",
     }
     headers = get_headers(owner_username)
@@ -127,17 +133,45 @@ def get_invite_token_from_email(recipient_email: str) -> str:
 
 async def cleanup_resources(client: AsyncClient, lab_id: str) -> None:
     """Performs cleanup of following resources for lab_id:
-    1. Deprecates underlying nexus org/project by calling the DELETE endpoints
-    2. Deletes lab/project row along with lab_invite, project_invite, project_star, bookmarks, rows from the DB
-    3. Deletes admin and member groups from keycloak
+    1. Delete all payments and subscriptions linked to this virtual lab
+    2. Deprecates underlying nexus org/project by calling the DELETE endpoints
+    3. Deletes lab/project row along with lab_invite, project_invite, project_star, bookmarks, rows from the DB
+    4. Deletes admin and member groups from keycloak
     """
+    # 1. Delete payments and subscriptions
+    async with session_context_factory() as session:
+        await session.execute(
+            statement=delete(SubscriptionPayment).where(
+                SubscriptionPayment.subscription_id.in_(
+                    select(Subscription.id).where(
+                        Subscription.virtual_lab_id == UUID(lab_id)
+                    )
+                )
+            )
+        )
+        await session.execute(
+            statement=delete(FreeSubscription).where(
+                FreeSubscription.virtual_lab_id == UUID(lab_id)
+            )
+        )
+        await session.execute(
+            statement=delete(PaidSubscription).where(
+                PaidSubscription.virtual_lab_id == UUID(lab_id)
+            )
+        )
+        await session.execute(
+            statement=delete(Subscription).where(
+                Subscription.virtual_lab_id == UUID(lab_id)
+            )
+        )
+        await session.commit()
+
     project_ids = []
     async with session_context_factory() as session:
         stmt = select(Project.id).filter(Project.virtual_lab_id == UUID(lab_id))
         all = (await session.execute(statement=stmt)).scalars().all()
         project_ids = [str(project_id) for project_id in all]
-
-    # 1. Call DELETE endpoints (which will deprecate nexus resources)
+    # 2. Call DELETE endpoints (which will deprecate nexus resources)
     for project_id in project_ids:
         try:
             project_delete_response = await client.delete(
@@ -154,7 +188,7 @@ async def cleanup_resources(client: AsyncClient, lab_id: str) -> None:
     except Exception:
         assert lab_delete_response.status_code == HTTPStatus.NOT_FOUND
 
-    # 2. Delete database rows
+    # 3. Delete database rows
     project_group_ids: list[tuple[str, str]] = []
     async with session_context_factory() as session:
         for project_id in project_ids:
@@ -214,7 +248,6 @@ async def cleanup_resources(client: AsyncClient, lab_id: str) -> None:
                 .returning(
                     VirtualLab.admin_group_id,
                     VirtualLab.member_group_id,
-                    VirtualLab.stripe_customer_id,
                 )
             )
         ).one()
@@ -228,11 +261,6 @@ async def cleanup_resources(client: AsyncClient, lab_id: str) -> None:
         group_repo.delete_group(group_id=project_group_id[1])
     group_repo.delete_group(group_id=lab_data[0])
     group_repo.delete_group(group_id=lab_data[1])
-
-    # 5. delete customer from stripe
-    await stripe_client.customers.delete_async(
-        customer=str(lab_data[2]),
-    )
 
 
 async def create_confirmed_setup_intent(customer_id: str) -> SetupIntent:
@@ -266,3 +294,59 @@ async def wait_until(
             return True
         await asyncio.sleep(period)
     return False
+
+
+async def create_paid_subscription_for_user(user_id: UUID) -> None:
+    """
+    create a paid subscription for a user to enable inviting others.
+    """
+    async with session_context_factory() as session:
+        # Create a paid subscription for the user
+        now = datetime.utcnow()
+        subscription = PaidSubscription(
+            id=uuid4(),
+            user_id=user_id,
+            stripe_subscription_id="sub_xxxx",
+            customer_id="cus_xxxx",
+            stripe_price_id="price_xxxx",
+            status=SubscriptionStatus.ACTIVE,
+            amount=400,
+            interval="month",
+            current_period_start=now,
+            current_period_end=now + timedelta(days=30),
+            subscription_type=SubscriptionType.PRO,
+            created_at=now,
+            updated_at=now,
+        )
+        session.add(subscription)
+        await session.commit()
+        logger.info(f"Created paid subscription for user {user_id}")
+
+
+async def create_free_subscription_for_user(user_id: UUID) -> None:
+    """
+    create a free subscription for a user.
+    """
+    async with session_context_factory() as session:
+        # Create a free subscription for the user
+        now = datetime.utcnow()
+        subscription = FreeSubscription(
+            id=uuid4(),
+            user_id=user_id,
+            status=SubscriptionStatus.ACTIVE,
+            current_period_start=now,
+            current_period_end=now + timedelta(days=30),
+            subscription_type=SubscriptionType.FREE,
+            created_at=now,
+            updated_at=now,
+        )
+        session.add(subscription)
+        await session.commit()
+        logger.info(f"Created free subscription for user {user_id}")
+
+
+async def get_user_id_from_test_auth(auth_header: str) -> UUID:
+    auth_user = await kc_auth.a_decode_token(
+        token=auth_header.replace("Bearer ", ""), validate=False
+    )
+    return UUID(auth_user["sub"])

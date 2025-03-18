@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.exceptions.email_error import EmailError
+from virtual_labs.core.exceptions.generic_exceptions import ForbiddenOperation
 from virtual_labs.domain.invite import AddUser
 from virtual_labs.infrastructure.email.invite_email import EmailDetails, send_invite
 from virtual_labs.repositories import labs as lab_repo
@@ -15,6 +16,7 @@ from virtual_labs.repositories.invite_repo import (
     InviteMutationRepository,
     InviteQueryRepository,
 )
+from virtual_labs.repositories.subscription_repo import SubscriptionRepository
 from virtual_labs.repositories.user_repo import UserQueryRepository
 from virtual_labs.shared.utils.is_user_in_lab import is_user_in_lab
 
@@ -60,8 +62,15 @@ async def invite_user_to_lab(
     user_repo = UserQueryRepository()
     invite_query_repo = InviteQueryRepository(db)
     invite_mutation_repo = InviteMutationRepository(db)
-
+    subscription_repo = SubscriptionRepository(db_session=db)
     try:
+        subscription = await subscription_repo.get_active_subscription_by_user_id(
+            user_id=inviter_id,
+            subscription_type="paid",
+        )
+        if not subscription:
+            raise ForbiddenOperation()
+
         lab = await lab_repo.get_undeleted_virtual_lab(db, lab_id)
 
         user_to_invite = user_repo.retrieve_user_by_email(invite_details.email)
@@ -131,6 +140,15 @@ async def invite_user_to_lab(
                 invite_repo=invite_mutation_repo,
             )
             return UUID(str(existing_invite.id))
+    except ForbiddenOperation as e:
+        logger.error(
+            f"ForbiddenOperation when inviting user {invite_details.email} {e}"
+        )
+        raise VliError(
+            message="User is not allowed to invite users to this virtual lab",
+            error_code=VliErrorCode.FORBIDDEN_OPERATION,
+            http_status_code=HTTPStatus.FORBIDDEN,
+        ) from e
     except ValueError as error:
         logger.error(f"ValueError when inviting user {invite_details.email} {error}")
         raise VliError(

@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, List, Tuple, cast
+from typing import List, Tuple, cast
 from uuid import UUID
 
 from pydantic import UUID4
@@ -376,21 +376,6 @@ class ProjectMutationRepository:
                 Project.deleted,
                 Project.deleted_at,
             )
-        )
-        result = await self.session.execute(statement=stmt)
-        await self.session.commit()
-        return result.one()
-
-    async def update_project_budget(
-        self, virtual_lab_id: UUID4, project_id: UUID4, value: int
-    ) -> Row[Tuple[UUID, Any, datetime]]:
-        stmt = (
-            update(Project)
-            .where(
-                and_(Project.id == project_id, Project.virtual_lab_id == virtual_lab_id)
-            )
-            .values(budget_amount=value)
-            .returning(Project.id, Project.budget_amount, Project.updated_at)
         )
         result = await self.session.execute(statement=stmt)
         await self.session.commit()

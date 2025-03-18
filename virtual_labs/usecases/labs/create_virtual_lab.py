@@ -2,13 +2,13 @@ from http import HTTPStatus
 from typing import Literal, TypedDict
 from uuid import UUID, uuid4
 
-import stripe
 from loguru import logger
 from pydantic import UUID4
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
+from virtual_labs.core.exceptions.generic_exceptions import ForbiddenOperation
 from virtual_labs.core.exceptions.identity_error import IdentityError
 from virtual_labs.core.exceptions.nexus_error import NexusError
 from virtual_labs.core.types import UserRoleEnum
@@ -18,10 +18,10 @@ from virtual_labs.external.nexus.create_organization import create_nexus_organiz
 from virtual_labs.infrastructure.db import models
 from virtual_labs.infrastructure.kc.models import AuthUser, CreatedGroup
 from virtual_labs.infrastructure.settings import settings
-from virtual_labs.infrastructure.stripe.config import stripe_client
 from virtual_labs.repositories import labs as repository
 from virtual_labs.repositories.group_repo import GroupMutationRepository
 from virtual_labs.repositories.invite_repo import InviteMutationRepository
+from virtual_labs.repositories.subscription_repo import SubscriptionRepository
 from virtual_labs.repositories.user_repo import (
     UserMutationRepository,
     UserQueryRepository,
@@ -29,7 +29,6 @@ from virtual_labs.repositories.user_repo import (
 from virtual_labs.shared.utils.auth import get_user_id_from_auth
 from virtual_labs.usecases import accounting as accounting_cases
 from virtual_labs.usecases.labs.invite_user_to_lab import send_email_to_user_or_rollback
-from virtual_labs.usecases.plans.verify_plan import verify_plan
 
 GroupIds = dict[Literal["member_group"] | Literal["admin_group"], CreatedGroup]
 UserInvites = TypedDict(
@@ -143,19 +142,32 @@ async def create_virtual_lab(
     db: AsyncSession, lab: domain.VirtualLabCreate, auth: tuple[AuthUser, str]
 ) -> domain.CreateLabOut:
     group_repo = GroupMutationRepository()
-
-    # 1. Create kc groups and add user to adming group
+    user_repo = UserMutationRepository()
+    subscription_repo = SubscriptionRepository(db_session=db)
+    owner_id = get_user_id_from_auth(auth)
+    # 1. Create kc groups and add user to admin group
     try:
-        await verify_plan(db, lab.plan_id)
+        has_vlab = await repository.get_user_virtual_lab(
+            db=db,
+            owner_id=owner_id,
+        )
+        if has_vlab:
+            raise ForbiddenOperation()
+
         new_lab_id = uuid4()
-        owner_id = get_user_id_from_auth(auth)
         # Create admin & member groups
         groups = await create_keycloak_groups(new_lab_id, lab.name)
 
         # Add user as admin for this lab
-        user_repo = UserMutationRepository()
+
         user_repo.attach_user_to_group(
             user_id=owner_id, group_id=groups["admin_group"]["id"]
+        )
+    except ForbiddenOperation:
+        raise VliError(
+            message="User already have a virtual lab",
+            error_code=VliErrorCode.ENTITY_ALREADY_EXISTS,
+            http_status_code=HTTPStatus.BAD_REQUEST,
         )
     except ValueError as error:
         raise VliError(
@@ -200,24 +212,6 @@ async def create_virtual_lab(
             message="Nexus organization creation failed",
         )
 
-    try:
-        customer = await stripe_client.customers.create_async(
-            {
-                "name": lab.name,
-                "email": str(lab.reference_email),
-                "metadata": {
-                    "virtual_lab_id": str(new_lab_id),
-                },
-            }
-        )
-    except stripe.StripeError as ex:
-        logger.error(f"Error during creating stripe customer :({ex})")
-        raise VliError(
-            message="creating stripe customer failed",
-            error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
-            http_status_code=HTTPStatus.BAD_GATEWAY,
-        )
-
     # 3. Create virtual lab account in accounting system
     if settings.ACCOUNTING_BASE_URL is not None:
         try:
@@ -235,31 +229,38 @@ async def create_virtual_lab(
 
     # 4. Save lab to db
     try:
-        # Save lab to db
         lab_with_ids = repository.VirtualLabDbCreate(
             id=new_lab_id,
             owner_id=owner_id,
             nexus_organization_id=nexus_org.self,
             admin_group_id=groups["admin_group"]["id"],
             member_group_id=groups["member_group"]["id"],
-            stripe_customer_id=customer.id,
             **lab.model_dump(),
         )
         db_lab = await repository.create_virtual_lab(db, lab_with_ids)
-        if lab.include_members is None or len(lab.include_members) == 0:
-            return domain.CreateLabOut(
-                virtual_lab=domain.VirtualLabDetails.model_validate(db_lab),
-                successful_invites=[],
-                failed_invites=[],
+        lab_details = domain.VirtualLabDetails.model_validate(db_lab)
+
+        # create free subscription
+        if not await subscription_repo.get_free_subscription_by_user_id(
+            user_id=owner_id
+        ):
+            await subscription_repo.create_free_subscription(
+                user_id=owner_id, virtual_lab_id=UUID(str(db_lab.id))
             )
-        # 4. Invite users
-        invites = await invite_members_to_lab(db, lab.include_members, db_lab, owner_id)
+
+        await user_repo.update_user_custom_properties(
+            user_id=owner_id,
+            properties=[
+                ("plan", "free", "multiple"),
+                ("virtual_lab_id", str(lab_details.id), "multiple"),
+            ],
+        )
+
         return domain.CreateLabOut(
-            virtual_lab=domain.VirtualLabDetails.model_validate(db_lab),
-            successful_invites=invites["successful_invites"],
-            failed_invites=invites["failed_invites"],
+            virtual_lab=lab_details,
         )
     except IntegrityError as error:
+        await db.rollback()
         logger.error(
             "Virtual lab could not be created due to database error {}".format(error)
         )
@@ -269,6 +270,7 @@ async def create_virtual_lab(
             http_status_code=HTTPStatus.CONFLICT,
         )
     except SQLAlchemyError as error:
+        await db.rollback()
         logger.error(
             "Virtual lab could not be created due to an unknown database error {}".format(
                 error
@@ -280,8 +282,10 @@ async def create_virtual_lab(
             http_status_code=HTTPStatus.BAD_REQUEST,
         )
     except VliError as error:
+        await db.rollback()
         raise error
     except Exception as error:
+        await db.rollback()
         logger.error(
             "Virtual lab could not be created due to an unknown error {}".format(error)
         )

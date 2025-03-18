@@ -7,12 +7,9 @@ from pydantic import (
     EmailStr,
     Field,
     JsonValue,
-    computed_field,
 )
 
-from virtual_labs.domain.invite import AddUser
 from virtual_labs.domain.user import UserWithInviteStatus
-from virtual_labs.shared.utils.billing import amount_to_float
 
 T = TypeVar("T")
 
@@ -27,18 +24,12 @@ class VirtualLabBase(BaseModel):
     description: str
     reference_email: EmailStr
     entity: str
-    budget_amount: int = Field(exclude=True, default=0)
-
-    @computed_field
-    def budget(self) -> float:
-        return amount_to_float(self.budget_amount)
 
 
 class VirtualLabUpdate(BaseModel):
     name: str | None = None
     description: str | None = None
     reference_email: EmailStr | None = None
-    plan_id: int | None = None
     entity: str | None = None
 
 
@@ -54,11 +45,15 @@ class PlanDomain(BaseModel):
 
 class VirtualLabDetails(VirtualLabBase):
     id: UUID4
-    plan_id: int
     created_at: datetime
-    nexus_organization_id: str
-
     updated_at: datetime | None = None
+
+    class Config:
+        from_attributes = True
+
+
+class VirtualLabWithInviteDetails(VirtualLabDetails):
+    invite_id: UUID4
 
     class Config:
         from_attributes = True
@@ -77,14 +72,11 @@ class VirtualLabOut(BaseModel):
 
 
 class VirtualLabCreate(VirtualLabBase):
-    plan_id: int
-    include_members: list[AddUser] | None = None
+    pass
 
 
 class CreateLabOut(BaseModel):
     virtual_lab: VirtualLabDetails
-    successful_invites: list[AddUser]
-    failed_invites: list[AddUser]
 
 
 class SearchLabResponse(BaseModel):

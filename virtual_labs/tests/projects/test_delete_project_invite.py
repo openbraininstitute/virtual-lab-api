@@ -5,8 +5,12 @@ import pytest
 import pytest_asyncio
 from httpx import AsyncClient, Response
 
-from virtual_labs.tests.test_accept_lab_invite import get_invite_token_from_email
-from virtual_labs.tests.utils import get_headers
+from virtual_labs.tests.labs.test_accept_lab_invite import get_invite_token_from_email
+from virtual_labs.tests.utils import (
+    create_paid_subscription_for_user,
+    get_headers,
+    get_user_id_from_test_auth,
+)
 
 
 @pytest_asyncio.fixture
@@ -21,6 +25,11 @@ async def mock_project_invite(
     invitee_email = "test-1@test.com"
     invitee_username = "test-1"
     invite_payload = {"email": f"{invitee_email}", "role": "member"}
+
+    user_id = await get_user_id_from_test_auth(
+        auth_header=headers.get("Authorization", "")
+    )
+    await create_paid_subscription_for_user(user_id)
 
     response = await client.post(
         f"/virtual-labs/{lab_id}/projects/{project_id}/invites",

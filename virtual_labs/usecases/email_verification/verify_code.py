@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 from http import HTTPStatus as status
 from typing import Tuple
 from uuid import UUID
@@ -13,12 +13,12 @@ from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.exceptions.email_verification import EmailVerificationException
 from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.domain.email import (
-    LOCK_TIME_MINUTES,
-    MAX_ATTEMPTS,
     VerificationCodeStatus,
 )
 from virtual_labs.infrastructure.kc.models import AuthUser
-from virtual_labs.repositories.email_verification import (
+from virtual_labs.infrastructure.redis import RateLimiter
+from virtual_labs.infrastructure.settings import settings
+from virtual_labs.repositories.email_verification_repo import (
     EmailValidationQueryRepository,
 )
 from virtual_labs.repositories.labs import get_virtual_lab_by_definition_tuple
@@ -26,6 +26,7 @@ from virtual_labs.repositories.labs import get_virtual_lab_by_definition_tuple
 
 async def verify_email_code(
     session: AsyncSession,
+    rl: RateLimiter,
     *,
     email: EmailStr,
     virtual_lab_name: str,
@@ -35,6 +36,7 @@ async def verify_email_code(
     es = EmailValidationQueryRepository(session)
 
     user_id = UUID(auth[0].sub)
+    rd_key = rl.build_key("verify", str(user_id), email)
 
     try:
         now = datetime.utcnow()
@@ -42,100 +44,49 @@ async def verify_email_code(
         if await get_virtual_lab_by_definition_tuple(
             session,
             user_id,
+            email=email,
             name=virtual_lab_name,
         ):
             raise EmailVerificationException(
                 "Virtual lab already registered with this details",
                 data={
                     "message": "Virtual lab already registered with this details",
-                    "status": VerificationCodeStatus.REGISTERED,
+                    "status": VerificationCodeStatus.REGISTERED.value,
                     "remaining_time": None,
                     "remaining_attempts": None,
                 },
             )
 
         verification_code_entry = await es.get_verification_code(
-            email,
             user_id,
+            email,
             virtual_lab_name,
         )
+
         if not verification_code_entry:
             raise EmailVerificationException(
                 "No active verification code found",
                 data={
                     "message": "No active verification code found or code expired",
-                    "status": VerificationCodeStatus.EXPIRED,
+                    "status": VerificationCodeStatus.EXPIRED.value,
                     "remaining_time": None,
                     "remaining_attempts": None,
                 },
             )
 
-        # Reset lock if time has passed
-        if (
-            verification_code_entry.locked_until
-            and now > verification_code_entry.locked_until
-        ):
-            verification_code_entry.locked_until = None
-            verification_code_entry.verification_attempts = 0
-            await session.commit()
-            await session.refresh(verification_code_entry)
+        if verification_code_entry.code != code.strip():
+            attempts = await rl.get_count(rd_key)
+            remaining_attempts = settings.MAX_VERIFY_ATTEMPTS - (attempts or 0)
 
-        # Check if the account is locked due to too many failed attempts
-        if (
-            verification_code_entry.locked_until
-            and verification_code_entry.locked_until > now
-        ):
-            remaining_time = (verification_code_entry.locked_until - now).seconds // 60
             raise EmailVerificationException(
-                f"Too many attempts. Try again in {remaining_time} minutes",
+                f"Invalid code, {remaining_attempts} attempts remaining",
                 data={
-                    "message": f"Too many attempts. Try again in {remaining_time} minutes",
-                    "status": VerificationCodeStatus.LOCKED,
-                    "remaining_time": remaining_time,
-                    "remaining_attempts": 0,
+                    "message": f"Invalid code, {remaining_attempts} attempts remaining",
+                    "status": VerificationCodeStatus.NOT_MATCH.value,
+                    "remaining_time": None,
+                    "remaining_attempts": remaining_attempts,
                 },
             )
-
-        # Validate the user-provided code
-        if verification_code_entry.code != code.strip():
-            verification_code_entry.verification_attempts += 1
-
-            # Lock the account if the maximum number of attempts is reached
-            if verification_code_entry.verification_attempts >= MAX_ATTEMPTS:
-                verification_code_entry.locked_until = now + timedelta(
-                    minutes=LOCK_TIME_MINUTES
-                )
-                await session.commit()
-                await session.refresh(verification_code_entry)
-                remaining_time = (
-                    verification_code_entry.locked_until - now
-                ).seconds // 60
-                raise EmailVerificationException(
-                    "Too many incorrect attempts. Code locked for 15 minutes",
-                    data={
-                        "message": "Too many incorrect attempts. sending code locked for 15 minutes",
-                        "status": VerificationCodeStatus.LOCKED,
-                        "remaining_time": remaining_time,
-                        "remaining_attempts": 0,
-                    },
-                )
-
-            await session.commit()
-            await session.refresh(verification_code_entry)
-            # Calculate remaining attempts and raise an appropriate error
-            remaining_attempts = (
-                MAX_ATTEMPTS - verification_code_entry.verification_attempts
-            )
-            if remaining_attempts > 0:
-                raise EmailVerificationException(
-                    f"Invalid code. {remaining_attempts} attempts remaining",
-                    data={
-                        "message": f"Invalid code. {remaining_attempts} attempts remaining",
-                        "status": VerificationCodeStatus.LOCKED,
-                        "remaining_time": None,
-                        "remaining_attempts": remaining_attempts,
-                    },
-                )
 
         verification_code_entry.is_verified = True
         verification_code_entry.verified_at = now
@@ -147,7 +98,7 @@ async def verify_email_code(
             message="Email verified successfully",
             data={
                 "message": "Email verified successfully",
-                "status": VerificationCodeStatus.VERIFIED,
+                "status": VerificationCodeStatus.VERIFIED.value,
                 "remaining_attempts": None,
                 "remaining_time": None,
                 "verified_at": verification_code_entry.verified_at,

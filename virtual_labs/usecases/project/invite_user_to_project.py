@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.exceptions.email_error import EmailError
+from virtual_labs.core.exceptions.generic_exceptions import ForbiddenOperation
 from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.domain.project import ProjectInviteIn, ProjectInviteOut
 from virtual_labs.infrastructure.email.invite_email import EmailDetails, send_invite
@@ -20,6 +21,7 @@ from virtual_labs.repositories.invite_repo import (
     InviteQueryRepository,
 )
 from virtual_labs.repositories.project_repo import ProjectQueryRepository
+from virtual_labs.repositories.subscription_repo import SubscriptionRepository
 from virtual_labs.repositories.user_repo import UserQueryRepository
 from virtual_labs.shared.utils.auth import get_user_id_from_auth
 from virtual_labs.shared.utils.is_user_in_project import is_user_in_project
@@ -37,10 +39,18 @@ async def invite_user_to_project(
     user_repo = UserQueryRepository()
     invite_repo = InviteMutationRepository(session)
     invite_query_repo = InviteQueryRepository(session)
+    subscription_repo = SubscriptionRepository(db_session=session)
     inviter_id = get_user_id_from_auth(auth)
     user, _ = auth
 
     try:
+        subscription = await subscription_repo.get_active_subscription_by_user_id(
+            user_id=inviter_id,
+            subscription_type="paid",
+        )
+        if not subscription:
+            raise ForbiddenOperation()
+
         project, lab = await pr.retrieve_one_project_strict(
             virtual_lab_id=virtual_lab_id, project_id=project_id
         )
@@ -118,6 +128,15 @@ async def invite_user_to_project(
             message="User invited successfully",
             data=ProjectInviteOut(invite_id=UUID(str(invite.id))),
         )
+    except ForbiddenOperation as error:
+        logger.error(
+            f"ForbiddenOperation when inviting user {invite_details.email} {error}"
+        )
+        raise VliError(
+            message="User is not allowed to invite users to this project",
+            error_code=VliErrorCode.FORBIDDEN_OPERATION,
+            http_status_code=HTTPStatus.FORBIDDEN,
+        ) from error
     except EmailError as error:
         logger.error(f"Error when sending email invite {error.message} {error.detail}")
         if invite:

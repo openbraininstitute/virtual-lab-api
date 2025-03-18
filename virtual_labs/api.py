@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
 from http import HTTPStatus
-from typing import Any, Generator
+from typing import Any, Generator, Optional
 
 import sentry_sdk
 from fastapi import FastAPI, Request
@@ -10,6 +10,7 @@ from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
 from fastapi.routing import APIRouter
 from loguru import logger
+from redis.asyncio import Redis
 from sentry_sdk.integrations.asgi import SentryAsgiMiddleware
 from starlette.middleware.cors import CORSMiddleware
 
@@ -20,24 +21,31 @@ from virtual_labs.core.exceptions.api_error import (
 )
 from virtual_labs.core.schemas import api
 from virtual_labs.infrastructure.db.config import session_pool
+from virtual_labs.infrastructure.redis import get_redis
 from virtual_labs.infrastructure.settings import settings
 from virtual_labs.routes.accounting import router as accounting_router
-from virtual_labs.routes.billing import router as billing_router
 from virtual_labs.routes.bookmarks import router as bookmarks_router
 from virtual_labs.routes.common import router as common_router
 from virtual_labs.routes.invites import router as invite_router
 from virtual_labs.routes.labs import router as virtual_lab_router
 from virtual_labs.routes.notebooks import router as notebook_router
 from virtual_labs.routes.payments import router as payments_router
-from virtual_labs.routes.plans import router as plans_router
 from virtual_labs.routes.projects import router as project_router
+from virtual_labs.routes.subscription import router as subscription_router
+from virtual_labs.routes.user import router as user_router
+
+_redis_client: Optional[Redis] = None
 
 
 @asynccontextmanager  # type: ignore
 async def lifespan(app: FastAPI) -> Generator[None, Any, None]:  # type: ignore
+    global _redis_client
+    _redis_client = await get_redis()
     yield
     if session_pool._engine is not None:
         await session_pool.close()
+    if _redis_client is not None:
+        await _redis_client.close()
 
 
 sentry_sdk.init(
@@ -116,12 +124,16 @@ async def vli_exception_handler(request: Request, exception: VliError) -> JSONRe
 async def validation_exception_handler(
     request: Request, exc: RequestValidationError
 ) -> JSONResponse:
-    errors = {
-        err.get("loc", (0, index))[1]: err.get(
+    errors = {}
+    for index, err in enumerate(exc.errors()):
+        loc = err.get("loc", (0, index))
+        # Safely get the field name, using index as fallback if loc tuple is too short
+        field_name = loc[1] if len(loc) > 1 else f"field_{index}"
+        error_msg = err.get(
             "msg", "Field value is invalid. Further details unavailable."
         )
-        for index, err in enumerate(exc.errors())
-    }
+        errors[field_name] = error_msg
+
     return JSONResponse(
         status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
         content=jsonable_encoder(
@@ -144,12 +156,12 @@ def health() -> str:
 base_router.include_router(common_router)
 base_router.include_router(project_router)
 base_router.include_router(virtual_lab_router)
-base_router.include_router(plans_router)
 base_router.include_router(invite_router)
-base_router.include_router(billing_router)
 base_router.include_router(payments_router)
 base_router.include_router(bookmarks_router)
 base_router.include_router(accounting_router)
 base_router.include_router(notebook_router)
+base_router.include_router(subscription_router)
+base_router.include_router(user_router)
 
 app.include_router(base_router)

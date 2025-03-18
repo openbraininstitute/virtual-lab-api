@@ -120,7 +120,7 @@ async def a_verify_jwt(
         decoded_token = await kc_auth.a_decode_token(token=token, validate=True)
     except KeycloakError as exception:
         logger.error(
-            f"Keyclock error while decoding token CODE: {exception.response_code} BODY: {exception.response_body} MESSAGE: {exception.error_message}"
+            f"Keycloak error while decoding token CODE: {exception.response_code} BODY: {exception.response_body} MESSAGE: {exception.error_message}"
         )
         logger.exception(f"Keycloak decode exception {exception}")
         raise VliError(
