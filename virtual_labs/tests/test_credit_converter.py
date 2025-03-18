@@ -10,7 +10,7 @@ from virtual_labs.services.credit_converter import (
 
 
 @pytest.fixture
-async def mock_exchange_rate_repo() -> AsyncMock:
+def mock_exchange_rate_repo() -> AsyncMock:
     repo = AsyncMock()
     repo.get_all_rates = AsyncMock(
         return_value={
