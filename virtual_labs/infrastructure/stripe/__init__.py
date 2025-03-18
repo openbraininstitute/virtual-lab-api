@@ -51,7 +51,7 @@ def get_stripe_webhook_service(
     stripe_user_repository: StripeUserQueryRepository = Depends(
         get_stripe_user_repository
     ),
-    credit_converter_service: CreditConverter = Depends(get_credit_converter),
+    credit_converter: CreditConverter = Depends(get_credit_converter),
 ) -> StripeWebhook:
     """
     dependency for getting the Stripe webhook service.
@@ -61,5 +61,5 @@ def get_stripe_webhook_service(
         stripe_repository=stripe_repository,
         subscription_repository=subscription_repository,
         stripe_user_repository=stripe_user_repository,
-        credit_converter_service=credit_converter_service,
+        credit_converter=credit_converter,
     )

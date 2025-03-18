@@ -10,7 +10,7 @@ from virtual_labs.services.credit_converter import (
 
 
 @pytest.fixture
-def mock_exchange_rate_repo():
+async def mock_exchange_rate_repo() -> AsyncMock:
     repo = AsyncMock()
     repo.get_all_rates = AsyncMock(
         return_value={
@@ -23,7 +23,7 @@ def mock_exchange_rate_repo():
 
 
 @pytest.mark.asyncio
-async def test_currency_to_credits(mock_exchange_rate_repo):
+async def test_currency_to_credits(mock_exchange_rate_repo: AsyncMock) -> None:
     converter = CreditConverter(exchange_rate_repo=mock_exchange_rate_repo)
 
     # Test CHF conversion
@@ -36,7 +36,7 @@ async def test_currency_to_credits(mock_exchange_rate_repo):
 
 
 @pytest.mark.asyncio
-async def test_credits_to_currency(mock_exchange_rate_repo):
+async def test_credits_to_currency(mock_exchange_rate_repo: AsyncMock) -> None:
     converter = CreditConverter(exchange_rate_repo=mock_exchange_rate_repo)
 
     # Test CHF conversion
@@ -49,7 +49,7 @@ async def test_credits_to_currency(mock_exchange_rate_repo):
 
 
 @pytest.mark.asyncio
-async def test_unsupported_currency(mock_exchange_rate_repo):
+async def test_unsupported_currency(mock_exchange_rate_repo: AsyncMock) -> None:
     converter = CreditConverter(exchange_rate_repo=mock_exchange_rate_repo)
 
     with pytest.raises(ValueError, match="Unsupported currency: jpy"):
@@ -57,7 +57,7 @@ async def test_unsupported_currency(mock_exchange_rate_repo):
 
 
 @pytest.mark.asyncio
-async def test_refresh_rates(mock_exchange_rate_repo):
+async def test_refresh_rates(mock_exchange_rate_repo: AsyncMock) -> None:
     converter = CreditConverter(exchange_rate_repo=mock_exchange_rate_repo)
 
     # Initial load
@@ -74,7 +74,7 @@ async def test_refresh_rates(mock_exchange_rate_repo):
 
 
 @pytest.mark.asyncio
-async def test_fallback_to_defaults():
+async def test_fallback_to_defaults() -> None:
     # Repository returns empty rates
     repo = AsyncMock()
     repo.get_all_rates = AsyncMock(return_value={})

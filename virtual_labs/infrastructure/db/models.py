@@ -611,6 +611,8 @@ class StripeUser(Base):
 class CreditExchangeRate(Base):
     __tablename__ = "credit_exchange_rate"
 
-    currency: Mapped[str] = Column(String, primary_key=True, index=True)
-    rate: Mapped[Decimal] = Column(Numeric(precision=10, scale=6), nullable=False)
-    description: Mapped[str] = Column(String, nullable=True)
+    currency: Mapped[str] = mapped_column(String, primary_key=True, index=True)
+    rate: Mapped[Decimal] = mapped_column(
+        Numeric(precision=10, scale=6), nullable=False
+    )
+    description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
