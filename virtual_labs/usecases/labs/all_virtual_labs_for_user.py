@@ -39,9 +39,11 @@ async def list_user_virtual_labs(
         pending_vlab_invites = await invite_repo.get_user_invited_virtual_labs_by_email(
             email=user_email,
         )
+
         pending_labs = [
-            VirtualLabWithInviteDetails.model_validate(lab).model_copy(
-                update={"invite_id": invite_id}
+            VirtualLabWithInviteDetails(
+                **VirtualLabDetails.model_validate(lab).model_dump(),
+                invite_id=invite_id,
             )
             for lab, invite_id in pending_vlab_invites
         ]
