@@ -202,6 +202,7 @@ class SubscriptionPaymentItem(BaseModel):
     receipt_url: Optional[str] = Field(None, description="URL to payment receipt")
     period_start: datetime = Field(..., description="Start of billing period")
     period_end: datetime = Field(..., description="End of billing period")
+    is_standalone: bool = Field(..., description="Whether the payment is standalone")
 
 
 class UserSubscriptionAndPaymentsHistory(BaseModel):

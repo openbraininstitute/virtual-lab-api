@@ -93,6 +93,7 @@ async def list_user_subscriptions_history(
                     receipt_url=payment.receipt_url,
                     period_start=payment.period_start,
                     period_end=payment.period_end,
+                    is_standalone=payment.standalone,
                 )
                 payment_details.append(payment_detail)
 
