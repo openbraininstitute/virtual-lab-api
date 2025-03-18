@@ -10,6 +10,7 @@ from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.exceptions.generic_exceptions import (
     EntityNotCreated,
     EntityNotFound,
+    ForbiddenOperation,
 )
 from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.domain.payment import CreateStandalonePaymentRequest
@@ -19,11 +20,13 @@ from virtual_labs.infrastructure.db.models import (
 )
 from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.infrastructure.stripe import get_stripe_repository
+from virtual_labs.repositories.labs import get_virtual_lab_soft
 from virtual_labs.repositories.stripe_user_repo import (
     StripeUserMutationRepository,
     StripeUserQueryRepository,
 )
 from virtual_labs.repositories.subscription_repo import SubscriptionRepository
+from virtual_labs.repositories.user_repo import UserQueryRepository
 from virtual_labs.shared.utils.auth import get_user_id_from_auth, get_user_metadata
 
 
@@ -51,6 +54,18 @@ async def create_standalone_payment(
     try:
         user_id = get_user_id_from_auth(auth)
         user = get_user_metadata(auth_user=auth[0])
+        user_repo = UserQueryRepository()
+        virtual_lab = await get_virtual_lab_soft(
+            db=session, lab_id=payload.virtual_lab_id
+        )
+        if virtual_lab:
+            is_user_admin = user_repo.is_user_in_group(
+                user_id=user_id, group_id=str(virtual_lab.admin_group_id)
+            )
+            if not is_user_admin:
+                raise ForbiddenOperation()
+        else:
+            raise EntityNotFound("Virtual lab not found")
 
         stripe_service = get_stripe_repository()
         stripe_user_query_repo = StripeUserQueryRepository(db_session=session)
@@ -61,7 +76,7 @@ async def create_standalone_payment(
             user_id=user_id
         )
         if not subscription:
-            raise EntityNotFound
+            raise EntityNotFound("Subscription not found")
 
         customer_id: Optional[str] = None
         stripe_user = await stripe_user_query_repo.get_by_user_id(user_id)
@@ -84,9 +99,11 @@ async def create_standalone_payment(
             amount=payload.amount,
             currency=payload.currency,
             customer_id=customer_id,
+            virtual_lab_id=payload.virtual_lab_id,
             payment_method_id=payload.payment_method_id,
             metadata={
                 "user_id": str(user_id),
+                "virtual_lab_id": str(payload.virtual_lab_id),
                 "subscription_id": str(subscription.id),
                 "standalone": "true",
             },
@@ -116,6 +133,13 @@ async def create_standalone_payment(
             message="Payment processed successfully",
             data=payment_response.model_dump(),
         )
+    except ForbiddenOperation as e:
+        logger.error(f"Forbidden operation while creating standalone payment: {str(e)}")
+        raise VliError(
+            error_code=VliErrorCode.FORBIDDEN_OPERATION,
+            http_status_code=HTTPStatus.FORBIDDEN,
+            message="User is not an admin of the virtual lab",
+        )
     except ValueError as e:
         logger.error(f"Entity not found while creating standalone payment: {str(e)}")
         raise VliError(
@@ -135,7 +159,7 @@ async def create_standalone_payment(
         raise VliError(
             error_code=VliErrorCode.ENTITY_NOT_FOUND,
             http_status_code=HTTPStatus.NOT_FOUND,
-            message="Subscription not found",
+            message=str(e),
         )
     except SQLAlchemyError as e:
         logger.error(f"Database error while creating standalone payment: {str(e)}")

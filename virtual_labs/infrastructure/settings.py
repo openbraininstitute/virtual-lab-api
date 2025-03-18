@@ -84,6 +84,10 @@ class Settings(BaseSettings):
     MAX_VERIFY_ATTEMPTS: int = 5
     LOCK_TIME_SECONDS: int = 3600
 
+    ENABLE_DISCOUNT: bool = False
+    DISCOUNT_MONTHLY_ID: str = "monthly-special-launch-price"
+    DISCOUNT_YEARLY_ID: str = "yearly-special-launch-price"
+
     @field_validator("DATABASE_URI", mode="before")
     @classmethod
     def build_db_connection(cls, v: Optional[str], values: ValidationInfo) -> Any:

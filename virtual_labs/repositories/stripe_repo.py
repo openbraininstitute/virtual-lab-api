@@ -209,6 +209,7 @@ class StripeRepository:
         customer_id: str,
         price_id: str,
         payment_method_id: str,
+        discount_id: Optional[str] = None,
         metadata: Optional[Dict[str, str]] = None,
     ) -> Optional[stripe.Subscription]:
         """
@@ -224,7 +225,7 @@ class StripeRepository:
             the created subscription
         """
         try:
-            # Set the payment method as the default for the customer
+            # set the payment method as the default for the customer
             await self.stripe.payment_methods.attach_async(
                 payment_method_id,
                 params={
@@ -257,6 +258,13 @@ class StripeRepository:
                     "payment_settings": {
                         "save_default_payment_method": "on_subscription"
                     },
+                    "discounts": [
+                        {
+                            "coupon": discount_id,
+                        }
+                    ]
+                    if discount_id
+                    else "",
                 }
             )
             return subscription
@@ -332,6 +340,7 @@ class StripeRepository:
         amount: int,
         currency: str,
         customer_id: str,
+        virtual_lab_id: UUID,
         payment_method_id: str,
         metadata: Optional[Dict[str, str]] = None,
     ) -> stripe.PaymentIntent:
@@ -357,7 +366,7 @@ class StripeRepository:
                     "payment_method": payment_method_id,
                     "metadata": metadata or {},
                     "confirm": True,
-                    "return_url": settings.DEPLOYMENT_NAMESPACE,
+                    "return_url": f"{settings.DEPLOYMENT_NAMESPACE}/app/virtual-lab/lab/{str(virtual_lab_id)}/admin?panel=purchases",
                 },
             )
             return payment_intent

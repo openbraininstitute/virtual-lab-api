@@ -78,7 +78,6 @@ class StripeWebhook:
             logger.info(
                 f"Processing Stripe webhook event: {event_type} (ID: {event_id})"
             )
-            logger.info(f"data: {event_json.get('data', {}).get('object', {})}")
 
             metadata = event_json.get("data", {}).get("object", {}).get("metadata", {})
 
@@ -127,6 +126,7 @@ class StripeWebhook:
         metadata = event_data.get("metadata", {})
         customer_id = event_data.get("customer")
         user_id = metadata.get("user_id")
+        virtual_lab_id = metadata.get("virtual_lab_id")
 
         if not customer_id:
             logger.warning(
@@ -134,16 +134,18 @@ class StripeWebhook:
             )
             return {
                 "status": "error",
+                "field_missing": "customer_id",
                 "message": "No customer ID in payment intent",
             }
 
-        if not user_id:
+        if not user_id or not virtual_lab_id:
             logger.warning(
-                f"No user ID found in payment intent metadata: {payment_intent_id}"
+                f"No user ID or virtual lab ID found in payment intent metadata: {payment_intent_id}"
             )
             return {
                 "status": "error",
-                "message": "No user ID in payment intent metadata",
+                "field_missing": "user_id" if not user_id else "virtual_lab_id",
+                "message": "No user ID or virtual lab ID in payment intent metadata",
             }
 
         try:
@@ -151,6 +153,7 @@ class StripeWebhook:
             payment = await self._create_standalone_payment_record(
                 payment_intent_id=payment_intent_id,
                 user_id=user_id,
+                virtual_lab_id=virtual_lab_id,
                 event_type=event_type,
                 event_data=event_data,
                 db_session=db_session,
@@ -179,6 +182,7 @@ class StripeWebhook:
         self,
         payment_intent_id: Optional[str],
         user_id: str,
+        virtual_lab_id: str,
         event_type: str,
         event_data: Dict[str, Any],
         db_session: AsyncSession,
@@ -218,7 +222,8 @@ class StripeWebhook:
             payment = SubscriptionPayment()
             payment.stripe_payment_intent_id = payment_intent_id
             payment.customer_id = customer_id  # type: ignore
-
+            payment.virtual_lab_id = UUID(virtual_lab_id)
+            payment.stripe_event = event_data
             if subscription:
                 payment.subscription_id = subscription.id
 
@@ -264,14 +269,13 @@ class StripeWebhook:
                     await accounting_service.top_up_virtual_lab_budget(
                         subscription.virtual_lab_id, float(credits_amount)
                     )
+            # mark as standalone payment
+            payment.standalone = True
 
             # for standalone payments, use current time for period dates
             current_time = datetime.now()
             payment.period_start = current_time
             payment.period_end = current_time
-
-            # mark as standalone payment
-            payment.standalone = True
 
             logger.info(
                 f"Creating/updating standalone payment record: {payment_intent_id}"
@@ -320,7 +324,11 @@ class StripeWebhook:
             return {"status": "error", "message": "Subscription not found in Stripe"}
 
         await self._update_subscription_record(
-            stripe_subscription, user_id, str(event_type), db_session
+            stripe_subscription,
+            {},
+            user_id,
+            str(event_type),
+            db_session,
         )
 
         return {
@@ -332,6 +340,7 @@ class StripeWebhook:
     async def _update_subscription_record(
         self,
         stripe_subscription: Dict[str, Any],
+        event_json: Dict[str, Any],
         user_id: str,
         event_type: str,
         db_session: AsyncSession,
@@ -350,10 +359,16 @@ class StripeWebhook:
         result = await db_session.execute(stmt)
         subscription = result.scalars().first()
 
-        # if no subscription exists, create new paid subscription
+        # Handle the case where subscription might be None
         if subscription is None:
             subscription = PaidSubscription()
             subscription.stripe_subscription_id = subscription_id
+            subscription.stripe_event = event_json
+        else:
+            # Only update stripe_event if subscription exists
+            subscription.stripe_event = (
+                event_json if event_json else subscription.stripe_event
+            )
 
         # determine subscription type based on price/product data for future
         items_data = stripe_subscription.get("items", {}).get("data", [])
@@ -477,7 +492,11 @@ class StripeWebhook:
             )
             if stripe_subscription:
                 await self._update_subscription_record(
-                    stripe_subscription, user_id, event_type, db_session
+                    stripe_subscription,
+                    {},
+                    user_id,
+                    event_type,
+                    db_session,
                 )
 
         await self._update_payment_record(
@@ -519,7 +538,7 @@ class StripeWebhook:
             payment = SubscriptionPayment()
             payment.stripe_invoice_id = invoice_id
             payment.customer_id = str(customer_id)
-
+            payment.stripe_event = event_data
         # get period dates and other details from invoice
         try:
             invoice = await self.stripe_repository.get_invoice(invoice_id)

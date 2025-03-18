@@ -75,7 +75,7 @@ class VirtualLab(Base):
     projects = relationship("Project", back_populates="virtual_lab")
     invites = relationship("VirtualLabInvite", back_populates="virtual_lab")
     payment_methods = relationship("PaymentMethod", back_populates="virtual_lab")
-
+    payments = relationship("SubscriptionPayment", back_populates="virtual_lab")
     # Virtual lab name should be unique among non-deleted labs
     __table_args__ = (
         Index(
@@ -460,7 +460,7 @@ class PaidSubscription(Subscription):
     amount: Mapped[int] = mapped_column(Integer, nullable=False)
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="usd")
     interval: Mapped[str] = mapped_column(String(50), nullable=False)  # 'month', 'year'
-
+    stripe_event: Mapped[Dict[str, Any]] = mapped_column(JSON, nullable=True)
     cancellation_reason: Mapped[str] = mapped_column(String(300), nullable=True)
 
     __mapper_args__ = {"polymorphic_identity": "paid"}
@@ -471,6 +471,7 @@ class SubscriptionPayment(Base):
     tracks individual payments for a subscription.
     each subscription will have multiple payments over time.
     it also track individual payments for a subscription.
+    if the payment is for a standalone payment, the virtual lab should be not null.
     """
 
     __tablename__ = "subscription_payment"
@@ -483,6 +484,9 @@ class SubscriptionPayment(Base):
         UUID(as_uuid=True), ForeignKey("subscription.id"), index=True
     )
     customer_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    virtual_lab_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("virtual_lab.id"), nullable=True, index=True
+    )
     stripe_invoice_id: Mapped[str | None] = mapped_column(
         String(255), nullable=True, index=True
     )
@@ -516,14 +520,22 @@ class SubscriptionPayment(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=func.now(), onupdate=func.now(), nullable=False
     )
-
+    stripe_event: Mapped[Dict[str, Any]] = mapped_column(JSON, nullable=True)
     standalone: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     subscription = relationship("Subscription", back_populates="payments")
+    virtual_lab = relationship("VirtualLab", back_populates="payments")
 
     @property
     def card_exp(self) -> str:
         """Returns card expiration date in MM/YY format."""
         return f"{self.card_exp_month:02d}/{str(self.card_exp_year)[-2:]}"
+
+    __table_args__ = (
+        CheckConstraint(
+            "NOT standalone OR virtual_lab_id IS NOT NULL",
+            name="check_virtual_lab_required_when_standalone",
+        ),
+    )
 
 
 class SubscriptionTier(Base):

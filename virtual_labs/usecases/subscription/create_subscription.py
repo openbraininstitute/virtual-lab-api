@@ -23,6 +23,7 @@ from virtual_labs.infrastructure.db.models import (
     SubscriptionType,
 )
 from virtual_labs.infrastructure.kc.models import AuthUser
+from virtual_labs.infrastructure.settings import settings
 from virtual_labs.infrastructure.stripe import get_stripe_repository
 from virtual_labs.repositories.stripe_user_repo import (
     StripeUserMutationRepository,
@@ -95,6 +96,14 @@ async def create_subscription(
             if payload.interval == IntervalType.MONTH
             else subscription_tier.stripe_yearly_price_id
         )
+        if settings.ENABLE_DISCOUNT:
+            discount_id = (
+                settings.DISCOUNT_MONTHLY_ID
+                if payload.interval == IntervalType.MONTH
+                else settings.DISCOUNT_YEARLY_ID
+            )
+        else:
+            discount_id = None
 
         if not price_id:
             raise ValueError("Price ID not found")
@@ -108,6 +117,7 @@ async def create_subscription(
                 "email": user["email"],
                 "name": user["full_name"],
             },
+            discount_id=discount_id,
         )
 
         if not stripe_subscription:
