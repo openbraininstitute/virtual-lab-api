@@ -27,12 +27,12 @@ async def test_currency_to_credits(mock_exchange_rate_repo: AsyncMock) -> None:
     converter = CreditConverter(exchange_rate_repo=mock_exchange_rate_repo)
 
     # Test CHF conversion
-    credits = await converter.currency_to_credits(10, "chf")
-    assert credits == Decimal("200")  # 10 / 0.05 = 200
+    credits = await converter.currency_to_credits(1000, "chf")
+    assert credits == Decimal("200")  # 10 chf / 0.05 chf/credit = 200 credits
 
     # Test USD conversion
-    credits = await converter.currency_to_credits(11, "usd")
-    assert credits == Decimal("200")  # 11 / 0.055 = 200
+    credits = await converter.currency_to_credits(1100, "usd")
+    assert credits == Decimal("200")  # 11 usd / 0.055 usd/credit = 200 credits
 
 
 @pytest.mark.asyncio
@@ -41,11 +41,11 @@ async def test_credits_to_currency(mock_exchange_rate_repo: AsyncMock) -> None:
 
     # Test CHF conversion
     amount = await converter.credits_to_currency(200, "chf")
-    assert amount == Decimal("10")  # 200 * 0.05 = 10
+    assert amount == Decimal("1000")  # 200 credits * 0.05 chf/credit = 10 chf
 
     # Test USD conversion
     amount = await converter.credits_to_currency(200, "usd")
-    assert amount == Decimal("11")  # 200 * 0.055 = 11
+    assert amount == Decimal("1100")  # 200 credits * 0.055 usd/credit = 11 usd
 
 
 @pytest.mark.asyncio

@@ -18,7 +18,7 @@ DEFAULT_EXCHANGE_RATES = {
 
 
 class CreditConverter:
-    """Utility for converting between credits and currency amounts using database rates."""
+    """Utility for converting between credits and currency amount (in cents) using database rates."""
 
     def __init__(self, exchange_rate_repo: ExchangeRateQueryRepository):
         """
@@ -40,9 +40,9 @@ class CreditConverter:
         return self._cached_rates
 
     async def currency_to_credits(
-        self, amount: Union[Decimal, float, int, str], currency: str
+        self, amount: Union[Decimal, int, str], currency: str
     ) -> Decimal:
-        """Convert a currency amount to credits."""
+        """Convert a currency amount (in cents) to credits."""
         currency = currency.lower()
         rates = await self._ensure_rates_loaded()
 
@@ -52,10 +52,10 @@ class CreditConverter:
         amount_decimal = (
             Decimal(str(amount)) if not isinstance(amount, Decimal) else amount
         )
-        return amount_decimal / rates[currency]
+        return amount_decimal / rates[currency] / Decimal("100")
 
     async def credits_to_currency(
-        self, credits: Union[Decimal, float, int, str], currency: str
+        self, credits: Union[Decimal, int, str], currency: str
     ) -> Decimal:
         """Convert credits to a currency amount."""
         currency = currency.lower()
@@ -67,7 +67,7 @@ class CreditConverter:
         credits_decimal = (
             Decimal(str(credits)) if not isinstance(credits, Decimal) else credits
         )
-        return credits_decimal * rates[currency]
+        return credits_decimal * rates[currency] * Decimal("100")
 
     async def get_exchange_rate(self, currency: str) -> Decimal:
         """Get the exchange rate for a currency."""
