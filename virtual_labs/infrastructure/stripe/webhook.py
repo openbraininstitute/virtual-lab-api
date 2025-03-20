@@ -265,10 +265,9 @@ class StripeWebhook:
                     payment.currency,
                 )
 
-                assert subscription is not None
                 if accounting_service.is_enabled:
                     await accounting_service.top_up_virtual_lab_budget(
-                        subscription.virtual_lab_id, float(credits_amount)
+                        UUID(virtual_lab_id), float(credits_amount)
                     )
             # mark as standalone payment
             payment.standalone = True
