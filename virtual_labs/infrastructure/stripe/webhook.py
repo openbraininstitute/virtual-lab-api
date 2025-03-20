@@ -1,4 +1,5 @@
 from datetime import datetime
+from decimal import Decimal
 from typing import Any, Dict, Optional
 from uuid import UUID
 
@@ -689,7 +690,7 @@ class StripeWebhook:
                 )
             assert subscription_tier is not None
 
-            free_credits_amount = (
+            welcome_bonus_credits = (
                 subscription_tier.yearly_credits
                 if subscription_tier.stripe_yearly_price_id == price_id
                 else subscription_tier.monthly_credits
@@ -698,16 +699,21 @@ class StripeWebhook:
             assert subscription is not None
 
             if accounting_service.is_enabled:
-                credits_amount = await self.credit_converter.currency_to_credits(
-                    amount,
-                    payment.currency,
+                subscription_credit_amount = (
+                    await self.credit_converter.currency_to_credits(
+                        amount,
+                        payment.currency,
+                    )
                 )
-                extra_credits_amount = (
-                    float(free_credits_amount) if settings.ENABLE_FREE_CREDITS else 0.0
-                )
+                total_credits = (
+                    Decimal(welcome_bonus_credits)
+                    if settings.ENABLE_FREE_CREDITS
+                    else Decimal(0)
+                ) + subscription_credit_amount
+
                 await accounting_service.top_up_virtual_lab_budget(
                     subscription.virtual_lab_id,
-                    float(credits_amount) + extra_credits_amount,
+                    float(total_credits),
                 )
         else:
             user = await self.stripe_user_repository.get_by_stripe_customer_id(
