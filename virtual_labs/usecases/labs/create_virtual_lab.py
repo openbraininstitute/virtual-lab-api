@@ -219,6 +219,12 @@ async def create_virtual_lab(
                 virtual_lab_id=new_lab_id,
                 name=lab.name,
             )
+            # TODO: top up budget in the accounting system when create an account @pavlo
+            if settings.ENABLE_FREE_CREDITS:
+                await accounting_cases.top_up_virtual_lab_budget(
+                    virtual_lab_id=new_lab_id,
+                    amount=settings.VLAB_CREATION_FREE_CREDITS,
+                )
         except Exception as ex:
             logger.error(f"Error when creating virtual lab account {ex}")
             raise VliError(

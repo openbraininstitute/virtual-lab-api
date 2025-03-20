@@ -12,6 +12,7 @@ from virtual_labs.infrastructure.db.models import (
     Subscription,
     SubscriptionStatus,
     SubscriptionTier,
+    SubscriptionTierEnum,
     SubscriptionType,
 )
 
@@ -342,5 +343,23 @@ class SubscriptionRepository:
         stmt = select(SubscriptionTier).where(
             SubscriptionTier.id == subscription_tier_id
         )
+        result = await self.db_session.execute(stmt)
+        return result.scalars().first()
+
+    async def get_subscription_tier_by_product_id(
+        self, product_id: str
+    ) -> Optional[SubscriptionTier]:
+        """get subscription tier by product id."""
+        stmt = select(SubscriptionTier).where(
+            SubscriptionTier.stripe_product_id == product_id
+        )
+        result = await self.db_session.execute(stmt)
+        return result.scalars().first()
+
+    async def get_subscription_tier_by_tier(
+        self, tier: SubscriptionTierEnum
+    ) -> Optional[SubscriptionTier]:
+        """get subscription tier by tier."""
+        stmt = select(SubscriptionTier).where(SubscriptionTier.tier == tier)
         result = await self.db_session.execute(stmt)
         return result.scalars().first()

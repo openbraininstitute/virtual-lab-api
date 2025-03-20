@@ -538,6 +538,16 @@ class SubscriptionPayment(Base):
     )
 
 
+class SubscriptionTierEnum(str, Enum):
+    """
+    Enum representing subscription tiers.
+    """
+
+    FREE = "free"
+    PRO = "pro"
+    PREMIUM = "premium"
+
+
 class SubscriptionTier(Base):
     """
     app plans
@@ -550,6 +560,9 @@ class SubscriptionTier(Base):
         primary_key=True,
         default=uuid4,
         server_default=func.gen_random_uuid(),
+    )
+    tier: Mapped[SubscriptionTierEnum] = mapped_column(
+        SAEnum(SubscriptionTierEnum), nullable=False, index=True
     )
     stripe_product_id: Mapped[Optional[str]] = mapped_column(
         String(255), nullable=True, unique=True
@@ -573,6 +586,9 @@ class SubscriptionTier(Base):
 
     features: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
     plan_metadata: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
+
+    monthly_credits: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    yearly_credits: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=func.now(), nullable=False

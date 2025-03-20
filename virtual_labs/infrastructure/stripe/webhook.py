@@ -13,11 +13,14 @@ from virtual_labs.infrastructure.db.models import (
     PaymentStatus,
     SubscriptionPayment,
     SubscriptionStatus,
+    SubscriptionTierEnum,
     SubscriptionType,
 )
+from virtual_labs.infrastructure.settings import settings
 from virtual_labs.repositories.stripe_repo import StripeRepository
 from virtual_labs.repositories.stripe_user_repo import StripeUserQueryRepository
 from virtual_labs.repositories.subscription_repo import SubscriptionRepository
+from virtual_labs.repositories.user_repo import UserMutationRepository
 from virtual_labs.services.credit_converter import CreditConverter
 
 
@@ -56,6 +59,7 @@ class StripeWebhook:
         self.subscription_repository = subscription_repository
         self.stripe_user_repository = stripe_user_repository
         self.credit_converter = credit_converter
+        self.kc_user = UserMutationRepository()
 
     async def handle_webhook_event(
         self, event_json: stripe.Event, db_session: AsyncSession
@@ -324,7 +328,7 @@ class StripeWebhook:
 
         await self._update_subscription_record(
             stripe_subscription,
-            {},
+            event_data,
             user_id,
             str(event_type),
             db_session,
@@ -374,8 +378,25 @@ class StripeWebhook:
         if items_data:
             item = items_data[0]
             price = item.get("price", {})
-            # TODO: use product to determine PRO vs PREMIUM
-            subscription.subscription_type = SubscriptionType.PRO
+            product = price.get("product", None)
+            subscription_tier = (
+                await self.subscription_repository.get_subscription_tier_by_product_id(
+                    product_id=product
+                )
+            )
+            if not subscription_tier:
+                # get the pro tier
+                subscription_tier = (
+                    await self.subscription_repository.get_subscription_tier_by_tier(
+                        tier=SubscriptionTierEnum.PRO
+                    )
+                )
+            assert subscription_tier is not None
+            subscription.subscription_type = (
+                SubscriptionType.PREMIUM
+                if subscription_tier.tier == SubscriptionTierEnum.PREMIUM
+                else SubscriptionType.PRO
+            )
 
         subscription.status = SubscriptionStatus(stripe_subscription.get("status"))
 
@@ -438,12 +459,22 @@ class StripeWebhook:
             event_type == "customer.subscription.deleted"
             or subscription.status != "active"
         ):
-            # TODO: update the user custom property "plan" to "free" in KC
+            await self.kc_user.update_user_custom_properties(
+                user_id=subscription.user_id,
+                properties=[
+                    ("plan", SubscriptionTierEnum.FREE, "multiple"),
+                ],
+            )
             await self.subscription_repository.downgrade_to_free(
                 user_id=subscription.user_id
             )
         else:  # if there is a free subscription paused it
-            # TODO: update the user custom property "plan" to "paid" in KC
+            await self.kc_user.update_user_custom_properties(
+                user_id=subscription.user_id,
+                properties=[
+                    ("plan", subscription.subscription_type, "multiple"),
+                ],
+            )
             await self.subscription_repository.deactivate_free_subscription(
                 user_id=subscription.user_id
             )
@@ -624,17 +655,59 @@ class StripeWebhook:
 
         amount = event_data.get("amount_paid", event_data.get("amount", 0))
         payment.amount_paid = amount
-        payment.currency = event_data.get("currency", "usd")
+        payment.currency = event_data.get("currency", "chf")
 
         if "succeeded" in event_type or "paid" in event_type:
             payment.payment_date = datetime.now()
-            # ! TODO: adjust credits based on subscription plan
-            credits_amount = 100
+            product_id: str = (
+                event_data.get("lines", {})
+                .get("data", [])[0]
+                .get("price", {})
+                .get("product")
+                if event_data.get("lines", {}).get("data")
+                else None
+            )
+
+            price_id: str = (
+                event_data.get("lines", {})
+                .get("data", [])[0]
+                .get("price", {})
+                .get("id")
+            )
+
+            subscription_tier = (
+                await self.subscription_repository.get_subscription_tier_by_product_id(
+                    product_id=product_id
+                )
+            )
+            if not subscription_tier:
+                # get the pro tier
+                subscription_tier = (
+                    await self.subscription_repository.get_subscription_tier_by_tier(
+                        tier=SubscriptionTierEnum.PRO
+                    )
+                )
+            assert subscription_tier is not None
+
+            free_credits_amount = (
+                subscription_tier.yearly_credits
+                if subscription_tier.stripe_yearly_price_id == price_id
+                else subscription_tier.monthly_credits
+            )
 
             assert subscription is not None
+
             if accounting_service.is_enabled:
+                credits_amount = await self.credit_converter.currency_to_credits(
+                    amount,
+                    payment.currency,
+                )
+                extra_credits_amount = (
+                    float(free_credits_amount) if settings.ENABLE_FREE_CREDITS else 0.0
+                )
                 await accounting_service.top_up_virtual_lab_budget(
-                    subscription.virtual_lab_id, float(credits_amount)
+                    subscription.virtual_lab_id,
+                    float(credits_amount) + extra_credits_amount,
                 )
         else:
             user = await self.stripe_user_repository.get_by_stripe_customer_id(
