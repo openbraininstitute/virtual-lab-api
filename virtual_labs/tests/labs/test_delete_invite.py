@@ -66,8 +66,9 @@ async def test_deleted_invite_cannot_be_accepted(
 ) -> None:
     client, lab_id, invitee_username, invitee_email = mock_lab_invite
     delete_invite_response = await client.delete(
-        f"/virtual-labs/{lab_id}/invites?email={invitee_email}&role=admin",
+        f"/virtual-labs/{lab_id}/invites",
         headers=get_headers(),
+        json={"email": invitee_email, "role": "admin"},
     )
     assert delete_invite_response.status_code == HTTPStatus.OK
 

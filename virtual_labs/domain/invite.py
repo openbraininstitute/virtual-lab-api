@@ -11,6 +11,12 @@ class AddUser(BaseModel):
     role: UserRoleEnum
 
 
+class DeleteLabInviteRequest(AddUser):
+    """Request body for deleting a lab invite"""
+
+    pass
+
+
 class InviteDetailsOut(BaseModel):
     accepted: bool
     invite_id: UUID4

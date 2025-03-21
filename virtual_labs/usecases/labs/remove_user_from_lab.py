@@ -17,11 +17,19 @@ from virtual_labs.shared.utils.is_user_in_lab import is_user_admin_of_lab
 async def remove_user_from_lab(lab_id: UUID4, user_id: UUID4, db: AsyncSession) -> None:
     try:
         lab = await lab_repository.get_undeleted_virtual_lab(db, lab_id)
+        if lab.owner_id == user_id:
+            raise VliError(
+                message="Virtual lab owner cannot be removed",
+                error_code=VliErrorCode.FORBIDDEN_OPERATION,
+                http_status_code=HTTPStatus.FORBIDDEN,
+                details="Virtual lab owner cannot be removed",
+            )
 
         user_repository = UserMutationRepository()
         group_repository = GroupQueryRepository()
 
         admins = group_repository.retrieve_group_users(str(lab.admin_group_id))
+
         if len(admins) == 1 and is_user_admin_of_lab(user_id, lab):
             raise VliError(
                 message=f"Last admin of lab {lab_id} cannot be removed",

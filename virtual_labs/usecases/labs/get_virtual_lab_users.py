@@ -78,7 +78,12 @@ async def get_virtual_lab_users(db: AsyncSession, lab_id: UUID4) -> VirtualLabUs
             )
             for invite in invites
         ]
-        return VirtualLabUsers(users=admins + members + pending_users)
+        users = admins + members + pending_users
+        return VirtualLabUsers(
+            owner_id=lab.owner_id,
+            users=users,
+            total=len(users),
+        )
     except NoResultFound:
         raise VliError(
             message="Virtual lab not found",

@@ -225,3 +225,19 @@ async def get_user_virtual_lab(db: AsyncSession, owner_id: UUID4) -> VirtualLab 
     vlab = result.scalars().first()
 
     return vlab
+
+
+async def get_virtual_labs_in_list(
+    db: AsyncSession, group_ids: list[str]
+) -> list[VirtualLab]:
+    query = select(VirtualLab).where(
+        and_(
+            ~VirtualLab.deleted,
+            or_(
+                (VirtualLab.admin_group_id.in_(group_ids)),
+                (VirtualLab.member_group_id.in_(group_ids)),
+            ),
+        )
+    )
+    result = (await db.execute(statement=query)).unique().scalars().all()
+    return list(result)

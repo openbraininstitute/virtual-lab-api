@@ -7,3 +7,9 @@ def is_user_in_list(list_: List[str], user_id: str) -> bool:
     if user_id not in list_:
         raise UserNotInList("User not found in the list")
     return True
+
+
+def is_user_in_list_soft(list_: List[str], user_id: str) -> bool:
+    if user_id not in list_:
+        return False
+    return True

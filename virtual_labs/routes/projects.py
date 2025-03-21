@@ -354,7 +354,7 @@ async def retrieve_project_users_count(
 
 
 @router.patch(
-    "/{virtual_lab_id}/projects/{project_id}/users/{user_id}/role",
+    "/{virtual_lab_id}/projects/{project_id}/users/role",
     operation_id="update_user_role_in_project",
     summary="Update user role in the current project",
     description=(
@@ -370,7 +370,7 @@ async def retrieve_project_users_count(
 async def update_user_role_in_project(
     virtual_lab_id: UUID4,
     project_id: UUID4,
-    user_id: UUID4,
+    user_id: Annotated[UUID4, Body(embed=True)],
     new_role: Annotated[UserRoleEnum, Body(embed=True)],
     session: AsyncSession = Depends(default_session_factory),
     auth: Tuple[AuthUser, str] = Depends(verify_jwt),
@@ -452,8 +452,8 @@ async def invite_user_to_project(
 async def delete_project_invite(
     virtual_lab_id: UUID4,
     project_id: UUID4,
-    email: EmailStr,
-    role: UserRoleEnum = UserRoleEnum.member,
+    email: Annotated[EmailStr, Body(embed=True)],
+    role: Annotated[UserRoleEnum, Body(embed=True)],
     session: AsyncSession = Depends(default_session_factory),
     auth: tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> Response:

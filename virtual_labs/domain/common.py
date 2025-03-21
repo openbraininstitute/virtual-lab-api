@@ -24,6 +24,7 @@ class PaginatedResultsResponse(BaseModel, Generic[T]):
 
 class LabListWithPending(BaseModel, Generic[T]):
     pending_labs: List[VirtualLabWithInviteDetails]
+    membership_labs: List[T]
     virtual_lab: T | None
     members_count: int | None
     projects_count: int | None
