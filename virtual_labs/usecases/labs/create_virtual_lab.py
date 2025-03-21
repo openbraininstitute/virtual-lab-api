@@ -222,9 +222,24 @@ async def create_virtual_lab(
                 else Decimal(settings.VLAB_CREATION_FREE_CREDITS)
             )
 
-            # TODO: Get subscription credits from from the current paid subscription +
-            # subscription tier if the former exists.
+            subscription = await subscription_repo.get_active_subscription_by_user_id(
+                user_id=owner_id, subscription_type="paid"
+            )
+
             subscription_credits = 0
+
+            if subscription is not None:
+                subscription_tier = (
+                    await subscription_repo.get_subscription_tier_by_tier(
+                        tier=subscription.subscription_type
+                    )
+                )
+                assert subscription_tier is not None
+                subscription_credits = (
+                    subscription_tier.monthly_credits
+                    if subscription.interval == "month"
+                    else subscription_tier.yearly_credits
+                )
 
             total_initial_credits = welcome_bonus_credits + subscription_credits
 

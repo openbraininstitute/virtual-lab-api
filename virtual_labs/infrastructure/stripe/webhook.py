@@ -17,6 +17,7 @@ from virtual_labs.infrastructure.db.models import (
     SubscriptionType,
 )
 from virtual_labs.infrastructure.settings import settings
+from virtual_labs.repositories.labs import get_user_virtual_lab
 from virtual_labs.repositories.stripe_repo import StripeRepository
 from virtual_labs.repositories.stripe_user_repo import StripeUserQueryRepository
 from virtual_labs.repositories.subscription_repo import SubscriptionRepository
@@ -690,7 +691,13 @@ class StripeWebhook:
             assert subscription_tier is not None
             assert subscription is not None
 
-            if accounting_service.is_enabled and subscription.virtual_lab_id:
+            if accounting_service.is_enabled:
+                user_id = subscription.user_id
+                virtual_lab = await get_user_virtual_lab(db_session, user_id)
+                assert virtual_lab is not None
+
+                virtual_lab_id = virtual_lab.id
+
                 subscription_credit_amount = (
                     subscription_tier.yearly_credits
                     if subscription_tier.stripe_yearly_price_id == price_id
@@ -698,12 +705,12 @@ class StripeWebhook:
                 )
 
                 await accounting_service.top_up_virtual_lab_budget(
-                    subscription.virtual_lab_id,
+                    virtual_lab_id,
                     float(subscription_credit_amount),
                 )
 
                 await accounting_service.create_virtual_lab_discount(
-                    virtual_lab_id=subscription.virtual_lab_id,
+                    virtual_lab_id=virtual_lab_id,
                     discount=settings.PAID_SUBSCRIPTION_DISCOUNT,
                     valid_from=subscription.current_period_start.replace(
                         tzinfo=timezone.utc
