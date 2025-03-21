@@ -1,5 +1,4 @@
 from datetime import datetime, timezone
-from decimal import Decimal
 from typing import Any, Dict, Optional
 from uuid import UUID
 
@@ -705,7 +704,7 @@ class StripeWebhook:
 
                 await accounting_service.create_virtual_lab_discount(
                     virtual_lab_id=subscription.virtual_lab_id,
-                    discount=Decimal(settings.PAID_SUBSCRIPTION_DISCOUNT),
+                    discount=settings.PAID_SUBSCRIPTION_DISCOUNT,
                     valid_from=subscription.current_period_start.replace(
                         tzinfo=timezone.utc
                     ),

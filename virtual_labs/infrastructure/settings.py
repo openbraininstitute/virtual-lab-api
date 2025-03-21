@@ -92,7 +92,7 @@ class Settings(BaseSettings):
     VLAB_CREATION_FREE_CREDITS: int = 100
     ENABLE_FREE_CREDITS: bool = True
 
-    PAID_SUBSCRIPTION_DISCOUNT: str = "0.5"
+    PAID_SUBSCRIPTION_DISCOUNT: Decimal = Decimal("0.5")
 
     @field_validator("DATABASE_URI", mode="before")
     @classmethod
@@ -124,11 +124,10 @@ class Settings(BaseSettings):
 
     @field_validator("PAID_SUBSCRIPTION_DISCOUNT")
     @classmethod
-    def validate_discount_value(cls, value: str) -> str:
-        parsed_value = Decimal(value)
-        if parsed_value < Decimal(0) or Decimal(1) < parsed_value:
+    def validate_discount(cls, discount: Decimal) -> Decimal:
+        if discount < Decimal(0) or Decimal(1) < discount:
             raise ValueError("Paid subscription discount must be between 0 and 1")
-        return value
+        return discount
 
 
 settings = Settings()
