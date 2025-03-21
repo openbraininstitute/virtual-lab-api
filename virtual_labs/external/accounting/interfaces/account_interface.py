@@ -1,3 +1,4 @@
+from decimal import Decimal
 from http import HTTPStatus
 
 from httpx import AsyncClient
@@ -31,18 +32,13 @@ class AccountInterface:
         return f"{settings.ACCOUNTING_BASE_URL}/account"
 
     async def create_virtual_lab_account(
-        self,
-        virtual_lab_id: UUID4,
-        name: str,
+        self, virtual_lab_id: UUID4, name: str, balance: Decimal = Decimal(0)
     ) -> VlabAccountCreationResponse:
         try:
             response = await self.httpx_client.post(
                 f"{self._api_url}/virtual-lab",
                 headers=self.headers,
-                json={
-                    "name": name,
-                    "id": str(virtual_lab_id),
-                },
+                json={"name": name, "id": str(virtual_lab_id), "balance": str(balance)},
             )
             response.raise_for_status()
             return VlabAccountCreationResponse.model_validate(response.json())
