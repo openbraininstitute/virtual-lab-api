@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Any, Dict, Optional
 from uuid import UUID
@@ -714,6 +714,17 @@ class StripeWebhook:
                 await accounting_service.top_up_virtual_lab_budget(
                     subscription.virtual_lab_id,
                     float(total_credits),
+                )
+
+                await accounting_service.create_virtual_lab_discount(
+                    virtual_lab_id=subscription.virtual_lab_id,
+                    discount=Decimal(settings.PAID_SUBSCRIPTION_DISCOUNT),
+                    valid_from=subscription.current_period_start.replace(
+                        tzinfo=timezone.utc
+                    ),
+                    valid_to=subscription.current_period_end.replace(
+                        tzinfo=timezone.utc
+                    ),
                 )
         else:
             user = await self.stripe_user_repository.get_by_stripe_customer_id(

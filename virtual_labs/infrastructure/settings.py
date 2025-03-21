@@ -1,3 +1,4 @@
+from decimal import Decimal
 from os import getenv
 from typing import Any, Literal, Optional, TypeGuard, get_args
 
@@ -90,6 +91,7 @@ class Settings(BaseSettings):
 
     VLAB_CREATION_FREE_CREDITS: int = 200
     ENABLE_FREE_CREDITS: bool = True
+    PAID_SUBSCRIPTION_DISCOUNT: str = "0.5"
 
     @field_validator("DATABASE_URI", mode="before")
     @classmethod
@@ -117,6 +119,14 @@ class Settings(BaseSettings):
             raise ValueError(
                 "ACCOUNTING_BASE_URL should be set for non-local deployments"
             )
+        return value
+
+    @field_validator("PAID_SUBSCRIPTION_DISCOUNT")
+    @classmethod
+    def validate_discount_value(cls, value: str) -> str:
+        parsed_value = Decimal(value)
+        if Decimal(0) <= parsed_value or parsed_value <= Decimal(1):
+            raise ValueError("Paid subscription discount must be between 0 and 1")
         return value
 
 
