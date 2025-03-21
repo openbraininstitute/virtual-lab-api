@@ -125,7 +125,7 @@ class Settings(BaseSettings):
     @classmethod
     def validate_discount_value(cls, value: str) -> str:
         parsed_value = Decimal(value)
-        if Decimal(0) <= parsed_value or parsed_value <= Decimal(1):
+        if parsed_value > Decimal(0) or Decimal(1) < parsed_value:
             raise ValueError("Paid subscription discount must be between 0 and 1")
         return value
 
