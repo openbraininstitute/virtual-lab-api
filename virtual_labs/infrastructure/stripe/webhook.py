@@ -696,7 +696,7 @@ class StripeWebhook:
                 virtual_lab = await get_user_virtual_lab(db_session, user_id)
                 assert virtual_lab is not None
 
-                virtual_lab_id = virtual_lab.id
+                virtual_lab_id = UUID(str(virtual_lab.id))
 
                 subscription_credit_amount = (
                     subscription_tier.yearly_credits

@@ -228,10 +228,12 @@ async def create_virtual_lab(
 
             subscription_credits = 0
 
-            if subscription is not None:
+            if isinstance(subscription, models.PaidSubscription):
                 subscription_tier = (
                     await subscription_repo.get_subscription_tier_by_tier(
-                        tier=subscription.subscription_type
+                        tier=models.SubscriptionTierEnum.PRO
+                        if subscription.subscription_type == models.SubscriptionType.PRO
+                        else models.SubscriptionTierEnum.PREMIUM
                     )
                 )
                 assert subscription_tier is not None
