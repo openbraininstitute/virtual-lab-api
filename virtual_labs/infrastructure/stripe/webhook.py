@@ -689,31 +689,18 @@ class StripeWebhook:
                     )
                 )
             assert subscription_tier is not None
-
-            welcome_bonus_credits = (
-                subscription_tier.yearly_credits
-                if subscription_tier.stripe_yearly_price_id == price_id
-                else subscription_tier.monthly_credits
-            )
-
             assert subscription is not None
 
-            if accounting_service.is_enabled:
+            if accounting_service.is_enabled and subscription.virtual_lab_id:
                 subscription_credit_amount = (
-                    await self.credit_converter.currency_to_credits(
-                        amount,
-                        payment.currency,
-                    )
+                    subscription_tier.yearly_credits
+                    if subscription_tier.stripe_yearly_price_id == price_id
+                    else subscription_tier.monthly_credits
                 )
-                total_credits = (
-                    Decimal(welcome_bonus_credits)
-                    if settings.ENABLE_FREE_CREDITS
-                    else Decimal(0)
-                ) + subscription_credit_amount
 
                 await accounting_service.top_up_virtual_lab_budget(
                     subscription.virtual_lab_id,
-                    float(total_credits),
+                    float(subscription_credit_amount),
                 )
 
                 await accounting_service.create_virtual_lab_discount(
