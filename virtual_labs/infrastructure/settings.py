@@ -89,8 +89,9 @@ class Settings(BaseSettings):
     DISCOUNT_MONTHLY_ID: str = "monthly-special-launch-price"
     DISCOUNT_YEARLY_ID: str = "yearly-special-launch-price"
 
-    VLAB_CREATION_FREE_CREDITS: int = 200
+    VLAB_CREATION_FREE_CREDITS: int = 100
     ENABLE_FREE_CREDITS: bool = True
+
     PAID_SUBSCRIPTION_DISCOUNT: str = "0.5"
 
     @field_validator("DATABASE_URI", mode="before")
