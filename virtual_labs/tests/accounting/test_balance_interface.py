@@ -9,7 +9,9 @@ from virtual_labs.core.exceptions.accounting_error import (
     AccountingError,
     AccountingErrorValue,
 )
-from virtual_labs.external.accounting.balance_interface import BalanceInterface
+from virtual_labs.external.accounting.interfaces.balance_interface import (
+    BalanceInterface,
+)
 from virtual_labs.external.accounting.models import (
     ProjBalanceResponse,
     VlabBalanceResponse,

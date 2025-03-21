@@ -1,3 +1,4 @@
+from decimal import Decimal
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
@@ -39,6 +40,38 @@ async def test_create_virtual_lab_account() -> None:
         mock_client.return_value.__aenter__.return_value = client_instance
 
         result = await create_virtual_lab_account(vlab_id, vlab_name)
+
+        assert isinstance(result, VlabAccountCreationResponse)
+        assert result.data.id == vlab_id
+        assert result.data.name == vlab_name
+
+
+@pytest.mark.asyncio
+async def test_create_virtual_lab_account_with_initial_balance() -> None:
+    vlab_id = uuid4()
+    vlab_name = "test-vlab"
+    mock_response_data = {
+        "message": "Virtual lab created",
+        "data": {
+            "id": str(vlab_id),
+            "name": vlab_name,
+        },
+    }
+
+    with patch("httpx.AsyncClient") as mock_client, patch(
+        "virtual_labs.infrastructure.kc.auth.get_client_token"
+    ) as mock_token:
+        mock_token.return_value = "test-token"
+
+        mock_response = AsyncMock()
+        mock_response.json = lambda: mock_response_data
+        mock_response.raise_for_status = lambda: None
+
+        client_instance = AsyncMock()
+        client_instance.post.return_value = mock_response
+        mock_client.return_value.__aenter__.return_value = client_instance
+
+        result = await create_virtual_lab_account(vlab_id, vlab_name, Decimal(100))
 
         assert isinstance(result, VlabAccountCreationResponse)
         assert result.data.id == vlab_id

@@ -1,8 +1,17 @@
 from datetime import datetime
+from decimal import Decimal
 from enum import Enum
-from typing import Generic, TypeVar
+from typing import Generic, Self, TypeVar
+from uuid import UUID
 
-from pydantic import UUID4, BaseModel, HttpUrl
+from pydantic import (
+    UUID4,
+    AwareDatetime,
+    BaseModel,
+    HttpUrl,
+    field_validator,
+    model_validator,
+)
 
 T = TypeVar("T")
 
@@ -145,3 +154,32 @@ class ProjectReportsResponse(BaseAccountingResponse):
 
 class VirtualLabTopUpResponse(BaseAccountingResponse):
     data: None
+
+
+class CreateDiscountRequest(BaseModel):
+    vlab_id: UUID
+    discount: Decimal
+    valid_from: AwareDatetime
+    valid_to: AwareDatetime | None = None
+
+    @field_validator("discount")
+    def validate_discount(cls, v: Decimal) -> Decimal:
+        if v < Decimal(0) or v > Decimal(1):
+            raise ValueError("Discount must be between 0 and 1")
+        return v
+
+    @model_validator(mode="after")
+    def check_validity_interval(self) -> Self:
+        """Check that valid_to is greater than valid_from, if provided."""
+        if self.valid_to is not None and self.valid_from >= self.valid_to:
+            err = "valid_to must be greater than valid_from"
+            raise ValueError(err)
+        return self
+
+
+class Discount(CreateDiscountRequest):
+    id: int
+
+
+class CreateDiscountResponse(BaseAccountingResponse):
+    data: Discount

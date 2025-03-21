@@ -52,6 +52,9 @@ FREE_PLAN = {
     "yearly_amount": 0,
     "features": None,
     "currency": "chf",
+    "tier": "free",
+    "monthly_credits": 200,
+    "yearly_credits": 200,
     "plan_metadata": {
         "tier": "free",
     }
@@ -71,6 +74,9 @@ PRO_PLAN = {
     "yearly_amount": 55000, 
     "features": None,
     "currency": "chf",
+    "tier": "pro",
+    "monthly_credits": 50,
+    "yearly_credits": 650,
     "plan_metadata": {
         "tier": "pro",
     }
@@ -90,6 +96,9 @@ PREMIUM_PLAN = {
     "yearly_amount": 0, 
     "features": None,
     "currency": "chf",
+    "tier": "premium",
+    "monthly_credits": 0,
+    "yearly_credits": 0,
     "plan_metadata": {
         "tier": "premium",
     }
@@ -137,6 +146,9 @@ async def fetch_stripe_data_for_plan(plan_name: str) -> Dict:
             "yearly_amount": yearly_price.unit_amount,
             "yearly_discount": yearly_price.unit_amount /2,
             "currency": monthly_price.currency,
+            "tier": "pro",
+            "monthly_credits": 50,
+            "yearly_credits": 650,
             "features": json.loads(product.metadata.get("features", '{}')),
             "plan_metadata":{
                 "tier": "pro",
@@ -201,6 +213,9 @@ async def populate_subscription_tiers():
                     yearly_amount=plan_data["yearly_amount"],
                     currency=plan_data["currency"],
                     features=plan_data["features"],
+                    tier=plan_data["tier"],
+                    monthly_credits= plan_data["monthly_credits"],
+                    yearly_credits= plan_data["yearly_credits"],
                     plan_metadata=plan_data["plan_metadata"]
                 )
                 

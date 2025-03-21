@@ -1,3 +1,4 @@
+from decimal import Decimal
 from http import HTTPStatus
 from typing import Literal, TypedDict
 from uuid import UUID, uuid4
@@ -215,9 +216,37 @@ async def create_virtual_lab(
     # 3. Create virtual lab account in accounting system
     if settings.ACCOUNTING_BASE_URL is not None:
         try:
+            welcome_bonus_credits = (
+                Decimal(0)
+                if settings.ENABLE_FREE_CREDITS
+                else Decimal(settings.VLAB_CREATION_FREE_CREDITS)
+            )
+
+            subscription = await subscription_repo.get_active_subscription_by_user_id(
+                user_id=owner_id, subscription_type="paid"
+            )
+
+            subscription_credits = 0
+
+            if isinstance(subscription, models.PaidSubscription):
+                subscription_tier = (
+                    await subscription_repo.get_subscription_tier_by_tier(
+                        tier=models.SubscriptionTierEnum.PRO
+                        if subscription.subscription_type == models.SubscriptionType.PRO
+                        else models.SubscriptionTierEnum.PREMIUM
+                    )
+                )
+                assert subscription_tier is not None
+                subscription_credits = (
+                    subscription_tier.monthly_credits
+                    if subscription.interval == "month"
+                    else subscription_tier.yearly_credits
+                )
+
+            total_initial_credits = welcome_bonus_credits + subscription_credits
+
             await accounting_cases.create_virtual_lab_account(
-                virtual_lab_id=new_lab_id,
-                name=lab.name,
+                virtual_lab_id=new_lab_id, name=lab.name, balance=total_initial_credits
             )
         except Exception as ex:
             logger.error(f"Error when creating virtual lab account {ex}")
