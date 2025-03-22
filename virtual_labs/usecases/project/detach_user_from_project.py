@@ -66,9 +66,9 @@ async def detach_user_from_project(
         )
     except ForbiddenOperation:
         raise VliError(
-            error_code=VliErrorCode.NOT_ALLOWED_OP,
+            error_code=VliErrorCode.FORBIDDEN_OPERATION,
             http_status_code=status.FORBIDDEN,
-            message="Can not detach the owner of the project",
+            message="Can not delete the owner of the project",
         )
     except Exception as ex:
         logger.error(
@@ -84,7 +84,7 @@ async def detach_user_from_project(
             message="User Detached from project successfully",
             data={
                 "project_id": project_id,
-                "detached": True,
-                "detached_at": datetime.now(),
+                "deleted": True,
+                "deleted_at": datetime.now(),
             },
         )

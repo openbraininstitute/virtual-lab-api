@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated, Any, Optional
+from typing import Annotated, Any, List, Optional
 
 from pydantic import (
     UUID4,
@@ -11,7 +11,7 @@ from pydantic import (
     field_validator,
 )
 
-from virtual_labs.core.types import UserRoleEnum
+from virtual_labs.core.types import UserGroup, UserRoleEnum
 
 
 class ShortenedUser(BaseModel):
@@ -101,3 +101,7 @@ class UpdateUserProfileRequest(BaseModel):
 
 class UserProfileResponse(BaseModel):
     profile: UserProfile
+
+
+class UserGroupsResponse(BaseModel):
+    groups: List[UserGroup]

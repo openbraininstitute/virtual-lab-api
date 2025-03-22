@@ -1,7 +1,7 @@
 from enum import Enum
-from typing import Generic, TypedDict, TypeVar
+from typing import Generic, Optional, TypedDict, TypeVar
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 K = TypeVar("K")
 
@@ -17,6 +17,19 @@ class PaginatedDbResult(BaseModel, Generic[K]):
 class UserRoleEnum(Enum):
     admin = "admin"
     member = "member"
+
+
+class UserGroup(BaseModel):
+    """User Group representation"""
+
+    group_id: str
+    name: str
+    group_type: str  # "vlab" or "project"
+    project_id: Optional[str] = None  # Project ID (only for project type)
+    virtual_lab_id: Optional[str] = None  # Virtual lab ID
+    role: UserRoleEnum  # ADMIN or MEMBER
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 T = TypeVar("T")

@@ -67,6 +67,20 @@ class ProjectVlOut(Project):
     user_count: int = 0
 
 
+class ProjectStats(BaseModel):
+    project_id: UUID4
+    total_stars: int
+    total_bookmarks: int
+    total_pending_invites: int
+    total_members: int
+    total_notebooks: int
+    admin_users: list[UUID4]
+    member_users: list[UUID4]
+
+    class Config:
+        from_attributes = True
+
+
 class ProjectExistenceOut(BaseModel):
     exist: bool
 
@@ -119,10 +133,10 @@ class ProjectUpdateRoleOut(BaseModel):
     new_role: UserRoleEnum
 
 
-class ProjectUserDetachOut(BaseModel):
+class ProjectUserDeleteOut(BaseModel):
     project_id: UUID4
-    detached: bool
-    detached_at: datetime
+    deleted: bool
+    deleted_at: datetime
 
 
 class ProjectStarStatusUpdateOut(BaseModel):

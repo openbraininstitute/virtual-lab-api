@@ -14,7 +14,14 @@ from virtual_labs.domain.project import (
     ProjectCreationBody,
     ProjectUpdateBody,
 )
-from virtual_labs.infrastructure.db.models import Project, ProjectStar, VirtualLab
+from virtual_labs.infrastructure.db.models import (
+    Bookmark,
+    Notebook,
+    Project,
+    ProjectInvite,
+    ProjectStar,
+    VirtualLab,
+)
 
 
 class ProjectQueryRepository:
@@ -22,6 +29,57 @@ class ProjectQueryRepository:
 
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
+
+    async def get_project_stats(
+        self,
+        project_id: UUID,
+    ) -> dict[str, int]:
+        """Get statistics for a project using a single optimized query."""
+        from sqlalchemy import distinct, func, select
+
+        # Filter Project first
+        base_query = (
+            select(Project).where(
+                Project.id == project_id,
+                ~Project.deleted,
+            )
+        ).subquery()
+
+        stats_query = (
+            select(
+                base_query.c.id,
+                func.count(distinct(ProjectStar.id)).label("total_stars"),
+                func.count(distinct(Bookmark.id)).label("total_bookmarks"),
+                func.count(distinct(ProjectInvite.id))
+                .filter(~ProjectInvite.accepted)
+                .label("total_pending_invites"),
+                func.count(distinct(Notebook.id)).label("total_notebooks"),
+            )
+            .select_from(base_query)
+            .outerjoin(ProjectStar, base_query.c.id == ProjectStar.project_id)
+            .outerjoin(Bookmark, base_query.c.id == Bookmark.project_id)
+            .outerjoin(ProjectInvite, base_query.c.id == ProjectInvite.project_id)
+            .outerjoin(Notebook, base_query.c.id == Notebook.project_id)
+            .group_by(base_query.c.id)
+        )
+
+        result = await self.session.execute(stats_query)
+        stats = result.first()
+
+        if not stats:
+            return {
+                "total_stars": 0,
+                "total_bookmarks": 0,
+                "total_pending_invites": 0,
+                "total_notebooks": 0,
+            }
+
+        return {
+            "total_stars": stats.total_stars,
+            "total_bookmarks": stats.total_bookmarks,
+            "total_pending_invites": stats.total_pending_invites,
+            "total_notebooks": stats.total_notebooks,
+        }
 
     async def retrieve_projects_per_vl_batch(
         self,
@@ -287,6 +345,21 @@ class ProjectQueryRepository:
             int,
             count,
         )
+
+    async def count_user_projects(
+        self,
+        owner_id: UUID,
+    ) -> int:
+        """Count total number of non-deleted projects owned by a user."""
+        result = await self.session.scalar(
+            select(func.count(Project.id)).where(
+                and_(
+                    Project.owner_id == owner_id,
+                    ~Project.deleted,
+                )
+            )
+        )
+        return result or 0
 
 
 class ProjectMutationRepository:

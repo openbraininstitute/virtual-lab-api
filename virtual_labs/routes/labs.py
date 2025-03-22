@@ -1,22 +1,26 @@
-from typing import Tuple
+from typing import Annotated, Dict, List, Tuple
 
-from fastapi import APIRouter, Depends, Response
-from pydantic import UUID4, EmailStr
+from fastapi import APIRouter, Body, Depends, Response
+from pydantic import UUID4
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.authorization import (
     verify_user_authenticated,
     verify_vlab_read,
     verify_vlab_write,
+    verity_member_invite,
 )
-from virtual_labs.core.types import UserRoleEnum, VliAppResponse
+from virtual_labs.core.types import UserGroup, UserRoleEnum, VliAppResponse
 from virtual_labs.domain.common import LabListWithPending
 from virtual_labs.domain.email import (
     EmailVerificationPayload,
     InitiateEmailVerificationPayload,
     VerificationCodeEmailResponse,
 )
-from virtual_labs.domain.invite import AddUser
+from virtual_labs.domain.invite import (
+    AddUser,
+    DeleteLabInviteRequest,
+)
 from virtual_labs.domain.labs import (
     CreateLabOut,
     InviteSent,
@@ -25,6 +29,7 @@ from virtual_labs.domain.labs import (
     VirtualLabCreate,
     VirtualLabDetails,
     VirtualLabOut,
+    VirtualLabStats,
     VirtualLabUpdate,
     VirtualLabUser,
     VirtualLabUsers,
@@ -109,6 +114,27 @@ async def get_virtual_lab(
     return LabResponse[VirtualLabOut](
         message="Virtual lab resource for id {}".format(virtual_lab_id),
         data=lab_response,
+    )
+
+
+@router.get(
+    "/{virtual_lab_id}/stats",
+    response_model=LabResponse[VirtualLabStats],
+    summary="Get statistics for a virtual lab",
+)
+@verify_vlab_read
+async def get_virtual_lab_stats(
+    virtual_lab_id: UUID4,
+    session: AsyncSession = Depends(default_session_factory),
+    auth: tuple[AuthUser, str] = Depends(verify_jwt),
+) -> LabResponse[VirtualLabStats]:
+    stats = await usecases.get_virtual_lab_stats(session, virtual_lab_id)
+
+    print("ᦨ #  labs.py:133 #  stats:", stats)
+
+    return LabResponse[VirtualLabStats](
+        message="Statistics for virtual lab",
+        data=stats,
     )
 
 
@@ -199,7 +225,7 @@ async def update_virtual_lab(
     summary="Invite user to lab by email",
     response_model=LabResponse[InviteSent],
 )
-@verify_vlab_write
+@verity_member_invite
 async def invite_user_to_virtual_lab(
     virtual_lab_id: UUID4,
     invite_details: AddUser,
@@ -218,14 +244,14 @@ async def invite_user_to_virtual_lab(
 
 
 @router.patch(
-    "/{virtual_lab_id}/users/{user_id}",
+    "/{virtual_lab_id}/users/role",
     response_model=LabResponse[VirtualLabUser],
 )
 @verify_vlab_write
-async def change_user_role_for_lab(
+async def update_user_role_for_lab(
     virtual_lab_id: UUID4,
-    user_id: UUID4,
-    new_role: UserRoleEnum,
+    user_id: Annotated[UUID4, Body(embed=True)],
+    new_role: Annotated[UserRoleEnum, Body(embed=True)],
     session: AsyncSession = Depends(default_session_factory),
     auth: tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> LabResponse[VirtualLabUser]:
@@ -237,14 +263,14 @@ async def change_user_role_for_lab(
     )
 
 
-@router.delete(
-    "/{virtual_lab_id}/users/{user_id}",
+@router.post(
+    "/{virtual_lab_id}/users/detach",
     response_model=LabResponse[None],
 )
 @verify_vlab_write
 async def remove_user_from_virtual_lab(
     virtual_lab_id: UUID4,
-    user_id: UUID4,
+    user_id: Annotated[UUID4, Body(embed=True)],
     session: AsyncSession = Depends(default_session_factory),
     auth: tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> LabResponse[None]:
@@ -263,17 +289,43 @@ async def delete_virtual_lab(
     return LabResponse[VirtualLabOut](message="Deleted virtual lab", data=deleted_lab)
 
 
-@router.delete(
-    "/{virtual_lab_id}/invites",
+@router.post(
+    "/{virtual_lab_id}/invites/cancel",
     response_model=LabResponse[None],
     description="Delete invite. Only invites that are not accepted can be deleted.",
 )
 @verify_vlab_write
 async def delete_lab_invite(
     virtual_lab_id: UUID4,
-    email: EmailStr,
-    role: UserRoleEnum = UserRoleEnum.member,
+    invite_details: DeleteLabInviteRequest,
     session: AsyncSession = Depends(default_session_factory),
     auth: tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> LabResponse[None]:
-    return await usecases.delete_lab_invite(session, virtual_lab_id, email, role)
+    return await usecases.delete_lab_invite(
+        session, virtual_lab_id, invite_details.email, invite_details.role
+    )
+
+
+@router.get(
+    "/{virtual_lab_id}/user-groups",
+    summary="Get user's groups for a virtual lab",
+    description="Get the groups the authenticated user is a part of for the specified virtual lab (admin or member)",
+    response_model=VliAppResponse[Dict[str, List[UserGroup]]],
+)
+async def get_user_groups_for_virtual_lab(
+    virtual_lab_id: UUID4,
+    session: AsyncSession = Depends(default_session_factory),
+    auth: tuple[AuthUser, str] = Depends(verify_jwt),
+) -> Response:
+    """
+    Get the user groups for a virtual lab.
+
+    Args:
+        virtual_lab_id: ID of the virtual lab
+
+    Returns:
+        Response: List of user groups for the virtual lab
+    """
+    return await usecases.get_user_virtual_lab_groups(
+        session=session, virtual_lab_id=virtual_lab_id, auth=auth
+    )

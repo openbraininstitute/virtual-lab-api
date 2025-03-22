@@ -1,12 +1,22 @@
 from typing import Tuple
 
 from fastapi import APIRouter, Depends, Response
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.types import VliAppResponse
-from virtual_labs.domain.user import UpdateUserProfileRequest, UserProfileResponse
+from virtual_labs.domain.user import (
+    UpdateUserProfileRequest,
+    UserGroupsResponse,
+    UserProfileResponse,
+)
+from virtual_labs.infrastructure.db.config import default_session_factory
 from virtual_labs.infrastructure.kc.auth import a_verify_jwt
 from virtual_labs.infrastructure.kc.models import AuthUser
-from virtual_labs.usecases.users import get_user_profile, update_user_profile
+from virtual_labs.usecases.users import (
+    get_all_user_groups,
+    get_user_profile,
+    update_user_profile,
+)
 
 router = APIRouter(
     prefix="/users",
@@ -54,3 +64,22 @@ async def update_profile_endpoint(
         Response: the updated user profile information
     """
     return await update_user_profile(payload=payload, auth=auth)
+
+
+@router.get(
+    "/groups",
+    summary="Get all user groups",
+    description="Get all groups the authenticated user is a part of (admin or member) for all virtual labs and projects",
+    response_model=VliAppResponse[UserGroupsResponse],
+)
+async def get_all_user_groups_endpoint(
+    session: AsyncSession = Depends(default_session_factory),
+    auth: Tuple[AuthUser, str] = Depends(a_verify_jwt),
+) -> Response:
+    """
+    Get all groups the authenticated user is a part of.
+
+    Returns:
+        Response: List of all user groups across virtual labs and projects
+    """
+    return await get_all_user_groups(session=session, auth=auth)

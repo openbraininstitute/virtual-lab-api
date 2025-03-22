@@ -225,3 +225,68 @@ async def get_user_virtual_lab(db: AsyncSession, owner_id: UUID4) -> VirtualLab 
     vlab = result.scalars().first()
 
     return vlab
+
+
+async def get_virtual_labs_in_list(
+    db: AsyncSession, group_ids: list[str]
+) -> list[VirtualLab]:
+    query = select(VirtualLab).where(
+        and_(
+            ~VirtualLab.deleted,
+            or_(
+                (VirtualLab.admin_group_id.in_(group_ids)),
+                (VirtualLab.member_group_id.in_(group_ids)),
+            ),
+        )
+    )
+    result = (await db.execute(statement=query)).unique().scalars().all()
+    return list(result)
+
+
+async def get_virtual_lab_stats(
+    db: AsyncSession,
+    virtual_lab_id: UUID4,
+) -> dict[str, int]:
+    """Get statistics for a virtual lab including total projects and pending invites using a single optimized query."""
+    from sqlalchemy import distinct, func, select
+
+    from virtual_labs.infrastructure.db.models import (
+        Project,
+        VirtualLab,
+        VirtualLabInvite,
+    )
+
+    # Filter VirtualLab first
+    base_query = (
+        select(VirtualLab).where(
+            VirtualLab.id == virtual_lab_id,
+            ~VirtualLab.deleted,
+        )
+    ).subquery()
+
+    stats_query = (
+        select(
+            base_query.c.id,
+            func.count(distinct(Project.id))
+            .filter(~Project.deleted)
+            .label("total_projects"),
+            func.count(distinct(VirtualLabInvite.id))
+            .filter(~VirtualLabInvite.accepted)
+            .label("total_pending_invites"),
+        )
+        .select_from(base_query)
+        .outerjoin(Project, base_query.c.id == Project.virtual_lab_id)
+        .outerjoin(VirtualLabInvite, base_query.c.id == VirtualLabInvite.virtual_lab_id)
+        .group_by(base_query.c.id)
+    )
+
+    result = await db.execute(stats_query)
+    stats = result.first()
+
+    if not stats:
+        return {"total_projects": 0, "total_pending_invites": 0}
+
+    return {
+        "total_projects": stats.total_projects,
+        "total_pending_invites": stats.total_pending_invites,
+    }
