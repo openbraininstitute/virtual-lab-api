@@ -65,7 +65,7 @@ curl -XPUT \
 
 echo "Initialize nexus"
 
-python3 env-prep/init/init.py
+./.venv/bin/python3 env-prep/init/init.py
 
 echo "📦 Initialize Vl database"
 make init-db
