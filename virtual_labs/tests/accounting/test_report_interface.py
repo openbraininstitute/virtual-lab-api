@@ -9,11 +9,11 @@ from virtual_labs.core.exceptions.accounting_error import (
     AccountingError,
     AccountingErrorValue,
 )
+from virtual_labs.external.accounting.interfaces.report_interface import ReportInterface
 from virtual_labs.external.accounting.models import (
     ProjectReportsResponse,
     VirtualLabReportsResponse,
 )
-from virtual_labs.external.accounting.report_interface import ReportInterface
 from virtual_labs.infrastructure.settings import settings
 
 

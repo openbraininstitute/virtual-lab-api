@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from decimal import Decimal
 from enum import Enum
 from typing import Any, Dict, Optional
 from uuid import uuid4
@@ -14,6 +15,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    Numeric,
     String,
     Text,
     UniqueConstraint,
@@ -536,6 +538,16 @@ class SubscriptionPayment(Base):
     )
 
 
+class SubscriptionTierEnum(str, Enum):
+    """
+    Enum representing subscription tiers.
+    """
+
+    FREE = "free"
+    PRO = "pro"
+    PREMIUM = "premium"
+
+
 class SubscriptionTier(Base):
     """
     app plans
@@ -548,6 +560,9 @@ class SubscriptionTier(Base):
         primary_key=True,
         default=uuid4,
         server_default=func.gen_random_uuid(),
+    )
+    tier: Mapped[SubscriptionTierEnum] = mapped_column(
+        SAEnum(SubscriptionTierEnum), nullable=False, index=True
     )
     stripe_product_id: Mapped[Optional[str]] = mapped_column(
         String(255), nullable=True, unique=True
@@ -571,6 +586,9 @@ class SubscriptionTier(Base):
 
     features: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
     plan_metadata: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
+
+    monthly_credits: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    yearly_credits: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=func.now(), nullable=False
@@ -604,3 +622,13 @@ class StripeUser(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=func.now(), onupdate=func.now(), nullable=False
     )
+
+
+class CreditExchangeRate(Base):
+    __tablename__ = "credit_exchange_rate"
+
+    currency: Mapped[str] = mapped_column(String, primary_key=True, index=True)
+    rate: Mapped[Decimal] = mapped_column(
+        Numeric(precision=10, scale=6), nullable=False
+    )
+    description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
