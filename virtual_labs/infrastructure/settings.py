@@ -89,8 +89,8 @@ class Settings(BaseSettings):
     DISCOUNT_MONTHLY_ID: str = "monthly-special-launch-price"
     DISCOUNT_YEARLY_ID: str = "yearly-special-launch-price"
 
-    VLAB_CREATION_FREE_CREDITS: int = 100
-    ENABLE_FREE_CREDITS: bool = True
+    WELCOME_BONUS_CREDITS: Decimal = Decimal(100)
+    ENABLE_WELCOME_BONUS: bool = True
 
     PAID_SUBSCRIPTION_DISCOUNT: Decimal = Decimal("0.5")
     MAX_PROJECTS_NUMBER: int = 20
