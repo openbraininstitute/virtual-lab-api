@@ -372,6 +372,32 @@ class ProjectQueryRepository:
         result = await self.session.scalar(query)
         return result or 0
 
+    async def get_owned_projects_count(self, user_id: UUID4) -> int:
+        """Count projects where user is the owner"""
+        query = select(func.count(Project.id)).where(
+            and_(~Project.deleted, Project.owner_id == user_id)
+        )
+        result = await self.session.scalar(query)
+        return result or 0
+
+    async def get_member_projects_count(
+        self, user_id: UUID4, group_ids: list[str]
+    ) -> int:
+        """Count projects where user is a member (but not owner)"""
+
+        query = select(func.count(Project.id)).where(
+            and_(
+                ~Project.deleted,
+                Project.owner_id != user_id,  # Not the owner
+                or_(
+                    Project.admin_group_id.in_(group_ids),
+                    Project.member_group_id.in_(group_ids),
+                ),
+            )
+        )
+        result = await self.session.scalar(query)
+        return result or 0
+
 
 class ProjectMutationRepository:
     session: AsyncSession
