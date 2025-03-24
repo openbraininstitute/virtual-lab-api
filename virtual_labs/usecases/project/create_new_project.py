@@ -122,7 +122,7 @@ async def create_new_project_use_case(
     failed_invites = []
 
     # Check if user has reached the projects limit
-    user_projects_count = await pqr.count_user_projects(owner_id=user_id)
+    user_projects_count = await pqr.get_owned_projects_count(user_id=user_id)
     if user_projects_count >= settings.MAX_PROJECTS_NUMBER:
         raise VliError(
             error_code=VliErrorCode.LIMIT_EXCEEDED,

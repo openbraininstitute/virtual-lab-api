@@ -105,3 +105,15 @@ class AllPlans(BaseModel):
 
 class InviteSent(BaseModel):
     invite_id: UUID4
+
+
+class UserStats(BaseModel):
+    """Statistics about a user's virtual labs and projects"""
+
+    owned_labs_count: int
+    member_labs_count: int
+    pending_invites_count: int
+    owned_projects_count: int
+    member_projects_count: int
+    total_labs: int
+    total_projects: int

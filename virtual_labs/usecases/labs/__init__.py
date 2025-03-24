@@ -5,6 +5,7 @@ from .check_virtual_lab_name_exists import check_virtual_lab_name_exists
 from .create_virtual_lab import create_virtual_lab
 from .delete_lab_invite import delete_lab_invite
 from .delete_virtual_lab import delete_virtual_lab
+from .get_user_stats import get_user_stats
 from .get_virtual_lab import get_virtual_lab
 from .get_virtual_lab_users import get_virtual_lab_users
 from .invite_user_to_lab import invite_user_to_lab
@@ -29,4 +30,5 @@ __all__ = [
     "delete_lab_invite",
     "get_virtual_lab_stats",
     "get_user_virtual_lab_groups",
+    "get_user_stats",
 ]

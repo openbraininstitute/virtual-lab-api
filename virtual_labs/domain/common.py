@@ -22,7 +22,7 @@ class PaginatedResultsResponse(BaseModel, Generic[T]):
     results: list[T]
 
 
-class LabListWithPending(BaseModel, Generic[T]):
+class VirtualLabResponse(BaseModel, Generic[T]):
     pending_labs: List[VirtualLabWithInviteDetails]
     membership_labs: List[T] | None
     virtual_lab: T | None

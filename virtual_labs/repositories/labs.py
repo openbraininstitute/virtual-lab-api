@@ -290,3 +290,29 @@ async def get_virtual_lab_stats(
         "total_projects": stats.total_projects,
         "total_pending_invites": stats.total_pending_invites,
     }
+
+
+async def get_virtual_labs_where_user_is_member(
+    db: AsyncSession, user_id: UUID4
+) -> list[VirtualLab]:
+    """Returns a list of non-deleted virtual labs where the user is a member but not the owner."""
+    from virtual_labs.repositories.group_repo import GroupQueryRepository
+
+    # Get the user's groups
+    group_repo = GroupQueryRepository()
+    user_groups = await group_repo.a_retrieve_user_groups(user_id=str(user_id))
+    group_ids = [g.id for g in user_groups if "vlab" in g.name]
+
+    # Get the virtual labs where user is a member of admin or member groups but not the owner
+    query = select(VirtualLab).where(
+        and_(
+            ~VirtualLab.deleted,
+            VirtualLab.owner_id != user_id,  # Not the owner
+            or_(
+                (VirtualLab.admin_group_id.in_(group_ids)),
+                (VirtualLab.member_group_id.in_(group_ids)),
+            ),
+        )
+    )
+    result = (await db.execute(statement=query)).unique().scalars().all()
+    return list(result)

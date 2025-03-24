@@ -27,7 +27,7 @@ class UserGroup(BaseModel):
     group_type: str  # "vlab" or "project"
     project_id: Optional[str] = None  # Project ID (only for project type)
     virtual_lab_id: Optional[str] = None  # Virtual lab ID
-    role: UserRoleEnum  # ADMIN or MEMBER
+    role: UserRoleEnum  # admin or  member
 
     model_config = ConfigDict(from_attributes=True)
 

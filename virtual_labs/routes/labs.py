@@ -11,7 +11,7 @@ from virtual_labs.core.authorization import (
     verity_member_invite,
 )
 from virtual_labs.core.types import UserGroup, UserRoleEnum, VliAppResponse
-from virtual_labs.domain.common import LabListWithPending
+from virtual_labs.domain.common import VirtualLabResponse
 from virtual_labs.domain.email import (
     EmailVerificationPayload,
     InitiateEmailVerificationPayload,
@@ -47,16 +47,16 @@ from virtual_labs.usecases import email_verification as email_verification_useca
 from virtual_labs.usecases import labs as usecases
 from virtual_labs.usecases.labs.check_virtual_lab_name_exists import LabExists
 
-PaginatedLabs = LabResponse[LabListWithPending[VirtualLabDetails]]
+PaginatedLabs = LabResponse[VirtualLabResponse[VirtualLabDetails]]
 router = APIRouter(prefix="/virtual-labs", tags=["Virtual Labs Endpoints"])
 
 
-@router.get("", response_model=LabResponse[LabListWithPending[VirtualLabDetails]])
+@router.get("", response_model=LabResponse[VirtualLabResponse[VirtualLabDetails]])
 @verify_user_authenticated
 async def get_paginated_virtual_labs_for_user(
     db: AsyncSession = Depends(default_session_factory),
     auth: tuple[AuthUser, str] = Depends(a_verify_jwt),
-) -> LabResponse[LabListWithPending[VirtualLabDetails | None]]:
+) -> LabResponse[VirtualLabResponse[VirtualLabDetails | None]]:
     return LabResponse(
         message="List of user virtual lab and pending labs from invites",
         data=await usecases.list_user_virtual_labs(
@@ -129,9 +129,6 @@ async def get_virtual_lab_stats(
     auth: tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> LabResponse[VirtualLabStats]:
     stats = await usecases.get_virtual_lab_stats(session, virtual_lab_id)
-
-    print("ᦨ #  labs.py:133 #  stats:", stats)
-
     return LabResponse[VirtualLabStats](
         message="Statistics for virtual lab",
         data=stats,

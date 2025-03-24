@@ -4,14 +4,16 @@ from fastapi import APIRouter, Depends, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.types import VliAppResponse
+from virtual_labs.domain.labs import UserStats
 from virtual_labs.domain.user import (
     UpdateUserProfileRequest,
     UserGroupsResponse,
     UserProfileResponse,
 )
 from virtual_labs.infrastructure.db.config import default_session_factory
-from virtual_labs.infrastructure.kc.auth import a_verify_jwt
+from virtual_labs.infrastructure.kc.auth import a_verify_jwt, verify_jwt
 from virtual_labs.infrastructure.kc.models import AuthUser
+from virtual_labs.usecases.labs import get_user_stats
 from virtual_labs.usecases.users import (
     get_all_user_groups,
     get_user_profile,
@@ -83,3 +85,17 @@ async def get_all_user_groups_endpoint(
         Response: List of all user groups across virtual labs and projects
     """
     return await get_all_user_groups(session=session, auth=auth)
+
+
+@router.get(
+    "/stats",
+    summary="Get user statistics",
+    description="Get comprehensive statistics for the authenticated user including virtual labs, pending invites, and projects",
+    response_model=VliAppResponse[UserStats],
+)
+async def get_user_statistics(
+    session: AsyncSession = Depends(default_session_factory),
+    auth: Tuple[AuthUser, str] = Depends(verify_jwt),
+) -> Response:
+    """Get comprehensive statistics for the authenticated user"""
+    return await get_user_stats(session, auth)

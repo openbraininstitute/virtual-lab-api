@@ -8,7 +8,7 @@ from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
-from virtual_labs.domain.common import LabListWithPending
+from virtual_labs.domain.common import VirtualLabResponse
 from virtual_labs.domain.labs import VirtualLabDetails, VirtualLabWithInviteDetails
 from virtual_labs.infrastructure.db.models import VirtualLab
 from virtual_labs.infrastructure.kc.models import AuthUser
@@ -25,7 +25,7 @@ from virtual_labs.shared.utils.auth import (
 async def list_user_virtual_labs(
     session: AsyncSession,
     auth: Tuple[AuthUser, str],
-) -> LabListWithPending[VirtualLabDetails | None]:
+) -> VirtualLabResponse[VirtualLabDetails | None]:
     invite_repo = InviteQueryRepository(session=session)
     pqr = ProjectQueryRepository(session=session)
     gqr = GroupQueryRepository()
@@ -79,7 +79,7 @@ async def list_user_virtual_labs(
             membership_labs_with_counts.append(lab_with_counts)
 
         if not virtual_lab:
-            return LabListWithPending(
+            return VirtualLabResponse(
                 pending_labs=pending_labs,
                 membership_labs=membership_labs_with_counts,
                 virtual_lab=None,
@@ -95,7 +95,7 @@ async def list_user_virtual_labs(
 
         total_members = len(admin_users) + len(member_users)
 
-        return LabListWithPending(
+        return VirtualLabResponse(
             pending_labs=pending_labs,
             membership_labs=membership_labs_with_counts,
             virtual_lab=VirtualLabDetails(
