@@ -95,6 +95,37 @@ class InviteQueryRepository:
         result = await self.session.execute(stmt)
         return [tuple(row) for row in result.all()]
 
+    async def get_pending_invites_for_user(
+        self,
+        email: EmailStr,
+    ) -> int:
+        """Count all pending invites for a user by email"""
+        # Count pending lab invites
+        lab_stmt = (
+            select(func.count())
+            .select_from(VirtualLabInvite)
+            .where(
+                (VirtualLabInvite.user_email == email)
+                & (VirtualLabInvite.accepted == false())
+            )
+        )
+        result = await self.session.execute(lab_stmt)
+        lab_count: int = result.scalar() or 0
+
+        # Count pending project invites
+        project_stmt = (
+            select(func.count())
+            .select_from(ProjectInvite)
+            .where(
+                (ProjectInvite.user_email == email)
+                & (or_(ProjectInvite.accepted.is_(None), ~ProjectInvite.accepted))
+            )
+        )
+        result = await self.session.execute(project_stmt)
+        project_count: int = result.scalar() or 0
+
+        return lab_count + project_count
+
 
 class InviteMutationRepository:
     session: AsyncSession

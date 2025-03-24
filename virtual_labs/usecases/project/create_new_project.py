@@ -121,6 +121,15 @@ async def create_new_project_use_case(
     user_id = get_user_id_from_auth(auth)
     failed_invites = []
 
+    # Check if user has reached the projects limit
+    user_projects_count = await pqr.get_owned_projects_count(user_id=user_id)
+    if user_projects_count >= settings.MAX_PROJECTS_NUMBER:
+        raise VliError(
+            error_code=VliErrorCode.LIMIT_EXCEEDED,
+            http_status_code=status.BAD_REQUEST,
+            message="You have reached the maximum limit of 20 projects",
+        )
+
     try:
         vlab = await get_undeleted_virtual_lab(session, virtual_lab_id)
 

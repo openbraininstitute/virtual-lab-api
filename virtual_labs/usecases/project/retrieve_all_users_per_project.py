@@ -70,6 +70,8 @@ async def retrieve_all_users_per_project_use_case(
             for invite in pending_invites
         ]
         users = admins + members + pending_users
+
+        owner_id = project.owner_id
     except SQLAlchemyError:
         raise VliError(
             error_code=VliErrorCode.DATABASE_ERROR,
@@ -86,5 +88,9 @@ async def retrieve_all_users_per_project_use_case(
     else:
         return VliResponse.new(
             message="Users found successfully",
-            data={"users": users, "total": len(users)},
+            data={
+                "owner_id": owner_id,
+                "users": users,
+                "total": len(users),
+            },
         )

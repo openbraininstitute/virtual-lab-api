@@ -93,6 +93,7 @@ class Settings(BaseSettings):
     ENABLE_FREE_CREDITS: bool = True
 
     PAID_SUBSCRIPTION_DISCOUNT: Decimal = Decimal("0.5")
+    MAX_PROJECTS_NUMBER: int = 20
 
     @field_validator("DATABASE_URI", mode="before")
     @classmethod

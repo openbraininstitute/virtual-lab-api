@@ -1,4 +1,4 @@
-from typing import Annotated, Tuple
+from typing import Annotated, Dict, List, Tuple
 
 from fastapi import APIRouter, Body, Depends, Query
 from fastapi.responses import Response
@@ -7,6 +7,7 @@ from pydantic import UUID4, EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.authorization import (
+    verify_project_read,
     verify_vlab_or_project_write,
     verify_vlab_read,
     verify_vlab_write,
@@ -15,7 +16,7 @@ from virtual_labs.core.authorization.verify_vlab_or_project_read import (
     verify_vlab_or_project_read,
 )
 from virtual_labs.core.exceptions.api_error import VliError
-from virtual_labs.core.types import UserRoleEnum, VliAppResponse
+from virtual_labs.core.types import UserGroup, UserRoleEnum, VliAppResponse
 from virtual_labs.domain.common import PageParams, PaginatedResultsResponse
 from virtual_labs.domain.project import (
     ProjectCreationBody,
@@ -25,9 +26,10 @@ from virtual_labs.domain.project import (
     ProjectInviteOut,
     ProjectOut,
     ProjectPerVLCountOut,
+    ProjectStats,
     ProjectUpdateBody,
     ProjectUpdateRoleOut,
-    ProjectUserDetachOut,
+    ProjectUserDeleteOut,
     ProjectUsersCountOut,
     ProjectUsersOut,
     ProjectVlOut,
@@ -318,6 +320,25 @@ async def update_project_star_status(
 
 
 @router.get(
+    "/{virtual_lab_id}/projects/{project_id}/stats",
+    response_model=VliAppResponse[ProjectStats],
+    summary="Get comprehensive statistics for a project",
+)
+@verify_project_read
+async def get_project_stats(
+    virtual_lab_id: UUID4,
+    project_id: UUID4,
+    session: AsyncSession = Depends(default_session_factory),
+    auth: tuple[AuthUser, str] = Depends(verify_jwt),
+) -> VliAppResponse[ProjectStats]:
+    stats = await project_cases.get_project_stats(session, project_id)
+    return VliAppResponse[ProjectStats](
+        message="Statistics for project",
+        data=stats,
+    )
+
+
+@router.get(
     "/{virtual_lab_id}/projects/{project_id}/users",
     operation_id="get_project_users",
     summary="Retrieve users per project",
@@ -354,7 +375,7 @@ async def retrieve_project_users_count(
 
 
 @router.patch(
-    "/{virtual_lab_id}/projects/{project_id}/users/{user_id}/role",
+    "/{virtual_lab_id}/projects/{project_id}/users/role",
     operation_id="update_user_role_in_project",
     summary="Update user role in the current project",
     description=(
@@ -370,7 +391,7 @@ async def retrieve_project_users_count(
 async def update_user_role_in_project(
     virtual_lab_id: UUID4,
     project_id: UUID4,
-    user_id: UUID4,
+    user_id: Annotated[UUID4, Body(embed=True)],
     new_role: Annotated[UserRoleEnum, Body(embed=True)],
     session: AsyncSession = Depends(default_session_factory),
     auth: Tuple[AuthUser, str] = Depends(verify_jwt),
@@ -385,8 +406,8 @@ async def update_user_role_in_project(
     )
 
 
-@router.delete(
-    "/{virtual_lab_id}/projects/{project_id}/users/{user_id}/detach",
+@router.post(
+    "/{virtual_lab_id}/projects/{project_id}/users/detach",
     operation_id="detach_user_from_project",
     summary="Detach user from the project if the user has permission",
     description=(
@@ -395,13 +416,13 @@ async def update_user_role_in_project(
         to detach the selected user from the current project
         """
     ),
-    response_model=VliAppResponse[ProjectUserDetachOut],
+    response_model=VliAppResponse[ProjectUserDeleteOut],
 )
 @verify_vlab_or_project_write
 async def detach_user_from_project(
     virtual_lab_id: UUID4,
     project_id: UUID4,
-    user_id: UUID4,
+    user_id: Annotated[UUID4, Body(embed=True)],
     session: AsyncSession = Depends(default_session_factory),
     auth: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> Response | VliError:
@@ -443,8 +464,8 @@ async def invite_user_to_project(
     )
 
 
-@router.delete(
-    "/{virtual_lab_id}/projects/{project_id}/invites",
+@router.post(
+    "/{virtual_lab_id}/projects/{project_id}/invites/cancel",
     response_model=VliAppResponse[None],
     description="Delete invite. Only invites that are not accepted can be deleted.",
 )
@@ -452,9 +473,37 @@ async def invite_user_to_project(
 async def delete_project_invite(
     virtual_lab_id: UUID4,
     project_id: UUID4,
-    email: EmailStr,
-    role: UserRoleEnum = UserRoleEnum.member,
+    email: Annotated[EmailStr, Body(embed=True)],
+    role: Annotated[UserRoleEnum, Body(embed=True)],
     session: AsyncSession = Depends(default_session_factory),
     auth: tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> Response:
     return await project_cases.delete_project_invite(session, project_id, email, role)
+
+
+@router.get(
+    "/{virtual_lab_id}/projects/{project_id}/user-groups",
+    operation_id="get_project_user_groups",
+    summary="Get user's groups for a project",
+    description="Get the groups the authenticated user is a part of for the specified project and its virtual lab (admin or member)",
+    response_model=VliAppResponse[Dict[str, List[UserGroup]]],
+)
+async def get_user_groups_for_project(
+    virtual_lab_id: UUID4,
+    project_id: UUID4,
+    session: AsyncSession = Depends(default_session_factory),
+    auth: Tuple[AuthUser, str] = Depends(verify_jwt),
+) -> Response | VliError:
+    """
+    Get the user groups for a project and its parent virtual lab.
+
+    Args:
+        virtual_lab_id: ID of the virtual lab
+        project_id: ID of the project
+
+    Returns:
+        Response: List of user groups for the project and virtual lab
+    """
+    return await project_cases.get_user_project_groups(
+        session=session, virtual_lab_id=virtual_lab_id, project_id=project_id, auth=auth
+    )
