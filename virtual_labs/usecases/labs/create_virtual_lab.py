@@ -1,3 +1,4 @@
+from datetime import timezone
 from decimal import Decimal
 from http import HTTPStatus
 from typing import Literal, TypedDict
@@ -248,6 +249,20 @@ async def create_virtual_lab(
             await accounting_cases.create_virtual_lab_account(
                 virtual_lab_id=new_lab_id, name=lab.name, balance=total_initial_credits
             )
+
+            if isinstance(subscription, models.PaidSubscription):
+                # Discount creation requires the vlab account to already exist.
+                await accounting_cases.create_virtual_lab_discount(
+                    virtual_lab_id=new_lab_id,
+                    discount=settings.PAID_SUBSCRIPTION_DISCOUNT,
+                    valid_from=subscription.current_period_start.replace(
+                        tzinfo=timezone.utc
+                    ),
+                    valid_to=subscription.current_period_end.replace(
+                        tzinfo=timezone.utc
+                    ),
+                )
+
         except Exception as ex:
             logger.error(f"Error when creating virtual lab account {ex}")
             raise VliError(
