@@ -1,3 +1,4 @@
+import binascii
 from http import HTTPStatus as status
 from typing import Tuple
 
@@ -116,7 +117,7 @@ async def a_verify_jwt(
         )
 
     try:
-        token = header.credentials
+        token = header.credentials.strip()
         decoded_token = await kc_auth.a_decode_token(token=token, validate=True)
     except KeycloakError as exception:
         logger.error(
@@ -129,6 +130,24 @@ async def a_verify_jwt(
             message="Invalid authentication session",
             details=str(exception),
         ) from exception
+    except binascii.Error as exception:
+        logger.error(f"Invalid token format: {str(exception)}")
+        raise VliError(
+            error_code=VliErrorCode.AUTHORIZATION_ERROR,
+            http_status_code=status.UNAUTHORIZED,
+            message="Invalid token format",
+            details="The provided token has incorrect base64 padding",
+        ) from exception
+    except ValueError as exception:
+        if "Invalid JWS Object" in str(exception):
+            logger.error(f"Invalid JWT format: {str(exception)}")
+            raise VliError(
+                error_code=VliErrorCode.AUTHORIZATION_ERROR,
+                http_status_code=status.UNAUTHORIZED,
+                message="Invalid JWT format",
+                details="The provided token is not a valid JWT token",
+            ) from exception
+        raise
     except Exception as error:
         logger.exception(f"Auth Error {error}")
         raise VliError(
