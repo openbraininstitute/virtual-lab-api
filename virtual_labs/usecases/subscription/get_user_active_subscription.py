@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.domain.subscription import SubscriptionDetails
-from virtual_labs.infrastructure.db.models import PaidSubscription
+from virtual_labs.infrastructure.db.models import FreeSubscription, PaidSubscription
 from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.repositories.subscription_repo import SubscriptionRepository
 from virtual_labs.shared.utils.auth import get_user_id_from_auth
@@ -52,6 +52,23 @@ async def get_user_active_subscription(
         subscription_type = (
             "paid" if isinstance(subscription, PaidSubscription) else "free"
         )
+
+        if isinstance(subscription, FreeSubscription):
+            subscription_data = details.model_dump()
+            subscription_data.update(
+                {
+                    "tier": subscription.subscription_type,
+                    "type": subscription_type,
+                    "cancel_at_period_end": None,
+                    "next_billing_date": None,
+                    "canceled_at": None,
+                }
+            )
+
+            return VliResponse.new(
+                message="User subscription details retrieved successfully",
+                data={"subscription": subscription_data},
+            )
 
         subscription_data = details.model_dump()
         subscription_data["type"] = subscription_type
