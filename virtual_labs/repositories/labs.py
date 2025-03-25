@@ -8,7 +8,7 @@ from sqlalchemy.sql import and_, or_
 from virtual_labs.core.types import PaginatedDbResult
 from virtual_labs.domain import labs
 from virtual_labs.domain.common import PageParams
-from virtual_labs.infrastructure.db.models import Project, VirtualLab, VirtualLabTopup
+from virtual_labs.infrastructure.db.models import Project, VirtualLab
 
 
 class VirtualLabDbCreate(labs.VirtualLabCreate):
@@ -196,23 +196,6 @@ async def get_virtual_labs_with_matching_name(
     )
     result = (await db.execute(statement=query)).unique().scalars().all()
     return list(result)
-
-
-async def topup_virtual_lab(
-    db: AsyncSession,
-    lab_id: UUID4,
-    amount: int,
-    stripe_event_id: str,
-) -> None:
-    lab = await db.get(VirtualLab, lab_id)
-
-    assert lab
-    db.add(
-        VirtualLabTopup(
-            virtual_lab_id=lab_id, amount=amount, stripe_event_id=stripe_event_id
-        )
-    )
-    await db.commit()
 
 
 async def get_user_virtual_lab(db: AsyncSession, owner_id: UUID4) -> VirtualLab | None:

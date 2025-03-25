@@ -40,7 +40,6 @@ async def check_user_subscription(
         subscription_repo = SubscriptionRepository(db_session=session)
         subscription = await subscription_repo.get_active_subscription_by_user_id(
             user_id,
-            "paid",
         )
 
         if not subscription:

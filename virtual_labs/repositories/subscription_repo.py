@@ -245,9 +245,13 @@ class SubscriptionRepository:
         virtual_lab_id: UUID,
     ) -> FreeSubscription:
         """Create a new free subscription."""
+        tier = await self.get_subscription_tier_by_tier(tier=SubscriptionTierEnum.FREE)
+        if tier is None:
+            raise ValueError("Free subscription tier not found")
         subscription = FreeSubscription(
             user_id=user_id,
             virtual_lab_id=virtual_lab_id,
+            tier_id=tier.id,
             subscription_type=SubscriptionType.FREE,
             status=SubscriptionStatus.ACTIVE,
             current_period_start=datetime.now(),

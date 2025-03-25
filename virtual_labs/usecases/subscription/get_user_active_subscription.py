@@ -60,9 +60,10 @@ async def get_user_active_subscription(
             paid_sub = subscription
             subscription_data.update(
                 {
-                    "plan": subscription.subscription_type,
+                    "tier": subscription.subscription_type,
                     "cancel_at_period_end": paid_sub.cancel_at_period_end,
                     "next_billing_date": paid_sub.current_period_end,
+                    "canceled_at": paid_sub.canceled_at,
                 }
             )
 

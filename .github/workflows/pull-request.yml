@@ -111,7 +111,7 @@ jobs:
         run: |
           echo STRIPE_SECRET_KEY=${{ secrets.TEST_STRIPE_SECRET_KEY }} >> .env.local
           echo STRIPE_DEVICE_NAME=CI >> .env.local
-          DEPLOYMENT_ENV=testing poetry run pytest
+          DEPLOYMENT_ENV=testing make test
       - name: Cleanup resources
         if: ${{ always() }}
         run: |

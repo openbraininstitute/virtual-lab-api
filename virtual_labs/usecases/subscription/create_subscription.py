@@ -125,9 +125,9 @@ async def create_subscription(
 
         subscription = PaidSubscription()
         subscription.user_id = user_id
+        subscription.tier_id = subscription_tier.id
         subscription.type = "paid"
         subscription.subscription_type = SubscriptionType.PRO
-
         subscription.stripe_subscription_id = str(
             getattr(stripe_subscription, "id", "")
         )
