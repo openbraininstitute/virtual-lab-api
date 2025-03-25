@@ -42,7 +42,7 @@ class DiscountInterface:
                 f"{self._api_url}",
                 headers=self.headers,
                 json={
-                    "vlab_id": virtual_lab_id,
+                    "vlab_id": str(virtual_lab_id),
                     "discount": str(discount),
                     "valid_from": valid_from.isoformat(),
                     "valid_to": valid_to.isoformat() if valid_to else None,

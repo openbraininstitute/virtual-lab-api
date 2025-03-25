@@ -691,11 +691,10 @@ class StripeWebhook:
             assert subscription_tier is not None
             assert subscription is not None
 
-            if accounting_service.is_enabled:
-                user_id = subscription.user_id
-                virtual_lab = await get_user_virtual_lab(db_session, user_id)
-                assert virtual_lab is not None
+            user_id = subscription.user_id
+            virtual_lab = await get_user_virtual_lab(db_session, user_id)
 
+            if accounting_service.is_enabled and virtual_lab is not None:
                 virtual_lab_id = UUID(str(virtual_lab.id))
 
                 subscription_credit_amount = (
