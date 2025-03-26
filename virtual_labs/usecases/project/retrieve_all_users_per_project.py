@@ -69,7 +69,9 @@ async def retrieve_all_users_per_project_use_case(
             )
             for invite in pending_invites
         ]
-        users = admins + members + pending_users
+
+        active_users = admins + members
+        users = active_users + pending_users
         owner_id = project.owner_id
     except SQLAlchemyError:
         raise VliError(
@@ -90,6 +92,7 @@ async def retrieve_all_users_per_project_use_case(
             data={
                 "owner_id": owner_id,
                 "users": users,
+                "total_active": len(active_users),
                 "total": len(users),
             },
         )
