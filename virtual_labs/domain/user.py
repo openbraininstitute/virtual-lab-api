@@ -94,6 +94,7 @@ class UserProfile(BaseModel):
 
 
 class UpdateUserProfileRequest(BaseModel):
+    email: Optional[EmailStr] = None
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     address: Optional[Address] = None

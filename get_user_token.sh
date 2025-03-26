@@ -8,7 +8,7 @@ CLIENT_ID="obpapp"
 CLIENT_SECRET="obp-secret"
 
 echo "Enter username (test, test-1 or test-2)"
-read -p -r fullname
+read  -r fullname
 
 TOKEN_RESPONSE=$(curl -s -X POST \
 "${KC_SERVER_URI}/realms/${KC_REALM_NAME}/protocol/openid-connect/token" \

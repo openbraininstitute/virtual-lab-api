@@ -28,6 +28,7 @@ from virtual_labs.repositories.user_repo import (
     UserMutationRepository,
     UserQueryRepository,
 )
+from virtual_labs.shared.utils.auth import get_user_id_from_auth
 
 
 async def invitation_handler(
@@ -46,6 +47,7 @@ async def invitation_handler(
         decoded_token = get_invite_details_from_token(
             invite_token=invite_token,
         )
+        user_id = get_user_id_from_auth(auth)
         invite_id = decoded_token.get("invite_id")
         origin = decoded_token.get("origin")
         virtual_lab_id, project_id = None, None
@@ -66,18 +68,11 @@ async def invitation_handler(
                     },
                 )
 
-            if vlab_invite.user_email != auth[0].email:
-                raise UserMismatch(
-                    "Invite email not match the authenticated user email"
-                )
-
             vlab = await get_undeleted_virtual_lab(
                 db=session,
                 lab_id=UUID(str(vlab_invite.virtual_lab_id)),
             )
-            user = user_query_repo.retrieve_user_by_email(
-                email=str(vlab_invite.user_email),
-            )
+            user = user_query_repo.retrieve_user_from_kc(user_id=str(user_id))
             assert user is not None
             group_id = (
                 vlab.admin_group_id
@@ -118,13 +113,8 @@ async def invitation_handler(
                         "status": "already_accepted",
                     },
                 )
-            if project_invite.user_email != auth[0].email:
-                raise UserMismatch(
-                    "Invite email not match the authenticated user email"
-                )
-            user = user_query_repo.retrieve_user_by_email(
-                email=str(project_invite.user_email)
-            )
+
+            user = user_query_repo.retrieve_user_from_kc(user_id=str(user_id))
             assert user is not None
 
             group_id = (
