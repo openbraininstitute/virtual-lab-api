@@ -3,7 +3,6 @@ from typing import Tuple
 from uuid import UUID
 
 from fastapi import Response
-from jwt import ExpiredSignatureError, PyJWTError
 from loguru import logger
 from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
@@ -13,10 +12,7 @@ from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.exceptions.identity_error import IdentityError, UserMismatch
 from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.core.types import UserRoleEnum
-from virtual_labs.infrastructure.email.email_utils import (
-    InviteOrigin,
-    get_invite_details_from_token,
-)
+from virtual_labs.infrastructure.email.email_utils import InviteOrigin
 from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.repositories.invite_repo import (
     InviteMutationRepository,
@@ -30,10 +26,11 @@ from virtual_labs.repositories.user_repo import (
 )
 
 
-async def invitation_handler(
+async def accept_invite_by_id(
     session: AsyncSession,
     *,
-    invite_token: str,
+    invite_id: UUID,
+    invite_origin: InviteOrigin,
     auth: Tuple[AuthUser, str],
 ) -> Response | VliError:
     project_query_repo = ProjectQueryRepository(session)
@@ -43,22 +40,17 @@ async def invitation_handler(
     user_query_repo = UserQueryRepository()
 
     try:
-        decoded_token = get_invite_details_from_token(
-            invite_token=invite_token,
-        )
-        invite_id = decoded_token.get("invite_id")
-        origin = decoded_token.get("origin")
         virtual_lab_id, project_id = None, None
 
-        if origin == InviteOrigin.LAB.value:
+        if invite_origin == InviteOrigin.LAB:
             vlab_invite = await invite_query_repo.get_vlab_invite_by_id(
-                invite_id=UUID(invite_id)
+                invite_id=invite_id
             )
             if vlab_invite.accepted:
                 return VliResponse.new(
                     message=f"Invite for vlab: {vlab_invite.virtual_lab_id} already accepted",
                     data={
-                        "origin": origin,
+                        "origin": invite_origin,
                         "invite_id": invite_id,
                         "virtual_lab_id": vlab_invite.virtual_lab_id,
                         "project_id": project_id,
@@ -90,15 +82,15 @@ async def invitation_handler(
             )
 
             await invite_mut_repo.update_lab_invite(
-                invite_id=UUID(str(vlab_invite.id)),
+                invite_id=invite_id,
                 accepted=True,
             )
             await session.refresh(vlab)
             virtual_lab_id = vlab.id
 
-        elif origin == InviteOrigin.PROJECT.value:
+        elif invite_origin == InviteOrigin.PROJECT:
             project_invite = await invite_query_repo.get_project_invite_by_id(
-                invite_id=UUID(invite_id)
+                invite_id=invite_id
             )
             project, vlab = await project_query_repo.retrieve_one_project_by_id(
                 project_id=UUID(str(project_invite.project_id))
@@ -111,7 +103,7 @@ async def invitation_handler(
                         project_invite.project_id,
                     ),
                     data={
-                        "origin": origin,
+                        "origin": invite_origin.value,
                         "invite_id": invite_id,
                         "virtual_lab_id": project.virtual_lab_id,
                         "project_id": project.id,
@@ -144,7 +136,7 @@ async def invitation_handler(
             )
 
             await invite_mut_repo.update_project_invite(
-                invite_id=UUID(str(project_invite.id)),
+                invite_id=invite_id,
                 properties={"accepted": True, "updated_at": func.now()},
             )
             await session.refresh(project)
@@ -152,12 +144,12 @@ async def invitation_handler(
             virtual_lab_id = project.virtual_lab_id
             project_id = project.id
         else:
-            raise ValueError(f"Origin {origin} is not allowed.")
+            raise ValueError(f"Origin {invite_origin.value} is not allowed.")
 
         return VliResponse.new(
-            message=f"Invite for {origin} accepted successfully",
+            message=f"Invite for {invite_origin.value} accepted successfully",
             data={
-                "origin": origin,
+                "origin": invite_origin.value,
                 "invite_id": invite_id,
                 "virtual_lab_id": virtual_lab_id,
                 "project_id": project_id,
@@ -165,26 +157,8 @@ async def invitation_handler(
             },
         )
 
-    except ExpiredSignatureError as ex:
-        logger.error(f"Error during processing the invite: ({ex})")
-        raise VliError(
-            error_code=VliErrorCode.TOKEN_EXPIRED,
-            http_status_code=status.BAD_REQUEST,
-            message="Invite Token is not valid",
-            details="Invitation is expired",
-        )
-    except PyJWTError as ex:
-        logger.error(f"Error during processing the invite: ({ex})")
-        raise VliError(
-            error_code=VliErrorCode.INVALID_PARAMETER,
-            http_status_code=status.BAD_REQUEST,
-            message="Invite Token is not valid",
-            details="Invitation token is malformed",
-        )
     except SQLAlchemyError:
-        logger.error(
-            f"Invite {decoded_token.get('invite_id', None)} not found for origin {decoded_token.get('origin')}"
-        )
+        logger.error(f"Invite {invite_id} not found for origin {invite_origin.value}")
         raise VliError(
             error_code=VliErrorCode.INVALID_REQUEST,
             http_status_code=status.NOT_FOUND,

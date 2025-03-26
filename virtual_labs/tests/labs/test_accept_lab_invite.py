@@ -5,6 +5,7 @@ import pytest_asyncio
 from httpx import AsyncClient, Response
 from requests import get
 
+from virtual_labs.infrastructure.email.email_utils import InviteOrigin
 from virtual_labs.tests.utils import (
     cleanup_resources,
     create_mock_lab,
@@ -17,7 +18,7 @@ from virtual_labs.tests.utils import (
 @pytest_asyncio.fixture
 async def mock_lab_invite(
     async_test_client: AsyncClient,
-) -> AsyncGenerator[tuple[AsyncClient, str, str, str], None]:
+) -> AsyncGenerator[tuple[AsyncClient, str, str, str, str], None]:
     lab_response = await create_mock_lab(async_test_client)
     lab_id = lab_response.json()["data"]["virtual_lab"]["id"]
     headers = get_headers("test")
@@ -30,7 +31,9 @@ async def mock_lab_invite(
     )
     assert invite_response.status_code == 200
 
-    yield async_test_client, lab_id, invitee_username, invitee_email
+    invite_id = invite_response.json()["data"]["invite_id"]
+
+    yield async_test_client, lab_id, invitee_username, invitee_email, invite_id
 
     await cleanup_resources(client=async_test_client, lab_id=lab_id)
 
@@ -60,13 +63,37 @@ def get_invite_token_from_email(recipient_email: str) -> str:
 
 
 @pytest.mark.asyncio
-async def test_accept_invitation(
-    mock_lab_invite: tuple[AsyncClient, str, str, str],
+async def test_accept_invitation_by_token(
+    mock_lab_invite: tuple[AsyncClient, str, str, str, str],
 ) -> None:
-    client, lab_id, invitee_username, invitee_email = mock_lab_invite
+    client, lab_id, invitee_username, invitee_email, _invite_id = mock_lab_invite
     invite_token = get_invite_token_from_email(invitee_email)
     response = await client.post(
-        f"/invites?token={invite_token}", headers=get_headers(username=invitee_username)
+        "/invites/accept",
+        headers=get_headers(username=invitee_username),
+        json={"invite_token": invite_token},
+    )
+    assert response.status_code == 200
+    actual_data = response.json()["data"]
+    assert actual_data["origin"] == "Lab"
+    assert actual_data["virtual_lab_id"] == lab_id
+    assert actual_data["project_id"] is None
+
+    lab_users_response = await client.get(
+        f"/virtual-labs/{lab_id}/users", headers=get_headers(invitee_username)
+    )
+    assert_right_users_in_lab(lab_users_response)
+
+
+@pytest.mark.asyncio
+async def test_accept_invitation_by_id(
+    mock_lab_invite: tuple[AsyncClient, str, str, str, str],
+) -> None:
+    client, lab_id, invitee_username, _invitee_email, invite_id = mock_lab_invite
+    response = await client.post(
+        f"/invites/{invite_id}/accept",
+        headers=get_headers(username=invitee_username),
+        json={"invite_origin": InviteOrigin.LAB.value},
     )
     assert response.status_code == 200
     actual_data = response.json()["data"]
@@ -82,17 +109,21 @@ async def test_accept_invitation(
 
 @pytest.mark.asyncio
 async def test_re_acceptance_of_invite_sends_right_response(
-    mock_lab_invite: tuple[AsyncClient, str, str, str],
+    mock_lab_invite: tuple[AsyncClient, str, str, str, str],
 ) -> None:
-    client, lab_id, invitee_username, invitee_email = mock_lab_invite
+    client, lab_id, invitee_username, invitee_email, _invite_id = mock_lab_invite
     invite_token = get_invite_token_from_email(invitee_email)
     invite_accept_response = await client.post(
-        f"/invites?token={invite_token}", headers=get_headers(username=invitee_username)
+        "/invites/accept",
+        headers=get_headers(username=invitee_username),
+        json={"invite_token": invite_token},
     )
     assert invite_accept_response.status_code == 200
 
     re_invite_accept_response = await client.post(
-        f"/invites?token={invite_token}", headers=get_headers(username=invitee_username)
+        "/invites/accept",
+        headers=get_headers(username=invitee_username),
+        json={"invite_token": invite_token},
     )
     assert re_invite_accept_response.status_code == 200
     actual_data = re_invite_accept_response.json()["data"]

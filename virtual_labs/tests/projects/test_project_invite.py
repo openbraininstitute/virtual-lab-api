@@ -40,7 +40,9 @@ async def test_invite_user_to_project(
 
     invite_token = get_invite_token_from_email(f"{user_to_invite}@test.com")
     accept_invite_response = await client.post(
-        f"/invites?token={invite_token}", headers=get_headers(username=user_to_invite)
+        "/invites/accept",
+        headers=get_headers(username=user_to_invite),
+        json={"invite_token": invite_token},
     )
     assert accept_invite_response.status_code == HTTPStatus.OK
 
@@ -72,7 +74,9 @@ async def test_user_already_in_project_cannot_be_reinvited(
 
     invite_token = get_invite_token_from_email(f"{user_to_invite}@test.com")
     await client.post(
-        f"/invites?token={invite_token}", headers=get_headers(username=user_to_invite)
+        "/invites/accept",
+        headers=get_headers(username=user_to_invite),
+        json={"invite_token": invite_token},
     )
 
     reinvite_user_response = await client.post(

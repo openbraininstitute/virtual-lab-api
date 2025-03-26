@@ -7,7 +7,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError
 from virtual_labs.core.types import VliAppResponse
-from virtual_labs.domain.invite import InviteDetailsOut, InviteOut
+from virtual_labs.domain.invite import (
+    AcceptInviteByIdRequest,
+    AcceptInviteByTokenRequest,
+    InviteDetailsOut,
+    InviteOut,
+)
 from virtual_labs.infrastructure.db.config import default_session_factory
 from virtual_labs.infrastructure.email.email_utils import InviteOrigin
 from virtual_labs.infrastructure.kc.auth import verify_jwt
@@ -41,7 +46,7 @@ async def handle_test_invite(
 
 @router.get(
     "",
-    operation_id="get_invite_details",
+    operation_id="get_invite_details_by_token",
     summary="Retrieve invite details by token",
     response_model=VliAppResponse[InviteDetailsOut],
 )
@@ -58,18 +63,39 @@ async def get_invite_details(
 
 
 @router.post(
-    "",
-    operation_id="invite_handler",
-    summary="This will process the invite (add users to groups, update the invite status)",
+    "/accept",
+    operation_id="accept_invite_by_token",
+    summary="Accept an invite by token (add users to groups, update the invite status)",
     response_model=VliAppResponse[InviteOut],
 )
-async def handle_invite(
+async def accept_invite_by_token(
+    accept_invite_request: AcceptInviteByTokenRequest,
     session: AsyncSession = Depends(default_session_factory),
-    token: str = Query("", description="invitation token"),
     auth: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> Response | VliError:
-    return await invite_cases.invitation_handler(
+    print(accept_invite_request.invite_token)
+    return await invite_cases.accept_invite_by_token(
         session,
-        invite_token=token,
+        invite_token=accept_invite_request.invite_token,
+        auth=auth,
+    )
+
+
+@router.post(
+    "/{invite_id}/accept",
+    operation_id="accept_invite_by_id",
+    summary="Accept a user invite by id (add users to groups, update the invite status)",
+    response_model=VliAppResponse[InviteOut],
+)
+async def accept_invite_by_id(
+    invite_id: UUID,
+    accept_invite_request: AcceptInviteByIdRequest,
+    session: AsyncSession = Depends(default_session_factory),
+    auth: Tuple[AuthUser, str] = Depends(verify_jwt),
+) -> Response | VliError:
+    return await invite_cases.accept_invite_by_id(
+        session,
+        invite_id=invite_id,
+        invite_origin=accept_invite_request.invite_origin,
         auth=auth,
     )

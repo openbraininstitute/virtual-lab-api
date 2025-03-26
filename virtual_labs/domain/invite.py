@@ -17,6 +17,19 @@ class DeleteLabInviteRequest(AddUser):
     pass
 
 
+class AcceptInviteByTokenRequest(BaseModel):
+    """Request body for accepting an invite by token"""
+
+    invite_token: str
+
+
+class AcceptInviteByIdRequest(BaseModel):
+    """Request body for accepting an invite by token"""
+
+    invite_id: str
+    invite_origin: InviteOrigin
+
+
 class InviteDetailsOut(BaseModel):
     accepted: bool
     invite_id: UUID4

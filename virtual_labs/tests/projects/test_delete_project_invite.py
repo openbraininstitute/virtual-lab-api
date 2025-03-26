@@ -55,7 +55,9 @@ async def test_cancel_invite_cannot_be_accepted(
 
     invite_token = get_invite_token_from_email(invitee_email)
     accept_invite_response = await client.post(
-        f"/invites?token={invite_token}", headers=get_headers(username=invitee_username)
+        "/invites/accept",
+        headers=get_headers(username=invitee_username),
+        json={"invite_token": invite_token},
     )
     assert accept_invite_response.status_code == HTTPStatus.NOT_FOUND
     assert (
