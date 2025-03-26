@@ -64,6 +64,7 @@ class VirtualLabWithInviteDetails(VirtualLabDetails):
 class VirtualLabUsers(BaseModel):
     owner_id: UUID4
     users: list[UserWithInviteStatus]
+    total_active: int
     total: int
 
 
