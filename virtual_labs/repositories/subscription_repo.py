@@ -269,14 +269,22 @@ class SubscriptionRepository:
     ) -> FreeSubscription:
         """Downgrade a paid subscription to free."""
         free_subscription = await self.get_free_subscription_by_user_id(user_id)
+        tier = await self.get_subscription_tier_by_tier(tier=SubscriptionTierEnum.FREE)
+        if tier is None:
+            raise ValueError("Free subscription tier not found")
+
         if free_subscription:
             free_subscription.status = SubscriptionStatus.ACTIVE
             free_subscription.current_period_start = datetime.now()
             free_subscription.current_period_end = datetime.max
+            free_subscription.tier_id = (
+                free_subscription.tier_id if free_subscription.tier_id else tier.id
+            )
             free_subscription.usage_count += 1
         else:
             free_subscription = FreeSubscription(
                 user_id=user_id,
+                tier_id=tier.id,
                 subscription_type=SubscriptionType.FREE,
                 status=SubscriptionStatus.ACTIVE,
                 current_period_start=datetime.now(),
