@@ -219,8 +219,8 @@ async def create_virtual_lab(
         try:
             welcome_bonus_credits = (
                 Decimal(0)
-                if settings.ENABLE_FREE_CREDITS
-                else Decimal(settings.VLAB_CREATION_FREE_CREDITS)
+                if settings.ENABLE_WELCOME_BONUS
+                else settings.WELCOME_BONUS_CREDITS
             )
 
             subscription = await subscription_repo.get_active_subscription_by_user_id(
