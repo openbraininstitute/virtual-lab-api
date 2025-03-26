@@ -393,6 +393,7 @@ class StripeWebhook:
                     )
                 )
             assert subscription_tier is not None
+            subscription.tier_id = subscription_tier.id
             subscription.subscription_type = (
                 SubscriptionType.PREMIUM
                 if subscription_tier.tier == SubscriptionTierEnum.PREMIUM
@@ -460,22 +461,34 @@ class StripeWebhook:
             event_type == "customer.subscription.deleted"
             or subscription.status != "active"
         ):
-            await self.kc_user.update_user_custom_properties(
-                user_id=subscription.user_id,
-                properties=[
-                    ("plan", SubscriptionTierEnum.FREE, "multiple"),
-                ],
-            )
+            try:
+                await self.kc_user.update_user_custom_properties(
+                    user_id=subscription.user_id,
+                    properties=[
+                        ("plan", SubscriptionTierEnum.FREE, "multiple"),
+                    ],
+                )
+            except Exception as e:
+                logger.warning(
+                    f"Failed to update user custom properties in Keycloak: {str(e)}"
+                )
+                # Continue with subscription downgrade even if Keycloak update fails
             await self.subscription_repository.downgrade_to_free(
                 user_id=subscription.user_id
             )
         else:  # if there is a free subscription paused it
-            await self.kc_user.update_user_custom_properties(
-                user_id=subscription.user_id,
-                properties=[
-                    ("plan", subscription.subscription_type, "multiple"),
-                ],
-            )
+            try:
+                await self.kc_user.update_user_custom_properties(
+                    user_id=subscription.user_id,
+                    properties=[
+                        ("plan", subscription.subscription_type, "multiple"),
+                    ],
+                )
+            except Exception as e:
+                logger.warning(
+                    f"Failed to update user custom properties in Keycloak: {str(e)}"
+                )
+                # Continue with subscription deactivation even if Keycloak update fails
             await self.subscription_repository.deactivate_free_subscription(
                 user_id=subscription.user_id
             )
