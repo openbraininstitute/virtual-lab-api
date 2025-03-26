@@ -1,3 +1,4 @@
+from decimal import Decimal
 from os import getenv
 from typing import Any, Literal, Optional, TypeGuard, get_args
 
@@ -88,6 +89,12 @@ class Settings(BaseSettings):
     DISCOUNT_MONTHLY_ID: str = "monthly-special-launch-price"
     DISCOUNT_YEARLY_ID: str = "yearly-special-launch-price"
 
+    WELCOME_BONUS_CREDITS: Decimal = Decimal(100)
+    ENABLE_WELCOME_BONUS: bool = True
+
+    PAID_SUBSCRIPTION_DISCOUNT: Decimal = Decimal("0.5")
+    MAX_PROJECTS_NUMBER: int = 20
+
     @field_validator("DATABASE_URI", mode="before")
     @classmethod
     def build_db_connection(cls, v: Optional[str], values: ValidationInfo) -> Any:
@@ -115,6 +122,13 @@ class Settings(BaseSettings):
                 "ACCOUNTING_BASE_URL should be set for non-local deployments"
             )
         return value
+
+    @field_validator("PAID_SUBSCRIPTION_DISCOUNT")
+    @classmethod
+    def validate_discount(cls, discount: Decimal) -> Decimal:
+        if discount < Decimal(0) or Decimal(1) < discount:
+            raise ValueError("Paid subscription discount must be between 0 and 1")
+        return discount
 
 
 settings = Settings()

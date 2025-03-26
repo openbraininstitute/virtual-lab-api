@@ -42,13 +42,14 @@ async def mock_project_invite(
 
 
 @pytest.mark.asyncio
-async def test_deleted_invite_cannot_be_accepted(
+async def test_cancel_invite_cannot_be_accepted(
     mock_project_invite: tuple[AsyncClient, str, str, str, str],
 ) -> None:
     client, lab_id, project_id, invitee_email, invitee_username = mock_project_invite
-    delete_invite_response = await client.delete(
-        f"/virtual-labs/{lab_id}/projects/{project_id}/invites?email={invitee_email}&role=member",
+    delete_invite_response = await client.post(
+        f"/virtual-labs/{lab_id}/projects/{project_id}/invites/cancel",
         headers=get_headers(),
+        json={"email": invitee_email, "role": "member"},
     )
     assert delete_invite_response.status_code == HTTPStatus.OK
 

@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from decimal import Decimal
 from enum import Enum
 from typing import Any, Dict, Optional
 from uuid import uuid4
@@ -10,10 +11,10 @@ from sqlalchemy import (
     CheckConstraint,
     Column,
     DateTime,
-    Float,
     ForeignKey,
     Index,
     Integer,
+    Numeric,
     String,
     Text,
     UniqueConstraint,
@@ -29,20 +30,6 @@ from virtual_labs.domain.bookmark import BookmarkCategory
 
 class Base(DeclarativeBase):
     pass
-
-
-class VirtualLabTopup(Base):
-    __tablename__ = "virtual_lab_topup"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    virtual_lab_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("virtual_lab.id"), index=True
-    )
-    amount: Mapped[int] = mapped_column()
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=func.now()
-    )
-    stripe_event_id: Mapped[str] = mapped_column()
 
 
 class VirtualLab(Base):
@@ -142,16 +129,6 @@ class ProjectStar(Base):
     user_id = Column(UUID, nullable=False)
     project_id = Column(UUID, ForeignKey("project.id"), index=True)
     project = relationship("Project", back_populates="project_stars")
-
-
-# TODO: Remove this table in subscription migration
-class Plan(Base):
-    __tablename__ = "plan"
-
-    id = Column(Integer, primary_key=True, default=uuid.uuid4)
-    name = Column(String(50), nullable=False, unique=True, index=True)
-    price = Column(Float, nullable=False)
-    features = Column(JSON, nullable=False)
 
 
 class ProjectInvite(Base):
@@ -376,7 +353,9 @@ class Subscription(Base):
     virtual_lab_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("virtual_lab.id"), nullable=True, index=True
     )
-
+    tier_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("subscription_tier.id"), nullable=False
+    )
     subscription_type: Mapped[str] = mapped_column(String(50))
 
     current_period_start: Mapped[datetime] = mapped_column(DateTime, nullable=False)
@@ -398,7 +377,7 @@ class Subscription(Base):
     # Relationships
     virtual_lab = relationship("VirtualLab")
     payments = relationship("SubscriptionPayment", back_populates="subscription")
-
+    tier = relationship("SubscriptionTier", back_populates="subscriptions")
     __mapper_args__ = {"polymorphic_identity": "subscription", "polymorphic_on": "type"}
 
     __table_args__ = (
@@ -536,6 +515,16 @@ class SubscriptionPayment(Base):
     )
 
 
+class SubscriptionTierEnum(str, Enum):
+    """
+    Enum representing subscription tiers.
+    """
+
+    FREE = "free"
+    PRO = "pro"
+    PREMIUM = "premium"
+
+
 class SubscriptionTier(Base):
     """
     app plans
@@ -548,6 +537,9 @@ class SubscriptionTier(Base):
         primary_key=True,
         default=uuid4,
         server_default=func.gen_random_uuid(),
+    )
+    tier: Mapped[SubscriptionTierEnum] = mapped_column(
+        SAEnum(SubscriptionTierEnum), nullable=False, index=True
     )
     stripe_product_id: Mapped[Optional[str]] = mapped_column(
         String(255), nullable=True, unique=True
@@ -571,6 +563,10 @@ class SubscriptionTier(Base):
 
     features: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
     plan_metadata: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
+    subscriptions = relationship("Subscription", back_populates="tier")
+
+    monthly_credits: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    yearly_credits: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=func.now(), nullable=False
@@ -604,3 +600,13 @@ class StripeUser(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=func.now(), onupdate=func.now(), nullable=False
     )
+
+
+class CreditExchangeRate(Base):
+    __tablename__ = "credit_exchange_rate"
+
+    currency: Mapped[str] = mapped_column(String, primary_key=True, index=True)
+    rate: Mapped[Decimal] = mapped_column(
+        Numeric(precision=10, scale=6), nullable=False
+    )
+    description: Mapped[Optional[str]] = mapped_column(String, nullable=True)

@@ -9,7 +9,7 @@ from virtual_labs.core.exceptions.accounting_error import (
     AccountingError,
     AccountingErrorValue,
 )
-from virtual_labs.external.accounting.budget_interface import BudgetInterface
+from virtual_labs.external.accounting.interfaces.budget_interface import BudgetInterface
 from virtual_labs.external.accounting.models import (
     BudgetAssignResponse,
     BudgetMoveResponse,

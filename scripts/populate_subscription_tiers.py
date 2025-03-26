@@ -4,9 +4,10 @@ Script to populate subscription plan data in the database.
 This script creates the Free, Pro, and Premium plans with appropriate pricing options.
 
 Usage:
+    poetry run populate-tiers [--test]
 
 Environment variables:
-    DATABASE_URL: Database connection string
+    DATABASE_URL: Database connection string (defaults to postgresql+asyncpg://postgres:postgres@localhost:15432/vlm)
     STRIPE_API_KEY: Stripe API key for fetching plan details (optional)
     PROD_ID: stripe product id for the plan
     SANITY_ID: sanity id for the plan
@@ -16,7 +17,9 @@ import asyncio
 import json
 import os
 import stripe
+import argparse
 from typing import Dict
+from uuid import UUID, uuid4
 
 from dotenv import load_dotenv
 from loguru import logger
@@ -26,17 +29,27 @@ from sqlalchemy.orm import sessionmaker
 from virtual_labs.infrastructure.db.models import SubscriptionTier
 load_dotenv(".env.local")
 
-DATABASE_URL = os.getenv("DATABASE_URL")
+# Default database URL if not set in environment
+DEFAULT_DATABASE_URL = "postgresql+asyncpg://vlm:vlm@localhost:15432/vlm"
+DATABASE_URL = os.getenv("DATABASE_URL", DEFAULT_DATABASE_URL)
+
+# Default values for Stripe and Sanity IDs
+DEFAULT_PROD_ID = "prod_test_example123"
+DEFAULT_FREE_SANITY_ID = "831faa5c-dbbd-4d9a-9b1a-1cd661b61e40"
+DEFAULT_PRO_SANITY_ID = "21bfee77-bcaf-4c93-9447-14ffa1343a31"
+DEFAULT_PREMIUM_SANITY_ID = "78bd43f5-ad04-4d76-8374-23b35ff6dc6a"
+
 STRIPE_API_KEY = os.getenv("STRIPE_API_KEY")
-PROD_ID = os.getenv("PROD_ID")
-FREE_SANITY_ID = os.getenv("FREE_SANITY_ID")
-PRO_SANITY_ID = os.getenv("PRO_SANITY_ID")
-PREMIUM_SANITY_ID = os.getenv("PREMIUM_SANITY_ID")
+PROD_ID = os.getenv("PROD_ID", DEFAULT_PROD_ID)
+FREE_SANITY_ID = os.getenv("FREE_SANITY_ID", DEFAULT_FREE_SANITY_ID)
+PRO_SANITY_ID = os.getenv("PRO_SANITY_ID", DEFAULT_PRO_SANITY_ID)
+PREMIUM_SANITY_ID = os.getenv("PREMIUM_SANITY_ID", DEFAULT_PREMIUM_SANITY_ID)
 
-stripe_client = stripe.StripeClient(
-    api_key=STRIPE_API_KEY,
-)
 
+# Fixed UUIDs for test mode
+TEST_FREE_TIER_ID = UUID("00000000-0000-0000-0000-000000000001")
+TEST_PRO_TIER_ID = UUID("00000000-0000-0000-0000-000000000002")
+TEST_PREMIUM_TIER_ID = UUID("00000000-0000-0000-0000-000000000003")
 
 FREE_PLAN = {
     "stripe_product_id": None,
@@ -52,6 +65,9 @@ FREE_PLAN = {
     "yearly_amount": 0,
     "features": None,
     "currency": "chf",
+    "tier": "free",
+    "monthly_credits": 100,
+    "yearly_credits": 100,
     "plan_metadata": {
         "tier": "free",
     }
@@ -71,6 +87,9 @@ PRO_PLAN = {
     "yearly_amount": 55000, 
     "features": None,
     "currency": "chf",
+    "tier": "pro",
+    "monthly_credits": 50,
+    "yearly_credits": 650,
     "plan_metadata": {
         "tier": "pro",
     }
@@ -90,6 +109,9 @@ PREMIUM_PLAN = {
     "yearly_amount": 0, 
     "features": None,
     "currency": "chf",
+    "tier": "premium",
+    "monthly_credits": 0,
+    "yearly_credits": 0,
     "plan_metadata": {
         "tier": "premium",
     }
@@ -97,13 +119,26 @@ PREMIUM_PLAN = {
 
 PLANS = [FREE_PLAN, PRO_PLAN, PREMIUM_PLAN]
 
-async def fetch_stripe_data_for_plan(plan_name: str) -> Dict:
+async def fetch_stripe_data_for_plan(plan_name: str, test_mode: bool = False) -> Dict:
+    if test_mode:
+        if plan_name.lower() == "free":
+            return FREE_PLAN
+        elif plan_name.lower() == "pro":
+            return PRO_PLAN
+        elif plan_name.lower() == "premium":
+            return PREMIUM_PLAN
+        else:
+            raise ValueError(f"Unknown plan name: {plan_name}")
+
     if plan_name.lower() == "free":
         return FREE_PLAN
     if plan_name.lower() == "premium":
         return PREMIUM_PLAN
 
     try:
+        stripe_client = stripe.StripeClient(
+            api_key=STRIPE_API_KEY,
+        )
 
         product = await stripe_client.products.retrieve_async(PROD_ID)
         prices = await stripe_client.prices.list_async(
@@ -111,7 +146,6 @@ async def fetch_stripe_data_for_plan(plan_name: str) -> Dict:
                 "product": PROD_ID
             }
         )
-
 
         monthly_price =  next((p for p in prices.data if p.recurring.interval == "month"), None)
         yearly_price = next((p for p in prices.data if p.recurring.interval == "year"), None)
@@ -137,6 +171,9 @@ async def fetch_stripe_data_for_plan(plan_name: str) -> Dict:
             "yearly_amount": yearly_price.unit_amount,
             "yearly_discount": yearly_price.unit_amount /2,
             "currency": monthly_price.currency,
+            "tier": "pro",
+            "monthly_credits": 50,
+            "yearly_credits": 650,
             "features": json.loads(product.metadata.get("features", '{}')),
             "plan_metadata":{
                 "tier": "pro",
@@ -151,7 +188,7 @@ async def fetch_stripe_data_for_plan(plan_name: str) -> Dict:
             raise ValueError(f"Unknown plan name: {plan_name}")
 
 
-async def populate_subscription_tiers():
+async def populate_subscription_tiers(test_mode: bool = False):
     if not DATABASE_URL:
         logger.error("DATABASE_URL environment variable is not set")
         return
@@ -166,7 +203,7 @@ async def populate_subscription_tiers():
             for t_plan in PLANS:
                 plan_name = t_plan["name"]
                 
-                plan_data = await fetch_stripe_data_for_plan(plan_name)
+                plan_data = await fetch_stripe_data_for_plan(plan_name, test_mode)
 
                 existing_plan = None
                 try:
@@ -185,9 +222,26 @@ async def populate_subscription_tiers():
                 if existing_plan:
                     logger.info(f"Plan {plan_name} already exists")
                     continue
-                    
+
+                # Use fixed UUIDs in test mode
+                tier_id = None
+                if test_mode:
+                    if plan_name.lower() == "free":
+                        tier_id = TEST_FREE_TIER_ID
+                    elif plan_name.lower() == "pro":
+                        tier_id = TEST_PRO_TIER_ID
+                    elif plan_name.lower() == "premium":
+                        tier_id = TEST_PREMIUM_TIER_ID
+                else:
+                    if plan_name.lower() == "free":
+                        tier_id = UUID("edb05acd-f29a-4d84-a53a-d6ca398143a4")
+                    elif plan_name.lower() == "pro":
+                        tier_id = UUID("e8abe72f-1763-4572-9050-642c7122d155")
+                    elif plan_name.lower() == "premium":
+                        tier_id = UUID("cf4b96d7-df0e-4617-a4e1-09fd2b4a62f1")
 
                 tier = SubscriptionTier(
+                    id=tier_id,
                     stripe_product_id=plan_data["stripe_product_id"],
                     name=plan_data["name"],
                     description=plan_data["description"],
@@ -201,6 +255,9 @@ async def populate_subscription_tiers():
                     yearly_amount=plan_data["yearly_amount"],
                     currency=plan_data["currency"],
                     features=plan_data["features"],
+                    tier=plan_data["tier"],
+                    monthly_credits= plan_data["monthly_credits"],
+                    yearly_credits= plan_data["yearly_credits"],
                     plan_metadata=plan_data["plan_metadata"]
                 )
                 
@@ -269,14 +326,23 @@ async def populate_subscription_tiers():
 
 
 if __name__ == "__main__":
-    asyncio.run(populate_subscription_tiers()) 
+    parser = argparse.ArgumentParser(description='Populate subscription tiers')
+    parser.add_argument('--test', action='store_true', help='Run in test mode without Stripe API calls')
+    args = parser.parse_args()
+
+    logger.info(f"Starting subscription plan population via Poetry (test mode: {args.test})")
+    asyncio.run(populate_subscription_tiers(test_mode=args.test))
+    logger.info("Subscription plan population completed")
 
 def run_async():
     """
     entrypoint for poetry script command.
     """
+    parser = argparse.ArgumentParser(description='Populate subscription tiers')
+    parser.add_argument('--test', action='store_true', help='Run in test mode without Stripe API calls')
+    args = parser.parse_args()
 
-    logger.info("Starting subscription plan population via Poetry")
-    asyncio.run(populate_subscription_tiers())
+    logger.info(f"Starting subscription plan population via Poetry (test mode: {args.test})")
+    asyncio.run(populate_subscription_tiers(test_mode=args.test))
     logger.info("Subscription plan population completed")
-    return 0 
+    return 0

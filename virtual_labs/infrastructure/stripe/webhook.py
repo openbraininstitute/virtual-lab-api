@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 from uuid import UUID
 
@@ -7,16 +7,22 @@ from loguru import logger
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import virtual_labs.external.accounting as accounting_service
 from virtual_labs.infrastructure.db.models import (
     PaidSubscription,
     PaymentStatus,
     SubscriptionPayment,
     SubscriptionStatus,
+    SubscriptionTierEnum,
     SubscriptionType,
 )
+from virtual_labs.infrastructure.settings import settings
+from virtual_labs.repositories.labs import get_user_virtual_lab
 from virtual_labs.repositories.stripe_repo import StripeRepository
 from virtual_labs.repositories.stripe_user_repo import StripeUserQueryRepository
 from virtual_labs.repositories.subscription_repo import SubscriptionRepository
+from virtual_labs.repositories.user_repo import UserMutationRepository
+from virtual_labs.services.credit_converter import CreditConverter
 
 
 class StripeWebhook:
@@ -48,10 +54,13 @@ class StripeWebhook:
         stripe_repository: StripeRepository,
         subscription_repository: SubscriptionRepository,
         stripe_user_repository: StripeUserQueryRepository,
+        credit_converter: CreditConverter,
     ):
         self.stripe_repository = stripe_repository
         self.subscription_repository = subscription_repository
         self.stripe_user_repository = stripe_user_repository
+        self.credit_converter = credit_converter
+        self.kc_user = UserMutationRepository()
 
     async def handle_webhook_event(
         self, event_json: stripe.Event, db_session: AsyncSession
@@ -254,12 +263,19 @@ class StripeWebhook:
             payment.currency = event_data.get("currency", "usd")
 
             if payment.status == PaymentStatus.SUCCEEDED:
-                # TODO: popup credits to accounting
                 payment.payment_date = datetime.now()
 
+                credits_amount = await self.credit_converter.currency_to_credits(
+                    amount,
+                    payment.currency,
+                )
+
+                if accounting_service.is_enabled:
+                    await accounting_service.top_up_virtual_lab_budget(
+                        UUID(virtual_lab_id), float(credits_amount)
+                    )
             # mark as standalone payment
             payment.standalone = True
-
             # for standalone payments, use current time for period dates
             current_time = datetime.now()
             payment.period_start = current_time
@@ -313,7 +329,7 @@ class StripeWebhook:
 
         await self._update_subscription_record(
             stripe_subscription,
-            {},
+            event_data,
             user_id,
             str(event_type),
             db_session,
@@ -363,8 +379,26 @@ class StripeWebhook:
         if items_data:
             item = items_data[0]
             price = item.get("price", {})
-            # TODO: use product to determine PRO vs PREMIUM
-            subscription.subscription_type = SubscriptionType.PRO
+            product = price.get("product", None)
+            subscription_tier = (
+                await self.subscription_repository.get_subscription_tier_by_product_id(
+                    product_id=product
+                )
+            )
+            if not subscription_tier:
+                # get the pro tier
+                subscription_tier = (
+                    await self.subscription_repository.get_subscription_tier_by_tier(
+                        tier=SubscriptionTierEnum.PRO
+                    )
+                )
+            assert subscription_tier is not None
+            subscription.tier_id = subscription_tier.id
+            subscription.subscription_type = (
+                SubscriptionType.PREMIUM
+                if subscription_tier.tier == SubscriptionTierEnum.PREMIUM
+                else SubscriptionType.PRO
+            )
 
         subscription.status = SubscriptionStatus(stripe_subscription.get("status"))
 
@@ -427,12 +461,34 @@ class StripeWebhook:
             event_type == "customer.subscription.deleted"
             or subscription.status != "active"
         ):
-            # TODO: update the user custom property "plan" to "free" in KC
+            try:
+                await self.kc_user.update_user_custom_properties(
+                    user_id=subscription.user_id,
+                    properties=[
+                        ("plan", SubscriptionTierEnum.FREE, "multiple"),
+                    ],
+                )
+            except Exception as e:
+                logger.warning(
+                    f"Failed to update user custom properties in Keycloak: {str(e)}"
+                )
+                # Continue with subscription downgrade even if Keycloak update fails
             await self.subscription_repository.downgrade_to_free(
                 user_id=subscription.user_id
             )
         else:  # if there is a free subscription paused it
-            # TODO: update the user custom property "plan" to "paid" in KC
+            try:
+                await self.kc_user.update_user_custom_properties(
+                    user_id=subscription.user_id,
+                    properties=[
+                        ("plan", subscription.subscription_type, "multiple"),
+                    ],
+                )
+            except Exception as e:
+                logger.warning(
+                    f"Failed to update user custom properties in Keycloak: {str(e)}"
+                )
+                # Continue with subscription deactivation even if Keycloak update fails
             await self.subscription_repository.deactivate_free_subscription(
                 user_id=subscription.user_id
             )
@@ -613,11 +669,68 @@ class StripeWebhook:
 
         amount = event_data.get("amount_paid", event_data.get("amount", 0))
         payment.amount_paid = amount
-        payment.currency = event_data.get("currency", "usd")
+        payment.currency = event_data.get("currency", "chf")
 
         if "succeeded" in event_type or "paid" in event_type:
-            # TODO: popup credits to accounting
             payment.payment_date = datetime.now()
+            product_id: str = (
+                event_data.get("lines", {})
+                .get("data", [])[0]
+                .get("price", {})
+                .get("product")
+                if event_data.get("lines", {}).get("data")
+                else None
+            )
+
+            price_id: str = (
+                event_data.get("lines", {})
+                .get("data", [])[0]
+                .get("price", {})
+                .get("id")
+            )
+
+            subscription_tier = (
+                await self.subscription_repository.get_subscription_tier_by_product_id(
+                    product_id=product_id
+                )
+            )
+            if not subscription_tier:
+                # get the pro tier
+                subscription_tier = (
+                    await self.subscription_repository.get_subscription_tier_by_tier(
+                        tier=SubscriptionTierEnum.PRO
+                    )
+                )
+            assert subscription_tier is not None
+            assert subscription is not None
+
+            user_id = subscription.user_id
+            virtual_lab = await get_user_virtual_lab(db_session, user_id)
+
+            if accounting_service.is_enabled and virtual_lab is not None:
+                virtual_lab_id = UUID(str(virtual_lab.id))
+
+                subscription_credit_amount = (
+                    subscription_tier.yearly_credits
+                    if subscription_tier.stripe_yearly_price_id == price_id
+                    else subscription_tier.monthly_credits
+                )
+
+                await accounting_service.top_up_virtual_lab_budget(
+                    virtual_lab_id,
+                    float(subscription_credit_amount),
+                )
+
+                await accounting_service.create_virtual_lab_discount(
+                    virtual_lab_id=virtual_lab_id,
+                    discount=settings.PAID_SUBSCRIPTION_DISCOUNT,
+                    valid_from=subscription.current_period_start.replace(
+                        tzinfo=timezone.utc
+                    ),
+                    valid_to=subscription.current_period_end.replace(
+                        tzinfo=timezone.utc
+                    ),
+                )
         else:
             user = await self.stripe_user_repository.get_by_stripe_customer_id(
                 stripe_customer_id=str(customer_id)

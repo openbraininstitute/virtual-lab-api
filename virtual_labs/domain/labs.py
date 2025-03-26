@@ -47,6 +47,8 @@ class VirtualLabDetails(VirtualLabBase):
     id: UUID4
     created_at: datetime
     updated_at: datetime | None = None
+    members_count: int | None = None
+    projects_count: int | None = None
 
     class Config:
         from_attributes = True
@@ -60,7 +62,22 @@ class VirtualLabWithInviteDetails(VirtualLabDetails):
 
 
 class VirtualLabUsers(BaseModel):
+    owner_id: UUID4
     users: list[UserWithInviteStatus]
+    total_active: int
+    total: int
+
+
+class VirtualLabStats(BaseModel):
+    virtual_lab_id: UUID4
+    total_projects: int
+    total_members: int
+    total_pending_invites: int
+    admin_users: list[UUID4]
+    member_users: list[UUID4]
+
+    class Config:
+        from_attributes = True
 
 
 class VirtualLabUser(BaseModel):
@@ -89,3 +106,15 @@ class AllPlans(BaseModel):
 
 class InviteSent(BaseModel):
     invite_id: UUID4
+
+
+class UserStats(BaseModel):
+    """Statistics about a user's virtual labs and projects"""
+
+    owned_labs_count: int
+    member_labs_count: int
+    pending_invites_count: int
+    owned_projects_count: int
+    member_projects_count: int
+    total_labs: int
+    total_projects: int

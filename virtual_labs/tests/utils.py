@@ -30,7 +30,6 @@ from virtual_labs.infrastructure.db.models import (
     SubscriptionType,
     VirtualLab,
     VirtualLabInvite,
-    VirtualLabTopup,
 )
 from virtual_labs.infrastructure.kc.auth import get_client_token
 from virtual_labs.infrastructure.kc.config import kc_auth
@@ -235,11 +234,6 @@ async def cleanup_resources(client: AsyncClient, lab_id: str) -> None:
                 PaymentMethod.virtual_lab_id == lab_id
             )
         )
-        await session.execute(
-            statement=delete(VirtualLabTopup).where(
-                VirtualLabTopup.virtual_lab_id == lab_id
-            )
-        )
 
         lab_data = (
             await session.execute(
@@ -306,6 +300,7 @@ async def create_paid_subscription_for_user(user_id: UUID) -> None:
         subscription = PaidSubscription(
             id=uuid4(),
             user_id=user_id,
+            tier_id="00000000-0000-0000-0000-000000000002",
             stripe_subscription_id="sub_xxxx",
             customer_id="cus_xxxx",
             stripe_price_id="price_xxxx",
@@ -333,6 +328,7 @@ async def create_free_subscription_for_user(user_id: UUID) -> None:
         subscription = FreeSubscription(
             id=uuid4(),
             user_id=user_id,
+            tier_id="00000000-0000-0000-0000-000000000001",
             status=SubscriptionStatus.ACTIVE,
             current_period_start=now,
             current_period_end=now + timedelta(days=30),

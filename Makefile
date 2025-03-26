@@ -68,6 +68,7 @@ type-check:
 	poetry run mypy . --strict
 
 test:
+	poetry run populate-tiers --test
 	poetry run pytest
 
 init-db:

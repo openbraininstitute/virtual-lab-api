@@ -1,4 +1,6 @@
+import asyncio
 from http import HTTPStatus
+from uuid import UUID
 
 from loguru import logger
 from pydantic import UUID4, EmailStr
@@ -48,22 +50,31 @@ async def get_virtual_lab_users(db: AsyncSession, lab_id: UUID4) -> VirtualLabUs
 
     try:
         lab = await lab_repository.get_undeleted_virtual_lab(db, lab_id)
-        admins = [
-            UserWithInviteStatus(
+
+        admin_users_task = group_repo.a_retrieve_group_users(str(lab.admin_group_id))
+        member_users_task = group_repo.a_retrieve_group_users(str(lab.member_group_id))
+
+        admin_users_raw, member_users_raw = await asyncio.gather(
+            admin_users_task, member_users_task
+        )
+
+        user_roles = {}
+
+        for admin in admin_users_raw:
+            user_roles[admin.id] = UserWithInviteStatus(
                 **admin.model_dump(),
                 invite_accepted=True,
                 role=UserRoleEnum.admin,
             )
-            for admin in group_repo.retrieve_group_users(str(lab.admin_group_id))
-        ]
-        members = [
-            UserWithInviteStatus(
-                **member.model_dump(),
-                invite_accepted=True,
-                role=UserRoleEnum.member,
-            )
-            for member in group_repo.retrieve_group_users(str(lab.member_group_id))
-        ]
+
+        for member in member_users_raw:
+            if member.id not in user_roles:
+                user_roles[member.id] = UserWithInviteStatus(
+                    **member.model_dump(),
+                    invite_accepted=True,
+                    role=UserRoleEnum.member,
+                )
+
         invites = await invite_repo.get_pending_users_for_lab(lab_id)
         pending_users = [
             UserWithInviteStatus(
@@ -78,7 +89,15 @@ async def get_virtual_lab_users(db: AsyncSession, lab_id: UUID4) -> VirtualLabUs
             )
             for invite in invites
         ]
-        return VirtualLabUsers(users=admins + members + pending_users)
+
+        active_users = list(user_roles.values())
+        users = active_users + pending_users
+        return VirtualLabUsers(
+            owner_id=UUID(str(lab.owner_id)),
+            users=users,
+            total_active=len(active_users),
+            total=len(users),
+        )
     except NoResultFound:
         raise VliError(
             message="Virtual lab not found",
