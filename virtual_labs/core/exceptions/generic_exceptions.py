@@ -77,3 +77,14 @@ class SubscriptionAlreadyCanceled(Exception):
 
     def __str__(self) -> str:
         return self.message
+
+
+class UnverifiedEmailError(Exception):
+    def __init__(
+        self, message: str = "Email must be verified to create a virtual lab"
+    ) -> None:
+        self.message = message
+        super().__init__(self.message)
+
+    def __str__(self) -> str:
+        return self.message
