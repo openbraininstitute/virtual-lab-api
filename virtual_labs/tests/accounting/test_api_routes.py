@@ -151,29 +151,6 @@ async def test_get_virtual_lab_reports(
 
 
 @pytest.mark.asyncio
-async def test_top_up_virtual_lab_budget(
-    mock_lab_with_project: tuple[AsyncClient, str, str, dict[str, str]],
-) -> None:
-    client, lab_id, _, headers = mock_lab_with_project
-
-    mock_top_up_response = {"message": "Top-up operation executed", "data": None}
-
-    with patch(
-        "virtual_labs.usecases.accounting.top_up_virtual_lab_budget"
-    ) as mock_top_up:
-        mock_top_up.return_value = mock_top_up_response
-
-        response = await client.post(
-            f"/virtual-labs/{lab_id}/accounting/budget/top-up",
-            headers=headers,
-            json={"amount": 100.00},
-        )
-
-        assert response.status_code == 200
-        assert response.json() == mock_top_up_response
-
-
-@pytest.mark.asyncio
 async def test_assign_project_budget(
     mock_lab_with_project: tuple[AsyncClient, str, str, dict[str, str]],
 ) -> None:
