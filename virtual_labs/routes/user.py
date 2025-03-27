@@ -54,6 +54,7 @@ async def get_profile_endpoint(
 )
 async def update_profile_endpoint(
     payload: UpdateUserProfileRequest,
+    session: AsyncSession = Depends(default_session_factory),
     auth: Tuple[AuthUser, str] = Depends(a_verify_jwt),
 ) -> Response:
     """
@@ -65,7 +66,11 @@ async def update_profile_endpoint(
     Returns:
         Response: the updated user profile information
     """
-    return await update_user_profile(payload=payload, auth=auth)
+    return await update_user_profile(
+        payload=payload,
+        auth=auth,
+        session=session,
+    )
 
 
 @router.get(

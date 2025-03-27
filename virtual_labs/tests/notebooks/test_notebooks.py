@@ -26,6 +26,7 @@ async def mock_projects(
         "description": "Test",
         "reference_email": "user@test.org",
         "entity": "EPFL, Switzerland",
+        "email_status": "verified",
     }
     headers = get_headers()
 

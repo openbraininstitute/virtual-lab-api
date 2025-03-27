@@ -3,7 +3,7 @@ from uuid import UUID
 
 import stripe
 from loguru import logger
-from stripe import SignatureVerificationError
+from stripe import Customer, CustomerService, SignatureVerificationError
 
 from virtual_labs.infrastructure.settings import settings
 from virtual_labs.infrastructure.stripe.config import stripe_client
@@ -265,6 +265,7 @@ class StripeRepository:
                     ]
                     if discount_id
                     else "",
+                    "description": "Creating subscription",
                 }
             )
             return subscription
@@ -322,11 +323,13 @@ class StripeRepository:
         """
         try:
             customer_data = stripe.Customer.CreateParams(
+                name=str(name),
+                email=str(email),
                 metadata={
                     "user_id": str(user_id),
                     "email": str(email),
                     "name": str(name),
-                }
+                },
             )
 
             customer = await self.stripe.customers.create_async(customer_data)
@@ -366,6 +369,7 @@ class StripeRepository:
                     "payment_method": payment_method_id,
                     "metadata": metadata or {},
                     "confirm": True,
+                    "description": "Adding credit",
                     "return_url": f"{settings.DEPLOYMENT_NAMESPACE}/app/virtual-lab/lab/{str(virtual_lab_id)}/admin?panel=purchases",
                 },
             )
@@ -373,3 +377,78 @@ class StripeRepository:
         except Exception as e:
             logger.error(f"Error creating payment intent: {str(e)}")
             raise
+
+    async def get_customer(self, customer_id: str) -> Optional[stripe.Customer]:
+        """
+        Retrieve a Stripe customer by customer ID.
+
+        Args:
+            customer_id: The Stripe customer ID
+
+        Returns:
+            Stripe customer object if found, None otherwise
+        """
+        try:
+            customer = await self.stripe.customers.retrieve_async(customer=customer_id)
+            return customer
+        except Exception as e:
+            logger.exception(f"Error retrieving customer {customer_id}: {str(e)}")
+            return None
+
+    async def update_customer(
+        self,
+        customer_id: str,
+        email: Optional[str] = None,
+        name: Optional[str] = None,
+    ) -> Optional[Customer]:
+        """
+        Update a Stripe customer.
+
+        Args:
+            customer_id: The Stripe customer ID to update
+            email: New email address for the customer
+            name: New name for the customer
+
+        Returns:
+            Updated Stripe customer object or None if update failed
+        """
+        try:
+            update_params: CustomerService.UpdateParams = {}
+            if email is not None:
+                update_params["email"] = email
+
+            if name is not None:
+                update_params["name"] = name
+
+            customer = await self.stripe.customers.update_async(
+                customer_id,
+                params=update_params,
+            )
+            return customer
+        except Exception as e:
+            logger.exception(f"Error updating customer {customer_id}: {str(e)}")
+            return None
+
+    async def update_subscription_metadata(
+        self, subscription_id: str, metadata: Dict[str, str]
+    ) -> Optional[stripe.Subscription]:
+        """
+        Update metadata for a Stripe subscription.
+
+        Args:
+            subscription_id: The Stripe subscription ID to update
+            metadata: Metadata to update or add
+
+        Returns:
+            Updated Stripe subscription object or None if update failed
+        """
+        try:
+            subscription = await self.stripe.subscriptions.update_async(
+                subscription_id, params={"metadata": metadata}
+            )
+            return subscription
+        except Exception as e:
+            logger.exception(
+                f"Error updating subscription metadata {subscription_id}: {str(e)}"
+            )
+            return None

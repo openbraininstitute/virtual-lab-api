@@ -58,10 +58,6 @@ class VlabBalanceResponse(BaseAccountingResponse):
     data: VlabBalance
 
 
-class BudgetTopUpRequest(BaseModel):
-    amount: float
-
-
 class BudgetTopUpResponse(BaseAccountingResponse):
     data: None
 

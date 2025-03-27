@@ -10,7 +10,11 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
-from virtual_labs.core.exceptions.generic_exceptions import ForbiddenOperation
+from virtual_labs.core.exceptions.generic_exceptions import (
+    EntityNotCreated,
+    ForbiddenOperation,
+    UnverifiedEmailError,
+)
 from virtual_labs.core.exceptions.identity_error import IdentityError
 from virtual_labs.core.exceptions.nexus_error import NexusError
 from virtual_labs.core.types import UserRoleEnum
@@ -20,9 +24,16 @@ from virtual_labs.external.nexus.create_organization import create_nexus_organiz
 from virtual_labs.infrastructure.db import models
 from virtual_labs.infrastructure.kc.models import AuthUser, CreatedGroup
 from virtual_labs.infrastructure.settings import settings
+from virtual_labs.infrastructure.stripe import (
+    get_stripe_repository,
+)
 from virtual_labs.repositories import labs as repository
 from virtual_labs.repositories.group_repo import GroupMutationRepository
 from virtual_labs.repositories.invite_repo import InviteMutationRepository
+from virtual_labs.repositories.stripe_user_repo import (
+    StripeUserMutationRepository,
+    StripeUserQueryRepository,
+)
 from virtual_labs.repositories.subscription_repo import SubscriptionRepository
 from virtual_labs.repositories.user_repo import (
     UserMutationRepository,
@@ -149,6 +160,10 @@ async def create_virtual_lab(
     owner_id = get_user_id_from_auth(auth)
     # 1. Create kc groups and add user to admin group
     try:
+        if lab.email_status != "verified":
+            raise UnverifiedEmailError(
+                message="Email must be verified to create a virtual lab"
+            )
         has_vlab = await repository.get_user_virtual_lab(
             db=db,
             owner_id=owner_id,
@@ -164,6 +179,12 @@ async def create_virtual_lab(
 
         user_repo.attach_user_to_group(
             user_id=owner_id, group_id=groups["admin_group"]["id"]
+        )
+    except UnverifiedEmailError:
+        raise VliError(
+            message="Email must be verified to create a virtual lab",
+            error_code=VliErrorCode.INVALID_REQUEST,
+            http_status_code=HTTPStatus.BAD_REQUEST,
         )
     except ForbiddenOperation:
         raise VliError(
@@ -218,16 +239,16 @@ async def create_virtual_lab(
     if settings.ACCOUNTING_BASE_URL is not None:
         try:
             welcome_bonus_credits = (
-                Decimal(0)
+                settings.WELCOME_BONUS_CREDITS
                 if settings.ENABLE_WELCOME_BONUS
-                else settings.WELCOME_BONUS_CREDITS
+                else Decimal(0)
             )
 
             subscription = await subscription_repo.get_active_subscription_by_user_id(
                 user_id=owner_id, subscription_type="paid"
             )
 
-            subscription_credits = 0
+            subscription_credits = Decimal(0)
 
             if isinstance(subscription, models.PaidSubscription):
                 subscription_tier = (
@@ -239,9 +260,9 @@ async def create_virtual_lab(
                 )
                 assert subscription_tier is not None
                 subscription_credits = (
-                    subscription_tier.monthly_credits
+                    Decimal(subscription_tier.monthly_credits)
                     if subscription.interval == "month"
-                    else subscription_tier.yearly_credits
+                    else Decimal(subscription_tier.yearly_credits)
                 )
 
             total_initial_credits = welcome_bonus_credits + subscription_credits
@@ -299,6 +320,44 @@ async def create_virtual_lab(
                 ("virtual_lab_id", str(lab_details.id), "multiple"),
             ],
         )
+
+        if lab.email_status == "verified":
+            user_query_repo = UserQueryRepository()
+            stripe_user_repo = StripeUserQueryRepository(db_session=db)
+            stripe_user_mutation_repo = StripeUserMutationRepository(db_session=db)
+            stripe_service = get_stripe_repository()
+
+            user = await user_query_repo.get_user(user_id=str(owner_id))
+
+            user["email"] = lab.reference_email
+            user["emailVerified"] = True
+
+            await user_repo.Kc.a_update_user(user_id=str(owner_id), payload=user)
+
+            customer = await stripe_user_repo.get_by_user_id(
+                user_id=owner_id,
+            )
+            # TODO: extract this to function, used in different places
+            if customer is None:
+                stripe_customer = await stripe_service.create_customer(
+                    user_id=owner_id,
+                    email=lab.reference_email,
+                    name=f"{user.get("firstName", "")} {user.get("lastName", "")}",
+                )
+                if stripe_customer is None:
+                    raise EntityNotCreated("Stripe customer creation failed")
+
+                await stripe_user_mutation_repo.create(
+                    user_id=owner_id,
+                    stripe_customer_id=stripe_customer.id,
+                )
+            else:
+                assert customer.stripe_customer_id, "Customer not found"
+                stripe_customer = await stripe_service.update_customer(
+                    customer_id=customer.stripe_customer_id,
+                    name=f"{user.get("firstName", "")} {user.get("lastName", "")}",
+                    email=lab.reference_email,
+                )
 
         return domain.CreateLabOut(
             virtual_lab=lab_details,

@@ -14,8 +14,6 @@ from virtual_labs.external.accounting.models import (
     BudgetAssignResponse,
     BudgetReverseRequest,
     BudgetReverseResponse,
-    BudgetTopUpRequest,
-    BudgetTopUpResponse,
     ProjBalanceResponse,
     ProjectReportsResponse,
     VirtualLabReportsResponse,
@@ -108,26 +106,6 @@ async def get_proj_accounting_reports(
 
 
 # Budget endpoints
-
-
-# ! This endpoint is only for demo purposes
-# TODO: Replace with a proper integration with the payment provider
-@router.post(
-    "/{virtual_lab_id}/accounting/budget/top-up",
-    operation_id="top_up_virtual_lab_account",
-    summary="Top-up budget of a specific virtual lab",
-    response_model=BudgetTopUpResponse,
-)
-@verify_vlab_write
-async def top_up_virtual_lab_budget(
-    virtual_lab_id: UUID4,
-    budget_top_up_request: BudgetTopUpRequest,
-    session: AsyncSession = Depends(default_session_factory),
-    auth: Tuple[AuthUser, str] = Depends(verify_jwt),
-) -> BudgetTopUpResponse:
-    return await accounting_cases.top_up_virtual_lab_budget(
-        virtual_lab_id, budget_top_up_request.amount
-    )
 
 
 @router.post(

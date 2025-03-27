@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Generic, TypeVar
+from typing import Generic, Literal, TypeVar
 
 from pydantic import (
     UUID4,
@@ -89,7 +89,19 @@ class VirtualLabOut(BaseModel):
 
 
 class VirtualLabCreate(VirtualLabBase):
-    pass
+    email_status: (
+        Literal[
+            "none",
+            "error",
+            "verified",
+            "locked",
+            "code_sent",
+            "expired",
+            "not-match",
+            "registered",
+        ]
+        | None
+    )
 
 
 class CreateLabOut(BaseModel):
