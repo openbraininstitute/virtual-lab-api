@@ -73,12 +73,14 @@ async def invitation_handler(
                 lab_id=UUID(str(vlab_invite.virtual_lab_id)),
             )
             user = user_query_repo.retrieve_user_from_kc(user_id=str(user_id))
+
             assert user is not None
             group_id = (
                 vlab.admin_group_id
                 if vlab_invite.role == UserRoleEnum.admin.value
                 else vlab.member_group_id
             )
+
             user_mut_repo.attach_user_to_group(
                 user_id=UUID(user.id),
                 group_id=str(group_id),
