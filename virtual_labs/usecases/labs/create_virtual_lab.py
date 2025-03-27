@@ -218,16 +218,16 @@ async def create_virtual_lab(
     if settings.ACCOUNTING_BASE_URL is not None:
         try:
             welcome_bonus_credits = (
-                Decimal(0)
+                settings.WELCOME_BONUS_CREDITS
                 if settings.ENABLE_WELCOME_BONUS
-                else settings.WELCOME_BONUS_CREDITS
+                else Decimal(0)
             )
 
             subscription = await subscription_repo.get_active_subscription_by_user_id(
                 user_id=owner_id, subscription_type="paid"
             )
 
-            subscription_credits = 0
+            subscription_credits = Decimal(0)
 
             if isinstance(subscription, models.PaidSubscription):
                 subscription_tier = (
@@ -239,9 +239,9 @@ async def create_virtual_lab(
                 )
                 assert subscription_tier is not None
                 subscription_credits = (
-                    subscription_tier.monthly_credits
+                    Decimal(subscription_tier.monthly_credits)
                     if subscription.interval == "month"
-                    else subscription_tier.yearly_credits
+                    else Decimal(subscription_tier.yearly_credits)
                 )
 
             total_initial_credits = welcome_bonus_credits + subscription_credits
