@@ -9,7 +9,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
-from virtual_labs.core.exceptions.identity_error import IdentityError, UserMismatch
+from virtual_labs.core.exceptions.identity_error import IdentityError
 from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.domain.invite import InviteDetailsOut
 from virtual_labs.infrastructure.db.models import ProjectInvite, VirtualLabInvite
@@ -68,11 +68,6 @@ async def get_invite_details(
         else:
             raise ValueError(f"Origin {origin} is not allowed.")
 
-        if invite.user_email != auth[0].email:
-            raise UserMismatch(
-                "Invite email doesn't match the authenticated user email"
-            )
-
         invitee = user_query_repo.retrieve_user_by_email(
             email=str(invite.user_email),
         )
@@ -90,8 +85,6 @@ async def get_invite_details(
         project_id, project_name = (
             (None, None) if project is None else (project.id, project.name)
         )
-
-        logger.info(invite.__dict__)
 
         return VliResponse[InviteDetailsOut].new(
             message=f"Invite for {origin} accepted successfully",
@@ -141,12 +134,6 @@ async def get_invite_details(
             error_code=VliErrorCode.INVALID_REQUEST,
             http_status_code=status.BAD_REQUEST,
             message=str(ex),
-        )
-    except UserMismatch:
-        raise VliError(
-            error_code=VliErrorCode.DATA_CONFLICT,
-            http_status_code=status.BAD_REQUEST,
-            message="The email in the invitation does not match the email from the request.",
         )
     except IdentityError:
         raise VliError(

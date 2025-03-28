@@ -2,6 +2,7 @@ from http import HTTPStatus
 from typing import Any, Dict, Tuple, cast
 
 from fastapi import Response
+from keycloak import KeycloakError  # type:ignore
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -154,6 +155,14 @@ async def update_user_profile(
             http_status_code=HTTPStatus.NOT_FOUND,
             message="User not found",
         )
+    except KeycloakError as e:
+        logger.error(f"Keycloak error: {str(e)}")
+        raise VliError(
+            error_code=VliErrorCode.ENTITY_UPDATE__ERROR,
+            http_status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            message=str(e) or "An error occurred while updating the user profile",
+        ) from e
+
     except Exception as e:
         logger.exception(f"Error updating user profile: {str(e)}")
         raise VliError(
