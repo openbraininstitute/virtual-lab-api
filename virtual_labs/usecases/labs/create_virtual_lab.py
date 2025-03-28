@@ -329,11 +329,6 @@ async def create_virtual_lab(
 
             user = await user_query_repo.get_user(user_id=str(owner_id))
 
-            user["email"] = lab.reference_email
-            user["emailVerified"] = True
-
-            await user_repo.Kc.a_update_user(user_id=str(owner_id), payload=user)
-
             customer = await stripe_user_repo.get_by_user_id(
                 user_id=owner_id,
             )
