@@ -61,7 +61,6 @@ class DatabaseSessionPool:
         try:
             yield session
         except Exception:
-            print("----> rollback")
             await session.rollback()
             raise
         finally:
@@ -78,9 +77,4 @@ session_pool = DatabaseSessionPool(
 
 async def default_session_factory() -> AsyncGenerator[AsyncSession, None]:
     async with session_pool.session() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            print("----> excpetion")
-            raise
+        yield session
