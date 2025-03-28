@@ -19,6 +19,11 @@ from virtual_labs.infrastructure.settings import settings
 from .config import kc_auth
 
 auth_header: HTTPBearer | OAuth2AuthorizationCodeBearer = HTTPBearer(auto_error=False)
+oauth2_scheme = OAuth2AuthorizationCodeBearer(
+    authorizationUrl=f"https://{settings.KC_HOST}/realms/{settings.KC_REALM_NAME}/protocol/openid-connect/auth",
+    tokenUrl=f"https://{settings.KC_HOST}/realms/{settings.KC_REALM_NAME}/protocol/openid-connect/token",
+    auto_error=False,
+)
 
 KC_SUBJECT: str = f"service-account-{settings.KC_CLIENT_ID}"
 
@@ -34,6 +39,7 @@ def get_public_key() -> str:
 
 def verify_jwt(
     header: HTTPAuthorizationCredentials = Depends(auth_header),
+    oauth_token: str = Depends(oauth2_scheme),
 ) -> Tuple[AuthUser, str]:
     if not header:
         raise VliError(
@@ -42,6 +48,11 @@ def verify_jwt(
             message="No Authentication was provided",
             details="The supplied authentication is not authorized to access",
         )
+
+    if header:
+        token = header.credentials
+    elif oauth_token:
+        token = oauth_token
 
     try:
         token = header.credentials
@@ -106,6 +117,7 @@ def verify_jwt(
 
 async def a_verify_jwt(
     header: HTTPAuthorizationCredentials = Depends(auth_header),
+    oauth_token: str = Depends(oauth2_scheme),
 ) -> Tuple[AuthUser, str]:
     if not header:
         raise VliError(
@@ -114,6 +126,11 @@ async def a_verify_jwt(
             message="No Authentication was provided",
             details="The supplied authentication is not authorized to access",
         )
+
+    if header:
+        token = header.credentials
+    elif oauth_token:
+        token = oauth_token
 
     try:
         token = header.credentials
