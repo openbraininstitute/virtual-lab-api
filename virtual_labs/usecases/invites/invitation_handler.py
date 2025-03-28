@@ -10,7 +10,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
-from virtual_labs.core.exceptions.identity_error import IdentityError, UserMismatch
+from virtual_labs.core.exceptions.identity_error import IdentityError
 from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.core.types import UserRoleEnum
 from virtual_labs.infrastructure.email.email_utils import (
@@ -189,12 +189,6 @@ async def invitation_handler(
             error_code=VliErrorCode.INVALID_REQUEST,
             http_status_code=status.BAD_REQUEST,
             message=str(ex),
-        )
-    except UserMismatch:
-        raise VliError(
-            error_code=VliErrorCode.DATA_CONFLICT,
-            http_status_code=status.BAD_REQUEST,
-            message="The email in the invitation does not match the email from the request.",
         )
     except IdentityError:
         raise VliError(
