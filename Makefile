@@ -76,3 +76,9 @@ init-db:
 
 check-db-schema:
 	poetry run alembic check
+
+
+system:
+	./system.init.sh --env-file ./.env.local
+destroy:
+	docker compose --env-file ./.env.local -f docker-system.yaml -p vlm down --remove-orphans --volumes

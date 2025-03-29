@@ -1,0 +1,244 @@
+networks:
+  app_network:
+    ipam:
+      config:
+        - subnet: 10.0.3.0/24
+
+# Define shared volumes
+volumes:
+  pg_data:
+
+services:
+  postgres:
+    image: postgres:latest
+    container_name: postgres
+    environment:
+      POSTGRES_USER: "postgres" # Superuser
+      POSTGRES_PASSWORD: "postgres"
+      POSTGRES_MULTIPLE_DATABASES: "accounting_service,keycloak,vlm,postgres"
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./env-prep/init/init-db.sh:/docker-entrypoint-initdb.d/init-databases.sh
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    command:
+      - postgres
+      # - "clog_statement=all"
+      - -clog_min_duration_statement=100ms
+      - -clog_lock_waits=on
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0
+    container_name: keycloak
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      DB_VENDOR: postgres
+      DB_ADDR: postgres
+      DB_DATABASE: keycloak # Use pre-existing database
+      DB_USER: keycloak
+      DB_PASSWORD: keycloak
+    depends_on:
+      - postgres
+    command:
+      - start-dev
+      - --http-port=9090
+      - --hostname=keycloak
+      - --hostname-port=9090
+      - --hostname-strict-backchannel=true
+      - --import-realm
+    ports:
+      - "9090:9090"
+    networks:
+      - app_network
+    volumes:
+      - ./env-prep/realm-export.json:/opt/keycloak/data/import/realm-import.json
+
+  delta:
+    container_name: delta
+    platform: linux/amd64
+    depends_on:
+      keycloak:
+        condition: service_started
+      elasticsearch:
+        condition: service_healthy
+      blazegraph:
+        condition: service_started
+      postgres:
+        condition: service_started
+      localstack:
+        condition: service_started
+    environment:
+      DELTA_PLUGINS: "/opt/docker/plugins/"
+      DELTA_EXTERNAL_CONF: "/config/delta-postgres.conf"
+      KAMON_ENABLED: "false"
+    image: bluebrain/nexus-delta:1.11.0-M8
+    entrypoint:
+      - '/bin/bash'
+      - '-c'
+      - '/opt/docker/bin/delta-app -Xmx4G'
+    ports:
+      - 8080:8080
+    volumes:
+      - ./env-prep/config:/config
+      - /tmp:/default-volume
+    dns:
+      - 10.0.3.20
+    networks:
+      - app_network
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.12.1
+    container_name: elasticsearch
+    environment:
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m -XX:UseSVE=0"
+      CLI_JAVA_OPTS: "-XX:UseSVE=0"
+      discovery.type: "single-node"
+      bootstrap.memory_lock: "true"
+      xpack.security.enabled: "true"
+      ingest.geoip.downloader.enabled: "false"
+      ELASTIC_PASSWORD: "password"
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://elastic:password@localhost:9200/" ]
+      interval: 1s
+      timeout: 2s
+      retries: 60
+    ports:
+      - 9200:9200
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+    networks:
+      - app_network
+
+  blazegraph:
+    image: bluebrain/blazegraph-nexus:2.1.6-RC
+    container_name: blazegraph
+    environment:
+      JAVA_OPTS: "-DjettyXml=/config/jetty.xml -Djava.awt.headless=true -XX:MaxDirectMemorySize=300m -Xms4g -Xmx4g -XX:+UseG1GC"
+    ports:
+      - 9999:9999
+    volumes:
+      - ./env-prep/config:/config
+    networks:
+      - app_network
+
+  stripe-cli:
+    image: stripe/stripe-cli:latest
+    container_name: stripe
+    environment:
+      STRIPE_CLI_TELEMETRY_OPTOUT: 1
+      STRIPE_API_KEY: ${STRIPE_SECRET_KEY}
+      STRIPE_DEVICE_NAME: ${STRIPE_DEVICE_NAME}
+    entrypoint:
+      - '/bin/sh'
+      - '-c'
+      - stripe listen --forward-to http://host.docker.internal:8000/payments/webhook
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+      - "172.17.0.1:host-gateway"
+    networks:
+      - app_network
+
+  localstack:
+    image: localstack/localstack:3.5
+    container_name: localstack
+    environment:
+      AWS_ACCESS_KEY_ID: "MY_ACCESS_KEY"
+      AWS_SECRET_ACCESS_KEY: "CHUTCHUT"
+      SERVICES: "s3:4566"
+    ports:
+      - 4566:4566
+    volumes:
+      - "./env-prep/init/init-aws.sh:/etc/localstack/init/ready.d/init-aws.sh"
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    networks:
+      app_network:
+        ipv4_address: 10.0.3.20
+
+  redis:
+    image: "redis:7.2.3"
+    command: redis-server /usr/local/etc/redis/redis.conf
+    container_name: redis
+    volumes:
+      - ./env-prep/init/redis.conf:/usr/local/etc/redis/redis.conf
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: [ "CMD", "redis-cli","ping" ]
+      interval: 10s
+      retries: 5
+      start_period: 5s
+      timeout: 10s
+    networks:
+      - app_network
+
+  accounting:
+    image: "public.ecr.aws/openbraininstitute/accounting-service:2025.3.1"
+    container_name: accounting
+    ports:
+    - "127.0.0.1:8100:8000"
+    environment:
+    - ENVIRONMENT=dev
+    - DB_HOST=postgres
+    - DB_USER=postgres
+    - DB_PASS=postgres
+    - DB_NAME=accounting_service
+    - DB_PORT=5432
+    - AWS_ACCESS_KEY_ID=xxx
+    - AWS_SECRET_ACCESS_KEY=xxx
+    - AWS_ENDPOINT_URL=http://queue:9324
+    - AWS_DEFAULT_REGION=us-east-1
+    - AWS_MAX_ATTEMPTS=3
+    - AWS_RETRY_MODE=standard
+    - APP_DEBUG=true
+    - PYTHONASYNCIODEBUG=1
+    - LOG_LEVEL=DEBUG
+    - LOG_SERIALIZE=false
+    - LOG_BACKTRACE=true
+    - LOG_DIAGNOSE=true
+    - LOG_STANDARD_LOGGER__root=INFO
+    - LOG_STANDARD_LOGGER__sqlalchemy.engine=INFO
+    - LOG_STANDARD_LOGGER__sqlalchemy.pool=INFO
+    depends_on:
+      postgres:
+        condition: service_healthy
+      queue:
+        condition: service_started
+    networks:
+      - app_network
+
+  queue:
+    image: softwaremill/elasticmq-native:latest
+    container_name: accounting_queue
+    ports:
+      - "127.0.0.1:9324:9324"
+      - "127.0.0.1:9325:9325"
+    volumes:
+      - ./env-prep/init/elasticmq.conf:/opt/elasticmq.conf
+    networks:
+      app_network:
+        ipv4_address: 10.0.3.21
+
+  mailpit:
+    image: axllent/mailpit
+    container_name: mail-server
+    restart: always
+    volumes:
+      - ./env-prep/email-data:/email-data
+    ports:
+      - 8025:8025 # UI to see sent emails
+      - 1025:1025 # test smtp server
+    environment:
+      MP_MAX_MESSAGES: 5000
+      MP_DATA_FILE: /email-data/mailpit.db
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1

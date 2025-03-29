@@ -58,6 +58,7 @@ class DatabaseSessionPool:
 
         # Create engine and session maker
         self._engine = create_async_engine(db_uri, **self._options)
+
         self._session_maker = async_sessionmaker(
             autoflush=False, autocommit=False, bind=self._engine
         )
