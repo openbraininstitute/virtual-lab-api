@@ -418,7 +418,6 @@ async def update_user_role_in_project(
     ),
     response_model=VliAppResponse[ProjectUserDeleteOut],
 )
-@verify_vlab_or_project_write
 async def detach_user_from_project(
     virtual_lab_id: UUID4,
     project_id: UUID4,

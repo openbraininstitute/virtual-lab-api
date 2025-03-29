@@ -10,6 +10,7 @@ from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from virtual_labs.core.authorization.has_group_membership import has_group_membership
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.exceptions.generic_exceptions import ForbiddenOperation
 from virtual_labs.core.response.api_response import VliResponse
@@ -17,6 +18,7 @@ from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.repositories.group_repo import GroupQueryRepository
 from virtual_labs.repositories.project_repo import ProjectQueryRepository
 from virtual_labs.repositories.user_repo import UserMutationRepository
+from virtual_labs.shared.utils.auth import get_user_id_from_auth
 from virtual_labs.shared.utils.uniq_list import uniq_list
 
 
@@ -30,8 +32,25 @@ async def detach_user_from_project(
     pqr = ProjectQueryRepository(session)
     umr = UserMutationRepository()
     gqr = GroupQueryRepository()
+    current_user_id = get_user_id_from_auth(auth)
 
     try:
+        membership = await has_group_membership(
+            session=session,
+            virtual_lab_id=virtual_lab_id,
+            project_id=project_id,
+            user_id=current_user_id,
+            ctx="project",
+            role="admin",
+        )
+        if not (
+            membership.is_vlab_owner
+            or membership.is_project_owner
+            or membership.has_membership
+            or user_id == current_user_id
+        ):
+            raise ForbiddenOperation("Unsubscribe from this project is not allowed")
+
         project, vl = await pqr.retrieve_one_project_strict(
             virtual_lab_id=virtual_lab_id,
             project_id=project_id,
@@ -57,19 +76,19 @@ async def detach_user_from_project(
         )
     except KeycloakError as error:
         logger.warning(
-            f"Detaching user from project: {loads(error.error_message)["error"]}"
+            f"Detaching user from project: {loads(error.error_message)['error']}"
         )
         raise VliError(
             error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
             http_status_code=error.response_code or status.BAD_GATEWAY,
             message="Detaching user from project failed",
         )
-    except ForbiddenOperation:
+    except ForbiddenOperation as e:
         raise VliError(
             error_code=VliErrorCode.FORBIDDEN_OPERATION,
             http_status_code=status.FORBIDDEN,
-            message="Can not delete the owner of the project",
-        )
+            message=str(e) or "Can not delete the owner of the project",
+        ) from e
     except Exception as ex:
         logger.error(
             f"Error during detaching user from project: {virtual_lab_id}/{project_id} ({ex})"
