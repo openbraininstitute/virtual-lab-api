@@ -34,12 +34,12 @@ class Settings(BaseSettings):
     DEBUG_DATABASE_ECHO: bool = False
     CORS_ORIGINS: list[str] = []
     POSTGRES_HOST: str = "localhost"
-    POSTGRES_PORT: int = 15432
-    POSTGRES_USER: str = "vlm"
-    POSTGRES_PASSWORD: str = "vlm"
+    POSTGRES_PORT: int = 5432
+    POSTGRES_USER: str = "postgres"
+    POSTGRES_PASSWORD: str = "postgres"
     POSTGRES_DB: str = "vlm"
     DATABASE_URI: PostgresDsn = MultiHostUrl(
-        "postgresql+asyncpg://vlm:vlm@localhost:15432/vlm"
+        "postgresql+asyncpg://vlm:vlm@localhost:5432/vlm"
     )
 
     # SSH Tunnel Settings

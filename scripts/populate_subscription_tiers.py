@@ -7,7 +7,7 @@ Usage:
     poetry run populate-tiers [--test]
 
 Environment variables:
-    DATABASE_URL: Database connection string (defaults to postgresql+asyncpg://postgres:postgres@localhost:15432/vlm)
+    DATABASE_URL: Database connection string (defaults to postgresql+asyncpg://postgres:postgres@localhost:5432/vlm)
     STRIPE_API_KEY: Stripe API key for fetching plan details (optional)
     PROD_ID: stripe product id for the plan
     SANITY_ID: sanity id for the plan
@@ -30,7 +30,7 @@ from virtual_labs.infrastructure.db.models import SubscriptionTier
 load_dotenv(".env.local")
 
 # Default database URL if not set in environment
-DEFAULT_DATABASE_URL = "postgresql+asyncpg://vlm:vlm@localhost:15432/vlm"
+DEFAULT_DATABASE_URL = "postgresql+asyncpg://vlm:vlm@localhost:5432/vlm"
 DATABASE_URL = os.getenv("DATABASE_URL", DEFAULT_DATABASE_URL)
 
 # Default values for Stripe and Sanity IDs
