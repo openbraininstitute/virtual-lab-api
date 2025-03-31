@@ -68,11 +68,6 @@ async def get_invite_details(
         else:
             raise ValueError(f"Origin {origin} is not allowed.")
 
-        invitee = user_query_repo.retrieve_user_by_email(
-            email=str(invite.user_email),
-        )
-        assert invitee is not None
-
         inviter = user_query_repo.retrieve_user_from_kc(str(invite.inviter_id))
         assert inviter is not None
 
