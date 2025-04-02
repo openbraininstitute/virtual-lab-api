@@ -16,7 +16,7 @@ from virtual_labs.domain.email import (
     VerificationCodeStatus,
 )
 from virtual_labs.infrastructure.kc.models import AuthUser
-from virtual_labs.infrastructure.redis import RateLimiter
+from virtual_labs.infrastructure.redis.rate_limiter import RateLimiter
 from virtual_labs.infrastructure.settings import settings
 from virtual_labs.repositories.email_verification_repo import (
     EmailValidationQueryRepository,

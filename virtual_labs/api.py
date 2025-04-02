@@ -1,17 +1,20 @@
+import asyncio
 from contextlib import asynccontextmanager
 from http import HTTPStatus
-from typing import Any, Generator, Optional
+from typing import Any, Dict, Generator, Optional
 
 import sentry_sdk
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
 from fastapi.routing import APIRouter
+from httpx import AsyncClient
 from loguru import logger
 from redis.asyncio import Redis
 from sentry_sdk.integrations.asgi import SentryAsgiMiddleware
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.middleware.cors import CORSMiddleware
 
 from virtual_labs.core.exceptions.api_error import (
@@ -20,9 +23,23 @@ from virtual_labs.core.exceptions.api_error import (
     VlmValidationError,
 )
 from virtual_labs.core.schemas import api
-from virtual_labs.infrastructure.db.config import session_pool
+from virtual_labs.infrastructure.db.config import (
+    close_db,
+    default_session_factory,
+    initialize_db,
+)
+from virtual_labs.infrastructure.db.config import (
+    get_health_status as get_db_health_status,
+)
+from virtual_labs.infrastructure.kc.config import (
+    get_health_status as get_kc_health_status,
+)
+from virtual_labs.infrastructure.redis import (
+    get_health_status as get_redis_health_status,
+)
 from virtual_labs.infrastructure.redis import get_redis
 from virtual_labs.infrastructure.settings import settings
+from virtual_labs.infrastructure.transport.httpx import httpx_factory
 from virtual_labs.routes.accounting import router as accounting_router
 from virtual_labs.routes.bookmarks import router as bookmarks_router
 from virtual_labs.routes.common import router as common_router
@@ -41,9 +58,9 @@ _redis_client: Optional[Redis] = None
 async def lifespan(app: FastAPI) -> Generator[None, Any, None]:  # type: ignore
     global _redis_client
     _redis_client = await get_redis()
+    await initialize_db()
     yield
-    if session_pool._engine is not None:
-        await session_pool.close()
+    await close_db()
     if _redis_client is not None:
         await _redis_client.close()
 
@@ -90,6 +107,25 @@ def custom_openapi() -> dict[str, Any]:
     openapi_schema["components"]["schemas"][
         "HTTPValidationError"
     ] = VlmValidationError.model_json_schema()
+    openapi_schema["components"]["securitySchemes"] = {
+        "bearerAuth": {"type": "http", "scheme": "bearer"},
+        "OAuth2": {
+            "type": "oauth2",
+            "flows": {
+                "authorizationCode": {
+                    "authorizationUrl": f"https://{settings.KC_HOST}/realms/{settings.KC_REALM_NAME}/protocol/openid-connect/auth",
+                    "tokenUrl": f"https://{settings.KC_HOST}/realms/{settings.KC_REALM_NAME}/protocol/openid-connect/token",
+                    "scopes": {},
+                }
+            },
+        },
+    }
+    for path in openapi_schema["paths"].values():
+        for method in path.values():
+            method["security"] = [
+                {"bearerAuth": []},
+                {"OAuth2": []},
+            ]
 
     app.openapi_schema = openapi_schema
     return app.openapi_schema
@@ -147,10 +183,36 @@ def root() -> str:
     return "Server is running."
 
 
-# TODO: add a proper health check logic, see https://pypi.org/project/fastapi-health/.
 @base_router.get("/health")
-def health() -> str:
-    return "OK"
+async def health(
+    httpx_client: AsyncClient = Depends(httpx_factory),
+    session: AsyncSession = Depends(default_session_factory),
+) -> Dict[str, Any]:
+    redis_client = await get_redis()
+    db_task = asyncio.create_task(get_db_health_status(session))
+    kc_task = asyncio.create_task(get_kc_health_status(httpx_client))
+    redis_task = asyncio.create_task(get_redis_health_status(redis_client))
+
+    await asyncio.gather(db_task, kc_task, redis_task)
+
+    db_status = db_task.result()
+    kc_status = kc_task.result()
+    redis_status = redis_task.result()
+
+    overall_status = "ok"
+    if (
+        db_status.get("status") != "ok"
+        or kc_status.get("status") != "ok"
+        or redis_status.get("status") != "ok"
+    ):
+        overall_status = "degraded"
+
+    return {
+        "status": overall_status,
+        "db": db_status,
+        "kc": kc_status,
+        "redis": redis_status,
+    }
 
 
 base_router.include_router(common_router)

@@ -37,11 +37,11 @@ from virtual_labs.domain.labs import (
 from virtual_labs.infrastructure.db.config import default_session_factory
 from virtual_labs.infrastructure.kc.auth import a_verify_jwt, verify_jwt
 from virtual_labs.infrastructure.kc.models import AuthUser
-from virtual_labs.infrastructure.redis import RateLimiter, get_rate_limiter
 from virtual_labs.infrastructure.redis.email_rate_limit import (
     rate_limit_initiate,
     rate_limit_verify,
 )
+from virtual_labs.infrastructure.redis.rate_limiter import RateLimiter, get_rate_limiter
 from virtual_labs.shared.utils.auth import get_user_id_from_auth
 from virtual_labs.usecases import email_verification as email_verification_usecases
 from virtual_labs.usecases import labs as usecases

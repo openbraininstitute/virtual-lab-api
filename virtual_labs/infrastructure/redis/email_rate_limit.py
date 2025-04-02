@@ -11,7 +11,7 @@ from virtual_labs.domain.email import (
 )
 from virtual_labs.infrastructure.kc.auth import a_verify_jwt
 from virtual_labs.infrastructure.kc.models import AuthUser
-from virtual_labs.infrastructure.redis import RateLimiter, get_rate_limiter
+from virtual_labs.infrastructure.redis.rate_limiter import RateLimiter, get_rate_limiter
 from virtual_labs.infrastructure.settings import settings
 
 
