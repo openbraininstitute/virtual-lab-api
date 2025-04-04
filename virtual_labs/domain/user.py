@@ -20,10 +20,10 @@ class ShortenedUser(BaseModel):
     email: EmailStr
     createdTimestamp: Annotated[datetime, Field(alias="created_at", default="")]
     first_name: Annotated[
-        str, Field(validation_alias=AliasChoices("firstName"), default="")
+        Optional[str], Field(validation_alias=AliasChoices("firstName"), default="")
     ]
     last_name: Annotated[
-        str, Field(validation_alias=AliasChoices("lastName"), default="")
+        Optional[str], Field(validation_alias=AliasChoices("lastName"), default="")
     ]
 
     @field_validator("createdTimestamp", mode="before")
@@ -36,7 +36,7 @@ class ShortenedUser(BaseModel):
     @computed_field  # type: ignore
     @property
     def name(self) -> str:
-        return f"{self.first_name} {self.last_name}"
+        return (f"{self.first_name} {self.last_name}").strip()
 
     class Config:
         from_attributes = True
