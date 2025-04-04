@@ -1,4 +1,4 @@
-from typing import Annotated, Any, List, TypedDict
+from typing import Annotated, Any, List, Optional, TypedDict
 
 from pydantic import UUID4, BaseModel, EmailStr, Field
 
@@ -43,7 +43,10 @@ class AuthUser(BaseModel):
     username: Annotated[str, Field(alias="preferred_username")]
     email: EmailStr
     email_verified: bool
-    name: str
+    name: Optional[str] = None
+
+    class Config:
+        populate_by_name = True
 
 
 class ClientToken(BaseModel):
