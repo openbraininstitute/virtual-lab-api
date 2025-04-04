@@ -35,12 +35,8 @@ class ShortenedUser(BaseModel):
 
     @computed_field  # type: ignore
     @property
-    def name(self) -> str | None:
-        return (
-            f"{self.first_name} {self.last_name}"
-            if self.first_name and self.last_name
-            else None
-        )
+    def name(self) -> str:
+        return (f"{self.first_name} {self.last_name}").strip()
 
     class Config:
         from_attributes = True
