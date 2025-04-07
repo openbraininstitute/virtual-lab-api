@@ -3,7 +3,7 @@ from typing import Generic, List, TypeVar
 from pydantic import BaseModel, Field
 from typing_extensions import Annotated
 
-from virtual_labs.domain.labs import VirtualLabWithInviteDetails
+from virtual_labs.domain.labs import VirtualLabDetails, VirtualLabWithInviteDetails
 
 
 class PageParams(BaseModel):
@@ -22,7 +22,19 @@ class PaginatedResultsResponse(BaseModel, Generic[T]):
     results: list[T]
 
 
-class VirtualLabResponse(BaseModel, Generic[T]):
-    pending_labs: List[VirtualLabWithInviteDetails]
-    membership_labs: List[T] | None
-    virtual_lab: T | None
+class DbPagination(BaseModel, Generic[T]):
+    total: int
+    page: int
+    size: int
+    page_size: int
+    results: list[T]
+    has_next: bool
+    has_previous: bool
+
+    model_config = {"arbitrary_types_allowed": True}
+
+
+class VirtualLabResponse(BaseModel):
+    pending_labs: List[VirtualLabWithInviteDetails] | None
+    membership_labs: DbPagination[VirtualLabDetails] | None
+    virtual_lab: VirtualLabDetails | None

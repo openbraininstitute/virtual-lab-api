@@ -1,6 +1,6 @@
 from typing import Annotated, Dict, List, Tuple
 
-from fastapi import APIRouter, Body, Depends, Response
+from fastapi import APIRouter, Body, Depends, Query, Response
 from pydantic import UUID4
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,7 +10,12 @@ from virtual_labs.core.authorization import (
     verify_vlab_write,
     verity_member_invite,
 )
-from virtual_labs.core.types import UserGroup, UserRoleEnum, VliAppResponse
+from virtual_labs.core.types import (
+    LabTypeEnum,
+    UserGroup,
+    UserRoleEnum,
+    VliAppResponse,
+)
 from virtual_labs.domain.common import VirtualLabResponse
 from virtual_labs.domain.email import (
     EmailVerificationPayload,
@@ -27,7 +32,6 @@ from virtual_labs.domain.labs import (
     LabResponse,
     SearchLabResponse,
     VirtualLabCreate,
-    VirtualLabDetails,
     VirtualLabOut,
     VirtualLabStats,
     VirtualLabUpdate,
@@ -47,20 +51,40 @@ from virtual_labs.usecases import email_verification as email_verification_useca
 from virtual_labs.usecases import labs as usecases
 from virtual_labs.usecases.labs.check_virtual_lab_name_exists import LabExists
 
-PaginatedLabs = LabResponse[VirtualLabResponse[VirtualLabDetails]]
 router = APIRouter(prefix="/virtual-labs", tags=["Virtual Labs Endpoints"])
 
 
-@router.get("", response_model=LabResponse[VirtualLabResponse[VirtualLabDetails]])
+@router.get("", response_model=LabResponse[VirtualLabResponse])
 @verify_user_authenticated
 async def get_paginated_virtual_labs_for_user(
+    include: List[LabTypeEnum] = Query(
+        default=[
+            LabTypeEnum.MY_LAB,
+            LabTypeEnum.MEMBERSHIP_LABS,
+            LabTypeEnum.PENDING_LABS,
+        ],
+        description="List of lab types to include in the response",
+    ),
+    page: int = Query(
+        1,
+        ge=1,
+        description="Page number for pagination",
+    ),
+    size: int = Query(
+        10,
+        ge=0,
+        description="Number of items per page",
+    ),
     db: AsyncSession = Depends(default_session_factory),
     auth: tuple[AuthUser, str] = Depends(a_verify_jwt),
-) -> LabResponse[VirtualLabResponse[VirtualLabDetails | None]]:
+) -> LabResponse[VirtualLabResponse]:
     return LabResponse(
         message="List of user virtual lab and pending labs from invites",
         data=await usecases.list_user_virtual_labs(
-            db,
+            include=include,
+            page=page,
+            size=size,
+            session=db,
             auth=auth,
         ),
     )

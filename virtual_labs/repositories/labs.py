@@ -7,7 +7,7 @@ from sqlalchemy.sql import and_, or_
 
 from virtual_labs.core.types import PaginatedDbResult
 from virtual_labs.domain import labs
-from virtual_labs.domain.common import PageParams
+from virtual_labs.domain.common import DbPagination, PageParams
 from virtual_labs.infrastructure.db.models import Project, VirtualLab
 
 
@@ -211,19 +211,51 @@ async def get_user_virtual_lab(db: AsyncSession, owner_id: UUID4) -> VirtualLab 
 
 
 async def get_virtual_labs_in_list(
-    db: AsyncSession, group_ids: list[str]
-) -> list[VirtualLab]:
-    query = select(VirtualLab).where(
-        and_(
-            ~VirtualLab.deleted,
-            or_(
-                (VirtualLab.admin_group_id.in_(group_ids)),
-                (VirtualLab.member_group_id.in_(group_ids)),
-            ),
-        )
+    db: AsyncSession, group_ids: list[str], page_params: PageParams
+) -> DbPagination[VirtualLab]:
+    # Define the filtering conditions
+    filter_conditions = and_(
+        ~VirtualLab.deleted,
+        or_(
+            (VirtualLab.admin_group_id.in_(group_ids)),
+            (VirtualLab.member_group_id.in_(group_ids)),
+        ),
     )
-    result = (await db.execute(statement=query)).unique().scalars().all()
-    return list(result)
+
+    # Define the query with window function for total count
+    query = (
+        select(VirtualLab, func.count(VirtualLab.id).over().label("total_count"))
+        .where(filter_conditions)
+        .order_by(VirtualLab.created_at.desc(), VirtualLab.updated_at.desc())
+        .offset((page_params.page - 1) * page_params.size)
+        .limit(page_params.size)
+    )
+
+    # Execute the query
+    result = await db.execute(statement=query)
+    rows = result.all()  # Fetches rows containing (VirtualLab, total_count) tuples
+
+    # Process results
+    total = 0
+    labs_list = []
+    if rows:
+        # Total count is the same for all rows fetched in this page
+        total = rows[0].total_count
+        labs_list = [row.VirtualLab for row in rows]
+
+    page_size = len(labs_list)
+    has_next = (page_params.page * page_params.size) < total
+    has_previous = page_params.page > 1
+
+    return DbPagination(
+        total=total,
+        page=page_params.page,
+        size=page_params.size,
+        page_size=page_size,
+        results=labs_list,
+        has_next=has_next,
+        has_previous=has_previous,
+    )
 
 
 async def get_virtual_lab_stats(
@@ -286,6 +318,8 @@ async def get_virtual_labs_where_user_is_member(
     user_groups = await group_repo.a_retrieve_user_groups(user_id=str(user_id))
     group_ids = [g.id for g in user_groups if "vlab" in g.name]
 
+    print("ᦨ #  labs.py:321 #  group_ids:", group_ids)
+
     # Get the virtual labs where user is a member of admin or member groups but not the owner
     query = select(VirtualLab).where(
         and_(
@@ -298,4 +332,7 @@ async def get_virtual_labs_where_user_is_member(
         )
     )
     result = (await db.execute(statement=query)).unique().scalars().all()
+
+    print("ᦨ #  labs.py:334 #  result:", result)
+
     return list(result)
