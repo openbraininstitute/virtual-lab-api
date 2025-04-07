@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated, List, Optional
+from typing import Annotated, Any, Dict, List, Optional
 
 from pydantic import (
     UUID4,
@@ -10,7 +10,6 @@ from pydantic import (
 )
 
 from virtual_labs.core.types import UserRoleEnum
-from virtual_labs.domain.invite import AddUser
 from virtual_labs.domain.user import UserWithInviteStatus
 
 
@@ -45,10 +44,6 @@ class ProjectUpdateBody(BaseModel):
     description: Optional[
         Annotated[str, StringConstraints(strip_whitespace=True)]
     ] = None
-
-
-class ProjectCreationBody(ProjectBody):
-    include_members: Optional[list[AddUser]] = None
 
 
 class Project(BaseModel):
@@ -139,6 +134,17 @@ class ProjectUserDeleteOut(BaseModel):
     deleted_at: datetime
 
 
+class ProjectAttachedUsersOut(BaseModel):
+    project_id: UUID4
+    admins_added_count: int
+    members_added_count: int
+    admins_updated_role_count: int
+    members_updated_role_count: int
+    failed_operations: List[Dict[str, Any]]
+    email_sending_failures: List[Dict[str, EmailStr | str]]
+    processed_at: datetime
+
+
 class ProjectStarStatusUpdateOut(BaseModel):
     project_id: UUID4
     starred_at: datetime | None
@@ -172,6 +178,48 @@ class ProjectInviteIn(BaseModel):
     role: UserRoleEnum
 
 
+class AddUserToProjectIn(BaseModel):
+    id: UUID4
+    email: EmailStr
+    role: UserRoleEnum
+
+
 class ProjectInviteOut(BaseModel):
     origin: str = "Project"
     invite_id: UUID4
+
+
+class AddUserProjectDetails(BaseModel):
+    """User details with role information for a project"""
+
+    id: str
+    email: EmailStr
+    role: UserRoleEnum
+
+
+class EmailFailure(BaseModel):
+    """Email sending failure details"""
+
+    email: EmailStr
+    error: str
+
+
+class AttachUserFailedOperation(BaseModel):
+    user_id: UUID4
+    requested_role: UserRoleEnum
+    error: str
+
+
+class ProjectUserOperationsResponse(BaseModel):
+    """Response model for project user operations"""
+
+    project_id: UUID4
+    added_users: List[AddUserProjectDetails]
+    updated_users: List[AddUserProjectDetails]
+    failed_operations: List[AttachUserFailedOperation]
+    email_sending_failures: List[EmailFailure]
+    processed_at: datetime = datetime.now()
+
+
+class ProjectCreationBody(ProjectBody):
+    include_members: Optional[List[AddUserToProjectIn]] = None

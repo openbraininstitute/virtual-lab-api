@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Generic, Optional, TypedDict, TypeVar
+from typing import Generic, List, Optional, TypedDict, TypeVar
 
 from pydantic import BaseModel, ConfigDict
 
@@ -14,9 +14,18 @@ class PaginatedDbResult(BaseModel, Generic[K]):
         arbitrary_types_allowed = True
 
 
-class UserRoleEnum(Enum):
+class UserRoleEnum(str, Enum):
     admin = "admin"
     member = "member"
+
+
+class LabTypeEnum(str, Enum):
+    MY_LAB = "my_lab"
+    MEMBERSHIP_LABS = "membership_labs"
+    PENDING_LABS = "pending_labs"
+
+
+LabTypes = List[LabTypeEnum]
 
 
 class UserGroup(BaseModel):

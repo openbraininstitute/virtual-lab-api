@@ -1,3 +1,4 @@
+from .attach_users_to_project import attach_users_to_project
 from .check_project_exist import check_project_existence_use_case
 from .create_new_project import create_new_project_use_case
 from .delete_project import delete_project_use_case
@@ -46,4 +47,5 @@ __all__ = [
     "delete_project_invite",
     "get_project_stats",
     "get_user_project_groups",
+    "attach_users_to_project",
 ]
