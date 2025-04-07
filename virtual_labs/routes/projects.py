@@ -19,6 +19,7 @@ from virtual_labs.core.exceptions.api_error import VliError
 from virtual_labs.core.types import UserGroup, UserRoleEnum, VliAppResponse
 from virtual_labs.domain.common import PageParams, PaginatedResultsResponse
 from virtual_labs.domain.project import (
+    AddUserToProjectIn,
     ProjectCreationBody,
     ProjectDeletionOut,
     ProjectExistenceOut,
@@ -30,6 +31,7 @@ from virtual_labs.domain.project import (
     ProjectUpdateBody,
     ProjectUpdateRoleOut,
     ProjectUserDeleteOut,
+    ProjectUserOperationsResponse,
     ProjectUsersCountOut,
     ProjectUsersOut,
     ProjectVlOut,
@@ -431,6 +433,35 @@ async def detach_user_from_project(
         virtual_lab_id=virtual_lab_id,
         project_id=project_id,
         user_id=user_id,
+        auth=auth,
+    )
+
+
+@router.post(
+    "/{virtual_lab_id}/projects/{project_id}/users/attach",
+    operation_id="attach_user_to_project",
+    summary="Attach user to the project if the user has permission",
+    description=(
+        """
+        Allow only the User that has the right role (based on KC groups "Virtual Lab Admin/Project Admin")
+        to attach the selected users to the current project
+        """
+    ),
+    response_model=VliAppResponse[ProjectUserOperationsResponse],
+)
+@verify_vlab_or_project_write
+async def attach_users_to_project(
+    virtual_lab_id: UUID4,
+    project_id: UUID4,
+    users: Annotated[List[AddUserToProjectIn], Body(embed=True)],
+    session: AsyncSession = Depends(default_session_factory),
+    auth: Tuple[AuthUser, str] = Depends(verify_jwt),
+) -> Response | VliError:
+    return await project_cases.attach_users_to_project(
+        session,
+        virtual_lab_id=virtual_lab_id,
+        project_id=project_id,
+        users=users,
         auth=auth,
     )
 

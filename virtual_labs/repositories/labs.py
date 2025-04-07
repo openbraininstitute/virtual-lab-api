@@ -7,7 +7,7 @@ from sqlalchemy.sql import and_, or_
 
 from virtual_labs.core.types import PaginatedDbResult
 from virtual_labs.domain import labs
-from virtual_labs.domain.common import PageParams
+from virtual_labs.domain.common import DbPagination, PageParams
 from virtual_labs.infrastructure.db.models import Project, VirtualLab
 
 
@@ -211,19 +211,62 @@ async def get_user_virtual_lab(db: AsyncSession, owner_id: UUID4) -> VirtualLab 
 
 
 async def get_virtual_labs_in_list(
-    db: AsyncSession, group_ids: list[str]
-) -> list[VirtualLab]:
-    query = select(VirtualLab).where(
-        and_(
-            ~VirtualLab.deleted,
-            or_(
-                (VirtualLab.admin_group_id.in_(group_ids)),
-                (VirtualLab.member_group_id.in_(group_ids)),
-            ),
-        )
+    db: AsyncSession,
+    group_ids: list[str],
+    page_params: PageParams,
+    query: str | None = None,
+) -> DbPagination[VirtualLab]:
+    base_filter_conditions = and_(
+        ~VirtualLab.deleted,
+        or_(
+            (VirtualLab.admin_group_id.in_(group_ids)),
+            (VirtualLab.member_group_id.in_(group_ids)),
+        ),
     )
-    result = (await db.execute(statement=query)).unique().scalars().all()
-    return list(result)
+
+    total_count_query = select(func.count(VirtualLab.id)).where(base_filter_conditions)
+    total = await db.scalar(total_count_query) or 0
+
+    final_filter_conditions = base_filter_conditions
+    filtered_total = total
+    if query:
+        final_filter_conditions = and_(
+            base_filter_conditions,
+            func.lower(VirtualLab.name).ilike(f"%{query.strip().lower()}%"),
+        )
+        filtered_total_count_query = select(func.count(VirtualLab.id)).where(
+            final_filter_conditions
+        )
+        filtered_total = await db.scalar(filtered_total_count_query) or 0
+
+        print("ᦨ #  labs.py:242 #  filtered_total:", filtered_total)
+
+    paginated_query = (
+        select(VirtualLab)
+        .where(final_filter_conditions)
+        .order_by(VirtualLab.created_at.desc(), VirtualLab.updated_at.desc())
+        .offset((page_params.page - 1) * page_params.size)
+        .limit(page_params.size)
+    )
+
+    result = await db.execute(statement=paginated_query)
+    labs_list = list(result.scalars().all())
+
+    page_size = len(labs_list)
+    has_next = (page_params.page * page_params.size) < total
+    has_previous = page_params.page > 1
+    print("ᦨ #  labs.py:242 #  filtered_total: 2/-->", filtered_total)
+
+    return DbPagination(
+        total=total,
+        filtered_total=filtered_total,
+        page=page_params.page,
+        size=page_params.size,
+        page_size=page_size,
+        results=labs_list,
+        has_next=has_next,
+        has_previous=has_previous,
+    )
 
 
 async def get_virtual_lab_stats(
@@ -298,4 +341,5 @@ async def get_virtual_labs_where_user_is_member(
         )
     )
     result = (await db.execute(statement=query)).unique().scalars().all()
+
     return list(result)

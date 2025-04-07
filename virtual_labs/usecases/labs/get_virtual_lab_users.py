@@ -43,7 +43,10 @@ def get_pending_user(
     return user
 
 
-async def get_virtual_lab_users(db: AsyncSession, lab_id: UUID4) -> VirtualLabUsers:
+async def get_virtual_lab_users(
+    db: AsyncSession,
+    lab_id: UUID4,
+) -> VirtualLabUsers:
     invite_repo = InviteQueryRepository(db)
     group_repo = GroupQueryRepository()
     user_repo = UserQueryRepository()
