@@ -3,7 +3,7 @@ from typing import Annotated, Dict, List, Tuple
 from fastapi import APIRouter, Body, Depends, Query
 from fastapi.responses import Response
 from httpx import AsyncClient
-from pydantic import UUID4, EmailStr
+from pydantic import UUID4
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.authorization import (
@@ -23,8 +23,6 @@ from virtual_labs.domain.project import (
     ProjectCreationBody,
     ProjectDeletionOut,
     ProjectExistenceOut,
-    ProjectInviteIn,
-    ProjectInviteOut,
     ProjectOut,
     ProjectPerVLCountOut,
     ProjectStats,
@@ -464,52 +462,6 @@ async def attach_users_to_project(
         users=users,
         auth=auth,
     )
-
-
-@router.post(
-    "/{virtual_lab_id}/projects/{project_id}/invites",
-    operation_id="invite_user_to_project",
-    summary="invite a user to a project if the inviter has permission",
-    description=(
-        """
-        Allow only the User that has the right role (based on KC groups "Virtual Lab Admin/Project Admin")
-        to invite a new user by email or user_id if the user already an OBP user
-        """
-    ),
-    response_model=VliAppResponse[ProjectInviteOut],
-)
-@verify_vlab_or_project_write
-async def invite_user_to_project(
-    virtual_lab_id: UUID4,
-    project_id: UUID4,
-    invite: ProjectInviteIn,
-    session: AsyncSession = Depends(default_session_factory),
-    auth: Tuple[AuthUser, str] = Depends(verify_jwt),
-) -> Response | VliError:
-    return await project_cases.invite_user_to_project(
-        session,
-        virtual_lab_id=virtual_lab_id,
-        project_id=project_id,
-        invite_details=invite,
-        auth=auth,
-    )
-
-
-@router.post(
-    "/{virtual_lab_id}/projects/{project_id}/invites/cancel",
-    response_model=VliAppResponse[None],
-    description="Delete invite. Only invites that are not accepted can be deleted.",
-)
-@verify_vlab_or_project_write
-async def delete_project_invite(
-    virtual_lab_id: UUID4,
-    project_id: UUID4,
-    email: Annotated[EmailStr, Body(embed=True)],
-    role: Annotated[UserRoleEnum, Body(embed=True)],
-    session: AsyncSession = Depends(default_session_factory),
-    auth: tuple[AuthUser, str] = Depends(verify_jwt),
-) -> Response:
-    return await project_cases.delete_project_invite(session, project_id, email, role)
 
 
 @router.get(

@@ -5,7 +5,6 @@ from uuid import UUID
 from fastapi import Response
 from jwt import ExpiredSignatureError, PyJWTError
 from loguru import logger
-from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,7 +22,6 @@ from virtual_labs.repositories.invite_repo import (
     InviteQueryRepository,
 )
 from virtual_labs.repositories.labs import get_undeleted_virtual_lab
-from virtual_labs.repositories.project_repo import ProjectQueryRepository
 from virtual_labs.repositories.user_repo import (
     UserMutationRepository,
     UserQueryRepository,
@@ -37,7 +35,6 @@ async def invitation_handler(
     invite_token: str,
     auth: Tuple[AuthUser, str],
 ) -> Response | VliError:
-    project_query_repo = ProjectQueryRepository(session)
     invite_mut_repo = InviteMutationRepository(session)
     invite_query_repo = InviteQueryRepository(session)
     user_mut_repo = UserMutationRepository()
@@ -50,7 +47,7 @@ async def invitation_handler(
         user_id = get_user_id_from_auth(auth)
         invite_id = decoded_token.get("invite_id")
         origin = decoded_token.get("origin")
-        virtual_lab_id, project_id = None, None
+        virtual_lab_id = None
 
         if origin == InviteOrigin.LAB.value:
             vlab_invite = await invite_query_repo.get_vlab_invite_by_id(
@@ -63,7 +60,6 @@ async def invitation_handler(
                         "origin": origin,
                         "invite_id": invite_id,
                         "virtual_lab_id": vlab_invite.virtual_lab_id,
-                        "project_id": project_id,
                         "status": "already_accepted",
                     },
                 )
@@ -93,56 +89,6 @@ async def invitation_handler(
             await session.refresh(vlab)
             virtual_lab_id = vlab.id
 
-        elif origin == InviteOrigin.PROJECT.value:
-            project_invite = await invite_query_repo.get_project_invite_by_id(
-                invite_id=UUID(invite_id)
-            )
-            project, vlab = await project_query_repo.retrieve_one_project_by_id(
-                project_id=UUID(str(project_invite.project_id))
-            )
-
-            if project_invite.accepted:
-                return VliResponse.new(
-                    message="Invite for project: {}/{} already accepted".format(
-                        project_invite.project.virtual_lab_id,
-                        project_invite.project_id,
-                    ),
-                    data={
-                        "origin": origin,
-                        "invite_id": invite_id,
-                        "virtual_lab_id": project.virtual_lab_id,
-                        "project_id": project.id,
-                        "status": "already_accepted",
-                    },
-                )
-
-            user = user_query_repo.retrieve_user_from_kc(user_id=str(user_id))
-            assert user is not None
-
-            group_id = (
-                project.admin_group_id
-                if project_invite.role == UserRoleEnum.admin.value
-                else project.member_group_id
-            )
-            user_mut_repo.attach_user_to_group(
-                user_id=UUID(user.id),
-                group_id=str(group_id),
-            )
-            # user should be added to vlab members too
-            # if not the user can not fetch the vlab details
-            user_mut_repo.attach_user_to_group(
-                user_id=UUID(user.id),
-                group_id=str(vlab.member_group_id),
-            )
-
-            await invite_mut_repo.update_project_invite(
-                invite_id=UUID(str(project_invite.id)),
-                properties={"accepted": True, "updated_at": func.now()},
-            )
-            await session.refresh(project)
-
-            virtual_lab_id = project.virtual_lab_id
-            project_id = project.id
         else:
             raise ValueError(f"Origin {origin} is not allowed.")
 
@@ -152,7 +98,6 @@ async def invitation_handler(
                 "origin": origin,
                 "invite_id": invite_id,
                 "virtual_lab_id": virtual_lab_id,
-                "project_id": project_id,
                 "status": "accepted",
             },
         )
