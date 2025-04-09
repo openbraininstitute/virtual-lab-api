@@ -96,6 +96,7 @@ async def invitation_handler(
 
             await invite_mut_repo.update_lab_invite(
                 invite_id=UUID(str(vlab_invite.id)),
+                user_id=user_id,
                 accepted=True,
             )
             await session.refresh(vlab)

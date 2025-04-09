@@ -93,38 +93,18 @@ async def invite_members_to_lab(
 
     for member in members:
         try:
-            user_to_invite = user_repo.retrieve_user_by_email(member.email)
-            user_id = UUID(user_to_invite.id) if user_to_invite is not None else None
-            invitee_name = (
-                None
-                if user_to_invite is None
-                else f"{user_to_invite.firstName} {user_to_invite.lastName}"
-            )
-
-            if user_id == inviter_id:
-                logger.error(
-                    f"User cannot invite oneself. Inviter {inviter_id}. Invitee {member.email}"
-                )
-                raise VliError(
-                    message=f"User with email {member.email} is already in lab {virtual_lab.name}",
-                    http_status_code=HTTPStatus.PRECONDITION_FAILED,
-                    error_code=VliErrorCode.ENTITY_ALREADY_EXISTS,
-                )
-
             invite = await invite_mutation_repo.add_lab_invite(
                 virtual_lab_id=UUID(str(virtual_lab.id)),
                 # Inviter details
                 inviter_id=inviter_id,
                 # Invitee details
-                invitee_id=user_id,
                 invitee_role=member.role,
                 invitee_email=member.email,
             )
-            # Need to refresh the lab because the invite is commited inside the repo.
+            # Need to refresh the lab because the invite is committed inside the repo.
             await db.refresh(virtual_lab)
             await send_email_to_user_or_rollback(
                 invite_id=UUID(str(invite.id)),
-                invitee_name=invitee_name,
                 inviter_name=f"{inviting_user.firstName} {inviting_user.lastName}",
                 email=member.email,
                 lab_name=str(virtual_lab.name),
