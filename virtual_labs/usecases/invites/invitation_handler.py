@@ -1,3 +1,4 @@
+import asyncio
 from http import HTTPStatus as status
 from typing import Tuple
 from uuid import UUID
@@ -76,10 +77,21 @@ async def invitation_handler(
                 if vlab_invite.role == UserRoleEnum.admin.value
                 else vlab.member_group_id
             )
+            remaining_group_id = (
+                vlab.member_group_id
+                if group_id == vlab.admin_group_id
+                else vlab.admin_group_id
+            )
 
-            user_mut_repo.attach_user_to_group(
-                user_id=UUID(user.id),
-                group_id=str(group_id),
+            await asyncio.gather(
+                user_mut_repo.a_detach_user_from_group(
+                    user_id=UUID(user.id),
+                    group_id=str(remaining_group_id),
+                ),
+                user_mut_repo.a_attach_user_to_group(
+                    user_id=UUID(user.id),
+                    group_id=str(group_id),
+                ),
             )
 
             await invite_mut_repo.update_lab_invite(

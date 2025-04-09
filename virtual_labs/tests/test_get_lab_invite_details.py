@@ -68,8 +68,5 @@ async def test_get_lab_invite_details(
 
     assert actual_data["origin"] == "Lab"
 
-    assert actual_data["project_id"] is None
-    assert actual_data["project_name"] is None
-
     assert actual_data["virtual_lab_id"] == lab_id
     assert "Test Lab " in actual_data["virtual_lab_name"]

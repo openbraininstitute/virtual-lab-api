@@ -83,7 +83,7 @@ def verify_vlab_or_project_read(f: Callable[..., Any]) -> Callable[..., Any]:
             raise VliError(
                 error_code=VliErrorCode.NOT_ALLOWED_OP,
                 http_status_code=status.FORBIDDEN,
-                message="The supplied authentication is not authorized for this action",
+                message="[verify_vlab_or_project_read] The supplied authentication is not authorized for this action",
             )
         except KeycloakError as error:
             logger.error(
@@ -176,7 +176,7 @@ async def verify_vlab_or_project_read_dep(
         raise VliError(
             error_code=VliErrorCode.NOT_ALLOWED_OP,
             http_status_code=status.FORBIDDEN,
-            message="The supplied authentication is not authorized for this action",
+            message="[verify_vlab_or_project_read_dep] The supplied authentication is not authorized for this action",
         )
     except KeycloakError as error:
         logger.error(
