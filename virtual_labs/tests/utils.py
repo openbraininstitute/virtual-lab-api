@@ -76,6 +76,7 @@ async def create_mock_lab(
         "email_status": "verified",
     }
     headers = get_headers(owner_username)
+
     response = await client.post(
         "/virtual-labs",
         json=body,
@@ -131,7 +132,9 @@ def get_invite_token_from_email(recipient_email: str) -> str:
     return encoded_invite_token
 
 
-async def cleanup_resources(client: AsyncClient, lab_id: str) -> None:
+async def cleanup_resources(
+    client: AsyncClient, lab_id: str, user: str | None = None
+) -> None:
     """Performs cleanup of following resources for lab_id:
     1. Delete all payments and subscriptions linked to this virtual lab
     2. Deprecates underlying nexus org/project by calling the DELETE endpoints
@@ -175,7 +178,8 @@ async def cleanup_resources(client: AsyncClient, lab_id: str) -> None:
     for project_id in project_ids:
         try:
             project_delete_response = await client.delete(
-                f"/virtual-labs/{lab_id}/projects/{project_id}", headers=get_headers()
+                f"/virtual-labs/{lab_id}/projects/{project_id}",
+                headers=get_headers(user if user else "test"),
             )
         except Exception:
             assert (
@@ -183,7 +187,7 @@ async def cleanup_resources(client: AsyncClient, lab_id: str) -> None:
             )  # TODO: The response code for deleting already deleted lab and project should be the same.
     try:
         lab_delete_response = await client.delete(
-            f"/virtual-labs/{lab_id}", headers=get_headers()
+            f"/virtual-labs/{lab_id}", headers=get_headers(user if user else "test")
         )
     except Exception:
         assert lab_delete_response.status_code == HTTPStatus.NOT_FOUND
