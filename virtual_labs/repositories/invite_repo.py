@@ -140,11 +140,9 @@ class InviteMutationRepository:
         inviter_id: UUID4,
         invitee_role: UserRoleEnum,
         invitee_email: EmailStr,
-        invitee_id: UUID4 | None,
     ) -> VirtualLabInvite:
         invite = VirtualLabInvite(
             inviter_id=inviter_id,
-            user_id=invitee_id,
             virtual_lab_id=virtual_lab_id,
             role=invitee_role.value,
             user_email=invitee_email,
@@ -175,11 +173,20 @@ class InviteMutationRepository:
         await self.session.refresh(invite)
         return invite
 
-    async def update_lab_invite(self, invite_id: UUID4, accepted: bool = False) -> None:
+    async def update_lab_invite(
+        self,
+        invite_id: UUID4,
+        user_id: UUID | None = None,
+        accepted: bool = False,
+    ) -> None:
         statement = (
             update(VirtualLabInvite)
             .where(VirtualLabInvite.id == invite_id)
-            .values(accepted=accepted, updated_at=func.now())
+            .values(
+                user_id=user_id,
+                accepted=accepted,
+                updated_at=func.now(),
+            )
         )
         await self.session.execute(statement=statement)
         await self.session.commit()

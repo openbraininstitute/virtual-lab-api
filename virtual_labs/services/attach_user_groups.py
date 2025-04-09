@@ -72,18 +72,19 @@ async def get_project_and_vl_groups(
     )
     vl_all_member_ids: Set[str] = set(vl_admin_ids_list).union(set(vl_member_ids_list))
 
-    # Check if users are part of the Virtual Lab
+    # Check if ALL users are part of the Virtual Lab (admin or member)
     users_not_in_vl: List[UUID4] = []
     for user_to_check in unique_users_map.values():
         if str(user_to_check.id) not in vl_all_member_ids:
             users_not_in_vl.append(user_to_check.id)
 
+    # If any user is not in the VL, raise an error immediately
     if users_not_in_vl:
         logger.error(
             f"Users not part of Virtual Lab {virtual_lab.id}: {[str(uid) for uid in users_not_in_vl]}"
         )
         raise EntityNotFound(
-            "User not part of the Virtual Lab has been provided",
+            "One or more users are not members of the parent Virtual Lab.",
             data={
                 "users_not_in_virtual_lab": [str(uid) for uid in users_not_in_vl],
             },
