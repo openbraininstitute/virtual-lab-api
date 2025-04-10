@@ -26,7 +26,7 @@ async def get_virtual_lab_stats(
             gqr.a_retrieve_group_users(group_id=str(virtual_lab.admin_group_id)),
             gqr.a_retrieve_group_users(group_id=str(virtual_lab.member_group_id)),
         )
-        total_members = len(admin_users) + len(member_users)
+        total_members = len(set(admin_users + member_users))
 
         return VirtualLabStats(
             virtual_lab_id=virtual_lab_id,
