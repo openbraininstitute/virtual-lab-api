@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.authorization import (
     verify_project_read,
+    verify_vlab_or_project_read,
     verify_vlab_read,
     verify_vlab_write,
 )
@@ -57,8 +58,9 @@ async def get_vl_account_balance(
     summary="Retrieve account balance for a specific project",
     response_model=ProjBalanceResponse,
 )
-@verify_project_read
+@verify_vlab_or_project_read
 async def get_proj_account_balance(
+    virtual_lab_id: UUID4,
     project_id: UUID4,
     session: AsyncSession = Depends(default_session_factory),
     auth: Tuple[AuthUser, str] = Depends(verify_jwt),
