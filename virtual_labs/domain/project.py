@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated, Any, Dict, List, Optional
+from typing import Annotated, List, Optional
 
 from pydantic import (
     UUID4,
@@ -132,17 +132,6 @@ class ProjectUserDeleteOut(BaseModel):
     project_id: UUID4
     deleted: bool
     deleted_at: datetime
-
-
-class ProjectAttachedUsersOut(BaseModel):
-    project_id: UUID4
-    admins_added_count: int
-    members_added_count: int
-    admins_updated_role_count: int
-    members_updated_role_count: int
-    failed_operations: List[Dict[str, Any]]
-    email_sending_failures: List[Dict[str, EmailStr | str]]
-    processed_at: datetime
 
 
 class ProjectStarStatusUpdateOut(BaseModel):

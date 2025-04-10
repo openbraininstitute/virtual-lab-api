@@ -948,8 +948,6 @@ async def test_accept_multiple_invites_different_emails_same_user(
     # 3. User 'test-4' accepts the ADMIN invite (for email_A)
     accept_headers = get_headers(username=accepting_user_username)
 
-    print("ᦨ #  test_invitation_handler.py:931 #  accept_headers:", accept_headers)
-
     accept_admin_response = await client.post(
         f"/invites?token={admin_invite_token}", headers=accept_headers
     )
