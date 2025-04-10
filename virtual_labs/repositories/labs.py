@@ -239,8 +239,6 @@ async def get_virtual_labs_in_list(
         )
         filtered_total = await db.scalar(filtered_total_count_query) or 0
 
-        print("ᦨ #  labs.py:242 #  filtered_total:", filtered_total)
-
     paginated_query = (
         select(VirtualLab)
         .where(final_filter_conditions)
@@ -255,7 +253,6 @@ async def get_virtual_labs_in_list(
     page_size = len(labs_list)
     has_next = (page_params.page * page_params.size) < total
     has_previous = page_params.page > 1
-    print("ᦨ #  labs.py:242 #  filtered_total: 2/-->", filtered_total)
 
     return DbPagination(
         total=total,

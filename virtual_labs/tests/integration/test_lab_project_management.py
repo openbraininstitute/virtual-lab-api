@@ -238,7 +238,6 @@ class TestVirtualLabCreation:
                 assert db_sub.subscription_type == "FREE"
 
             # Assert Keycloak groups and owner membership
-            print("-->", db_lab.__dict__)
             gqr = GroupQueryRepository()
             admin_group_id = str(db_lab.admin_group_id)
             member_group_id = str(db_lab.member_group_id)
