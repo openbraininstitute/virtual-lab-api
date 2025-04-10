@@ -95,12 +95,14 @@ class ProjectQueryRepository:
                     or_(
                         Project.admin_group_id.in_(groups),
                         Project.member_group_id.in_(groups),
+                        VirtualLab.admin_group_id.in_(groups),
                     ),
                     Project.virtual_lab_id == virtual_lab_id,
                     ~Project.deleted,
                 )
             )
         )
+
         count = await self.session.scalar(
             select(func.count()).select_from(query.options(noload("*")).subquery())
         )
