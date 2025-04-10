@@ -21,7 +21,7 @@ class EmailDetails(BaseModel):
 
 async def send_add_member_to_project_email(details: EmailDetails) -> str:
     try:
-        project_link = f"{settings.LANDING_NAMESPACE}/app/virtual-lab/lab/{details.lab_id}/project/{details.project_id}/home"
+        project_link = f"{settings.DEPLOYMENT_NAMESPACE}/app/virtual-lab/lab/{details.lab_id}/project/{details.project_id}/home"
         body_html = generate_email_to_add_user_to_project(
             details.project_name, details.lab_name, project_link, details.inviter_name
         )
