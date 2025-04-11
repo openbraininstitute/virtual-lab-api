@@ -10,7 +10,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
-from virtual_labs.core.exceptions.identity_error import IdentityError
+from virtual_labs.core.exceptions.identity_error import IdentityError, UserMatch
 from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.core.types import UserRoleEnum
 from virtual_labs.infrastructure.email.email_utils import (
@@ -69,6 +69,10 @@ async def invitation_handler(
                 db=session,
                 lab_id=UUID(str(vlab_invite.virtual_lab_id)),
             )
+
+            if UUID(str(vlab.owner_id)) == user_id:
+                raise UserMatch
+
             user = user_query_repo.retrieve_user_from_kc(user_id=str(user_id))
 
             assert user is not None
@@ -114,7 +118,14 @@ async def invitation_handler(
                 "status": "accepted",
             },
         )
-
+    except UserMatch as ex:
+        logger.error(f"Error during processing the invite: ({ex})")
+        raise VliError(
+            error_code=VliErrorCode.DATA_CONFLICT,
+            http_status_code=status.BAD_REQUEST,
+            message="Inviter user is the same as invitee user",
+            details="Invitation is forbidden",
+        )
     except ExpiredSignatureError as ex:
         logger.error(f"Error during processing the invite: ({ex})")
         raise VliError(
