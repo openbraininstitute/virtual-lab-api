@@ -243,6 +243,7 @@ class SubscriptionRepository:
         self,
         user_id: UUID,
         virtual_lab_id: UUID,
+        status: Optional[SubscriptionStatus],
     ) -> FreeSubscription:
         """Create a new free subscription."""
         tier = await self.get_subscription_tier_by_tier(tier=SubscriptionTierEnum.FREE)
@@ -253,7 +254,7 @@ class SubscriptionRepository:
             virtual_lab_id=virtual_lab_id,
             tier_id=tier.id,
             subscription_type=SubscriptionType.FREE,
-            status=SubscriptionStatus.ACTIVE,
+            status=status if status else SubscriptionStatus.ACTIVE,
             current_period_start=datetime.now(),
             # Free subscriptions don't expire
             current_period_end=datetime.max,
