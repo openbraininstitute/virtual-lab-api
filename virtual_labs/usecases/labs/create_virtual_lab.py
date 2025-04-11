@@ -296,12 +296,22 @@ async def create_virtual_lab(
         db_lab = await repository.create_virtual_lab(db, lab_with_ids)
         lab_details = domain.VirtualLabDetails.model_validate(db_lab)
 
-        # create free subscription
-        if not await subscription_repo.get_free_subscription_by_user_id(
+        free_subscription = await subscription_repo.get_free_subscription_by_user_id(
             user_id=owner_id
-        ):
+        )
+
+        paid_subscription = await subscription_repo.get_active_subscription_by_user_id(
+            user_id=owner_id,
+            subscription_type="paid",
+        )
+
+        if not free_subscription:
             await subscription_repo.create_free_subscription(
-                user_id=owner_id, virtual_lab_id=UUID(str(db_lab.id))
+                user_id=owner_id,
+                virtual_lab_id=UUID(str(db_lab.id)),
+                status=models.SubscriptionStatus.PAUSED
+                if paid_subscription
+                else models.SubscriptionStatus.ACTIVE,
             )
 
         await user_repo.update_user_custom_properties(
