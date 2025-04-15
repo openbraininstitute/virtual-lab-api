@@ -12,11 +12,13 @@ from virtual_labs.repositories.bookmark_repo import BookmarkQueryRepository
 
 
 async def get_bookmarks_by_category(
-    db: AsyncSession, project_id: UUID4
+    db: AsyncSession,
+    project_id: UUID4,
+    category: BookmarkCategory | None = None,
 ) -> dict[BookmarkCategory, list[BookmarkOut]]:
     try:
         repo = BookmarkQueryRepository(db)
-        db_bookmarks = await repo.get_project_bookmarks(project_id)
+        db_bookmarks = await repo.get_project_bookmarks(project_id, category)
 
         grouped_bookmarks: defaultdict[
             BookmarkCategory, list[BookmarkOut]

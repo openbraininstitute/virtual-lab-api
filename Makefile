@@ -9,7 +9,7 @@ define HELPTEXT
 	commands for managing the project
 	
 	Commands:
-		dev		Run development api server.
+		dev			Run development api server.
 		init		Run project with .env.local file (for local development)
 		init-ci		Run project without env file (for CI/CD environments)
 		kill		Kill project containers (with .env.local)
@@ -27,6 +27,13 @@ define HELPTEXT
 
 endef
 export HELPTEXT
+
+define load_env
+	# all the variables in the included file must be prefixed with export
+	$(eval ENV_FILE := .env.$(1))
+	@echo "Loading env from $(ENV_FILE)"
+	$(eval include $(ENV_FILE))
+endef
 
 help:
 	@echo "$$HELPTEXT"
@@ -76,3 +83,9 @@ init-db:
 
 check-db-schema:
 	poetry run alembic check
+
+migration: MESSAGE ?= vlm migration
+migration:  ## Create or update the alembic migration
+	@$(call load_env,local)
+	poetry run alembic upgrade head
+	poetry run alembic revision --autogenerate -m "$(MESSAGE)"

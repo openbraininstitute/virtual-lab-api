@@ -215,8 +215,11 @@ class Bookmark(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     resource_id = Column(String, nullable=False, index=True)
-
+    entity_id: Mapped[uuid.UUID | None] = mapped_column(
+        unique=False, index=True, nullable=True
+    )
     category = Column(SAEnum(BookmarkCategory), nullable=False)  # type: ignore[var-annotated]
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=func.now()
     )
