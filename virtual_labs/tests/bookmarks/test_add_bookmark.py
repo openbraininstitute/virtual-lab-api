@@ -8,7 +8,7 @@ from virtual_labs.tests.utils import get_headers
 
 
 async def request_to_add_bookmark(
-    client: AsyncClient, lab_id: str, project_id: str, payload: dict[str, str]
+    client: AsyncClient, lab_id: str, project_id: str, payload: dict[str, str | None]
 ) -> Response:
     response = await client.post(
         f"/virtual-labs/{lab_id}/projects/{project_id}/bookmarks",
@@ -26,6 +26,7 @@ async def test_user_can_add_bookmark(
 
     payload = {
         "resourceId": "some-resource-id",
+        "entity_id": None,
         "category": BookmarkCategory.ExperimentalNeuronMorphology.value,
     }
 
@@ -33,6 +34,7 @@ async def test_user_can_add_bookmark(
 
     assert response.status_code == 200
     data = response.json()["data"]
+
     assert data["resourceId"] == payload["resourceId"]
     assert data["category"] == payload["category"]
 
@@ -45,6 +47,7 @@ async def test_returns_error_if_resource_with_same_id_and_category_is_added_twic
 
     payload = {
         "resourceId": "some-resource-id",
+        "entity_id": None,
         "category": BookmarkCategory.ExperimentalNeuronMorphology.value,
     }
 
@@ -64,6 +67,7 @@ async def test_allows_adding_same_resource_to_different_category(
 
     payload = {
         "resourceId": "some-resource-id",
+        "entity_id": None,
         "category": BookmarkCategory.ExperimentalNeuronMorphology.value,
     }
     response1 = await request_to_add_bookmark(client, lab_id, project_id, payload)
@@ -75,6 +79,7 @@ async def test_allows_adding_same_resource_to_different_category(
         project_id,
         {
             "resourceId": payload["resourceId"],
+            "entity_id": None,
             "category": BookmarkCategory.ExperimentalElectroPhysiology.value,
         },
     )
