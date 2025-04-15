@@ -1,3 +1,4 @@
+import uuid
 from http import HTTPStatus
 from typing import AsyncGenerator
 
@@ -10,7 +11,9 @@ from virtual_labs.infrastructure.db.models import Bookmark
 from virtual_labs.tests.utils import session_context_factory
 
 mock_bookmark = BookmarkIn(
-    resource_id="resource-1", category=BookmarkCategory.ExperimentalNeuronMorphology
+    resource_id="resource-1",
+    entity_id=uuid.UUID("697e2ad0-01a3-4034-a117-9b44d7559bc1"),
+    category=BookmarkCategory.ExperimentalNeuronMorphology,
 )
 
 
