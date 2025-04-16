@@ -218,7 +218,7 @@ class UserMutationRepository:
     async def update_user_custom_properties(
         self,
         user_id: UUID,
-        properties: List[Tuple[str, str, Literal["multiple", "unique"]]],
+        properties: List[Tuple[str, str | None, Literal["multiple", "unique"]]],
     ) -> None:
         """
         update multiple custom properties for a user at once.

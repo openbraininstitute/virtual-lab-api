@@ -23,6 +23,7 @@ from virtual_labs.repositories.stripe_user_repo import StripeUserQueryRepository
 from virtual_labs.repositories.subscription_repo import SubscriptionRepository
 from virtual_labs.repositories.user_repo import UserMutationRepository
 from virtual_labs.services.credit_converter import CreditConverter
+from virtual_labs.utils.subscription_type_resolver import resolve_tier
 
 
 class StripeWebhook:
@@ -481,7 +482,11 @@ class StripeWebhook:
                 await self.kc_user.update_user_custom_properties(
                     user_id=subscription.user_id,
                     properties=[
-                        ("plan", subscription.subscription_type, "multiple"),
+                        (
+                            "plan",
+                            resolve_tier(subscription.subscription_type),
+                            "multiple",
+                        ),
                     ],
                 )
             except Exception as e:
