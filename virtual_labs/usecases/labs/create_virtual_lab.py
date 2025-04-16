@@ -42,6 +42,7 @@ from virtual_labs.repositories.user_repo import (
 from virtual_labs.shared.utils.auth import get_user_id_from_auth
 from virtual_labs.usecases import accounting as accounting_cases
 from virtual_labs.usecases.labs.invite_user_to_lab import send_email_to_user_or_rollback
+from virtual_labs.utils.subscription_type_resolver import resolve_tier
 
 GroupIds = dict[Literal["member_group"] | Literal["admin_group"], CreatedGroup]
 UserInvites = TypedDict(
@@ -304,6 +305,9 @@ async def create_virtual_lab(
             user_id=owner_id,
             subscription_type="paid",
         )
+        subscription_type = (
+            paid_subscription.subscription_type if paid_subscription else None
+        )
 
         if not free_subscription:
             await subscription_repo.create_free_subscription(
@@ -314,10 +318,17 @@ async def create_virtual_lab(
                 else models.SubscriptionStatus.ACTIVE,
             )
 
+        plan_value: models.SubscriptionTierEnum | None = (
+            models.SubscriptionTierEnum.FREE
+        )
+
+        if paid_subscription:
+            plan_value = resolve_tier(subscription_type)
+
         await user_repo.update_user_custom_properties(
             user_id=owner_id,
             properties=[
-                ("plan", "free", "multiple"),
+                ("plan", plan_value, "multiple"),
                 ("virtual_lab_id", str(lab_details.id), "multiple"),
             ],
         )
