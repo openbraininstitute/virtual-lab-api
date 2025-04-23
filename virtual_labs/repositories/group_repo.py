@@ -134,3 +134,6 @@ class GroupMutationRepository:
 
     def delete_group(self, *, group_id: str) -> Any | Dict[str, str]:
         return self.Kc.delete_group(group_id=group_id)
+
+    def a_delete_group(self, *, group_id: str) -> Any | Dict[str, str]:
+        return self.Kc.a_delete_group(group_id=group_id)
