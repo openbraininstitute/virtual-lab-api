@@ -112,5 +112,25 @@ class GroupMutationRepository:
 
         return {"id": group_id, "name": group_name}
 
+    async def a_create_project_group(
+        self,
+        *,
+        virtual_lab_id: UUID4,
+        project_id: UUID4,
+        role: UserRoleEnum,
+        payload: ProjectCreationBody,
+    ) -> CreatedGroup | None:
+        """
+        NOTE: you can not set the ID even in the docs says that is Optional
+        project group must be following this format
+        proj/virtual_lab_id/project_id/role
+        """
+        group_name = "proj/{}/{}/{}".format(virtual_lab_id, project_id, role.value)
+        group_id = await self.Kc.a_create_group(
+            {"name": group_name},
+        )
+
+        return {"id": group_id, "name": group_name}
+
     def delete_group(self, *, group_id: str) -> Any | Dict[str, str]:
         return self.Kc.delete_group(group_id=group_id)

@@ -1,6 +1,7 @@
+import asyncio
 from http import HTTPStatus as status
 from typing import List, Tuple
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 from fastapi.responses import Response
 from keycloak import KeycloakError  # type: ignore
@@ -10,21 +11,20 @@ from sqlalchemy.exc import IntegrityError, NoResultFound, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
-from virtual_labs.core.exceptions.email_error import EmailError
-from virtual_labs.core.exceptions.identity_error import IdentityError
 from virtual_labs.core.exceptions.nexus_error import NexusError
 from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.core.types import UserRoleEnum
-from virtual_labs.domain.invite import AddUser
-from virtual_labs.domain.project import FailedInvite, ProjectCreationBody, ProjectVlOut
+from virtual_labs.domain.project import (
+    EmailFailure,
+    ProjectCreationBody,
+    ProjectVlOut,
+)
 from virtual_labs.external.nexus.project_instance import instantiate_nexus_project
-from virtual_labs.infrastructure.db.models import Project as DbProject
-from virtual_labs.infrastructure.db.models import VirtualLab
-from virtual_labs.infrastructure.email.invite_email import EmailDetails, send_invite
 from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.infrastructure.settings import settings
-from virtual_labs.repositories.group_repo import GroupMutationRepository
-from virtual_labs.repositories.invite_repo import InviteMutationRepository
+from virtual_labs.repositories.group_repo import (
+    GroupMutationRepository,
+)
 from virtual_labs.repositories.labs import get_undeleted_virtual_lab
 from virtual_labs.repositories.project_repo import (
     ProjectMutationRepository,
@@ -32,77 +32,14 @@ from virtual_labs.repositories.project_repo import (
 )
 from virtual_labs.repositories.user_repo import (
     UserMutationRepository,
-    UserQueryRepository,
 )
-from virtual_labs.shared.utils.auth import get_user_id_from_auth
+from virtual_labs.services.attach_user_groups import (
+    get_project_and_vl_groups,
+    manage_user_groups,
+    send_project_emails,
+)
+from virtual_labs.shared.utils.auth import get_user_id_from_auth, get_user_metadata
 from virtual_labs.usecases import accounting as accounting_cases
-
-
-async def invite_project_members(
-    session: AsyncSession,
-    members: list[AddUser],
-    virtual_lab: VirtualLab,
-    project: DbProject,
-    inviter_id: UUID4,
-) -> List[FailedInvite]:
-    invite_repo = InviteMutationRepository(session)
-    user_query_repo = UserQueryRepository()
-    failed_invites: List[FailedInvite] = []
-    for member in members:
-        try:
-            user = user_query_repo.retrieve_user_by_email(member.email)
-            inviter = user_query_repo.retrieve_user_from_kc(str(inviter_id))
-
-            invitee_id = UUID(user.id) if user is not None else None
-            invitee_name = None if user is None else f"{user.firstName} {user.lastName}"
-
-            try:
-                invite = await invite_repo.add_project_invite(
-                    inviter_id=inviter_id,
-                    project_id=UUID(str(project.id)),
-                    invitee_role=member.role,
-                    invitee_id=invitee_id,
-                    invitee_email=str(member.email),
-                )
-                await session.refresh(project)
-                await session.refresh(virtual_lab)
-                await send_invite(
-                    details=EmailDetails(
-                        recipient=str(member.email),
-                        invitee_name=invitee_name,
-                        inviter_name=f"{inviter.firstName} {inviter.lastName}",
-                        invite_id=UUID(str(invite.id)),
-                        lab_id=UUID(str(virtual_lab.id)),
-                        lab_name=str(virtual_lab.name),
-                        project_id=UUID(str(project.id)),
-                        project_name=str(project.name),
-                    )
-                )
-            except (EmailError, Exception) as ex:
-                logger.error(f"Error during sending invite to {member}: ({ex})")
-                if invite:
-                    await invite_repo.delete_project_invite(
-                        invite_id=UUID(str(invite.id))
-                    )
-                if user:
-                    failed_invites.append(
-                        FailedInvite(
-                            user_email=member.email,
-                            first_name=user.firstName,
-                            last_name=user.lastName,
-                        )
-                    )
-                pass
-        except IdentityError:
-            failed_invites.append(
-                FailedInvite(
-                    user_email=member.email,
-                    exists=False,
-                )
-            )
-            pass
-
-    return failed_invites
 
 
 async def create_new_project_use_case(
@@ -119,7 +56,14 @@ async def create_new_project_use_case(
 
     project_id: UUID4 = uuid4()
     user_id = get_user_id_from_auth(auth)
-    failed_invites = []
+
+    user_projects_count = await pqr.get_owned_projects_count(user_id=user_id)
+    if user_projects_count >= settings.MAX_PROJECTS_NUMBER:
+        raise VliError(
+            error_code=VliErrorCode.LIMIT_EXCEEDED,
+            http_status_code=status.BAD_REQUEST,
+            message="You have reached the maximum limit of 20 projects",
+        )
 
     # Check if user has reached the projects limit
     user_projects_count = await pqr.get_owned_projects_count(user_id=user_id)
@@ -132,7 +76,6 @@ async def create_new_project_use_case(
 
     try:
         vlab = await get_undeleted_virtual_lab(session, virtual_lab_id)
-
         if bool(
             await pqr.check_project_exists_by_name_per_vlab(
                 vlab_id=virtual_lab_id,
@@ -158,24 +101,25 @@ async def create_new_project_use_case(
         )
 
     try:
-        admin_group = gmr.create_project_group(
-            virtual_lab_id=virtual_lab_id,
-            project_id=project_id,
-            payload=payload,
-            role=UserRoleEnum.admin,
-        )
-
-        member_group = gmr.create_project_group(
-            virtual_lab_id=virtual_lab_id,
-            project_id=project_id,
-            payload=payload,
-            role=UserRoleEnum.member,
+        admin_group, member_group = await asyncio.gather(
+            gmr.a_create_project_group(
+                virtual_lab_id=virtual_lab_id,
+                project_id=project_id,
+                payload=payload,
+                role=UserRoleEnum.admin,
+            ),
+            gmr.a_create_project_group(
+                virtual_lab_id=virtual_lab_id,
+                project_id=project_id,
+                payload=payload,
+                role=UserRoleEnum.member,
+            ),
         )
 
         assert admin_group is not None
         assert member_group is not None
 
-        umr.attach_user_to_group(
+        await umr.a_attach_user_to_group(
             user_id=user_id,
             group_id=admin_group["id"],
         )
@@ -236,6 +180,9 @@ async def create_new_project_use_case(
                 http_status_code=status.BAD_GATEWAY,
                 message="Project account creation failed",
             )
+    total_added_users = 0
+    email_failures: List[EmailFailure] = []
+    error_adding_users = None
 
     try:
         project = await pmr.create_new_project(
@@ -247,22 +194,55 @@ async def create_new_project_use_case(
             member_group_id=member_group["id"],
             owner_id=user_id,
         )
-
-        if payload.include_members:
-            failed_invites = await invite_project_members(
-                session=session,
-                inviter_id=user_id,
-                members=payload.include_members,
-                virtual_lab=vlab,
-                project=project,
-            )
+        try:
+            if payload.include_members:
+                inviter = get_user_metadata(auth_user=auth[0])
+                inviter_name = (
+                    inviter["full_name"]
+                    if inviter["full_name"]
+                    else inviter["username"]
+                )
+                await session.refresh(vlab)
+                (
+                    unique_users_map,
+                    project_admin_group_id,
+                    project_member_group_id,
+                    existing_proj_admin_ids,
+                    existing_proj_member_ids,
+                ) = await get_project_and_vl_groups(
+                    project=project,
+                    virtual_lab=vlab,
+                    users=payload.include_members,
+                )
+                (added_users, _, _, user_to_email_map) = await manage_user_groups(
+                    users_map=unique_users_map,
+                    project_admin_group_id=project_admin_group_id,
+                    project_member_group_id=project_member_group_id,
+                    existing_proj_admin_ids=existing_proj_admin_ids,
+                    existing_proj_member_ids=existing_proj_member_ids,
+                    project_id=UUID4(str(project.id)),
+                )
+                total_added_users = len(added_users)
+                if user_to_email_map:
+                    email_failures = await send_project_emails(
+                        user_to_email_map=user_to_email_map,
+                        project_id=project_id,
+                        project_name=str(project.name),
+                        virtual_lab_id=virtual_lab_id,
+                        virtual_lab_name=str(vlab.name),
+                        inviter_name=inviter_name,
+                    )
+        except Exception as ex:
+            logger.error(f"Error during attaching users to project {project_id} ({ex})")
+            error_adding_users = str(ex.__str__())
     except IntegrityError:
         raise VliError(
             error_code=VliErrorCode.ENTITY_ALREADY_EXISTS,
             http_status_code=status.BAD_REQUEST,
             message="Project already exists",
         )
-    except SQLAlchemyError:
+    except SQLAlchemyError as ex:
+        logger.exception(f"Database error creating new project: {ex}")
         raise VliError(
             error_code=VliErrorCode.DATABASE_ERROR,
             http_status_code=status.BAD_REQUEST,
@@ -276,11 +256,14 @@ async def create_new_project_use_case(
             message="Error during creating a new project",
         )
     else:
+        project_out = ProjectVlOut.model_validate(project)
+        project_out.user_count = total_added_users + 1
         return VliResponse.new(
             message="Project created successfully",
             data={
-                "project": ProjectVlOut.model_validate(project),
+                "project": project_out,
                 "virtual_lab_id": virtual_lab_id,
-                "failed_invites": failed_invites,
+                "failed_invites": email_failures,
+                "error_adding_users": error_adding_users,
             },
         )

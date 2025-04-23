@@ -30,6 +30,6 @@ def get_user_metadata(auth_user: AuthUser) -> Dict[str, str]:
         "user_id": auth_user.sub,
         "username": auth_user.username,
         "email": auth_user.email,
-        "full_name": auth_user.name,
+        "full_name": auth_user.name if auth_user.name else "",
         "email_verified": str(auth_user.email_verified).lower(),
     }

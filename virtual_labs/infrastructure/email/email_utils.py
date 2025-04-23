@@ -81,3 +81,13 @@ def generate_email_verification_html(details: VerificationCodeEmailDetails) -> s
 
         If you did not request this verification, please ignore this email or contact support at support@openbraininstitute.org.
     """
+
+
+def generate_email_to_add_user_to_project(
+    project_name: str, virtual_lab_name: str, project_link: str, inviter_name: str
+) -> str:
+    return f"""
+        {inviter_name} has added you to the project {project_name} in the virtual lab {virtual_lab_name}
+        You can now access the project by clicking on the link below:
+        <a href="{project_link}">{project_link}</a>
+    """

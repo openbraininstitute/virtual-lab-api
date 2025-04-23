@@ -22,7 +22,6 @@ from virtual_labs.repositories.invite_repo import (
     InviteQueryRepository,
 )
 from virtual_labs.repositories.labs import get_undeleted_virtual_lab
-from virtual_labs.repositories.project_repo import ProjectQueryRepository
 from virtual_labs.repositories.user_repo import (
     UserQueryRepository,
 )
@@ -34,7 +33,6 @@ async def get_invite_details(
     invite_token: str,
     auth: Tuple[AuthUser, str],
 ) -> Response | VliError:
-    project_query_repo = ProjectQueryRepository(session)
     invite_query_repo = InviteQueryRepository(session)
     user_query_repo = UserQueryRepository()
 
@@ -46,7 +44,6 @@ async def get_invite_details(
         origin = decoded_token.get("origin")
 
         invite: VirtualLabInvite | ProjectInvite | None = None
-        project = None
         vlab = None
 
         if origin == InviteOrigin.LAB.value:
@@ -58,20 +55,8 @@ async def get_invite_details(
                 db=session,
                 lab_id=UUID(str(invite.virtual_lab_id)),
             )
-        elif origin == InviteOrigin.PROJECT.value:
-            invite = await invite_query_repo.get_project_invite_by_id(
-                invite_id=UUID(invite_id)
-            )
-            project, vlab = await project_query_repo.retrieve_one_project_by_id(
-                project_id=UUID(str(invite.project_id))
-            )
         else:
             raise ValueError(f"Origin {origin} is not allowed.")
-
-        invitee = user_query_repo.retrieve_user_by_email(
-            email=str(invite.user_email),
-        )
-        assert invitee is not None
 
         inviter = user_query_repo.retrieve_user_from_kc(str(invite.inviter_id))
         assert inviter is not None
@@ -82,10 +67,6 @@ async def get_invite_details(
             else inviter.username
         )
 
-        project_id, project_name = (
-            (None, None) if project is None else (project.id, project.name)
-        )
-
         return VliResponse[InviteDetailsOut].new(
             message=f"Invite for {origin} accepted successfully",
             data=InviteDetailsOut.model_validate(
@@ -94,8 +75,6 @@ async def get_invite_details(
                     "invite_id": invite_id,
                     "inviter_full_name": inviter_full_name,
                     "origin": origin,
-                    "project_id": project_id,
-                    "project_name": project_name,
                     "virtual_lab_id": vlab.id,
                     "virtual_lab_name": vlab.name,
                 }

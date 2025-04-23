@@ -11,10 +11,7 @@ from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.core.types import UserRoleEnum
 from virtual_labs.domain.user import UserWithInviteStatus
 from virtual_labs.repositories.group_repo import GroupQueryRepository
-from virtual_labs.repositories.invite_repo import InviteQueryRepository
 from virtual_labs.repositories.project_repo import ProjectQueryRepository
-from virtual_labs.repositories.user_repo import UserQueryRepository
-from virtual_labs.usecases.labs.get_virtual_lab_users import get_pending_user
 
 
 async def retrieve_all_users_per_project_use_case(
@@ -24,8 +21,6 @@ async def retrieve_all_users_per_project_use_case(
 ) -> Response:
     gqr = GroupQueryRepository()
     pqr = ProjectQueryRepository(session)
-    invite_repo = InviteQueryRepository(session)
-    user_repo = UserQueryRepository()
 
     try:
         project, _ = await pqr.retrieve_one_project_strict(
@@ -55,23 +50,8 @@ async def retrieve_all_users_per_project_use_case(
             )
             for member in gqr.retrieve_group_users(str(project.member_group_id))
         ]
-        pending_invites = await invite_repo.get_pending_users_for_project(project_id)
-        pending_users = [
-            UserWithInviteStatus(
-                **get_pending_user(
-                    user=(user_repo.retrieve_user_by_email(str(invite.user_email))),
-                    user_email=str(invite.user_email),
-                ).model_dump(),
-                invite_accepted=False,
-                role=UserRoleEnum.admin
-                if str(invite.role) == UserRoleEnum.admin.value
-                else UserRoleEnum.member,
-            )
-            for invite in pending_invites
-        ]
 
         active_users = admins + members
-        users = active_users + pending_users
         owner_id = project.owner_id
     except SQLAlchemyError:
         raise VliError(
@@ -91,8 +71,8 @@ async def retrieve_all_users_per_project_use_case(
             message="Users found successfully",
             data={
                 "owner_id": owner_id,
-                "users": users,
+                "users": active_users,
                 "total_active": len(active_users),
-                "total": len(users),
+                "total": len(active_users),
             },
         )

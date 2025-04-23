@@ -35,8 +35,8 @@ async def get_project_stats(
             gqr.a_retrieve_group_users(group_id=str(project.admin_group_id)),
             gqr.a_retrieve_group_users(group_id=str(project.member_group_id)),
         )
-        total_members = len(admin_users) + len(member_users)
 
+        total_members = len(set(user.id for user in admin_users + member_users))
         return ProjectStats(
             project_id=project_id,
             total_stars=stats["total_stars"],

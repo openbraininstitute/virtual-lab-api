@@ -15,7 +15,6 @@ from virtual_labs.infrastructure.settings import settings
 
 class EmailDetails(BaseModel):
     recipient: EmailStr
-    invitee_name: str | None = None
     inviter_name: str
     invite_id: UUID4
 
@@ -56,7 +55,6 @@ async def send_invite(details: EmailDetails) -> str:
                 },
             ],
             template_body={
-                "invitee_name": details.invitee_name,
                 "inviter_name": details.inviter_name,
                 "invite_link": invite_link,
                 "discover_link": f"{settings.LANDING_NAMESPACE}",

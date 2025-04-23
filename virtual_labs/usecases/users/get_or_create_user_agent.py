@@ -27,7 +27,9 @@ async def get_or_create_user_agent(user: AuthUser) -> LabResponse[UserAgentRespo
         if nexus_error.http_status_code == HTTPStatus.NOT_FOUND:
             try:
                 logger.debug("Agent for user not found. About to create one.")
-                (firstname, lastname) = extract_name_parts(user.name)
+                (firstname, lastname) = extract_name_parts(
+                    user.name if user.name else user.username
+                )
                 await create_agent(
                     username=user.username, first_name=firstname, last_name=lastname
                 )

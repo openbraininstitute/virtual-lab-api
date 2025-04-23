@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime
 from http import HTTPStatus as status
 from json import loads
@@ -42,13 +43,14 @@ async def detach_user_from_project(
         if (user_id == project.owner_id) or (user_id in users_list):
             raise ForbiddenOperation
 
-        umr.detach_user_from_group(
-            user_id=user_id, group_id=str(project.admin_group_id)
+        await asyncio.gather(
+            umr.a_detach_user_from_group(
+                user_id=user_id, group_id=str(project.admin_group_id)
+            ),
+            umr.a_detach_user_from_group(
+                user_id=user_id, group_id=str(project.member_group_id)
+            ),
         )
-        umr.detach_user_from_group(
-            user_id=user_id, group_id=str(project.member_group_id)
-        )
-
     except SQLAlchemyError:
         raise VliError(
             error_code=VliErrorCode.DATABASE_ERROR,

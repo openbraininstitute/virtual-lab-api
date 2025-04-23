@@ -22,8 +22,6 @@ class InviteDetailsOut(BaseModel):
     invite_id: UUID4
     inviter_full_name: str
     origin: InviteOrigin
-    project_id: UUID4 | None
-    project_name: str | None
     virtual_lab_id: UUID4
     virtual_lab_name: str | None
 
@@ -31,6 +29,5 @@ class InviteDetailsOut(BaseModel):
 class InviteOut(BaseModel):
     invite_id: UUID4
     virtual_lab_id: UUID4
-    project_id: UUID4 | None
     origin: InviteOrigin
     accepted: Literal["accepted", "already_accepted"] | None

@@ -56,7 +56,7 @@ def verify_project_read(f: Callable[..., Any]) -> Callable[..., Any]:
             raise VliError(
                 error_code=VliErrorCode.NOT_ALLOWED_OP,
                 http_status_code=status.FORBIDDEN,
-                message="The supplied authentication is not authorized for this action",
+                message="[verify_project_read] The supplied authentication is not authorized for this action",
             )
         except KeycloakError as error:
             logger.error(

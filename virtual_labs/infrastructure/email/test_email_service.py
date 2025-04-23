@@ -29,12 +29,10 @@ async def test_email_invite_sent_for_virtual_lab() -> None:
     mock_invite_id = uuid4()
     mock_lab_name = "Mock Lab Name"
     inviter = "Malory Archer"
-    invitee = "Lana Kane"
 
     invite_link = await send_invite(
         details=EmailDetails(
             recipient=recipient_email,
-            invitee_name=invitee,
             inviter_name=inviter,
             invite_id=mock_invite_id,
             lab_id=uuid4(),
@@ -67,13 +65,11 @@ async def test_email_invite_sent_for_project() -> None:
     mock_lab_name = "Mock Lab Name"
     mock_project_name = "Mock Project Name"
     inviter = "Malory Archer"
-    invitee = None
 
     invite_link = await send_invite(
         details=EmailDetails(
             recipient=recipient_email,
             invite_id=mock_invite_id,
-            invitee_name=invitee,
             inviter_name=inviter,
             lab_id=uuid4(),
             lab_name=mock_lab_name,
@@ -116,7 +112,6 @@ async def test_throws_email_error_if_email_could_not_be_sent() -> None:
                     recipient="mock@mock.com",
                     invite_id=invite_id,
                     inviter_name="Pam Poovey",
-                    invitee_name="Cyril Figgis",
                     lab_id=uuid4(),
                     lab_name="mock",
                     project_id=uuid4(),

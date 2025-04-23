@@ -1,3 +1,6 @@
+from typing import Any, Dict
+
+
 class UserNotInList(Exception):
     def __init__(self, message: str = "User not in list") -> None:
         self.message = message
@@ -35,12 +38,15 @@ class EntityAlreadyExists(Exception):
 
 
 class EntityNotFound(Exception):
-    def __init__(self, message: str = "Entity not found") -> None:
-        self.message = message
+    def __init__(
+        self, message: str = "Entity not found", data: Dict[str, Any] | None = None
+    ) -> None:
+        self.message: str = message
+        self.data: Dict[str, Any] | None = data
         super().__init__(self.message)
 
     def __str__(self) -> str:
-        return self.message
+        return f"{self.message} - {self.data}" if self.data else self.message
 
 
 class EntityNotCreated(Exception):

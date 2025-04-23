@@ -126,6 +126,25 @@ class UserMutationRepository:
             err.add_note("Most likely the user does not exist in keycloak")
             raise err
 
+    async def a_attach_user_to_group(
+        self,
+        *,
+        user_id: UUID4,
+        group_id: str,
+    ) -> Any | Dict[str, str]:
+        try:
+            return await self.Kc.a_group_user_add(user_id=user_id, group_id=group_id)
+        except Exception as error:
+            logger.error(
+                f"Keycloak error when adding user {user_id} to group {group_id}: {error}"
+            )
+            err = IdentityError(
+                message=f"Could not add user {user_id} to group {group_id}",
+                detail=str(error),
+            )
+            err.add_note("Most likely the user does not exist in keycloak")
+            raise err
+
     def detach_user_from_group(
         self,
         *,
@@ -133,6 +152,14 @@ class UserMutationRepository:
         group_id: str,
     ) -> Any | Dict[str, str]:
         return self.Kc.group_user_remove(user_id=user_id, group_id=group_id)
+
+    async def a_detach_user_from_group(
+        self,
+        *,
+        user_id: UUID4,
+        group_id: str,
+    ) -> Any | Dict[str, str]:
+        return await self.Kc.a_group_user_remove(user_id=user_id, group_id=group_id)
 
     def create_user(
         self,
@@ -191,7 +218,7 @@ class UserMutationRepository:
     async def update_user_custom_properties(
         self,
         user_id: UUID,
-        properties: List[Tuple[str, str, Literal["multiple", "unique"]]],
+        properties: List[Tuple[str, str | None, Literal["multiple", "unique"]]],
     ) -> None:
         """
         update multiple custom properties for a user at once.
