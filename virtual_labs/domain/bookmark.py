@@ -5,7 +5,7 @@ from pydantic import UUID4, BaseModel, Field
 
 
 class BookmarkCategory(Enum):
-    ExperimentsBoutonDensity = "ExperimentsBoutonDensity"
+    ExperimentalBoutonDensity = "ExperimentalBoutonDensity"
     ExperimentalNeuronDensity = "ExperimentalNeuronDensity"
     ExperimentalElectroPhysiology = "ExperimentalElectroPhysiology"
     ExperimentalSynapsePerConnection = "ExperimentalSynapsePerConnection"
@@ -19,7 +19,8 @@ class BookmarkCategory(Enum):
 
 
 class BookmarkIn(BaseModel):
-    resource_id: Annotated[str, Field(alias="resourceId")]
+    entity_id: UUID4 | None = None
+    resource_id: Annotated[str | None, Field(alias="resourceId")] = None
     category: BookmarkCategory
 
     class Config:
@@ -29,12 +30,18 @@ class BookmarkIn(BaseModel):
 
 class BookmarkOut(BaseModel):
     id: UUID4
-    resource_id: Annotated[str, Field(alias="resourceId")]
+    entity_id: UUID4 | None = None
+    # TODO: return snake case for entity core
+    resource_id: Annotated[str | None, Field(alias="resourceId")] = None
     category: BookmarkCategory
 
     class Config:
         from_attributes = True
         populate_by_name = True
+
+
+class DeleteBookmarkIn(BookmarkIn):
+    pass
 
 
 BulkDeleteBookmarks = TypedDict(
