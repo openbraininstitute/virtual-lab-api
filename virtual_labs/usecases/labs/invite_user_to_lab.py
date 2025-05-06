@@ -16,7 +16,6 @@ from virtual_labs.repositories.invite_repo import (
     InviteMutationRepository,
     InviteQueryRepository,
 )
-from virtual_labs.repositories.subscription_repo import SubscriptionRepository
 from virtual_labs.repositories.user_repo import UserQueryRepository
 
 
@@ -59,15 +58,7 @@ async def invite_user_to_lab(
     user_repo = UserQueryRepository()
     invite_query_repo = InviteQueryRepository(db)
     invite_mutation_repo = InviteMutationRepository(db)
-    subscription_repo = SubscriptionRepository(db_session=db)
     try:
-        subscription = await subscription_repo.get_active_subscription_by_user_id(
-            user_id=inviter_id,
-            subscription_type="paid",
-        )
-        if not subscription:
-            raise ForbiddenOperation()
-
         lab = await lab_repo.get_undeleted_virtual_lab(db, lab_id)
 
         inviting_user = user_repo.retrieve_user_from_kc(str(inviter_id))
@@ -80,9 +71,7 @@ async def invite_user_to_lab(
         if existing_invite is None:
             invite = await invite_mutation_repo.add_lab_invite(
                 virtual_lab_id=lab_id,
-                # Inviter details
                 inviter_id=inviter_id,
-                # Invitee details
                 invitee_role=invite_details.role,
                 invitee_email=invite_details.email,
             )

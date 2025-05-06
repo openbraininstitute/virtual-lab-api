@@ -51,6 +51,7 @@ async def invitation_handler(
         virtual_lab_id = None
 
         if origin == InviteOrigin.LAB.value:
+            # check if the invite already accepted
             vlab_invite = await invite_query_repo.get_vlab_invite_by_id(
                 invite_id=UUID(invite_id)
             )
@@ -65,6 +66,7 @@ async def invitation_handler(
                     },
                 )
 
+            # check if the user invite himself
             vlab = await get_undeleted_virtual_lab(
                 db=session,
                 lab_id=UUID(str(vlab_invite.virtual_lab_id)),
@@ -74,8 +76,9 @@ async def invitation_handler(
                 raise UserMatch
 
             user = user_query_repo.retrieve_user_from_kc(user_id=str(user_id))
-
             assert user is not None
+
+            # get the group of the virtual lab based on the invite role
             group_id = (
                 vlab.admin_group_id
                 if vlab_invite.role == UserRoleEnum.admin.value
@@ -86,7 +89,8 @@ async def invitation_handler(
                 if group_id == vlab.admin_group_id
                 else vlab.admin_group_id
             )
-
+            # detach the user from other groups
+            # and attach it to the new group based on the role
             await asyncio.gather(
                 user_mut_repo.a_detach_user_from_group(
                     user_id=UUID(user.id),
@@ -97,7 +101,7 @@ async def invitation_handler(
                     group_id=str(group_id),
                 ),
             )
-
+            # update invite to be accepted
             await invite_mut_repo.update_lab_invite(
                 invite_id=UUID(str(vlab_invite.id)),
                 user_id=user_id,
