@@ -107,7 +107,7 @@ fabric.properties
 
 # Cache file creation bug
 # See https://youtrack.jetbrains.com/issue/JBR-2257
-.idea/$CACHE_FILE$
+.idea/$CACHE_FILE$  
 
 # CodeStream plugin
 # https://plugins.jetbrains.com/plugin/12206-codestream
@@ -317,3 +317,5 @@ env-prep/email-data/
 notes.md
 .DS_Store
 *~
+
+scripts/subscription_manager/

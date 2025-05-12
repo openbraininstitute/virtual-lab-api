@@ -1,24 +1,17 @@
 import asyncio
 from datetime import datetime, timedelta
 from http import HTTPStatus
-from typing import AsyncGenerator, Dict, Tuple, cast
+from typing import AsyncGenerator, Dict, Tuple
 from uuid import UUID, uuid4
 
 import jwt
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
-from loguru import logger
-from sqlalchemy import delete, select
+from sqlalchemy import delete
 
 from virtual_labs.core.types import UserRoleEnum
 from virtual_labs.infrastructure.db.models import (
-    PaidSubscription,
-    StripeUser,
-    Subscription,
-    SubscriptionStatus,
-    SubscriptionTier,
-    SubscriptionTierEnum,
     VirtualLab,
     VirtualLabInvite,
 )
@@ -86,14 +79,11 @@ async def setup_lab_and_invite(
 ]:
     """
     Sets up a Virtual Lab, invites a user, and yields necessary info.
-    Ensures the lab owner has a paid subscription.
     Cleans up resources afterwards.
     """
     lab_response = await create_mock_lab(async_test_client, owner_username="test")
     lab_id_str = lab_response.json()["data"]["virtual_lab"]["id"]
     lab_id_uuid = UUID(lab_id_str)
-    owner_id_str = test_user_ids["test"]
-    owner_id_uuid = UUID(owner_id_str)
 
     invitee_email = "test-2@test.com"
     invitee_role = UserRoleEnum.admin
@@ -106,80 +96,6 @@ async def setup_lab_and_invite(
         db_lab = await session.get(VirtualLab, lab_id_uuid)
         if not db_lab:
             pytest.fail(f"Failed to retrieve created lab {lab_id_uuid} from DB.")
-
-        stmt_check_sub = select(Subscription).where(
-            Subscription.user_id == owner_id_uuid,
-            Subscription.virtual_lab_id == lab_id_uuid,
-            Subscription.type == "paid",
-            Subscription.status == SubscriptionStatus.ACTIVE,
-        )
-        existing_sub = (await session.execute(stmt_check_sub)).scalar_one_or_none()
-
-        if not existing_sub:
-            logger.debug(
-                f"Creating paid subscription for owner {owner_id_str} / lab {lab_id_str}"
-            )
-            stmt_tier = select(SubscriptionTier).where(
-                SubscriptionTier.tier == SubscriptionTierEnum.PRO
-            )
-            tier = (await session.execute(stmt_tier)).scalar_one_or_none()
-            if not tier:
-                pytest.fail("PRO Subscription Tier not found. Seed DB?")
-
-            stmt_stripe_user = select(StripeUser).where(
-                StripeUser.user_id == owner_id_uuid
-            )
-            stripe_user = (await session.execute(stmt_stripe_user)).scalar_one_or_none()
-            if not stripe_user:
-                customer_id = f"cus_test_{uuid4()}"
-                stripe_user = StripeUser(
-                    user_id=owner_id_uuid, stripe_customer_id=customer_id
-                )
-                session.add(stripe_user)
-                await session.flush()
-            else:
-                customer_id = (
-                    stripe_user.stripe_customer_id
-                    if stripe_user.stripe_customer_id is not None
-                    else ""
-                )
-
-            now = datetime.utcnow()
-            # Ensure customer_id is str
-            customer_id = cast(str, stripe_user.stripe_customer_id)
-
-            price_id: str = (
-                tier.stripe_monthly_price_id
-                if tier.stripe_monthly_price_id is not None
-                else f"price_test_{uuid4()}"
-            )
-
-            paid_sub = PaidSubscription(
-                user_id=owner_id_uuid,
-                virtual_lab_id=lab_id_uuid,
-                tier_id=tier.id,
-                subscription_type=tier.tier,
-                status=SubscriptionStatus.ACTIVE,
-                current_period_start=now,
-                current_period_end=now + timedelta(days=30),
-                type="paid",
-                stripe_subscription_id=f"sub_test_{uuid4()}",
-                stripe_price_id=price_id,
-                customer_id=customer_id,
-                cancel_at_period_end=False,
-                amount=tier.monthly_amount or 0,
-                currency=tier.currency or "chf",
-                interval="month",
-                auto_renew=True,
-            )
-            session.add(paid_sub)
-            logger.debug(f"Committed paid subscription {paid_sub.id}")
-            await session.commit()
-            await session.refresh(db_lab)
-        else:
-            logger.debug(
-                f"Found existing active paid sub {existing_sub.id} for owner {owner_id_str}"
-            )
 
     # Invite the user
     invite_payload = {"email": invitee_email, "role": invitee_role.value}
@@ -261,12 +177,9 @@ async def test_accept_member_invite_success(
     """
     Tests successfully accepting a member invite.
     Verifies user is added to the correct Keycloak group.
-    Ensures lab owner has paid subscription before invite.
     """
     client = async_test_client
     lab_owner_username = "test"
-    lab_owner_id_str = test_user_ids[lab_owner_username]
-    lab_owner_id_uuid = UUID(lab_owner_id_str)
 
     invitee_username = "test-3"
     invitee_email = "test-3@test.com"
@@ -279,86 +192,13 @@ async def test_accept_member_invite_success(
 
     admin_group_id = ""
     member_group_id = ""
-    # Retrieve lab details and ensure paid subscription for owner
+    # Retrieve lab details
     async with session_context_factory() as session:
         db_lab = await session.get(VirtualLab, lab_id_uuid)
         if not db_lab:
             pytest.fail(f"Failed to retrieve created lab {lab_id_uuid} from DB.")
         admin_group_id = str(db_lab.admin_group_id)
         member_group_id = str(db_lab.member_group_id)
-
-        stmt_check_sub = select(Subscription).where(
-            Subscription.user_id == lab_owner_id_uuid,
-            Subscription.virtual_lab_id == lab_id_uuid,
-            Subscription.type == "paid",
-            Subscription.status == SubscriptionStatus.ACTIVE,
-        )
-        existing_sub = (await session.execute(stmt_check_sub)).scalar_one_or_none()
-
-        if not existing_sub:
-            logger.debug(
-                f"Creating paid subscription for owner {lab_owner_id_str} / lab {lab_id_str}"
-            )
-            stmt_tier = select(SubscriptionTier).where(
-                SubscriptionTier.tier == SubscriptionTierEnum.PRO
-            )
-            tier = (await session.execute(stmt_tier)).scalar_one_or_none()
-            if not tier:
-                pytest.fail("PRO Subscription Tier not found. Seed DB?")
-
-            stmt_stripe_user = select(StripeUser).where(
-                StripeUser.user_id == lab_owner_id_uuid
-            )
-            stripe_user = (await session.execute(stmt_stripe_user)).scalar_one_or_none()
-            if not stripe_user:
-                customer_id = f"cus_test_{uuid4()}"
-                stripe_user = StripeUser(
-                    user_id=lab_owner_id_uuid, stripe_customer_id=customer_id
-                )
-                session.add(stripe_user)
-                await session.flush()
-            else:
-                customer_id = (
-                    stripe_user.stripe_customer_id
-                    if stripe_user.stripe_customer_id is not None
-                    else ""
-                )
-
-            now = datetime.utcnow()
-            # Ensure customer_id is str
-            customer_id = cast(str, stripe_user.stripe_customer_id)
-
-            price_id: str = (
-                tier.stripe_monthly_price_id
-                if tier.stripe_monthly_price_id is not None
-                else f"price_test_{uuid4()}"
-            )
-
-            paid_sub = PaidSubscription(
-                user_id=lab_owner_id_uuid,
-                virtual_lab_id=lab_id_uuid,
-                tier_id=tier.id,
-                subscription_type=tier.tier,
-                status=SubscriptionStatus.ACTIVE,
-                current_period_start=now,
-                current_period_end=now + timedelta(days=30),
-                type="paid",
-                stripe_subscription_id=f"sub_test_{uuid4()}",
-                stripe_price_id=price_id,
-                customer_id=customer_id,
-                cancel_at_period_end=False,
-                amount=tier.monthly_amount or 0,
-                currency=tier.currency or "chf",
-                interval="month",
-                auto_renew=True,
-            )
-            session.add(paid_sub)
-            logger.debug(f"Committed paid subscription {paid_sub.id}")
-            await session.commit()
-        else:
-            logger.debug(
-                f"Found existing active paid sub {existing_sub.id} for owner {lab_owner_id_str}"
-            )
 
     # Invite the user as member
     invite_payload = {"email": invitee_email, "role": invitee_role.value}
@@ -621,12 +461,9 @@ async def test_accept_invite_role_change_before_accept(
     """
     Tests scenario where user receives multiple invites with different roles
     before accepting any. Acceptance of the *last* invite should dictate the role.
-    Ensures lab owner has paid subscription.
     """
     client = async_test_client
     lab_owner_username = "test"
-    lab_owner_id_str = test_user_ids[lab_owner_username]
-    lab_owner_id_uuid = UUID(lab_owner_id_str)
 
     invitee_username = "test-4"
     invitee_email = "test-4@test.com"
@@ -646,75 +483,6 @@ async def test_accept_invite_role_change_before_accept(
             pytest.fail(f"Failed to retrieve created lab {lab_id_uuid} from DB.")
         admin_group_id = str(db_lab.admin_group_id)
         member_group_id = str(db_lab.member_group_id)
-
-        stmt_check_sub = select(Subscription).where(
-            Subscription.user_id == lab_owner_id_uuid,
-            Subscription.virtual_lab_id == lab_id_uuid,
-            Subscription.type == "paid",
-            Subscription.status == SubscriptionStatus.ACTIVE,
-        )
-        existing_sub = (await session.execute(stmt_check_sub)).scalar_one_or_none()
-
-        if not existing_sub:
-            logger.debug(
-                f"Creating paid subscription for owner {lab_owner_id_str} / lab {lab_id_str}"
-            )
-            stmt_tier = select(SubscriptionTier).where(
-                SubscriptionTier.tier == SubscriptionTierEnum.PRO
-            )
-            tier = (await session.execute(stmt_tier)).scalar_one_or_none()
-            if not tier:
-                pytest.fail("PRO Subscription Tier not found. Seed DB?")
-
-            stmt_stripe_user = select(StripeUser).where(
-                StripeUser.user_id == lab_owner_id_uuid
-            )
-            stripe_user = (await session.execute(stmt_stripe_user)).scalar_one_or_none()
-            if not stripe_user:
-                customer_id = f"cus_test_{uuid4()}"
-                stripe_user = StripeUser(
-                    user_id=lab_owner_id_uuid, stripe_customer_id=customer_id
-                )
-                session.add(stripe_user)
-                await session.flush()
-            else:
-                customer_id = (
-                    stripe_user.stripe_customer_id
-                    if stripe_user.stripe_customer_id is not None
-                    else ""
-                )
-
-            now = datetime.utcnow()
-            # Ensure stripe_price_id is str
-            price_id = tier.stripe_monthly_price_id
-            if price_id is None:
-                price_id = f"price_test_{uuid4()}"
-
-            paid_sub = PaidSubscription(
-                user_id=lab_owner_id_uuid,
-                virtual_lab_id=lab_id_uuid,
-                tier_id=tier.id,
-                subscription_type=tier.tier.value,
-                status=SubscriptionStatus.ACTIVE,
-                current_period_start=now,
-                current_period_end=now + timedelta(days=30),
-                type="paid",
-                stripe_subscription_id=f"sub_test_{uuid4()}",
-                stripe_price_id=price_id,
-                customer_id=customer_id,
-                cancel_at_period_end=False,
-                amount=tier.monthly_amount or 0,
-                currency=tier.currency or "chf",
-                interval="month",
-                auto_renew=True,
-            )
-            session.add(paid_sub)
-            logger.debug(f"Committed paid subscription {paid_sub.id}")
-            await session.commit()
-        else:
-            logger.debug(
-                f"Found existing active paid sub {existing_sub.id} for owner {lab_owner_id_str}"
-            )
 
     # 1. Invite user as ADMIN
     admin_invite_payload = {"email": invitee_email, "role": UserRoleEnum.admin.value}
@@ -805,8 +573,6 @@ async def test_accept_multiple_invites_different_emails_same_user(
     """
     client = async_test_client
     lab_owner_username = "test"
-    lab_owner_id_str = test_user_ids[lab_owner_username]
-    lab_owner_id_uuid = UUID(lab_owner_id_str)
 
     # Emails to invite
     invitee_email_admin = "first-email-of-user@test.org"
@@ -830,79 +596,6 @@ async def test_accept_multiple_invites_different_emails_same_user(
             pytest.fail(f"Failed to retrieve created lab {lab_id_uuid} from DB.")
         admin_group_id = str(db_lab.admin_group_id)
         member_group_id = str(db_lab.member_group_id)
-
-        stmt_check_sub = select(Subscription).where(
-            Subscription.user_id == lab_owner_id_uuid,
-            Subscription.virtual_lab_id == lab_id_uuid,
-            Subscription.type == "paid",
-            Subscription.status == SubscriptionStatus.ACTIVE,
-        )
-        existing_sub = (await session.execute(stmt_check_sub)).scalar_one_or_none()
-
-        if not existing_sub:
-            logger.debug(
-                f"Creating paid subscription for owner {lab_owner_id_str} / lab {lab_id_str}"
-            )
-            stmt_tier = select(SubscriptionTier).where(
-                SubscriptionTier.tier == SubscriptionTierEnum.PRO
-            )
-            tier = (await session.execute(stmt_tier)).scalar_one_or_none()
-            if not tier:
-                pytest.fail("PRO Subscription Tier not found. Seed DB?")
-
-            stmt_stripe_user = select(StripeUser).where(
-                StripeUser.user_id == lab_owner_id_uuid
-            )
-            stripe_user = (await session.execute(stmt_stripe_user)).scalar_one_or_none()
-            if not stripe_user:
-                customer_id = f"cus_test_{uuid4()}"
-                stripe_user = StripeUser(
-                    user_id=lab_owner_id_uuid, stripe_customer_id=customer_id
-                )
-                session.add(stripe_user)
-                await session.flush()
-            else:
-                customer_id = (
-                    stripe_user.stripe_customer_id
-                    if stripe_user.stripe_customer_id is not None
-                    else ""
-                )
-
-            now = datetime.utcnow()
-            # Ensure customer_id is str
-            customer_id = cast(str, stripe_user.stripe_customer_id)
-
-            price_id: str = (
-                tier.stripe_monthly_price_id
-                if tier.stripe_monthly_price_id is not None
-                else f"price_test_{uuid4()}"
-            )
-
-            paid_sub = PaidSubscription(
-                user_id=lab_owner_id_uuid,
-                virtual_lab_id=lab_id_uuid,
-                tier_id=tier.id,
-                subscription_type=tier.tier.value,
-                status=SubscriptionStatus.ACTIVE,
-                current_period_start=now,
-                current_period_end=now + timedelta(days=30),
-                type="paid",
-                stripe_subscription_id=f"sub_test_{uuid4()}",
-                stripe_price_id=price_id,
-                customer_id=customer_id,
-                cancel_at_period_end=False,
-                amount=tier.monthly_amount or 0,
-                currency=tier.currency or "chf",
-                interval="month",
-                auto_renew=True,
-            )
-            session.add(paid_sub)
-            logger.debug(f"Added paid subscription {paid_sub.id} to session")
-            await session.commit()
-        else:
-            logger.debug(
-                f"Found existing active paid sub {existing_sub.id} for owner {lab_owner_id_str}"
-            )
 
     # 1. Invite email_A as ADMIN
     admin_invite_payload = {
