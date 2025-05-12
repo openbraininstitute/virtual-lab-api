@@ -8,6 +8,8 @@ from virtual_labs.usecases.users.get_count_of_all_users import get_count_of_all_
 from virtual_labs.usecases.users.get_or_create_user_agent import (
     get_or_create_user_agent,
 )
+from virtual_labs.infrastructure.email.send_welcome_email import send_welcome_email
+
 
 
 router = APIRouter()
@@ -28,3 +30,9 @@ async def get_or_create_agent(
     Gets the "Agent" entity for the user calling the api (derived from the "Authorization" header). If the agent does not exist, a new one is created and returned.
     """
     return await get_or_create_user_agent(user=auth[0])
+
+
+@router.get("/test")
+async def test_the_email() -> str:
+    return await send_welcome_email("contact@tolokoban.org")
+    # return await send_welcome_email("fabien.petitjean@free.fr")
