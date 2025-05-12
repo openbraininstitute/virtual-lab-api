@@ -324,6 +324,16 @@ class SubscriptionType(str, Enum):
         )
 
 
+class SubscriptionSource(str, Enum):
+    """
+    Enum representing subscription source.
+    """
+
+    API = "api"
+    SCRIPT = "script"
+    SQL = "sql"
+
+
 class PaymentStatus(str, Enum):
     """
     Enum representing Stripe payment statuses.
@@ -373,6 +383,13 @@ class Subscription(Base):
 
     # Discriminator column for inheritance
     type: Mapped[str] = mapped_column(String(50))
+    # Source from where the subscription has been created
+    source: Mapped[SubscriptionSource] = mapped_column(
+        SAEnum(SubscriptionSource),
+        nullable=False,
+        default=SubscriptionSource.API,
+        index=True,
+    )
 
     # Relationships
     virtual_lab = relationship("VirtualLab")
