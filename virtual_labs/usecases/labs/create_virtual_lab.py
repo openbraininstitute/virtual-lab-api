@@ -43,6 +43,7 @@ from virtual_labs.shared.utils.auth import get_user_id_from_auth
 from virtual_labs.usecases import accounting as accounting_cases
 from virtual_labs.usecases.labs.invite_user_to_lab import send_email_to_user_or_rollback
 from virtual_labs.utils.subscription_type_resolver import resolve_tier
+from virtual_labs.infrastructure.email.send_welcome_email import send_welcome_email
 
 GroupIds = dict[Literal["member_group"] | Literal["admin_group"], CreatedGroup]
 UserInvites = TypedDict(
@@ -366,6 +367,8 @@ async def create_virtual_lab(
                     email=lab.reference_email,
                 )
 
+        send_welcome_email(lab.reference_email)
+
         return domain.CreateLabOut(
             virtual_lab=lab_details,
         )
@@ -437,3 +440,10 @@ async def create_virtual_lab(
             error_code=VliErrorCode.SERVER_ERROR,
             http_status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
         )
+    
+    # 5. Send a welcome+tutorials email to the user.
+    try:
+        pass
+    except Exception as error:
+        pass
+
