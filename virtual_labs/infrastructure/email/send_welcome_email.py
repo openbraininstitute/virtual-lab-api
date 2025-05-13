@@ -21,4 +21,4 @@ async def send_welcome_email(recipient: str) -> str:
         return f"email sent successfully to {recipient}"
     except Exception as error:
         logger.info(f"Unable to send a welcome email to {recipient}!")
-        return "email has not been sent"
+        return f"email has not been sent to {recipient}"

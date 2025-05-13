@@ -367,7 +367,7 @@ async def create_virtual_lab(
                     email=lab.reference_email,
                 )
 
-        send_welcome_email(lab.reference_email)
+        await send_welcome_email(lab.reference_email)
 
         return domain.CreateLabOut(
             virtual_lab=lab_details,
