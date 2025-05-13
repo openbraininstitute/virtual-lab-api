@@ -4,6 +4,7 @@ from loguru import logger
 from virtual_labs.infrastructure.email.config import email_config
 
 
+
 async def send_welcome_email(recipient: str) -> str:
     try:
         message = MessageSchema(
