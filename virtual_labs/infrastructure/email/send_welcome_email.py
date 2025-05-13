@@ -1,11 +1,10 @@
 from fastapi_mail import FastMail, MessageSchema, MessageType
 from loguru import logger
 
-from virtual_labs.core.exceptions.email_error import EmailError
-from virtual_labs.domain.email import VerificationCodeEmailDetails
 from virtual_labs.infrastructure.email.config import email_config
 
 body_as_text = "...Nope..."
+
 
 async def send_welcome_email(recipient: str) -> str:
     try:
@@ -19,6 +18,6 @@ async def send_welcome_email(recipient: str) -> str:
         fm = FastMail(email_config)
         await fm.send_message(message, template_name="welcome.html")
         return f"email sent successfully to {recipient}"
-    except Exception as error:
+    except Exception:
         logger.info(f"Unable to send a welcome email to {recipient}!")
         return f"email has not been sent to {recipient}"

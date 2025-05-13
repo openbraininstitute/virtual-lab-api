@@ -440,10 +440,3 @@ async def create_virtual_lab(
             error_code=VliErrorCode.SERVER_ERROR,
             http_status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
         )
-    
-    # 5. Send a welcome+tutorials email to the user.
-    try:
-        pass
-    except Exception as error:
-        pass
-
