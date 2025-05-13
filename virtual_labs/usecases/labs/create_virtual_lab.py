@@ -367,11 +367,13 @@ async def create_virtual_lab(
                     email=lab.reference_email,
                 )
 
-        await send_welcome_email(lab.reference_email)
-
-        return domain.CreateLabOut(
+        created_lab = domain.CreateLabOut(
             virtual_lab=lab_details,
         )
+
+        await send_welcome_email(lab.reference_email)
+
+        return created_lab
     except IntegrityError as error:
         # Clean up created resources
         if groups:
