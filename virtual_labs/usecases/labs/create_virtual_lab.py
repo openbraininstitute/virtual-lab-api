@@ -22,11 +22,10 @@ from virtual_labs.domain import labs as domain
 from virtual_labs.domain.invite import AddUser
 from virtual_labs.external.nexus.create_organization import create_nexus_organization
 from virtual_labs.infrastructure.db import models
+from virtual_labs.infrastructure.email.send_welcome_email import send_welcome_email
 from virtual_labs.infrastructure.kc.models import AuthUser, CreatedGroup
 from virtual_labs.infrastructure.settings import settings
-from virtual_labs.infrastructure.stripe import (
-    get_stripe_repository,
-)
+from virtual_labs.infrastructure.stripe import get_stripe_repository
 from virtual_labs.repositories import labs as repository
 from virtual_labs.repositories.group_repo import GroupMutationRepository
 from virtual_labs.repositories.invite_repo import InviteMutationRepository
@@ -366,9 +365,14 @@ async def create_virtual_lab(
                     email=lab.reference_email,
                 )
 
-        return domain.CreateLabOut(
+        created_lab = domain.CreateLabOut(
             virtual_lab=lab_details,
         )
+
+        await send_welcome_email(lab.reference_email)
+
+        return created_lab
+
     except IntegrityError as error:
         # Clean up created resources
         if groups:
