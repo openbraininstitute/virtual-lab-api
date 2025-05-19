@@ -42,11 +42,6 @@
   "search.exclude": {
     "**/.mypy_cache": true
   },
-"python.analysis.extraPaths": [
-    "./venv/lib/python3.12/site-packages"
-],
-"[html]": {
-    "editor.defaultFormatter": "vscode.html-language-features"
-}
+  "python.analysis.extraPaths": ["./venv/lib/python3.12/site-packages"]
 
 }
