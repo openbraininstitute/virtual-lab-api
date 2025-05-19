@@ -17,6 +17,6 @@ async def send_welcome_email(recipient: str) -> str:
         await fm.send_message(message, template_name="welcome.html")
         logger.info(f"A welcome email has been sent to {recipient}")
         return f"email sent successfully to {recipient}"
-    except Exception:
-        logger.warning(f"Unable to send a welcome email to {recipient}!")
+    except Exception as error:
+        logger.error(f"Unable to send a welcome email to {recipient}!\n{error}")
         return f"email has not been sent to {recipient}"
