@@ -11,17 +11,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.exceptions.generic_exceptions import (
-    EntityNotCreated, ForbiddenOperation, UnverifiedEmailError)
+    EntityNotCreated,
+    ForbiddenOperation,
+    UnverifiedEmailError,
+)
 from virtual_labs.core.exceptions.identity_error import IdentityError
 from virtual_labs.core.exceptions.nexus_error import NexusError
 from virtual_labs.core.types import UserRoleEnum
 from virtual_labs.domain import labs as domain
 from virtual_labs.domain.invite import AddUser
-from virtual_labs.external.nexus.create_organization import \
-    create_nexus_organization
+from virtual_labs.external.nexus.create_organization import create_nexus_organization
 from virtual_labs.infrastructure.db import models
-from virtual_labs.infrastructure.email.send_welcome_email import \
-    send_welcome_email
+from virtual_labs.infrastructure.email.send_welcome_email import send_welcome_email
 from virtual_labs.infrastructure.kc.models import AuthUser, CreatedGroup
 from virtual_labs.infrastructure.settings import settings
 from virtual_labs.infrastructure.stripe import get_stripe_repository
@@ -29,14 +30,17 @@ from virtual_labs.repositories import labs as repository
 from virtual_labs.repositories.group_repo import GroupMutationRepository
 from virtual_labs.repositories.invite_repo import InviteMutationRepository
 from virtual_labs.repositories.stripe_user_repo import (
-    StripeUserMutationRepository, StripeUserQueryRepository)
+    StripeUserMutationRepository,
+    StripeUserQueryRepository,
+)
 from virtual_labs.repositories.subscription_repo import SubscriptionRepository
-from virtual_labs.repositories.user_repo import (UserMutationRepository,
-                                                 UserQueryRepository)
+from virtual_labs.repositories.user_repo import (
+    UserMutationRepository,
+    UserQueryRepository,
+)
 from virtual_labs.shared.utils.auth import get_user_id_from_auth
 from virtual_labs.usecases import accounting as accounting_cases
-from virtual_labs.usecases.labs.invite_user_to_lab import \
-    send_email_to_user_or_rollback
+from virtual_labs.usecases.labs.invite_user_to_lab import send_email_to_user_or_rollback
 from virtual_labs.utils.subscription_type_resolver import resolve_tier
 
 GroupIds = dict[Literal["member_group"] | Literal["admin_group"], CreatedGroup]

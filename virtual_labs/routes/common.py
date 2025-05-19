@@ -10,7 +10,6 @@ from virtual_labs.usecases.users.get_or_create_user_agent import (
 )
 
 
-
 router = APIRouter()
 
 
