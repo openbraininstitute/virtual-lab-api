@@ -15,7 +15,8 @@ async def send_welcome_email(recipient: str) -> str:
         )
         fm = FastMail(email_config)
         await fm.send_message(message, template_name="welcome.html")
+        logger.info(f"A welcome email has been sent to {recipient}")
         return f"email sent successfully to {recipient}"
     except Exception:
-        logger.info(f"Unable to send a welcome email to {recipient}!")
+        logger.warning(f"Unable to send a welcome email to {recipient}!")
         return f"email has not been sent to {recipient}"
