@@ -14,17 +14,8 @@ async def bulk_delete_bookmarks(
 
     for bookmark in bookmarks:
         try:
-            if bookmark.resource_id is None:
-                logger.error(
-                    f"Cannot delete bookmark with no resource_id: {bookmark.category}"
-                )
-                result["failed_to_delete"].append(bookmark)
-                continue
-
             await repo.delete_bookmark_by_params(
-                project_id=project_id,
-                resource_id=bookmark.resource_id,
-                category=bookmark.category.value,
+                project_id, bookmark.resource_id, bookmark.category.value
             )
             result["successfully_deleted"].append(bookmark)
         except Exception as error:
