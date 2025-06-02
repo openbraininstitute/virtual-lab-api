@@ -1,4 +1,3 @@
-import uuid
 from typing import AsyncGenerator
 
 import pytest
@@ -11,18 +10,13 @@ from virtual_labs.tests.utils import session_context_factory
 
 mock_bookmarks: list[BookmarkIn] = [
     BookmarkIn(
-        resource_id="resource-1",
-        entity_id=uuid.UUID("4d2f4c97-85d5-476b-b6d3-26f2d7d11c5d"),
-        category=BookmarkCategory.ExperimentalNeuronMorphology,
+        resource_id="resource-1", category=BookmarkCategory.ExperimentalNeuronMorphology
     ),
     BookmarkIn(
-        resource_id="resource-2",
-        entity_id=uuid.UUID("8fc94de5-3193-4f99-a9a6-74d20bc14ec2"),
-        category=BookmarkCategory.ExperimentalNeuronMorphology,
+        resource_id="resource-2", category=BookmarkCategory.ExperimentalNeuronMorphology
     ),
     BookmarkIn(
         resource_id="resource-3",
-        entity_id=uuid.UUID("697e2ad0-01a3-4034-a117-9b44d7559bc1"),
         category=BookmarkCategory.ExperimentalElectroPhysiology,
     ),
 ]
@@ -55,17 +49,14 @@ async def test_user_can_bulk_delete_bookmarks_in_project(
     bookmarks_to_delete = [
         {
             "resourceId": mock_bookmarks[1].resource_id,
-            "entity_id": None,
             "category": mock_bookmarks[1].category.value,
         },
         {
             "resourceId": "non_existing_resource",
-            "entity_id": None,
             "category": mock_bookmarks[1].category.value,
         },
         {
             "resourceId": mock_bookmarks[2].resource_id,
-            "entity_id": None,
             "category": mock_bookmarks[2].category.value,
         },
     ]

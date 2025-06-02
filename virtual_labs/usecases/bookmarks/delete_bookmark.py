@@ -16,11 +16,7 @@ async def delete_bookmark(
     repo = BookmarkMutationRepository(db)
 
     try:
-        await repo.delete_bookmark_by_params(
-            project_id=project_id,
-            resource_id=resource_id,
-            category=category.value,
-        )
+        await repo.delete_bookmark_by_params(project_id, resource_id, category.value)
 
     except NoResultFound as error:
         raise VliError(
