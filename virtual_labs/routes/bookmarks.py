@@ -1,6 +1,4 @@
-from typing import Annotated, List
-
-from fastapi import APIRouter, Body, Depends, Query
+from fastapi import APIRouter, Depends
 from pydantic import UUID4
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,11 +10,10 @@ from virtual_labs.domain.bookmark import (
     BookmarkIn,
     BookmarkOut,
     BulkDeleteBookmarks,
-    DeleteBookmarkIn,
 )
 from virtual_labs.domain.labs import LabResponse
 from virtual_labs.infrastructure.db.config import default_session_factory
-from virtual_labs.infrastructure.kc.auth import a_verify_jwt, verify_jwt
+from virtual_labs.infrastructure.kc.auth import verify_jwt
 from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.usecases import bookmarks as usecases
 
@@ -41,8 +38,7 @@ async def add_bookmark(
 ) -> LabResponse[BookmarkOut]:
     result = await usecases.add_bookmark(session, project_id, incoming_bookmark)
     return LabResponse[BookmarkOut](
-        message="Resource successfully bookmarked to project",
-        data=result,
+        message="Resource successfully bookmarked to project", data=result
     )
 
 
@@ -55,11 +51,10 @@ async def add_bookmark(
 async def get_bookmarks_by_category(
     virtual_lab_id: UUID4,
     project_id: UUID4,
-    category: BookmarkCategory | None = Query(None, description="category"),
     session: AsyncSession = Depends(default_session_factory),
     auth: tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> LabResponse[dict[BookmarkCategory, list[BookmarkOut]]]:
-    result = await usecases.get_bookmarks_by_category(session, project_id, category)
+    result = await usecases.get_bookmarks_by_category(session, project_id)
     return LabResponse[dict[BookmarkCategory, list[BookmarkOut]]](
         message="Bookmarks successfully retrieved for project", data=result
     )
@@ -101,25 +96,4 @@ async def delete_bookmark(
     auth: tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> LabResponse[None]:
     await usecases.delete_bookmark(session, project_id, resource_id, category)
-    return LabResponse[None](message="Bulk delete bookmarks", data=None)
-
-
-@router.post(
-    "/{virtual_lab_id}/projects/{project_id}/bookmarks/delete",
-    summary="Delete bookmark by category and resource id",
-    response_model=LabResponse[None],
-)
-@verify_vlab_or_project_read
-async def core_delete_bookmark(
-    virtual_lab_id: UUID4,
-    project_id: UUID4,
-    bookmarks: Annotated[List[DeleteBookmarkIn], Body(embed=True)],
-    session: AsyncSession = Depends(default_session_factory),
-    auth: tuple[AuthUser, str] = Depends(a_verify_jwt),
-) -> LabResponse[None]:
-    await usecases.core_delete_bookmarks(
-        session,
-        project_id,
-        bookmarks,
-    )
     return LabResponse[None](message="Bulk delete bookmarks", data=None)
