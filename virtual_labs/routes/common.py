@@ -2,12 +2,14 @@ from fastapi import APIRouter, Depends
 
 from virtual_labs.domain.labs import LabResponse
 from virtual_labs.domain.user import AllUsersCount, UserAgentResponse
+from virtual_labs.infrastructure.email.send_welcome_email import \
+    send_welcome_email
 from virtual_labs.infrastructure.kc.auth import verify_jwt
 from virtual_labs.infrastructure.kc.models import AuthUser
-from virtual_labs.usecases.users.get_count_of_all_users import get_count_of_all_users
-from virtual_labs.usecases.users.get_or_create_user_agent import (
-    get_or_create_user_agent,
-)
+from virtual_labs.usecases.users.get_count_of_all_users import \
+    get_count_of_all_users
+from virtual_labs.usecases.users.get_or_create_user_agent import \
+    get_or_create_user_agent
 
 router = APIRouter()
 
@@ -27,3 +29,4 @@ async def get_or_create_agent(
     Gets the "Agent" entity for the user calling the api (derived from the "Authorization" header). If the agent does not exist, a new one is created and returned.
     """
     return await get_or_create_user_agent(user=auth[0])
+
