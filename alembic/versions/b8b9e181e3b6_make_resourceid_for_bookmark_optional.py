@@ -1,7 +1,7 @@
 """make resourceid for bookmark optional
 
 Revision ID: b8b9e181e3b6
-Revises: 6517ad801bf6
+Revises: 93c9ff52845c
 Create Date: 2025-05-06 10:46:51.952634
 
 """
@@ -13,7 +13,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "b8b9e181e3b6"
-down_revision: Union[str, None] = "6517ad801bf6"
+down_revision: Union[str, None] = "93c9ff52845c"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
