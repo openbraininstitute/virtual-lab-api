@@ -98,6 +98,7 @@ class JobSubtype(Enum):
     STORAGE = "storage"
     SYNAPTOME_BUILD = "synaptome-build"
     SYNAPTOME_SIM = "synaptome-sim"
+    NOTEBOOK = "notebook"
 
 
 # TODO: Update according to the STORAGE report type
