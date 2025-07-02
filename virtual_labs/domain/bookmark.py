@@ -10,7 +10,7 @@ class BookmarkCategory(Enum):
     ExperimentalElectroPhysiology = "ExperimentalElectroPhysiology"
     ExperimentalSynapsePerConnection = "ExperimentalSynapsePerConnection"
     ExperimentalNeuronMorphology = "ExperimentalNeuronMorphology"
-    SimulationCampaigns = "SimulationCampaign"
+    SimulationCampaign = "SimulationCampaign"
     CircuitEModel = "CircuitEModel"
     CircuitMEModel = "CircuitMEModel"
     SingleNeuronSynaptome = "SingleNeuronSynaptome"
