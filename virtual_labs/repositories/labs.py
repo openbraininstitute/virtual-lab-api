@@ -16,7 +16,6 @@ class VirtualLabDbCreate(labs.VirtualLabCreate):
     owner_id: UUID4
     admin_group_id: str
     member_group_id: str
-    nexus_organization_id: str
 
 
 async def get_paginated_virtual_labs(
@@ -111,7 +110,6 @@ async def create_virtual_lab(db: AsyncSession, lab: VirtualLabDbCreate) -> Virtu
         name=lab.name,
         description=lab.description,
         reference_email=lab.reference_email,
-        nexus_organization_id=str(lab.nexus_organization_id),
         projects=[],
         entity=lab.entity,
     )

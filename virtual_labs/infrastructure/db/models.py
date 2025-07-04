@@ -40,8 +40,6 @@ class VirtualLab(Base):
     admin_group_id = Column(String, nullable=False, unique=True)
     member_group_id = Column(String, nullable=False, unique=True)
 
-    nexus_organization_id = Column(String, nullable=False, unique=True)
-
     name = Column(String(250), index=True)
     description = Column(Text)
     reference_email = Column(String(255))
@@ -77,7 +75,6 @@ class Project(Base):
     __tablename__ = "project"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    nexus_project_id = Column(String, nullable=False, unique=True)
     admin_group_id = Column(String, nullable=False, unique=True)
     member_group_id = Column(String, nullable=False, unique=True)
     owner_id = Column(UUID(as_uuid=True), nullable=False)

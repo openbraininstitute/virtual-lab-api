@@ -4,11 +4,8 @@ from uuid import uuid4
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient, Response
-from requests import get
 
-from virtual_labs.infrastructure.settings import settings
 from virtual_labs.repositories.group_repo import GroupQueryRepository
-from virtual_labs.tests.utils import get_client_headers
 
 
 @pytest.mark.asyncio
@@ -31,14 +28,6 @@ async def test_vlm_project_creation(
     # Test Kc group creation
     assert admin_group is not None
     assert member_group is not None
-
-    # Test Nexus project creation
-    nexus_project = get(
-        f"{settings.NEXUS_DELTA_URI}/projects/{virtual_lab_id}/{str(project_id)}",
-        headers=get_client_headers(),
-    )
-
-    assert nexus_project.status_code == 200
 
 
 @pytest.mark.parametrize(

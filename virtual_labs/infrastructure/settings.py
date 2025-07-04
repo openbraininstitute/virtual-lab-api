@@ -4,7 +4,7 @@ from typing import Any, Literal, Optional, TypeGuard, get_args
 
 from dotenv import load_dotenv
 from pydantic import EmailStr, PostgresDsn, ValidationInfo, field_validator
-from pydantic_core import MultiHostUrl, Url
+from pydantic_core import MultiHostUrl
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 load_dotenv("")
@@ -41,7 +41,6 @@ class Settings(BaseSettings):
     DATABASE_URI: PostgresDsn = MultiHostUrl(
         "postgresql+asyncpg://vlm:vlm@localhost:15432/vlm"
     )
-    NEXUS_DELTA_URI: Url = Url("http://localhost:8080/v1")
 
     KC_SERVER_URI: str = "http://localhost:9090/"
     KC_USER_NAME: str = "admin"
