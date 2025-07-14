@@ -93,12 +93,13 @@ class JobSubtype(Enum):
     ML_LLM = "ml-llm"
     ML_RAG = "ml-rag"
     ML_RETRIEVAL = "ml-retrieval"
+    NOTEBOOK = "notebook"
     SINGLE_CELL_BUILD = "single-cell-build"
     SINGLE_CELL_SIM = "single-cell-sim"
+    SMALL_CIRCUIT_SIM = "small-circuit-sim"
     STORAGE = "storage"
     SYNAPTOME_BUILD = "synaptome-build"
     SYNAPTOME_SIM = "synaptome-sim"
-    NOTEBOOK = "notebook"
 
 
 # TODO: Update according to the STORAGE report type
