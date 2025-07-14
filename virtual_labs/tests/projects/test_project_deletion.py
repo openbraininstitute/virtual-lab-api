@@ -2,10 +2,8 @@ from uuid import uuid4
 
 import pytest
 from httpx import AsyncClient, Response
-from requests import get
 
-from virtual_labs.infrastructure.settings import settings
-from virtual_labs.tests.utils import get_client_headers, get_headers
+from virtual_labs.tests.utils import get_headers
 
 
 @pytest.mark.asyncio
@@ -37,12 +35,3 @@ async def test_vlm_project_deletion(
     result = response.json()
     assert response.status_code == 200
     assert result["data"]["deleted"] is True
-
-    # Test Nexus project deprecation
-    nexus_project = get(
-        f"{settings.NEXUS_DELTA_URI}/projects/{virtual_lab_id}/{str(project_id)}",
-        headers=get_client_headers(),
-    )
-
-    result = nexus_project.json()
-    assert result["_deprecated"] is True

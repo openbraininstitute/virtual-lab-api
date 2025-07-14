@@ -26,9 +26,6 @@ while [[ "$#" -gt 0 ]]; do
   shift
 done
 
-# Start containers
-chmod +x ./env-prep/init/init-aws.sh
-ls -l ./env-prep/init/init-aws.sh
 
 # Use environment file only if specified
 if [ "$USE_ENV_FILE" = true ]; then
@@ -39,35 +36,7 @@ else
   docker compose -f "$COMPOSE_FILE_CI" -p vlm-project up --wait
 fi
 
-# Check that delta ready to accept connections
-echo "Checking that delta is ready to accept connections..."
-if ! curl --retry 30 --fail --retry-all-errors --retry-delay 2 -v "http://localhost:8080/v1/version"; then 
-  # Show delta logs if curl failed
-  if [ "$USE_ENV_FILE" = true ]; then
-    docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" -p vlm-project logs delta
-  else
-    docker compose -f "$COMPOSE_FILE_CI" -p vlm-project logs delta
-  fi
-  exit 1
-fi 
-echo "Delta is ready! 🚀"
 
-
-# Register created realm on delta
-echo "Registering realm in delta"
-curl -XPUT \
-  -H "Content-Type: application/json" \
-  "http://localhost:8080/v1/realms/obp-realm" \
-  -d '{
-        "name":"obp-realm",
-        "openIdConfig":"http://keycloak:9090/realms/obp-realm/.well-known/openid-configuration"
-      }'
-
-echo "Initialize nexus"
-
-python3 env-prep/init/init.py
-
-echo "📦 Initialize Vl database"
 make init-db
 
 echo "get access token"

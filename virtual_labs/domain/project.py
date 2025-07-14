@@ -50,7 +50,6 @@ class Project(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID4
-    nexus_project_id: str
     name: str
     description: str | None
     created_at: datetime

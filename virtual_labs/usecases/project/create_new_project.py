@@ -11,15 +11,9 @@ from sqlalchemy.exc import IntegrityError, NoResultFound, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
-from virtual_labs.core.exceptions.nexus_error import NexusError
 from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.core.types import UserRoleEnum
-from virtual_labs.domain.project import (
-    EmailFailure,
-    ProjectCreationBody,
-    ProjectVlOut,
-)
-from virtual_labs.external.nexus.project_instance import instantiate_nexus_project
+from virtual_labs.domain.project import EmailFailure, ProjectCreationBody, ProjectVlOut
 from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.infrastructure.settings import settings
 from virtual_labs.repositories.group_repo import (
@@ -136,27 +130,6 @@ async def create_new_project_use_case(
             message="KC Group creation/attaching failed",
         )
 
-    try:
-        nexus_project_id = await instantiate_nexus_project(
-            virtual_lab_id=virtual_lab_id,
-            project_id=project_id,
-            description=payload.description,
-            admin_group_name=admin_group["name"],
-            member_group_name=member_group["name"],
-            auth=auth,
-        )
-    except NexusError as ex:
-        logger.error(f"Error during creating project instance due nexus error ({ex})")
-        gmr.delete_group(group_id=admin_group["id"])
-        gmr.delete_group(group_id=member_group["id"])
-
-        raise VliError(
-            error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
-            http_status_code=status.BAD_GATEWAY,
-            message="Nexus Project creation failed",
-            details=ex.type,
-        )
-
     if settings.ACCOUNTING_BASE_URL is not None:
         try:
             await accounting_cases.create_project_account(
@@ -180,7 +153,6 @@ async def create_new_project_use_case(
             id=project_id,
             payload=payload,
             virtual_lab_id=virtual_lab_id,
-            nexus_project_id=nexus_project_id,
             admin_group_id=admin_group["id"],
             member_group_id=member_group["id"],
             owner_id=user_id,

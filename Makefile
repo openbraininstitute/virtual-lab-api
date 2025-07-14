@@ -89,3 +89,6 @@ migration:  ## Create or update the alembic migration
 	@$(call load_env,local)
 	poetry run alembic upgrade head
 	poetry run alembic revision --autogenerate -m "$(MESSAGE)"
+
+tiers:
+	poetry run populate-tiers
