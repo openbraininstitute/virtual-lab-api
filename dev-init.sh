@@ -36,6 +36,19 @@ else
   docker compose -f "$COMPOSE_FILE_CI" -p vlm-project up --wait
 fi
 
+# Wait for Keycloak to be ready and realm to be imported
+echo "Waiting for Keycloak to be ready..."
+for i in {1..60}; do
+  if curl -s -f "$KC_SERVER_URI/realms/$KC_REALM_NAME" > /dev/null 2>&1; then
+    echo "Keycloak is ready!"
+    break
+  fi
+  echo "Waiting for Keycloak... ($i/60)"
+  sleep 2
+done
+
+# Additional wait to ensure realm is fully imported
+sleep 5
 
 make init-db
 
