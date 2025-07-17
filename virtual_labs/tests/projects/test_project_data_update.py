@@ -3,10 +3,6 @@ from typing import Any
 
 import pytest
 from httpx import AsyncClient, Response
-from requests import get
-
-from virtual_labs.infrastructure.settings import settings
-from virtual_labs.tests.utils import get_client_headers
 
 
 @pytest.mark.asyncio
@@ -33,15 +29,6 @@ async def test_vlm_update_project_data(
     assert response.status_code == 200
     assert result["data"]["project"]["name"] == new_name
     assert result["data"]["project"]["description"] == new_description
-
-    # Test Nexus project is updated
-    nexus_project = get(
-        f"{settings.NEXUS_DELTA_URI}/projects/{virtual_lab_id}/{str(project_id)}",
-        headers=get_client_headers(),
-    )
-
-    result = nexus_project.json()
-    assert result["description"] == new_description
 
 
 @pytest.mark.asyncio
@@ -163,11 +150,3 @@ async def test_vlm_update_project_description_only(
     assert response.status_code == 200
     assert result["data"]["project"]["name"] == project_name
     assert result["data"]["project"]["description"] == new_description
-
-    nexus_project = get(
-        f"{settings.NEXUS_DELTA_URI}/projects/{virtual_lab_id}/{str(project_id)}",
-        headers=get_client_headers(),
-    )
-
-    result = nexus_project.json()
-    assert result["description"] == new_description

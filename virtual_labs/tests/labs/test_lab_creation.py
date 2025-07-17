@@ -4,11 +4,9 @@ from uuid import uuid4
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient, Response
-from requests import get
 
-from virtual_labs.infrastructure.settings import settings
 from virtual_labs.repositories.group_repo import GroupQueryRepository
-from virtual_labs.tests.utils import cleanup_resources, get_client_headers, get_headers
+from virtual_labs.tests.utils import cleanup_resources, get_headers
 
 
 @pytest_asyncio.fixture
@@ -111,12 +109,6 @@ async def test_virtual_lab_created(
     group = group_repo.retrieve_group_by_name(name=group_id)
     assert group is not None
 
-    nexus_org_request = get(
-        f"{settings.NEXUS_DELTA_URI}/orgs/{str(lab_id)}", headers=get_client_headers()
-    )
-    # Test that the nexus organization was created
-    assert nexus_org_request.status_code == 200
-
 
 @pytest.mark.asyncio
 async def test_virtual_lab_created_with_users(
@@ -136,7 +128,6 @@ async def test_virtual_lab_created_with_users(
             "reference_email": "user@test.org",
             "id": lab_id,
             "entity": "EPFL, Switzerland",
-            "nexus_organization_id": f"http://delta:8080/v1/orgs/{lab_id}",
             "created_at": actual_response["virtual_lab"]["created_at"],
             "updated_at": actual_response["virtual_lab"]["created_at"],
         },

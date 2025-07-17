@@ -12,7 +12,6 @@ def db_lab_to_domain_lab(lab: VirtualLab) -> VirtualLabDetails:
         description=lab.description,
         reference_email=lab.reference_email,
         entity=lab.entity,
-        nexus_organization_id=lab.nexus_organization_id,
         created_at=lab.created_at,
         updated_at=lab.updated_at,
         admin=an_admin,

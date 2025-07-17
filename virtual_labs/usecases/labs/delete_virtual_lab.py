@@ -7,9 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.domain.labs import VirtualLabDetails, VirtualLabOut
-from virtual_labs.external.nexus.deprecate_organization import (
-    deprecate_nexus_organization,
-)
 from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.repositories import labs as repository
 from virtual_labs.shared.utils.auth import get_user_id_from_auth
@@ -35,9 +32,6 @@ async def delete_virtual_lab(
         response = VirtualLabOut(virtual_lab=VirtualLabDetails.model_validate(db_lab))
         if db_lab.deleted is True:
             return response
-
-        nexus_org = await deprecate_nexus_organization(lab_id)
-        logger.debug(f"Deprecated nexus organization {nexus_org.label}")
 
         await repository.delete_virtual_lab(db, lab_id, user_id)
         return response

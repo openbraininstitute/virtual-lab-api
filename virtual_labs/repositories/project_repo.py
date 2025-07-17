@@ -387,7 +387,6 @@ class ProjectMutationRepository:
         payload: ProjectCreationBody,
         id: UUID4,
         owner_id: UUID4,
-        nexus_project_id: str,
         virtual_lab_id: UUID4,
         admin_group_id: str,
         member_group_id: str,
@@ -396,7 +395,6 @@ class ProjectMutationRepository:
             id=id,
             name=payload.name,
             description=payload.description,
-            nexus_project_id=nexus_project_id,
             virtual_lab_id=virtual_lab_id,
             admin_group_id=admin_group_id,
             member_group_id=member_group_id,
@@ -462,21 +460,6 @@ class ProjectMutationRepository:
                 Project.deleted,
                 Project.deleted_at,
             )
-        )
-        result = await self.session.execute(statement=stmt)
-        await self.session.commit()
-        return result.one()
-
-    async def update_project_nexus_id(
-        self, virtual_lab_id: UUID4, project_id: UUID4, nexus_id: str
-    ) -> Row[Tuple[UUID, str, datetime]]:
-        stmt = (
-            update(Project)
-            .where(
-                and_(Project.id == project_id, Project.virtual_lab_id == virtual_lab_id)
-            )
-            .values(nexus_project_id=nexus_id)
-            .returning(Project.id, Project.nexus_project_id, Project.updated_at)
         )
         result = await self.session.execute(statement=stmt)
         await self.session.commit()

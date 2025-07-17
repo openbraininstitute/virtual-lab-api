@@ -16,11 +16,9 @@ from virtual_labs.core.exceptions.generic_exceptions import (
     UnverifiedEmailError,
 )
 from virtual_labs.core.exceptions.identity_error import IdentityError
-from virtual_labs.core.exceptions.nexus_error import NexusError
 from virtual_labs.core.types import UserRoleEnum
 from virtual_labs.domain import labs as domain
 from virtual_labs.domain.invite import AddUser
-from virtual_labs.external.nexus.create_organization import create_nexus_organization
 from virtual_labs.infrastructure.db import models
 from virtual_labs.infrastructure.email.send_welcome_email import send_welcome_email
 from virtual_labs.infrastructure.kc.models import AuthUser, CreatedGroup
@@ -191,32 +189,6 @@ async def create_virtual_lab(
             http_status_code=HTTPStatus.FORBIDDEN,
         )
 
-    # 2. Create nexus org
-    try:
-        nexus_org = await create_nexus_organization(
-            nexus_org_id=new_lab_id,
-            description=lab.description,
-            admin_group_name=groups["admin_group"]["name"],
-            member_group_name=groups["member_group"]["name"],
-        )
-    except (NexusError, Exception) as ex:
-        # Clean up created groups
-        if groups:
-            logger.info("Cleaning up KC groups due to Nexus error")
-            try:
-                group_repo.delete_group(group_id=groups["admin_group"]["id"])
-                group_repo.delete_group(group_id=groups["member_group"]["id"])
-            except Exception as cleanup_error:
-                logger.error(f"Error cleaning up KC groups: {cleanup_error}")
-
-        logger.error(f"Error creating Nexus organization: {ex}")
-        raise VliError(
-            error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
-            http_status_code=HTTPStatus.BAD_GATEWAY,
-            message="Nexus organization creation failed",
-            details=getattr(ex, "type", None),
-        )
-
     # 3. Create virtual lab account in accounting system
     if settings.ACCOUNTING_BASE_URL is not None:
         try:
@@ -266,7 +238,7 @@ async def create_virtual_lab(
                     ),
                 )
         except Exception as ex:
-            # Clean up created resources - groups and nexus org
+            # Clean up created resources - groups
             if groups:
                 logger.info("Cleaning up KC groups due to accounting error")
                 try:
@@ -288,7 +260,6 @@ async def create_virtual_lab(
         lab_with_ids = repository.VirtualLabDbCreate(
             id=new_lab_id,
             owner_id=owner_id,
-            nexus_organization_id=nexus_org.self,
             admin_group_id=groups["admin_group"]["id"],
             member_group_id=groups["member_group"]["id"],
             **lab.model_dump(),

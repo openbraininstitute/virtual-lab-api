@@ -14,9 +14,7 @@ from virtual_labs.core.exceptions.generic_exceptions import (
     EntityNotFound,
     ProjectAlreadyDeleted,
 )
-from virtual_labs.core.exceptions.nexus_error import NexusError
 from virtual_labs.core.response.api_response import VliResponse
-from virtual_labs.external.nexus.project_deletion import delete_nexus_project
 from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.repositories.project_repo import (
     ProjectMutationRepository,
@@ -97,23 +95,6 @@ async def delete_project_use_case(
             message="Error during deleting the project",
         )
 
-    try:
-        await delete_nexus_project(
-            virtual_lab_id=virtual_lab_id,
-            project_id=project_id,
-            auth=auth,
-        )
-    except NexusError as ex:
-        await pmr.un_delete_project(
-            virtual_lab_id=virtual_lab_id,
-            project_id=project_id,
-        )
-        raise VliError(
-            error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
-            http_status_code=status.BAD_REQUEST,
-            message="Project deprecation failed",
-            details=ex.type,
-        )
     else:
         return VliResponse.new(
             message="Project marked as deleted successfully",

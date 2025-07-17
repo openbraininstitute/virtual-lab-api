@@ -26,9 +26,6 @@ while [[ "$#" -gt 0 ]]; do
   shift
 done
 
-# Start containers
-chmod +x ./env-prep/init/init-aws.sh
-ls -l ./env-prep/init/init-aws.sh
 
 # Use environment file only if specified
 if [ "$USE_ENV_FILE" = true ]; then
@@ -39,35 +36,20 @@ else
   docker compose -f "$COMPOSE_FILE_CI" -p vlm-project up --wait
 fi
 
-# Check that delta ready to accept connections
-echo "Checking that delta is ready to accept connections..."
-if ! curl --retry 30 --fail --retry-all-errors --retry-delay 2 -v "http://localhost:8080/v1/version"; then 
-  # Show delta logs if curl failed
-  if [ "$USE_ENV_FILE" = true ]; then
-    docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" -p vlm-project logs delta
-  else
-    docker compose -f "$COMPOSE_FILE_CI" -p vlm-project logs delta
+# Wait for Keycloak to be ready and realm to be imported
+echo "Waiting for Keycloak to be ready..."
+for i in {1..60}; do
+  if curl -s -f "$KC_SERVER_URI/realms/$KC_REALM_NAME" > /dev/null 2>&1; then
+    echo "Keycloak is ready!"
+    break
   fi
-  exit 1
-fi 
-echo "Delta is ready! 🚀"
+  echo "Waiting for Keycloak... ($i/60)"
+  sleep 2
+done
 
+# Additional wait to ensure realm is fully imported
+sleep 5
 
-# Register created realm on delta
-echo "Registering realm in delta"
-curl -XPUT \
-  -H "Content-Type: application/json" \
-  "http://localhost:8080/v1/realms/obp-realm" \
-  -d '{
-        "name":"obp-realm",
-        "openIdConfig":"http://keycloak:9090/realms/obp-realm/.well-known/openid-configuration"
-      }'
-
-echo "Initialize nexus"
-
-python3 env-prep/init/init.py
-
-echo "📦 Initialize Vl database"
 make init-db
 
 echo "get access token"
