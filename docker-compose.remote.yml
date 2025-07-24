@@ -3,17 +3,11 @@ volumes:
   vlm_data: {}
   redis-data: {}
 
-networks:
-  ls:
-    ipam:
-      config:
-        # Specify the subnet range for IP address allocation
-        - subnet: 10.0.2.0/24
 
 services:
   keycloak-db:
     image: postgres:latest
-    container_name: keycloak-db
+    container_name: vlab-keycloak-db
     environment:
       POSTGRES_USER: keycloak
       POSTGRES_PASSWORD: keycloak
@@ -26,12 +20,10 @@ services:
     restart: unless-stopped
     volumes:
       - keycloak_data:/var/lib/postgresql/data
-    networks:
-      - ls
 
   keycloak:
     image: quay.io/keycloak/keycloak:24.0
-    container_name: keycloak
+    container_name: vlab-keycloak
     environment:
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
@@ -52,20 +44,20 @@ services:
       - --import-realm
     ports:
       - "9090:9090"
-    networks:
-      - ls
     volumes:
       - ./env-prep/realm-export.json:/opt/keycloak/data/import/realm-import.json
 
+
   virtual-lab-db:
     image: postgres:latest
-    container_name: vlm-db
+    container_name: vlab-db
     environment:
       POSTGRES_USER: vlm
       POSTGRES_PASSWORD: vlm
       POSTGRES_DB: vlm
+    command: postgres -p 5433
     ports:
-      - 15432:5432
+      - 15432:5433
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U vlm"]
       interval: 10s
@@ -74,12 +66,10 @@ services:
     restart: unless-stopped
     volumes:
       - vlm_data:/var/lib/postgresql/data
-    networks:
-      - ls
 
-  mailpit:
+  virtual-lab-mailpit:
     image: axllent/mailpit
-    container_name: test-mail-server
+    container_name: vlab-mailpit
     restart: always
     volumes:
       - ./env-prep/email-data:/email-data
@@ -92,9 +82,9 @@ services:
       MP_SMTP_AUTH_ACCEPT_ANY: 1
       MP_SMTP_AUTH_ALLOW_INSECURE: 1
 
-  stripe-cli:
+  virtual-lab-stripe-cli:
     image: stripe/stripe-cli:latest
-    container_name: stripe
+    container_name: vlab-stripe-cli
     environment:
       STRIPE_CLI_TELEMETRY_OPTOUT: 1
       STRIPE_API_KEY: ${STRIPE_SECRET_KEY}
@@ -107,10 +97,10 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
       - "172.17.0.1:host-gateway"
-
-  redis:
+  virtual-lab-redis:
     image: "redis:7.2.3"
     command: redis-server /usr/local/etc/redis/redis.conf
+    container_name: vlab-redis
     volumes:
       - ./env-prep/init/redis.conf:/usr/local/etc/redis/redis.conf
     ports:
@@ -121,3 +111,25 @@ services:
       retries: 5
       start_period: 5s
       timeout: 10s
+
+  virtual-lab-manager:
+    build:
+      dockerfile: Dockerfile
+    image: ${VLAB_SVC_NAME}:${VLAB_SVC_TAG}
+    container_name: ${VLAB_SVC_NAME}
+    depends_on:
+      - keycloak
+      - virtual-lab-mailpit
+      - virtual-lab-stripe-cli
+      - virtual-lab-db
+      - virtual-lab-redis
+    environment:
+      - VLAB_SVC_TAG=${VLAB_SVC_TAG}
+      - VLAB_SVC_NAME=${VLAB_SVC_NAME}
+      - POSTGRES_PORT=5433
+      - POSTGRES_HOST=virtual-lab-db
+      - KC_SERVER_URI=http://keycloak:9090
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    ports:
+      - "8200:8000"
