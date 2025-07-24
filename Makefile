@@ -3,6 +3,13 @@
 SHELL := /bin/bash
 
 SERVICE_NAME=virtual-lab-manager
+GIT_COMMIT := $(shell git rev-parse --short=8 HEAD)
+VLAB_SVC_TAG ?= $(GIT_COMMIT)
+VLAB_SVC_NAME ?= $(SERVICE_NAME)
+
+export VLAB_SVC_TAG
+export VLAB_SVC_NAME
+
 
 define HELPTEXT
 	Usage: make COMMAND
@@ -92,3 +99,13 @@ migration:  ## Create or update the alembic migration
 
 tiers:
 	poetry run populate-tiers
+
+
+build-tagged:
+	docker build -t $(VLAB_SVC_NAME):$(VLAB_SVC_TAG) .
+
+up-tagged:
+	docker-compose -f docker-compose.remote.yml up
+
+down-tagged:
+	docker-compose -f docker-compose.remote.yml down --remove-orphans --volumes
