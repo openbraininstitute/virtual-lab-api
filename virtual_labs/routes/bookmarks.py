@@ -7,13 +7,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from virtual_labs.core.authorization.verify_vlab_or_project_read import (
     verify_vlab_or_project_read,
 )
+from virtual_labs.core.pagination import QueryPaginator
 from virtual_labs.domain.bookmark import (
-    BookmarkCategory,
     BookmarkIn,
     BookmarkOut,
     BulkDeleteBookmarks,
     DeleteBookmarkIn,
+    EntityType,
 )
+from virtual_labs.domain.common import PaginatedResultsResponse
 from virtual_labs.domain.labs import LabResponse
 from virtual_labs.infrastructure.db.config import default_session_factory
 from virtual_labs.infrastructure.kc.auth import a_verify_jwt, verify_jwt
@@ -49,18 +51,18 @@ async def add_bookmark(
 @router.get(
     "/{virtual_lab_id}/projects/{project_id}/bookmarks",
     summary="Get project bookmarks by category",
-    response_model=LabResponse[dict[BookmarkCategory, list[BookmarkOut]]],
+    response_model=LabResponse[dict[EntityType, list[BookmarkOut]]],
 )
 @verify_vlab_or_project_read
 async def get_bookmarks_by_category(
     virtual_lab_id: UUID4,
     project_id: UUID4,
-    category: BookmarkCategory | None = Query(None, description="category"),
+    category: EntityType | None = Query(None, description="category"),
     session: AsyncSession = Depends(default_session_factory),
     auth: tuple[AuthUser, str] = Depends(verify_jwt),
-) -> LabResponse[dict[BookmarkCategory, list[BookmarkOut]]]:
+) -> LabResponse[dict[EntityType, list[BookmarkOut]]]:
     result = await usecases.get_bookmarks_by_category(session, project_id, category)
-    return LabResponse[dict[BookmarkCategory, list[BookmarkOut]]](
+    return LabResponse[dict[EntityType, list[BookmarkOut]]](
         message="Bookmarks successfully retrieved for project", data=result
     )
 
@@ -95,12 +97,12 @@ async def bulk_delete_bookmarks(
 async def delete_bookmark(
     virtual_lab_id: UUID4,
     project_id: UUID4,
-    resource_id: str,
-    category: BookmarkCategory,
+    entity_id: UUID4,
+    category: EntityType,
     session: AsyncSession = Depends(default_session_factory),
     auth: tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> LabResponse[None]:
-    await usecases.delete_bookmark(session, project_id, resource_id, category)
+    await usecases.delete_bookmark(session, project_id, entity_id, category)
     return LabResponse[None](message="Bulk delete bookmarks", data=None)
 
 
@@ -123,3 +125,41 @@ async def core_delete_bookmark(
         bookmarks,
     )
     return LabResponse[None](message="Bulk delete bookmarks", data=None)
+
+
+@router.get(
+    "/{virtual_lab_id}/projects/{project_id}/bookmarks/paginated",
+    summary="Get paginated bookmarks by category",
+    response_model=LabResponse[PaginatedResultsResponse[BookmarkOut]],
+)
+@verify_vlab_or_project_read
+async def get_bookmarks_by_category_paginated(
+    virtual_lab_id: UUID4,
+    project_id: UUID4,
+    category: EntityType = Query(..., description="Required bookmark category"),
+    paginator: QueryPaginator = Depends(),
+    session: AsyncSession = Depends(default_session_factory),
+    auth: tuple[AuthUser, str] = Depends(verify_jwt),
+) -> LabResponse[PaginatedResultsResponse[BookmarkOut]]:
+    result = await usecases.get_bookmarks_by_category_paginated(
+        session, project_id, category, paginator
+    )
+    return result
+
+
+@router.get(
+    "/{virtual_lab_id}/projects/{project_id}/bookmarks/categories",
+    summary="Get all bookmark categories for a project",
+    response_model=LabResponse[list[EntityType]],
+)
+@verify_vlab_or_project_read
+async def get_project_categories(
+    virtual_lab_id: UUID4,
+    project_id: UUID4,
+    session: AsyncSession = Depends(default_session_factory),
+    auth: tuple[AuthUser, str] = Depends(verify_jwt),
+) -> LabResponse[list[EntityType]]:
+    result = await usecases.get_project_categories(session, project_id)
+    return LabResponse[list[EntityType]](
+        message="Project categories successfully retrieved", data=result
+    )

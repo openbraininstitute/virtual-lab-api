@@ -18,7 +18,6 @@ async def add_bookmark(
         bookmark = await repo.add_bookmark(
             project_id=project_id,
             entity_id=payload.entity_id,
-            resource_id=payload.resource_id,
             category=payload.category.value,
         )
         return BookmarkOut.model_validate(bookmark)

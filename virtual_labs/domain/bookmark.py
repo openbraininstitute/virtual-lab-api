@@ -1,27 +1,46 @@
-from enum import Enum
-from typing import Annotated, TypedDict
+from enum import StrEnum, auto
+from typing import TypedDict
 
-from pydantic import UUID4, BaseModel, Field
+from pydantic import UUID4, BaseModel
 
 
-class BookmarkCategory(Enum):
-    ExperimentalBoutonDensity = "ExperimentalBoutonDensity"
-    ExperimentalNeuronDensity = "ExperimentalNeuronDensity"
-    ExperimentalElectroPhysiology = "ExperimentalElectroPhysiology"
-    ExperimentalSynapsePerConnection = "ExperimentalSynapsePerConnection"
-    ExperimentalNeuronMorphology = "ExperimentalNeuronMorphology"
-    SimulationCampaign = "SimulationCampaign"
-    CircuitEModel = "CircuitEModel"
-    CircuitMEModel = "CircuitMEModel"
-    SingleNeuronSynaptome = "SingleNeuronSynaptome"
-    SingleNeuronSimulation = "SingleNeuronSimulation"
-    SynaptomeSimulation = "SynaptomeSimulation"
+class EntityType(StrEnum):
+    """Entity types."""
+
+    analysis_software_source_code = auto()
+    brain_atlas = auto()
+    brain_atlas_region = auto()
+    cell_composition = auto()
+    electrical_cell_recording = auto()
+    electrical_recording_stimulus = auto()
+    emodel = auto()
+    experimental_bouton_density = auto()
+    experimental_neuron_density = auto()
+    experimental_synapses_per_connection = auto()
+    ion_channel_model = auto()
+    memodel = auto()
+    mesh = auto()
+    memodel_calibration_result = auto()
+    me_type_density = auto()
+    publication = auto()
+    reconstruction_morphology = auto()
+    simulation = auto()
+    simulation_campaign = auto()
+    simulation_campaign_generation = auto()
+    simulation_execution = auto()
+    simulation_result = auto()
+    scientific_artifact = auto()
+    single_neuron_simulation = auto()
+    single_neuron_synaptome = auto()
+    single_neuron_synaptome_simulation = auto()
+    subject = auto()
+    validation_result = auto()
+    circuit = auto()
 
 
 class BookmarkIn(BaseModel):
     entity_id: UUID4 | None = None
-    resource_id: Annotated[str | None, Field(alias="resourceId")] = None
-    category: BookmarkCategory
+    category: EntityType
 
     class Config:
         from_attributes = True
@@ -31,9 +50,7 @@ class BookmarkIn(BaseModel):
 class BookmarkOut(BaseModel):
     id: UUID4
     entity_id: UUID4 | None = None
-    # TODO: return snake case for entity core
-    resource_id: Annotated[str | None, Field(alias="resourceId")] = None
-    category: BookmarkCategory
+    category: EntityType
 
     class Config:
         from_attributes = True

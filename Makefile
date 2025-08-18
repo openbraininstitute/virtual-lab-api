@@ -76,7 +76,7 @@ type-check:
 
 test:
 	poetry run populate-tiers --test
-	poetry run pytest --cov=virtual_labs --cov-report=xml --cov-report=html
+	poetry run pytest --cov=virtual_labs --cov-report=xml --cov-report=html virtual_labs/tests/bookmarks
 
 init-db:
 	poetry run alembic upgrade head

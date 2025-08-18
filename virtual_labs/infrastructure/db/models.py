@@ -25,7 +25,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
-from virtual_labs.domain.bookmark import BookmarkCategory
+from virtual_labs.domain.bookmark import EntityType
 
 
 class Base(DeclarativeBase):
@@ -211,11 +211,10 @@ class Bookmark(Base):
     __tablename__ = "bookmark"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    resource_id = Column(String, nullable=True, index=True)
     entity_id: Mapped[uuid.UUID | None] = mapped_column(
         unique=False, index=True, nullable=True
     )
-    category = Column(SAEnum(BookmarkCategory), nullable=False)  # type: ignore[var-annotated]
+    category: Mapped[EntityType] = mapped_column(SAEnum(EntityType), nullable=False)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=func.now()
@@ -226,10 +225,10 @@ class Bookmark(Base):
 
     __table_args__ = (
         UniqueConstraint(
-            resource_id,
+            entity_id,
             category,
             project_id,
-            name="bookmark_unique_for_resource_category_per_project",
+            name="bookmark_unique_for_entity_category_per_project",
         ),
     )
 

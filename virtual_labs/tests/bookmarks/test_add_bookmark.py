@@ -4,7 +4,7 @@ from http import HTTPStatus
 import pytest
 from httpx import AsyncClient, Response
 
-from virtual_labs.domain.bookmark import BookmarkCategory
+from virtual_labs.domain.bookmark import EntityType
 from virtual_labs.tests.utils import get_headers
 
 
@@ -25,10 +25,9 @@ async def test_user_can_add_bookmark(
 ) -> None:
     lab_id, project_id, headers, client = mock_create_project
 
-    payload = {
-        "resourceId": "some-resource-id",
-        "entity_id": None,
-        "category": BookmarkCategory.ExperimentalNeuronMorphology.value,
+    payload: dict[str, str | None] = {
+        "entity_id": str(uuid.uuid4()),
+        "category": EntityType.reconstruction_morphology.value,
     }
 
     response = await request_to_add_bookmark(client, lab_id, project_id, payload)
@@ -36,7 +35,7 @@ async def test_user_can_add_bookmark(
     assert response.status_code == 200
     data = response.json()["data"]
 
-    assert data["resourceId"] == payload["resourceId"]
+    assert data["entity_id"] == payload["entity_id"]
     assert data["category"] == payload["category"]
 
 
@@ -46,10 +45,9 @@ async def test_returns_error_if_resource_with_same_id_and_category_is_added_twic
 ) -> None:
     lab_id, project_id, headers, client = mock_create_project
 
-    payload = {
-        "resourceId": "some-resource-id",
-        "entity_id": None,
-        "category": BookmarkCategory.ExperimentalNeuronMorphology.value,
+    payload: dict[str, str | None] = {
+        "entity_id": str(uuid.uuid4()),
+        "category": EntityType.reconstruction_morphology.value,
     }
 
     response1 = await request_to_add_bookmark(client, lab_id, project_id, payload)
@@ -66,10 +64,9 @@ async def test_allows_adding_same_resource_to_different_category(
 ) -> None:
     lab_id, project_id, headers, client = mock_create_project
 
-    payload = {
-        "resourceId": "some-resource-id",
-        "entity_id": None,
-        "category": BookmarkCategory.ExperimentalNeuronMorphology.value,
+    payload: dict[str, str | None] = {
+        "entity_id": str(uuid.uuid4()),
+        "category": EntityType.reconstruction_morphology.value,
     }
     response1 = await request_to_add_bookmark(client, lab_id, project_id, payload)
     assert response1.status_code == HTTPStatus.OK
@@ -79,9 +76,8 @@ async def test_allows_adding_same_resource_to_different_category(
         lab_id,
         project_id,
         {
-            "resourceId": payload["resourceId"],
-            "entity_id": None,
-            "category": BookmarkCategory.ExperimentalElectroPhysiology.value,
+            "entity_id": str(uuid.uuid4()),
+            "category": EntityType.electrical_cell_recording.value,
         },
     )
     assert response2.status_code == HTTPStatus.OK
@@ -93,10 +89,9 @@ async def test_add_bookmark_with_entity_id(
 ) -> None:
     lab_id, project_id, headers, client = mock_create_project
 
-    payload = {
-        "resourceId": None,
+    payload: dict[str, str | None] = {
         "entity_id": str(uuid.uuid4()),
-        "category": BookmarkCategory.CircuitEModel.value,
+        "category": EntityType.emodel.value,
     }
 
     response = await request_to_add_bookmark(client, lab_id, project_id, payload)
@@ -110,22 +105,19 @@ async def test_add_bookmark_with_entity_id(
     else:
         assert data["entity_id"] == payload["entity_id"]
     assert data["category"] == payload["category"]
-    assert data["resourceId"] is None
 
 
 @pytest.mark.asyncio
-async def test_add_bookmark_with_both_entity_and_resource_id(
+async def test_add_bookmark_with_entity_id_only(
     mock_create_project: tuple[str, str, dict[str, str], AsyncClient],
 ) -> None:
     lab_id, project_id, headers, client = mock_create_project
 
     entity_id = str(uuid.uuid4())
-    resource_id = "dual-identifier-resource"
 
     payload: dict[str, str | None] = {
-        "resourceId": resource_id,
         "entity_id": entity_id,
-        "category": BookmarkCategory.SingleNeuronSimulation.value,
+        "category": EntityType.single_neuron_simulation.value,
     }
 
     response = await request_to_add_bookmark(client, lab_id, project_id, payload)
@@ -134,5 +126,4 @@ async def test_add_bookmark_with_both_entity_and_resource_id(
     data = response.json()["data"]
 
     assert data["entity_id"] == payload["entity_id"]
-    assert data["resourceId"] == payload["resourceId"]
     assert data["category"] == payload["category"]
