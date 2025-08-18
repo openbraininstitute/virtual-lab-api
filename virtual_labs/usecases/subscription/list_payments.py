@@ -6,8 +6,12 @@ from loguru import logger
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from virtual_labs.core.authorization.verify_vlab_read import verify_vlab_read_fn
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
-from virtual_labs.core.exceptions.generic_exceptions import EntityNotFound
+from virtual_labs.core.exceptions.generic_exceptions import (
+    EntityNotFound,
+    ForbiddenOperation,
+)
 from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.domain.payment import (
     PaymentDetails,
@@ -20,6 +24,8 @@ from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.repositories.payment_repo import PaymentRepository
 from virtual_labs.repositories.stripe_user_repo import StripeUserQueryRepository
 from virtual_labs.shared.utils.auth import get_user_id_from_auth
+
+verify_vlab_read_fn
 
 
 def _is_standalone_payment(payment: SubscriptionPayment) -> bool:
@@ -58,6 +64,11 @@ async def list_payments(
             raise EntityNotFound
         assert stripe_user.stripe_customer_id, "No stripe customer id"
 
+        if filters.virtual_lab_id:
+            await verify_vlab_read_fn(
+                session=session, auth=auth, virtual_lab_id=filters.virtual_lab_id
+            )
+
         payments, total_count = await payment_repo.list_payments(
             customer_id=stripe_user.stripe_customer_id,
             filters=filters,
@@ -85,6 +96,7 @@ async def list_payments(
                 card_exp_year=payment.card_exp_year,
                 receipt_url=payment.receipt_url,
                 invoice_pdf=payment.invoice_pdf,
+                virtual_lab_id=payment.virtual_lab_id,
                 period_start=getattr(payment, "period_start", None),
                 period_end=getattr(payment, "period_end", None),
                 created_at=payment.created_at,
@@ -105,6 +117,15 @@ async def list_payments(
         return VliResponse.new(
             message="Payments retrieved successfully",
             data=response.model_dump(),
+        )
+    except ForbiddenOperation as e:
+        logger.error(
+            f"[verify_vlab_read] The supplied authentication is not authorized for this action: {str(e)}"
+        )
+        raise VliError(
+            error_code=VliErrorCode.FORBIDDEN_OPERATION,
+            http_status_code=HTTPStatus.FORBIDDEN,
+            message="The supplied authentication is not authorized for this action",
         )
     except EntityNotFound as e:
         logger.error(f"Entity not found while listing payments: {str(e)}")
