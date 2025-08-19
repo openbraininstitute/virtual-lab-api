@@ -1,8 +1,9 @@
 from pydantic import UUID4
-from sqlalchemy import and_, delete, or_, select
+from sqlalchemy import and_, delete, distinct, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql.selectable import Select
 
-from virtual_labs.domain.bookmark import BookmarkCategory, DeleteBookmarkIn
+from virtual_labs.domain.bookmark import DeleteBookmarkIn, EntityType
 from virtual_labs.infrastructure.db.models import Bookmark
 
 
@@ -15,7 +16,7 @@ class BookmarkQueryRepository:
     async def get_project_bookmarks(
         self,
         project_id: UUID4,
-        category: BookmarkCategory | None = None,
+        category: EntityType | None = None,
     ) -> list[Bookmark]:
         query = select(Bookmark).where(Bookmark.project_id == project_id)
 
@@ -24,6 +25,50 @@ class BookmarkQueryRepository:
 
         result = (await self.session.execute(statement=query)).scalars().all()
         return list(result)
+
+    def get_project_bookmarks_by_category_query(
+        self,
+        project_id: UUID4,
+        category: EntityType,
+    ) -> Select[tuple[Bookmark]]:
+        """
+        Returns a SQLAlchemy query for getting bookmarks by project and category
+        for pagination purposes.
+        """
+        return select(Bookmark).where(
+            and_(Bookmark.project_id == project_id, Bookmark.category == category)
+        )
+
+    async def get_project_categories(
+        self,
+        project_id: UUID4,
+    ) -> list[str]:
+        """
+        Get all distinct categories for a specific project.
+        """
+        query = select(distinct(Bookmark.category)).where(
+            Bookmark.project_id == project_id
+        )
+        result = (await self.session.execute(statement=query)).scalars().all()
+        return list(result)
+
+    async def get_project_category_counts(
+        self,
+        project_id: UUID4,
+    ) -> dict[str, int]:
+        """
+        Get count of bookmarks by category for a specific project.
+        """
+        from sqlalchemy import func
+
+        query = (
+            select(Bookmark.category, func.count(Bookmark.id).label("count"))
+            .where(Bookmark.project_id == project_id)
+            .group_by(Bookmark.category)
+        )
+
+        result = (await self.session.execute(statement=query)).all()
+        return {category: count for category, count in result}
 
 
 class BookmarkMutationRepository:
@@ -35,13 +80,11 @@ class BookmarkMutationRepository:
     async def add_bookmark(
         self,
         project_id: UUID4,
-        resource_id: str | None,
         category: str,
         entity_id: UUID4 | None = None,
     ) -> Bookmark:
         bookmark = Bookmark(
             entity_id=entity_id,
-            resource_id=resource_id,
             category=category,
             project_id=project_id,
         )
@@ -53,7 +96,7 @@ class BookmarkMutationRepository:
     async def delete_bookmark_by_params(
         self,
         project_id: UUID4,
-        resource_id: str,
+        entity_id: UUID4,
         category: str,
     ) -> UUID4:
         query = (
@@ -62,7 +105,7 @@ class BookmarkMutationRepository:
                 and_(
                     Bookmark.project_id == project_id,
                     Bookmark.category == category,
-                    Bookmark.resource_id == resource_id,
+                    Bookmark.entity_id == entity_id,
                 )
             )
             .returning(
@@ -93,13 +136,8 @@ class BookmarkMutationRepository:
 
         delete_conditions = []
         for bookmark in bookmarks_to_delete:
-            if bookmark.entity_id is not None:
-                id_condition = Bookmark.entity_id == bookmark.entity_id
-            else:
-                id_condition = Bookmark.resource_id == bookmark.resource_id
-
             full_condition = and_(
-                id_condition,
+                Bookmark.entity_id == bookmark.entity_id,
                 Bookmark.category == bookmark.category,
                 Bookmark.project_id == project_id,
             )

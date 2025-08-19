@@ -7,25 +7,25 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
-from virtual_labs.domain.bookmark import BookmarkCategory, BookmarkOut
+from virtual_labs.domain.bookmark import BookmarkOut, EntityType
 from virtual_labs.repositories.bookmark_repo import BookmarkQueryRepository
 
 
 async def get_bookmarks_by_category(
     db: AsyncSession,
     project_id: UUID4,
-    category: BookmarkCategory | None = None,
-) -> dict[BookmarkCategory, list[BookmarkOut]]:
+    category: EntityType | None = None,
+) -> dict[EntityType, list[BookmarkOut]]:
     try:
         repo = BookmarkQueryRepository(db)
         db_bookmarks = await repo.get_project_bookmarks(project_id, category)
 
-        grouped_bookmarks: defaultdict[
-            BookmarkCategory, list[BookmarkOut]
-        ] = defaultdict(list)
+        grouped_bookmarks: defaultdict[EntityType, list[BookmarkOut]] = defaultdict(
+            list
+        )
 
         for db_bookmark in db_bookmarks:
-            grouped_bookmarks[BookmarkCategory(db_bookmark.category)].append(
+            grouped_bookmarks[EntityType(db_bookmark.category)].append(
                 BookmarkOut.model_validate(db_bookmark)
             )
 

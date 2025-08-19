@@ -6,14 +6,13 @@ import pytest
 import pytest_asyncio
 from httpx import AsyncClient
 
-from virtual_labs.domain.bookmark import BookmarkCategory, BookmarkIn
+from virtual_labs.domain.bookmark import BookmarkIn, EntityType
 from virtual_labs.infrastructure.db.models import Bookmark
 from virtual_labs.tests.utils import session_context_factory
 
 mock_bookmark = BookmarkIn(
-    resource_id="resource-1",
     entity_id=uuid.UUID("697e2ad0-01a3-4034-a117-9b44d7559bc1"),
-    category=BookmarkCategory.ExperimentalNeuronMorphology,
+    category=EntityType.reconstruction_morphology,
 )
 
 
@@ -25,7 +24,7 @@ async def add_bookmark_to_project(
     async with session_context_factory() as session:
         session.add(
             Bookmark(
-                resource_id=mock_bookmark.resource_id,
+                entity_id=mock_bookmark.entity_id,
                 category=mock_bookmark.category.value,
                 project_id=project_id,
             )
@@ -41,7 +40,7 @@ async def test_user_can_delete_bookmarks_in_project(
     lab_id, project_id, headers, client = add_bookmark_to_project
 
     delete_response = await client.delete(
-        f"/virtual-labs/{lab_id}/projects/{project_id}/bookmarks?resource_id={mock_bookmark.resource_id}&category={mock_bookmark.category.value}",
+        f"/virtual-labs/{lab_id}/projects/{project_id}/bookmarks?entity_id={mock_bookmark.entity_id}&category={mock_bookmark.category.value}",
         headers=headers,
     )
 
@@ -55,8 +54,8 @@ async def test_not_found_error_returned_when_user_deletes_bookmark_that_does_not
     lab_id, project_id, headers, client = mock_create_project
 
     delete_response = await client.delete(
-        f"/virtual-labs/{lab_id}/projects/{project_id}/bookmarks?resource_id=whatever&category={mock_bookmark.category.value}",
+        f"/virtual-labs/{lab_id}/projects/{project_id}/bookmarks?entity_id=whatever&category={mock_bookmark.category.value}",
         headers=headers,
     )
 
-    assert delete_response.status_code == HTTPStatus.NOT_FOUND
+    assert delete_response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY

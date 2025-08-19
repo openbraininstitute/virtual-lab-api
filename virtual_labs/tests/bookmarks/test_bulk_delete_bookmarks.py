@@ -5,25 +5,22 @@ import pytest
 import pytest_asyncio
 from httpx import AsyncClient
 
-from virtual_labs.domain.bookmark import BookmarkCategory, BookmarkIn
+from virtual_labs.domain.bookmark import BookmarkIn, EntityType
 from virtual_labs.infrastructure.db.models import Bookmark
 from virtual_labs.tests.utils import session_context_factory
 
 mock_bookmarks: list[BookmarkIn] = [
     BookmarkIn(
-        resource_id="resource-1",
         entity_id=uuid.UUID("4d2f4c97-85d5-476b-b6d3-26f2d7d11c5d"),
-        category=BookmarkCategory.ExperimentalNeuronMorphology,
+        category=EntityType.reconstruction_morphology,
     ),
     BookmarkIn(
-        resource_id="resource-2",
         entity_id=uuid.UUID("8fc94de5-3193-4f99-a9a6-74d20bc14ec2"),
-        category=BookmarkCategory.ExperimentalNeuronMorphology,
+        category=EntityType.reconstruction_morphology,
     ),
     BookmarkIn(
-        resource_id="resource-3",
         entity_id=uuid.UUID("697e2ad0-01a3-4034-a117-9b44d7559bc1"),
-        category=BookmarkCategory.ExperimentalElectroPhysiology,
+        category=EntityType.electrical_cell_recording,
     ),
 ]
 
@@ -37,7 +34,7 @@ async def add_bookmarks_to_project(
         for bookmark in mock_bookmarks:
             session.add(
                 Bookmark(
-                    resource_id=bookmark.resource_id,
+                    entity_id=bookmark.entity_id,
                     category=bookmark.category.value,
                     project_id=project_id,
                 )
@@ -54,18 +51,11 @@ async def test_user_can_bulk_delete_bookmarks_in_project(
     lab_id, project_id, headers, client = add_bookmarks_to_project
     bookmarks_to_delete = [
         {
-            "resourceId": mock_bookmarks[1].resource_id,
-            "entity_id": None,
+            "entity_id": str(mock_bookmarks[1].entity_id),
             "category": mock_bookmarks[1].category.value,
         },
         {
-            "resourceId": "non_existing_resource",
-            "entity_id": None,
-            "category": mock_bookmarks[1].category.value,
-        },
-        {
-            "resourceId": mock_bookmarks[2].resource_id,
-            "entity_id": None,
+            "entity_id": str(mock_bookmarks[2].entity_id),
             "category": mock_bookmarks[2].category.value,
         },
     ]
@@ -79,8 +69,14 @@ async def test_user_can_bulk_delete_bookmarks_in_project(
     assert bulk_delete_response.status_code == 200
     data = bulk_delete_response.json()["data"]
 
-    assert data["failed_to_delete"] == [bookmarks_to_delete[1]]
+    assert data["failed_to_delete"] == []
     assert data["successfully_deleted"] == [
-        bookmarks_to_delete[0],
-        bookmarks_to_delete[2],
+        {
+            "entity_id": str(mock_bookmarks[1].entity_id),
+            "category": mock_bookmarks[1].category.value,
+        },
+        {
+            "entity_id": str(mock_bookmarks[2].entity_id),
+            "category": mock_bookmarks[2].category.value,
+        },
     ]
