@@ -141,16 +141,15 @@ async def get_bookmarks_by_category_paginated(
     session: AsyncSession = Depends(default_session_factory),
     auth: tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> LabResponse[PaginatedResultsResponse[BookmarkOut]]:
-    result = await usecases.get_bookmarks_by_category_paginated(
+    return await usecases.get_bookmarks_by_category_paginated(
         session, project_id, category, paginator
     )
-    return result
 
 
 @router.get(
     "/{virtual_lab_id}/projects/{project_id}/bookmarks/categories",
-    summary="Get all bookmark categories for a project",
-    response_model=LabResponse[list[EntityType]],
+    summary="Get bookmark counts by category for a project",
+    response_model=LabResponse[dict[EntityType, int]],
 )
 @verify_vlab_or_project_read
 async def get_project_categories(
@@ -158,8 +157,8 @@ async def get_project_categories(
     project_id: UUID4,
     session: AsyncSession = Depends(default_session_factory),
     auth: tuple[AuthUser, str] = Depends(verify_jwt),
-) -> LabResponse[list[EntityType]]:
+) -> LabResponse[dict[EntityType, int]]:
     result = await usecases.get_project_categories(session, project_id)
-    return LabResponse[list[EntityType]](
-        message="Project categories successfully retrieved", data=result
+    return LabResponse[dict[EntityType, int]](
+        message="Project category counts successfully retrieved", data=result
     )

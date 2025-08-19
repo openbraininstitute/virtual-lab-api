@@ -13,41 +13,46 @@ from virtual_labs.repositories.bookmark_repo import BookmarkQueryRepository
 async def get_project_categories(
     db: AsyncSession,
     project_id: UUID4,
-) -> list[EntityType]:
+) -> dict[EntityType, int]:
     """
-    Get all distinct bookmark categories for a specific project.
+    Get count of bookmarks by category for a specific project.
 
     Args:
         db: Database session
         project_id: Project UUID
 
     Returns:
-        List of EntityType enums used in the project
+        Dictionary with EntityType as keys and counts as values
     """
     try:
         repo = BookmarkQueryRepository(db)
-        category_strings: list[str] = await repo.get_project_categories(project_id)
+        category_counts_str = await repo.get_project_category_counts(project_id)
 
-        # Convert string values to EntityType enums
-        categories: list[EntityType] = [
-            EntityType(category_str) for category_str in category_strings
-        ]
+        # Convert string keys to EntityType enums
+        category_counts: dict[EntityType, int] = {
+            EntityType(category_str): count
+            for category_str, count in category_counts_str.items()
+        }
 
-        return categories
+        return category_counts
 
     except SQLAlchemyError as error:
-        logger.error(f"DB error during retrieving categories for project: ({error})")
+        logger.error(
+            f"DB error during retrieving category counts for project: ({error})"
+        )
         raise VliError(
-            message="Failed to retrieve project categories",
+            message="Failed to retrieve project category counts",
             error_code=VliErrorCode.DATABASE_ERROR,
             http_status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
             details=str(error),
         )
     except Exception as error:
-        logger.exception(f"Error during retrieving categories for project: ({error})")
+        logger.exception(
+            f"Error during retrieving category counts for project: ({error})"
+        )
         raise VliError(
             error_code=VliErrorCode.SERVER_ERROR,
             http_status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-            message="Retrieving project categories failed",
+            message="Retrieving project category counts failed",
             details=str(error),
         )

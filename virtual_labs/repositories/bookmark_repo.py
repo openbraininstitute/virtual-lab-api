@@ -52,6 +52,24 @@ class BookmarkQueryRepository:
         result = (await self.session.execute(statement=query)).scalars().all()
         return list(result)
 
+    async def get_project_category_counts(
+        self,
+        project_id: UUID4,
+    ) -> dict[str, int]:
+        """
+        Get count of bookmarks by category for a specific project.
+        """
+        from sqlalchemy import func
+
+        query = (
+            select(Bookmark.category, func.count(Bookmark.id).label("count"))
+            .where(Bookmark.project_id == project_id)
+            .group_by(Bookmark.category)
+        )
+
+        result = (await self.session.execute(statement=query)).all()
+        return {category: count for category, count in result}
+
 
 class BookmarkMutationRepository:
     session: AsyncSession

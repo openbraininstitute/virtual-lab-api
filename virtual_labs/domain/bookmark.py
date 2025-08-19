@@ -39,7 +39,7 @@ class EntityType(StrEnum):
 
 
 class BookmarkIn(BaseModel):
-    entity_id: UUID4 | None = None
+    entity_id: UUID4
     category: EntityType
 
     class Config:
