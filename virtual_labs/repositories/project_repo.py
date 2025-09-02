@@ -99,6 +99,7 @@ class ProjectQueryRepository:
                     ),
                     Project.virtual_lab_id == virtual_lab_id,
                     ~Project.deleted,
+                    ~VirtualLab.deleted,
                 )
             )
         )

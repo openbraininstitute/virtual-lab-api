@@ -93,7 +93,7 @@ class FailedInvite(BaseModel):
 
 class ProjectOut(BaseModel):
     project: ProjectVlOut
-    failed_invites: List[FailedInvite]
+    balance_added: bool
 
 
 class ProjectsOut(BaseModel):

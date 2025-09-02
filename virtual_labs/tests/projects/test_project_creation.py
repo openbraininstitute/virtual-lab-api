@@ -98,14 +98,3 @@ async def mock_create_project_with_users(
         json=payload,
     )
     yield response
-
-
-@pytest.mark.asyncio
-async def test_vlm_project_with_members_creation(
-    mock_create_project_with_users: Response,
-) -> None:
-    response = mock_create_project_with_users
-
-    assert response.status_code == 200
-    failed_invites = response.json()["data"]["failed_invites"]
-    assert failed_invites == []
