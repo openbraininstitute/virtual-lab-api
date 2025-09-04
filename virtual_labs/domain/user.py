@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from datetime import datetime
-from typing import Annotated, Any, List, Optional
+from typing import TYPE_CHECKING, Annotated, Any, List, Optional
 
 from pydantic import (
     UUID4,
@@ -12,6 +14,10 @@ from pydantic import (
 )
 
 from virtual_labs.core.types import UserGroup, UserRoleEnum
+
+if TYPE_CHECKING:
+    from virtual_labs.domain.labs import VirtualLabDetails
+    from virtual_labs.domain.project import ProjectVlOut
 
 
 class ShortenedUser(BaseModel):
@@ -106,3 +112,44 @@ class UserProfileResponse(BaseModel):
 
 class UserGroupsResponse(BaseModel):
     groups: List[UserGroup]
+
+
+# Recent Workspace Domain Models
+class Workspace(BaseModel):
+    """Represents a workspace consisting of a virtual lab and project combination"""
+
+    virtual_lab_id: UUID4
+    project_id: UUID4
+
+
+class RecentWorkspaceOut(BaseModel):
+    """Response model for recent workspace information"""
+
+    user_id: UUID4
+    workspace: Optional[Workspace] = None
+    updated_at: Optional[datetime] = None
+
+
+class SetRecentWorkspaceRequest(BaseModel):
+    """Request model for setting recent workspace"""
+
+    workspace: Workspace
+
+
+class RecentWorkspaceResponse(BaseModel):
+    """API response wrapper for recent workspace"""
+
+    recent_workspace: RecentWorkspaceOut
+
+
+class RecentWorkspaceOutWithDetails(RecentWorkspaceOut):
+    """Response model for recent workspace with full details"""
+
+    virtual_lab: Optional["VirtualLabDetails"] = None
+    project: Optional["ProjectVlOut"] = None
+
+
+class RecentWorkspaceResponseWithDetails(BaseModel):
+    """API response wrapper for recent workspace with details"""
+
+    recent_workspace: RecentWorkspaceOutWithDetails

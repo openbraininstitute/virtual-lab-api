@@ -26,6 +26,7 @@ from virtual_labs.domain.project import (
     ProjectOut,
     ProjectPerVLCountOut,
     ProjectStats,
+    ProjectsWithWorkspaceResponse,
     ProjectUpdateBody,
     ProjectUpdateRoleOut,
     ProjectUserDeleteOut,
@@ -52,7 +53,8 @@ router = APIRouter(
     "/projects",
     operation_id="get_all_user_projects",
     summary="Retrieve all projects for the authenticated user (only allowed projects)",
-    response_model=VliAppResponse[PaginatedResultsResponse[ProjectVlOut]],
+    description="Returns paginated list of projects with information about the user's last visited workspace",
+    response_model=VliAppResponse[ProjectsWithWorkspaceResponse],
 )
 async def retrieve_all_projects(
     page: int = Query(1, ge=1),

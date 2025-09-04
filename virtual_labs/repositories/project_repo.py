@@ -407,7 +407,7 @@ class ProjectMutationRepository:
 
     async def un_delete_project(
         self, *, virtual_lab_id: UUID4, project_id: UUID4
-    ) -> Row[Tuple[UUID, str, str, bool, datetime]]:
+    ) -> Row[Tuple[UUID, str, str, bool, datetime | None]]:
         stmt = (
             update(Project)
             .where(
@@ -428,7 +428,7 @@ class ProjectMutationRepository:
 
     async def delete_project(
         self, virtual_lab_id: UUID4, project_id: UUID4, user_id: UUID4
-    ) -> Row[Tuple[UUID, bool, datetime]]:
+    ) -> Row[Tuple[UUID, bool, datetime | None]]:
         stmt = (
             update(Project)
             .where(
@@ -447,7 +447,7 @@ class ProjectMutationRepository:
 
     async def delete_project_strict(
         self, virtual_lab_id: UUID4, project_id: UUID4
-    ) -> Row[Tuple[UUID, str, str, bool, datetime]]:
+    ) -> Row[Tuple[UUID, str, str, bool, datetime | None]]:
         stmt = (
             delete(Project)
             .where(

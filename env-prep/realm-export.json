@@ -27,6 +27,16 @@
   "oauth2DevicePollingInterval": 5,
   "enabled": true,
   "sslRequired": "none",
+  "attributes": {
+    "cibaBackchannelTokenDeliveryMode": "poll",
+    "cibaExpiresIn": "120",
+    "cibaAuthRequestedUserHint": "login_hint",
+    "oauth2DeviceCodeLifespan": "600",
+    "oauth2DevicePollingInterval": "5",
+    "parRequestUriLifespan": "60",
+    "cibaInterval": "5",
+    "realmReusableOtpCode": "false"
+  },
   "registrationAllowed": false,
   "registrationEmailAsUsername": false,
   "rememberMe": false,
@@ -505,6 +515,7 @@
       "groups": []
     },
     {
+      "id": "002fbde5-1fc8-4404-8f8f-92406342ed5c",
       "username": "test",
       "firstName": "test",
       "lastName": "test",
@@ -538,6 +549,7 @@
       "groups": []
     },
     {
+      "id": "003fcdf0-0ea9-4664-99fe-e47d76e41632",
       "username": "test-1",
       "firstName": "test-1",
       "lastName": "test-1",
@@ -571,6 +583,7 @@
       "groups": []
     },
     {
+      "id": "004f120a-2094-476e-8b2f-499308249059",
       "username": "test-2",
       "firstName": "test-2",
       "lastName": "test-2",
@@ -604,6 +617,7 @@
       "groups": []
     },
     {
+      "id": "005e6625-3074-455f-801f-4e8219353b66",
       "username": "test-3",
       "firstName": "test-3",
       "lastName": "test-3",
@@ -637,6 +651,7 @@
       "groups": []
     },
     {
+      "id": "006d9b40-4084-4850-9410-43712a168c72",
       "username": "test-4",
       "firstName": "test-4",
       "lastName": "test-4",
@@ -670,6 +685,7 @@
       "groups": []
     },
     {
+      "id": "007ce05b-5094-4941-9801-375f36f2e77d",
       "username": "test-5",
       "firstName": "test-5",
       "lastName": "test-5",
@@ -703,6 +719,7 @@
       "groups": []
     },
     {
+      "id": "008c2576-60a4-4a32-a1f2-3b6c47e9468e",
       "username": "test-6",
       "firstName": "test-6",
       "lastName": "test-6",
@@ -736,6 +753,7 @@
       "groups": []
     },
     {
+      "id": "009b6a91-70b4-4b33-a5f3-314a56e5558f",
       "username": "test-7",
       "firstName": "test-7",
       "lastName": "test-7",
