@@ -47,7 +47,6 @@ async def set_recent_workspace(
         preference_repo = UserPreferenceMutationRepository(session)
         group_repo = GroupQueryRepository()
 
-        # Validate workspace access
         await _validate_workspace_access(
             session,
             user_id,
@@ -56,16 +55,13 @@ async def set_recent_workspace(
             group_repo,
         )
 
-        # Set the workspace preference
         preference = await preference_repo.set_recent_workspace(
             user_id, request.workspace
         )
 
-        # Fetch full objects
         virtual_lab = None
         project = None
 
-        # Get full virtual lab details
         vl_result = await session.execute(
             select(VirtualLab).where(VirtualLab.id == request.workspace.virtual_lab_id)
         )
@@ -73,7 +69,6 @@ async def set_recent_workspace(
         if vl_obj:
             virtual_lab = VirtualLabDetails.model_validate(vl_obj)
 
-        # Get full project details
         proj_result = await session.execute(
             select(Project).where(Project.id == request.workspace.project_id)
         )
@@ -96,6 +91,8 @@ async def set_recent_workspace(
             ).model_dump(),
         )
 
+    except VliError:
+        raise
     except Exception as e:
         logger.exception(f"Error setting recent workspace for user {user_id}: {str(e)}")
         raise VliError(
@@ -125,7 +122,6 @@ async def _validate_workspace_access(
     Raises:
         VliError: If validation fails
     """
-    # Check if virtual lab and project exist and are not deleted
     result = await session.execute(
         select(VirtualLab, Project)
         .join(Project, VirtualLab.id == Project.virtual_lab_id)
@@ -147,16 +143,13 @@ async def _validate_workspace_access(
 
     virtual_lab, project = vl_project
 
-    # Get user's groups (not used directly, but method ensures user exists)
     await group_repo.a_retrieve_user_groups(str(user_id))
 
-    # Execute all group user retrieval calls in parallel
     vl_admin_task = group_repo.a_retrieve_group_users(str(virtual_lab.admin_group_id))
     vl_member_task = group_repo.a_retrieve_group_users(str(virtual_lab.member_group_id))
     proj_admin_task = group_repo.a_retrieve_group_users(str(project.admin_group_id))
     proj_member_task = group_repo.a_retrieve_group_users(str(project.member_group_id))
 
-    # Wait for all calls to complete concurrently
     (
         vl_admin_users,
         vl_member_users,

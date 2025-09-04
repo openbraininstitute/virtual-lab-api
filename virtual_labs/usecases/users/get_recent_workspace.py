@@ -44,14 +44,12 @@ async def get_recent_workspace(
         preference_repo = UserPreferenceQueryRepository(session)
         group_repo = GroupQueryRepository()
 
-        # Get user's preference
         preference = await preference_repo.get_user_preference(user_id)
         recent_workspace_data = await preference_repo.get_user_recent_workspace(user_id)
 
         workspace = None
         updated_at = None
         if recent_workspace_data:
-            # Validate that user still has access to this workspace
             workspace = await _validate_workspace_access(
                 session,
                 user_id,
@@ -59,18 +57,14 @@ async def get_recent_workspace(
                 recent_workspace_data.project_id,
                 group_repo,
             )
-            # Get the updated_at from the preference
             updated_at = preference.updated_at if preference else None
 
         if not workspace:
-            # Find default workspace: last created project in user's virtual lab
             workspace = await _find_default_workspace(session, user_id, group_repo)
 
-        # Fetch full objects if workspace exists
         virtual_lab = None
         project = None
         if workspace:
-            # Get full virtual lab details
             vl_result = await session.execute(
                 select(VirtualLab).where(VirtualLab.id == workspace.virtual_lab_id)
             )
@@ -78,7 +72,6 @@ async def get_recent_workspace(
             if vl_obj:
                 virtual_lab = VirtualLabDetails.model_validate(vl_obj)
 
-            # Get full project details
             proj_result = await session.execute(
                 select(Project).where(Project.id == workspace.project_id)
             )
@@ -132,7 +125,6 @@ async def _validate_workspace_access(
         Workspace if valid, None otherwise
     """
     try:
-        # Check if virtual lab and project exist and are not deleted
         result = await session.execute(
             select(VirtualLab, Project)
             .join(Project, VirtualLab.id == Project.virtual_lab_id)
@@ -150,8 +142,6 @@ async def _validate_workspace_access(
 
         virtual_lab, project = vl_project
 
-        # Check if user has access to both virtual lab and project
-        # Execute all group user retrieval calls in parallel
         vl_admin_task = group_repo.a_retrieve_group_users(
             str(virtual_lab.admin_group_id)
         )
@@ -163,7 +153,6 @@ async def _validate_workspace_access(
             str(project.member_group_id)
         )
 
-        # Wait for all calls to complete concurrently
         (
             vl_admin_users,
             vl_member_users,
@@ -202,21 +191,19 @@ async def _find_default_workspace(
         Default workspace if found
     """
     try:
-        # Get user's groups to find virtual labs they own
         user_groups = await group_repo.a_retrieve_user_groups(str(user_id))
         user_group_ids = [str(g.id) for g in user_groups]
 
         if not user_group_ids:
             return None
 
-        # Find the user's virtual lab (user should own only one)
         vl_result = await session.execute(
             select(VirtualLab)
             .where(
                 VirtualLab.admin_group_id.in_(user_group_ids),
                 VirtualLab.deleted.is_(False),
             )
-            .limit(1)  # User should own only one virtual lab
+            .limit(1)
         )
 
         user_virtual_lab = vl_result.scalar_one_or_none()
@@ -224,7 +211,6 @@ async def _find_default_workspace(
         if not user_virtual_lab:
             return None
 
-        # Find the last created project in the user's virtual lab
         project_result = await session.execute(
             select(Project)
             .where(

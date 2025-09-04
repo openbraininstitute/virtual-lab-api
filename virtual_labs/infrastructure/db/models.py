@@ -42,12 +42,14 @@ class VirtualLab(Base):
     admin_group_id: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     member_group_id: Mapped[str] = mapped_column(String, nullable=False, unique=True)
 
-    name: Mapped[str] = mapped_column(String(250), index=True)
+    name: Mapped[str] = mapped_column(String(250), nullable=False, index=True)
     description: Mapped[str | None] = mapped_column(Text)
     reference_email: Mapped[str | None] = mapped_column(String(255))
     entity: Mapped[str] = mapped_column(String, nullable=False)
 
-    deleted: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    deleted: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, index=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=func.now()
     )
@@ -82,9 +84,9 @@ class Project(Base):
     admin_group_id: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     member_group_id: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     owner_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
-    name: Mapped[str] = mapped_column(String(250), index=True)
+    name: Mapped[str] = mapped_column(String(250), nullable=False, index=True)
     description: Mapped[str | None] = mapped_column(Text)
-    deleted: Mapped[bool] = mapped_column(Boolean, default=False)
+    deleted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=func.now()
@@ -96,7 +98,7 @@ class Project(Base):
     deleted_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
 
     virtual_lab_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("virtual_lab.id"), index=True
+        UUID(as_uuid=True), ForeignKey("virtual_lab.id"), nullable=False, index=True
     )
     virtual_lab = relationship("VirtualLab", back_populates="projects")
     project_stars = relationship("ProjectStar", back_populates="project")
