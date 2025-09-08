@@ -28,6 +28,7 @@ from virtual_labs.infrastructure.db.models import (
     SubscriptionPayment,
     SubscriptionStatus,
     SubscriptionType,
+    UserPreference,
     VirtualLab,
     VirtualLabInvite,
 )
@@ -195,6 +196,11 @@ async def cleanup_resources(
     # 3. Delete database rows
     project_group_ids: list[tuple[str, str]] = []
     async with session_context_factory() as session:
+        for project_id in project_ids:
+            await session.execute(
+                delete(UserPreference).where(UserPreference.project_id == project_id)
+            )
+
         for project_id in project_ids:
             await session.execute(
                 statement=delete(ProjectInvite).where(

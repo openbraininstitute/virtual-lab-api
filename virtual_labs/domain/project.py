@@ -10,7 +10,7 @@ from pydantic import (
 )
 
 from virtual_labs.core.types import UserRoleEnum
-from virtual_labs.domain.user import UserWithInviteStatus
+from virtual_labs.domain.user import UserWithInviteStatus, Workspace
 
 
 class VirtualLabModel(BaseModel):
@@ -98,7 +98,17 @@ class ProjectOut(BaseModel):
 
 class ProjectsOut(BaseModel):
     project: List[Project]
+
+
+class ProjectsWithWorkspaceResponse(BaseModel):
+    """Response model for projects endpoint that includes recent workspace info"""
+
+    results: List[ProjectVlOut]
+    page: int
+    size: int
+    page_size: int
     total: int
+    recent_workspace: Optional[Workspace] = None
 
 
 class ProjectDeletionOut(BaseModel):
