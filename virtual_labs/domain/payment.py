@@ -21,6 +21,7 @@ class PaymentFilter(BaseModel):
     card_last4: Optional[str] = None
     card_brand: Optional[str] = None
     payment_type: Optional[PaymentType] = None
+    virtual_lab_id: Optional[UUID] = None
 
     # Pagination parameters
     page: int = Field(default=1, ge=1, description="Page number (1-based)")
@@ -59,6 +60,7 @@ class PaymentDetails(BaseModel):
 
     period_start: Optional[datetime] = None
     period_end: Optional[datetime] = None
+    virtual_lab_id: Optional[UUID] = None
 
     created_at: datetime
     updated_at: datetime

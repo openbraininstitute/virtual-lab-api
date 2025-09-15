@@ -137,6 +137,9 @@ async def list_payments(
     payment_type: Optional[PaymentType] = Query(
         None, description="filter by payment type (subscription or standalone)"
     ),
+    virtual_lab_id: Optional[UUID] = Query(
+        None, description="filter by virtual lab id"
+    ),
     page: int = Query(1, ge=1, description="Page number (1-based)"),
     page_size: int = Query(10, ge=1, le=100, description="Number of items per page"),
     db: AsyncSession = Depends(default_session_factory),
@@ -167,6 +170,7 @@ async def list_payments(
         card_last4=card_last4,
         card_brand=card_brand,
         payment_type=payment_type,
+        virtual_lab_id=virtual_lab_id,
         page=page,
         page_size=page_size,
     )
