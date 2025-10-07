@@ -1,6 +1,6 @@
 import asyncio
 from http import HTTPStatus as status
-from typing import List, Tuple
+from typing import Tuple
 from uuid import uuid4
 
 from fastapi.responses import Response
@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.core.types import UserRoleEnum
-from virtual_labs.domain.project import EmailFailure, ProjectCreationBody, ProjectVlOut
+from virtual_labs.domain.project import ProjectCreationBody, ProjectVlOut
 from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.infrastructure.settings import settings
 from virtual_labs.repositories.group_repo import (
@@ -27,12 +27,7 @@ from virtual_labs.repositories.project_repo import (
 from virtual_labs.repositories.user_repo import (
     UserMutationRepository,
 )
-from virtual_labs.services.attach_user_groups import (
-    get_project_and_vl_groups,
-    manage_user_groups,
-    send_project_emails,
-)
-from virtual_labs.shared.utils.auth import get_user_id_from_auth, get_user_metadata
+from virtual_labs.shared.utils.auth import get_user_id_from_auth
 from virtual_labs.usecases import accounting as accounting_cases
 
 
@@ -60,7 +55,7 @@ async def create_new_project_use_case(
         )
 
     try:
-        vlab = await get_undeleted_virtual_lab(session, virtual_lab_id)
+        await get_undeleted_virtual_lab(session, virtual_lab_id)
         if bool(
             await pqr.check_project_exists_by_name_per_vlab(
                 vlab_id=virtual_lab_id,
@@ -145,8 +140,6 @@ async def create_new_project_use_case(
                 message="Project account creation failed",
             )
     total_added_users = 0
-    email_failures: List[EmailFailure] = []
-    error_adding_users = None
 
     try:
         project = await pmr.create_new_project(
@@ -157,47 +150,41 @@ async def create_new_project_use_case(
             member_group_id=member_group["id"],
             owner_id=user_id,
         )
-        try:
-            if payload.include_members:
-                inviter = get_user_metadata(auth_user=auth[0])
-                inviter_name = (
-                    inviter["full_name"]
-                    if inviter["full_name"]
-                    else inviter["username"]
+
+        # transfer all credits to first project if this is user's first project
+        balance_added = False
+        if user_projects_count == 0 and settings.ACCOUNTING_BASE_URL is not None:
+            try:
+                logger.info(
+                    f"Transferring all credits to first project {project_id} for user {user_id}"
                 )
-                await session.refresh(vlab)
-                (
-                    unique_users_map,
-                    project_admin_group_id,
-                    project_member_group_id,
-                    existing_proj_admin_ids,
-                    existing_proj_member_ids,
-                ) = await get_project_and_vl_groups(
-                    project=project,
-                    virtual_lab=vlab,
-                    users=payload.include_members,
+
+                vlab_balance_response = await accounting_cases.get_virtual_lab_balance(
+                    virtual_lab_id=virtual_lab_id, include_projects=False
                 )
-                (added_users, _, _, user_to_email_map) = await manage_user_groups(
-                    users_map=unique_users_map,
-                    project_admin_group_id=project_admin_group_id,
-                    project_member_group_id=project_member_group_id,
-                    existing_proj_admin_ids=existing_proj_admin_ids,
-                    existing_proj_member_ids=existing_proj_member_ids,
-                    project_id=UUID4(str(project.id)),
-                )
-                total_added_users = len(added_users)
-                if user_to_email_map:
-                    email_failures = await send_project_emails(
-                        user_to_email_map=user_to_email_map,
-                        project_id=project_id,
-                        project_name=str(project.name),
+                current_balance = float(vlab_balance_response.data.balance)
+
+                if current_balance > 0:
+                    await accounting_cases.assign_project_budget(
                         virtual_lab_id=virtual_lab_id,
-                        virtual_lab_name=str(vlab.name),
-                        inviter_name=inviter_name,
+                        project_id=project_id,
+                        amount=current_balance,
                     )
-        except Exception as ex:
-            logger.error(f"Error during attaching users to project {project_id} ({ex})")
-            error_adding_users = str(ex.__str__())
+                    balance_added = True
+                    logger.info(
+                        f"Successfully transferred {current_balance} credits to project {project_id}"
+                    )
+                else:
+                    logger.info(
+                        f"No credits to transfer for project {project_id} (balance: {current_balance})"
+                    )
+
+            except Exception as ex:
+                logger.error(
+                    f"Failed to transfer credits to first project {project_id}: {ex}"
+                )
+                balance_added = False
+
     except IntegrityError:
         raise VliError(
             error_code=VliErrorCode.ENTITY_ALREADY_EXISTS,
@@ -226,7 +213,6 @@ async def create_new_project_use_case(
             data={
                 "project": project_out,
                 "virtual_lab_id": virtual_lab_id,
-                "failed_invites": email_failures,
-                "error_adding_users": error_adding_users,
+                "balance_added": balance_added,
             },
         )

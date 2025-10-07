@@ -26,6 +26,10 @@ class PaymentRepository:
             conditions.append(SubscriptionPayment.card_last4 == filters.card_last4)
         if filters.card_brand:
             conditions.append(SubscriptionPayment.card_brand == filters.card_brand)
+        if filters.virtual_lab_id:
+            conditions.append(
+                SubscriptionPayment.virtual_lab_id == filters.virtual_lab_id
+            )
         if filters.payment_type:
             if filters.payment_type == PaymentType.STANDALONE:
                 conditions.append(SubscriptionPayment.standalone == true())

@@ -9,12 +9,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.domain.common import PageParams
-from virtual_labs.domain.project import Project
-from virtual_labs.domain.user import ShortenedUser
+from virtual_labs.domain.project import (
+    Project,
+    ProjectsWithWorkspaceResponse,
+    ProjectVlOut,
+)
 from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.repositories.group_repo import GroupQueryRepository
 from virtual_labs.repositories.project_repo import ProjectQueryRepository
-from virtual_labs.repositories.user_repo import UserQueryRepository
+from virtual_labs.repositories.user_preference_repo import (
+    UserPreferenceQueryRepository,
+)
 from virtual_labs.shared.utils.auth import get_user_id_from_auth
 
 
@@ -23,7 +28,7 @@ async def retrieve_all_user_projects_use_case(
 ) -> Response:
     pr = ProjectQueryRepository(session)
     gqr = GroupQueryRepository()
-    uqr = UserQueryRepository()
+    preference_repo = UserPreferenceQueryRepository(session)
 
     user_id = get_user_id_from_auth(auth)
 
@@ -37,16 +42,19 @@ async def retrieve_all_user_projects_use_case(
         )
 
         projects = [
-            {
-                **Project(**p.__dict__).model_dump(),
-                "virtual_lab_id": v.id,
-                "admin": ShortenedUser(
-                    **uqr.retrieve_user_from_kc(user_id=str(p.owner_id)).__dict__
-                ),
-            }
+            ProjectVlOut.model_validate(
+                {
+                    **Project(**p.__dict__).model_dump(),
+                    "virtual_lab_id": v.id,
+                    "user_count": 0,  # Default value since we don't have this info
+                }
+            )
             for p, v in results.rows
         ]
-    except SQLAlchemyError:
+
+        recent_workspace = await preference_repo.get_user_recent_workspace(user_id)
+    except SQLAlchemyError as err:
+        print("error", err)
         raise VliError(
             error_code=VliErrorCode.DATABASE_ERROR,
             http_status_code=status.BAD_REQUEST,
@@ -60,15 +68,18 @@ async def retrieve_all_user_projects_use_case(
             message="Error during retrieving project",
         )
     else:
+        response_data = ProjectsWithWorkspaceResponse(
+            results=projects,
+            page=pagination.page,
+            size=pagination.size,
+            page_size=len(projects),
+            total=results.count,
+            recent_workspace=recent_workspace,
+        )
+
         return VliResponse.new(
             message="Projects found successfully"
             if len(projects) > 0
             else "No projects was found",
-            data={
-                "results": projects,
-                "page": pagination.page,
-                "size": pagination.size,
-                "page_size": len(projects),
-                "total": results.count,
-            },
+            data=response_data.model_dump(),
         )

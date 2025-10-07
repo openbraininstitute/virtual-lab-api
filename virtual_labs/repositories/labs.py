@@ -336,4 +336,5 @@ async def get_virtual_labs_where_user_is_member(
         )
     )
     result = (await db.execute(statement=query)).unique().scalars().all()
+
     return list(result)

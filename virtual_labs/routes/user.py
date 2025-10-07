@@ -6,17 +6,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from virtual_labs.core.types import VliAppResponse
 from virtual_labs.domain.labs import UserStats
 from virtual_labs.domain.user import (
+    SetRecentWorkspaceRequest,
     UpdateUserProfileRequest,
     UserGroupsResponse,
     UserProfileResponse,
 )
+from virtual_labs.domain.workspace import RecentWorkspaceResponseWithDetails
 from virtual_labs.infrastructure.db.config import default_session_factory
 from virtual_labs.infrastructure.kc.auth import a_verify_jwt
 from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.usecases.labs.get_user_stats import get_user_stats
 from virtual_labs.usecases.users import (
     get_all_user_groups,
+    get_recent_workspace,
     get_user_profile,
+    set_recent_workspace,
     update_user_profile,
 )
 
@@ -104,3 +108,52 @@ async def get_user_statistics(
 ) -> Response:
     """Get comprehensive statistics for the authenticated user"""
     return await get_user_stats(session, auth)
+
+
+@router.get(
+    "/preferences/recent-workspace",
+    summary="Get recent workspace",
+    description="Get the user's most recently visited workspace (virtual lab + project combination)",
+    response_model=VliAppResponse[RecentWorkspaceResponseWithDetails],
+    response_model_exclude_none=False,
+)
+async def get_recent_workspace_endpoint(
+    session: AsyncSession = Depends(default_session_factory),
+    auth: Tuple[AuthUser, str] = Depends(a_verify_jwt),
+) -> Response:
+    """
+    Get the user's recent workspace. If no preference exists, returns the default workspace
+    (last created project in user's virtual lab).
+
+    Returns:
+        Response: Recent workspace information
+    """
+    return await get_recent_workspace(auth=auth, session=session)
+
+
+@router.post(
+    "/preferences/recent-workspace",
+    summary="Set recent workspace",
+    description="Set the user's most recently visited workspace (virtual lab + project combination)",
+    response_model=VliAppResponse[RecentWorkspaceResponseWithDetails],
+    response_model_exclude_none=False,
+)
+async def set_recent_workspace_endpoint(
+    payload: SetRecentWorkspaceRequest,
+    session: AsyncSession = Depends(default_session_factory),
+    auth: Tuple[AuthUser, str] = Depends(a_verify_jwt),
+) -> Response:
+    """
+    Set the user's recent workspace after validating access permissions.
+
+    Args:
+        payload: The workspace information to set
+
+    Returns:
+        Response: Confirmation of workspace update
+    """
+    return await set_recent_workspace(
+        request=payload,
+        auth=auth,
+        session=session,
+    )
