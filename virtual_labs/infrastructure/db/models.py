@@ -35,31 +35,35 @@ class Base(DeclarativeBase):
 class VirtualLab(Base):
     __tablename__ = "virtual_lab"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    owner_id = Column(UUID(as_uuid=True), nullable=False)
-    admin_group_id = Column(String, nullable=False, unique=True)
-    member_group_id = Column(String, nullable=False, unique=True)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    owner_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    admin_group_id: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    member_group_id: Mapped[str] = mapped_column(String, nullable=False, unique=True)
 
-    name = Column(String(250), index=True)
-    description = Column(Text)
-    reference_email = Column(String(255))
-    entity = Column(String, nullable=False)
+    name: Mapped[str] = mapped_column(String(250), nullable=False, index=True)
+    description: Mapped[str | None] = mapped_column(Text)
+    reference_email: Mapped[str | None] = mapped_column(String(255))
+    entity: Mapped[str] = mapped_column(String, nullable=False)
 
-    deleted = Column(Boolean, default=False, index=True)
+    deleted: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, index=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=func.now()
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=func.now(), onupdate=func.now()
     )
-    deleted_at = Column(DateTime)
-    deleted_by = Column(UUID(as_uuid=True))
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime)
+    deleted_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
 
     projects = relationship("Project", back_populates="virtual_lab")
     invites = relationship("VirtualLabInvite", back_populates="virtual_lab")
     payment_methods = relationship("PaymentMethod", back_populates="virtual_lab")
     payments = relationship("SubscriptionPayment", back_populates="virtual_lab")
-    # Virtual lab name should be unique among non-deleted labs
+
     __table_args__ = (
         Index(
             "unique_lab_name_for_non_deleted",
@@ -74,13 +78,15 @@ class VirtualLab(Base):
 class Project(Base):
     __tablename__ = "project"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    admin_group_id = Column(String, nullable=False, unique=True)
-    member_group_id = Column(String, nullable=False, unique=True)
-    owner_id = Column(UUID(as_uuid=True), nullable=False)
-    name = Column(String(250), index=True)
-    description = Column(Text)
-    deleted = Column(Boolean, default=False)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    admin_group_id: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    member_group_id: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    owner_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    name: Mapped[str] = mapped_column(String(250), nullable=False, index=True)
+    description: Mapped[str | None] = mapped_column(Text)
+    deleted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=func.now()
@@ -88,11 +94,11 @@ class Project(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=func.now(), onupdate=func.now()
     )
-    deleted_at = Column(DateTime)
-    deleted_by = Column(UUID(as_uuid=True))
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime)
+    deleted_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
 
-    virtual_lab_id = Column(
-        "virtual_lab_id", UUID(as_uuid=True), ForeignKey("virtual_lab.id"), index=True
+    virtual_lab_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("virtual_lab.id"), nullable=False, index=True
     )
     virtual_lab = relationship("VirtualLab", back_populates="projects")
     project_stars = relationship("ProjectStar", back_populates="project")
@@ -627,3 +633,35 @@ class CreditExchangeRate(Base):
         Numeric(precision=10, scale=6), nullable=False
     )
     description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+
+
+class UserPreference(Base):
+    """
+    User preferences table for storing recent workspace information.
+    Uses separate foreign key columns for better performance and data integrity.
+    """
+
+    __tablename__ = "user_preference"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+
+    virtual_lab_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("virtual_lab.id"), nullable=True, index=True
+    )
+    project_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("project.id"), nullable=True, index=True
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=func.now(), onupdate=func.now()
+    )
+
+    virtual_lab = relationship("VirtualLab", foreign_keys=[virtual_lab_id])
+    project = relationship("Project", foreign_keys=[project_id])
+
+    __table_args__ = (
+        Index("ix_user_preference_workspace", "virtual_lab_id", "project_id"),
+    )

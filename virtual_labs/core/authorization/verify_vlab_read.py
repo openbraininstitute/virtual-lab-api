@@ -1,13 +1,19 @@
 from functools import wraps
 from http import HTTPStatus as status
-from typing import Any, Callable
+from typing import Any, Callable, Tuple
+from uuid import UUID
 
 from keycloak import KeycloakError  # type:ignore
 from loguru import logger
 from sqlalchemy.exc import NoResultFound, SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
-from virtual_labs.core.exceptions.generic_exceptions import UserNotInList
+from virtual_labs.core.exceptions.generic_exceptions import (
+    ForbiddenOperation,
+    UserNotInList,
+)
+from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.repositories.group_repo import GroupQueryRepository
 from virtual_labs.repositories.labs import get_undeleted_virtual_lab
 from virtual_labs.shared.utils.auth import get_user_id_from_auth
@@ -85,4 +91,31 @@ def verify_vlab_read(f: Callable[..., Any]) -> Callable[..., Any]:
             return await f(*args, **kwargs)
 
     return wrapper
-    return wrapper
+
+
+async def verify_vlab_read_fn(
+    session: AsyncSession, auth: Tuple[AuthUser, str], virtual_lab_id: UUID
+) -> None:
+    """
+    This function to check if the user is VL admin/member groups
+    to perform this action
+    """
+
+    try:
+        user_id = get_user_id_from_auth(auth)
+
+        gqr = GroupQueryRepository()
+
+        vlab = await get_undeleted_virtual_lab(
+            session,
+            lab_id=virtual_lab_id,
+        )
+        admins = await gqr.a_retrieve_group_users(group_id=str(vlab.admin_group_id))
+        members = await gqr.a_retrieve_group_users(group_id=str(vlab.member_group_id))
+
+        users = admins + members
+        uniq_users = uniq_list([u.id for u in users])
+
+        is_user_in_list(list_=uniq_users, user_id=str(user_id))
+    except (NoResultFound, UserNotInList, SQLAlchemyError, KeycloakError):
+        raise ForbiddenOperation("User forbidden for this operation")
