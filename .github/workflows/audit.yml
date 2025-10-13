@@ -27,10 +27,11 @@ jobs:
             ${{ runner.os }}-security-
       - name: Install dependencies
         run: |
-          pip install poetry poetry-audit-plugin
+          pip install poetry
           poetry sync
       - name: Poetry audit
         run: |-
+          pip install poetry-audit-plugin
           poetry audit > audit.txt
       - name: Comment with audit result
         uses: marocchino/sticky-pull-request-comment@v2
