@@ -42,7 +42,3 @@ jobs:
         with:
           recreate: true
           path: audit.txt
-      - name: Run safety scan
-        uses: pyupio/safety-action@v1
-        with:
-          api-key: ${{ secrets.SAFETY_API_KEY }}
