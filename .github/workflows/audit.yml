@@ -1,0 +1,40 @@
+name: security checks
+
+on:
+  pull_request
+
+jobs:
+  pip-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Cache Python dependencies
+        id: cache-deps
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/pypoetry/virtualenvs
+            .venv
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/poetry.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          pip install poetry
+          poetry sync
+
+      - name: Pip audit
+        uses: pypa/gh-action-pip-audit@v1.1.0
+        with:
+          virtual-environment: .venv
+          summary: true
