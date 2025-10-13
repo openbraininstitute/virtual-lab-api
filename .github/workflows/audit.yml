@@ -2,8 +2,10 @@
 name: security checks
 on: pull_request
 jobs:
-  pip-audit:
+  poetry-audit:
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -20,15 +22,19 @@ jobs:
           path: |
             ~/.cache/pypoetry/virtualenvs
             .venv
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/poetry.lock') }}
+          key: ${{ runner.os }}-security-${{ hashFiles('**/poetry.lock') }}
           restore-keys: |
-            ${{ runner.os }}-pip-
+            ${{ runner.os }}-security-
       - name: Install dependencies
         run: |
-          pip install poetry
+          pip install poetry poetry-audit-plugin
           poetry sync
-      - name: Pip audit
-        uses: pypa/gh-action-pip-audit@v1.1.0
+      - name: Poetry audit
+        run: |-
+          poetry audit > audit.txt
+      - name: Comment with audit result
+        uses: marocchino/sticky-pull-request-comment@v2
+        if: github.event_name == 'pull_request'
         with:
-          virtual-environment: .venv/
-          summary: true
+          recreate: true
+          path: audit.txt
