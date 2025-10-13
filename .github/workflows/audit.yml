@@ -30,9 +30,12 @@ jobs:
           pip install poetry
           poetry sync
       - name: Poetry audit
+        id: poetry-audit
         run: |-
           pip install poetry-audit-plugin
           poetry audit > audit.txt
+          cat audit.txt
+        continue-on-error: true
       - name: Comment with audit result
         uses: marocchino/sticky-pull-request-comment@v2
         if: github.event_name == 'pull_request'
