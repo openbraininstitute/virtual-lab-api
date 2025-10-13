@@ -25,13 +25,12 @@ from virtual_labs.domain.project import (
 )
 from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.repositories.project_repo import ProjectQueryRepository
-from virtual_labs.repositories.subscription_repo import SubscriptionRepository
 from virtual_labs.services.attach_user_groups import (
     get_project_and_vl_groups,
     manage_user_groups,
     send_project_emails,
 )
-from virtual_labs.shared.utils.auth import get_user_id_from_auth, get_user_metadata
+from virtual_labs.shared.utils.auth import get_user_metadata
 
 
 async def attach_users_to_project(
@@ -41,7 +40,6 @@ async def attach_users_to_project(
     users: List[AddUserToProjectIn],
     auth: Tuple[AuthUser, str],
 ) -> Response:
-    subscription_repo = SubscriptionRepository(db_session=session)
     pqr = ProjectQueryRepository(session)
     failed_operations: List[AttachUserFailedOperation] = []
     email_failures: List[EmailFailure] = []
@@ -49,14 +47,6 @@ async def attach_users_to_project(
     updated_users: List[AddUserProjectDetails] = []
 
     try:
-        user_id = get_user_id_from_auth(auth)
-        subscription = await subscription_repo.get_active_subscription_by_user_id(
-            user_id=user_id,
-            subscription_type="paid",
-        )
-        if not subscription:
-            raise ForbiddenOperation()
-
         project, virtual_lab = await pqr.retrieve_one_project_strict(
             virtual_lab_id=virtual_lab_id,
             project_id=project_id,
