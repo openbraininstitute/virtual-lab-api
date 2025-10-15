@@ -1,40 +1,38 @@
 from typing import Optional, cast
 
 from fastapi import Depends
-from redis.asyncio import Redis
+from redis.asyncio import ConnectionPool, Redis
 
 from virtual_labs.infrastructure.settings import settings
 
-# Singleton Redis client (optional, initialized lazily)
+# Singleton Redis client and connection pool (initialized lazily)
 _redis_client: Redis | None = None
+_connection_pool: ConnectionPool | None = None
 
 
 async def get_redis() -> Redis:
     """Dependency to provide an async Redis client."""
-    global _redis_client
+    global _redis_client, _connection_pool
 
     redis_host = settings.REDIS_HOST
     redis_port = settings.REDIS_PORT
-    if _redis_client is None:
-        _redis_client = Redis(
+
+    if _connection_pool is None:
+        _connection_pool = ConnectionPool(
             host=redis_host,
             port=redis_port,
             password=None,
             decode_responses=True,
-            auto_close_connection_pool=False,
         )
+
+    if _redis_client is None:
+        _redis_client = Redis(connection_pool=_connection_pool)
 
     try:
         await _redis_client.ping()
     except Exception:
         await _redis_client.close()
-        _redis_client = Redis(
-            host=redis_host,
-            port=redis_port,
-            password=None,
-            decode_responses=True,
-            auto_close_connection_pool=False,
-        )
+        _redis_client = Redis(connection_pool=_connection_pool)
 
     return _redis_client
 

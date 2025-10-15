@@ -30,7 +30,10 @@ async def update_star_project_status_use_case(
     user_id = get_user_id_from_auth(auth)
 
     try:
-        _project = pqr.retrieve_project_star(user_id=user_id, project_id=project_id)
+        _project = await pqr.retrieve_project_star(
+            user_id=user_id,
+            project_id=project_id,
+        )
 
         if _project is not None and value is False:
             project_id, updated_at = await pmr.unstar_project(
