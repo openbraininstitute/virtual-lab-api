@@ -1,3 +1,4 @@
+import asyncio
 from functools import wraps
 from http import HTTPStatus as status
 from typing import Any, Callable, Tuple
@@ -5,6 +6,7 @@ from uuid import UUID
 
 from keycloak import KeycloakError  # type:ignore
 from loguru import logger
+from pydantic import UUID4
 from sqlalchemy.exc import NoResultFound, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,6 +21,31 @@ from virtual_labs.repositories.labs import get_undeleted_virtual_lab
 from virtual_labs.shared.utils.auth import get_user_id_from_auth
 from virtual_labs.shared.utils.is_user_in_list import is_user_in_list
 from virtual_labs.shared.utils.uniq_list import uniq_list
+
+
+async def authorize_user_for_vlab_read(
+    user_id: str,
+    virtual_lab_id: UUID4,
+    session: AsyncSession,
+) -> bool:
+    gqr = GroupQueryRepository()
+
+    vlab = await get_undeleted_virtual_lab(
+        session,
+        lab_id=virtual_lab_id,
+    )
+    admins, members = await asyncio.gather(
+        gqr.a_retrieve_group_users(group_id=str(vlab.admin_group_id)),
+        gqr.a_retrieve_group_users(group_id=str(vlab.member_group_id)),
+    )
+
+    users = admins + members
+    uniq_users = uniq_list([u.id for u in users])
+
+    return is_user_in_list(
+        list_=uniq_users,
+        user_id=user_id,
+    )
 
 
 def verify_vlab_read(f: Callable[..., Any]) -> Callable[..., Any]:
@@ -36,19 +63,12 @@ def verify_vlab_read(f: Callable[..., Any]) -> Callable[..., Any]:
 
             user_id = get_user_id_from_auth(auth)
 
-            gqr = GroupQueryRepository()
-
-            vlab = await get_undeleted_virtual_lab(
-                session,
-                lab_id=virtual_lab_id,
+            await authorize_user_for_vlab_read(
+                user_id=str(user_id),
+                virtual_lab_id=virtual_lab_id,
+                session=session,
             )
-            admins = gqr.retrieve_group_users(group_id=str(vlab.admin_group_id))
-            members = gqr.retrieve_group_users(group_id=str(vlab.member_group_id))
 
-            users = admins + members
-            uniq_users = uniq_list([u.id for u in users])
-
-            is_user_in_list(list_=uniq_users, user_id=str(user_id))
         except NoResultFound:
             raise VliError(
                 error_code=VliErrorCode.DATABASE_ERROR,

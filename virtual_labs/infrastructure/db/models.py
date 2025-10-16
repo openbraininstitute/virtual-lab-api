@@ -11,6 +11,7 @@ from sqlalchemy import (
     CheckConstraint,
     Column,
     DateTime,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -664,4 +665,163 @@ class UserPreference(Base):
 
     __table_args__ = (
         Index("ix_user_preference_workspace", "virtual_lab_id", "project_id"),
+    )
+
+
+class PromotionCodeUsageStatus(str, Enum):
+    """
+    Enum representing promotion code usage statuses.
+    """
+
+    PENDING = "pending"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class PromotionCode(Base):
+    """
+    Promotion code definitions and configurations.
+    Stores all promotion codes that can be redeemed for virtual lab credits.
+    """
+
+    __tablename__ = "promotion_code"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    code: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    credits_amount: Mapped[float] = mapped_column(Float, nullable=False)
+    validity_period_days: Mapped[int] = mapped_column(Integer, nullable=False)
+    max_uses_per_user_per_period: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=1
+    )
+    max_total_uses: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    current_total_uses: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    active: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, index=True
+    )
+    valid_from: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    valid_until: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    created_by: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    usages = relationship("PromotionCodeUsage", back_populates="promotion_code")
+
+    __table_args__ = (
+        CheckConstraint("valid_until > valid_from", name="check_valid_date_range"),
+        CheckConstraint("credits_amount > 0", name="check_positive_credits"),
+        CheckConstraint(
+            "max_total_uses IS NULL OR max_total_uses > 0",
+            name="check_positive_max_uses",
+        ),
+        CheckConstraint(
+            "max_uses_per_user_per_period > 0",
+            name="check_positive_user_period_uses",
+        ),
+        Index("ix_promotion_code_validity", "active", "valid_from", "valid_until"),
+    )
+
+
+class PromotionCodeUsage(Base):
+    """
+    Audit and tracking table for promotion code redemptions.
+    Records every successful redemption with complete audit trail.
+    """
+
+    __tablename__ = "promotion_code_usage"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    promotion_code_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("promotion_code.id"), nullable=False, index=True
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, index=True
+    )
+    virtual_lab_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("virtual_lab.id"), nullable=False, index=True
+    )
+    credits_granted: Mapped[int] = mapped_column(Integer, nullable=False)
+    redeemed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=func.now(), nullable=False
+    )
+    accounting_transaction_id: Mapped[Optional[str]] = mapped_column(
+        String(255), nullable=True
+    )
+    status: Mapped[PromotionCodeUsageStatus] = mapped_column(
+        SAEnum(PromotionCodeUsageStatus), nullable=False, index=True
+    )
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    promotion_code = relationship("PromotionCode", back_populates="usages")
+    virtual_lab = relationship("VirtualLab")
+
+    __table_args__ = (
+        CheckConstraint("credits_granted > 0", name="check_positive_credits_granted"),
+        Index(
+            "ix_promotion_usage_user_code_date",
+            "user_id",
+            "promotion_code_id",
+            "redeemed_at",
+        ),
+        Index("ix_promotion_usage_code_status", "promotion_code_id", "status"),
+        Index("ix_promotion_usage_lab_date", "virtual_lab_id", "redeemed_at"),
+    )
+
+
+class PromotionCodeRedemptionAttempt(Base):
+    """
+    Analytics table tracking all redemption attempts.
+    Used for analytics and user behavior tracking.
+    """
+
+    __tablename__ = "promotion_code_redemption_attempt"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    code_attempted: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, index=True
+    )
+    virtual_lab_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), nullable=True
+    )
+    success: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    failure_reason: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    attempted_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        Index("ix_promotion_attempt_user_time", "user_id", "attempted_at"),
+        Index("ix_promotion_attempt_code_time", "code_attempted", "attempted_at"),
     )

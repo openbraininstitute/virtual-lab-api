@@ -24,6 +24,24 @@ async def mock_user_with_lab_and_project(
     client = async_test_client
     headers = get_headers()
 
+    # Clean up any existing virtual labs for this user BEFORE creating a new one
+    existing_labs_response = await client.get(
+        "/virtual-labs",
+        headers=headers,
+    )
+
+    if existing_labs_response.status_code == 200:
+        existing_labs = (
+            existing_labs_response.json().get("data", {}).get("virtual_labs", [])
+        )
+        for lab in existing_labs:
+            lab_id = lab.get("id")
+            if lab_id:
+                try:
+                    await cleanup_resources(client, lab_id)
+                except Exception as e:
+                    print(f"Error cleaning up existing lab {lab_id}: {e}")
+
     # Create virtual lab
     vl_response = await client.post(
         "/virtual-labs",
@@ -62,6 +80,24 @@ async def mock_user_with_multiple_projects(
     """Create a mock user with a virtual lab and multiple projects."""
     client = async_test_client
     headers = get_headers()
+
+    # Clean up any existing virtual labs for this user BEFORE creating a new one
+    existing_labs_response = await client.get(
+        "/virtual-labs",
+        headers=headers,
+    )
+
+    if existing_labs_response.status_code == 200:
+        existing_labs = (
+            existing_labs_response.json().get("data", {}).get("virtual_labs", [])
+        )
+        for lab in existing_labs:
+            lab_id = lab.get("id")
+            if lab_id:
+                try:
+                    await cleanup_resources(client, lab_id)
+                except Exception as e:
+                    print(f"Error cleaning up existing lab {lab_id}: {e}")
 
     vl_response = await client.post(
         "/virtual-labs",
