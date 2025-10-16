@@ -57,6 +57,18 @@ class PromotionCodeCreate(BaseModel):
             raise ValueError("valid_until must be after valid_from")
         return v
 
+    @field_validator("max_total_uses")
+    @classmethod
+    def validate_max_uses(cls, v: Optional[int], info: ValidationInfo) -> Optional[int]:
+        """Ensure max_uses_per_user_per_period is not greater than max_total_uses."""
+        if v is not None and info.data and "max_uses_per_user_per_period" in info.data:
+            max_uses_per_user = info.data["max_uses_per_user_per_period"]
+            if max_uses_per_user > v:
+                raise ValueError(
+                    f"max_uses_per_user_per_period ({max_uses_per_user}) cannot be greater than max_total_uses ({v})"
+                )
+        return v
+
     @field_validator("code")
     @classmethod
     def validate_code_format(cls, v: str) -> str:
@@ -218,6 +230,17 @@ class PromotionUsageFilters(BaseModel):
     limit: int = Field(default=20, ge=1, le=100)
     offset: int = Field(default=0, ge=0)
 
+    @field_validator("end_date")
+    @classmethod
+    def validate_date_range(
+        cls, v: Optional[datetime], info: ValidationInfo
+    ) -> Optional[datetime]:
+        """Ensure end_date is after start_date if both are provided."""
+        if v and info.data and "start_date" in info.data and info.data["start_date"]:
+            if v <= info.data["start_date"]:
+                raise ValueError("end_date must be after start_date")
+        return v
+
 
 class PaginationOut(BaseModel):
     """Pagination metadata for list responses."""
@@ -236,3 +259,110 @@ class PaginationOut(BaseModel):
             offset=offset,
             has_more=(offset + limit) < total,
         )
+
+
+class GetUserRedemptionHistoryQueryParams(BaseModel):
+    """Query parameters for getting user redemption history."""
+
+    virtual_lab_id: Optional[UUID] = Field(
+        default=None, description="Filter by specific virtual lab"
+    )
+    status: Optional[str] = Field(
+        default=None,
+        description="Filter by status (pending, completed, failed, rolled_back)",
+        pattern="^(pending|completed|failed|rolled_back)$",
+    )
+    limit: int = Field(
+        default=20, ge=1, le=100, description="Number of results per page"
+    )
+    offset: int = Field(default=0, ge=0, description="Number of results to skip")
+
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, v: Optional[str]) -> Optional[str]:
+        """Validate and normalize status value."""
+        if v is None:
+            return None
+
+        normalized = v.lower()
+        valid_statuses = ["pending", "completed", "failed"]
+
+        if normalized not in valid_statuses:
+            raise ValueError(
+                f"Invalid status: {v}. Must be one of: {', '.join(valid_statuses)}"
+            )
+
+        return normalized
+
+    def get_status_enum(self) -> Optional[PromotionCodeUsageStatus]:
+        """Convert status string to enum."""
+        if self.status is None:
+            return None
+        return PromotionCodeUsageStatus(self.status)
+
+
+class GetPromotionUsageStatsQueryParams(BaseModel):
+    """Query parameters for getting promotion usage statistics."""
+
+    start_date: Optional[datetime] = Field(
+        default=None, description="Filter from date (ISO format)"
+    )
+    end_date: Optional[datetime] = Field(
+        default=None, description="Filter to date (ISO format)"
+    )
+    status: Optional[str] = Field(
+        default=None,
+        description="Filter by redemption status (pending, completed, failed, rolled_back)",
+        pattern="^(pending|completed|failed|rolled_back)$",
+    )
+    limit: int = Field(
+        default=20, ge=1, le=100, description="Number of recent redemptions to return"
+    )
+    offset: int = Field(default=0, ge=0, description="Offset for pagination")
+
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, v: Optional[str]) -> Optional[str]:
+        """Validate and normalize status value."""
+        if v is None:
+            return None
+
+        normalized = v.lower()
+        valid_statuses = ["pending", "completed", "failed", "rolled_back"]
+
+        if normalized not in valid_statuses:
+            raise ValueError(
+                f"Invalid status: {v}. Must be one of: {', '.join(valid_statuses)}"
+            )
+
+        return normalized
+
+    @field_validator("end_date")
+    @classmethod
+    def validate_date_range(
+        cls, v: Optional[datetime], info: ValidationInfo
+    ) -> Optional[datetime]:
+        """Ensure end_date is after start_date if both are provided."""
+        if v and info.data and "start_date" in info.data and info.data["start_date"]:
+            if v <= info.data["start_date"]:
+                raise ValueError("end_date must be after start_date")
+        return v
+
+    def get_status_enum(self) -> Optional[PromotionCodeUsageStatus]:
+        """Convert status string to enum."""
+        if self.status is None:
+            return None
+        return PromotionCodeUsageStatus(self.status)
+
+
+class ListPromotionCodesQueryParams(BaseModel):
+    """Query parameters for listing promotion codes."""
+
+    active: Optional[bool] = Field(default=None, description="Filter by active status")
+    search: Optional[str] = Field(
+        default=None, max_length=100, description="Search by code or description"
+    )
+    limit: int = Field(
+        default=50, ge=1, le=100, description="Number of results per page"
+    )
+    offset: int = Field(default=0, ge=0, description="Number of results to skip")

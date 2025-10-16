@@ -4,16 +4,20 @@ Provides endpoints for redeeming codes, viewing history, and admin management.
 """
 
 from http import HTTPStatus
-from typing import Any, Dict, Tuple
+from typing import Annotated, Any, Dict, Tuple
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import UUID4
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from virtual_labs.core.authorization import verify_service_admin
 from virtual_labs.core.exceptions.api_error import VliError
 from virtual_labs.core.exceptions.promotion_error import PromotionError
 from virtual_labs.core.types import VliAppResponse
 from virtual_labs.domain.promotion import (
+    GetPromotionUsageStatsQueryParams,
+    GetUserRedemptionHistoryQueryParams,
+    ListPromotionCodesQueryParams,
     PromotionAnalytics,
     PromotionCodeCreate,
     PromotionCodeDetail,
@@ -135,10 +139,7 @@ async def redeem_promotion_code(
     status_code=HTTPStatus.OK,
 )
 async def get_user_redemption_history(
-    virtual_lab_id: UUID4 | None = None,
-    status: str | None = None,
-    limit: int = 20,
-    offset: int = 0,
+    query_params: Annotated[GetUserRedemptionHistoryQueryParams, Depends()],
     session: AsyncSession = Depends(default_session_factory),
     auth: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> VliAppResponse[Dict[str, Any]]:
@@ -153,23 +154,11 @@ async def get_user_redemption_history(
     """
     user_id = get_user_id_from_auth(auth)
 
-    from virtual_labs.infrastructure.db.models import PromotionCodeUsageStatus
-
-    status_enum = None
-    if status:
-        try:
-            status_enum = PromotionCodeUsageStatus(status.lower())
-        except ValueError:
-            raise HTTPException(
-                status_code=HTTPStatus.BAD_REQUEST,
-                detail=f"Invalid status: {status}. Must be one of: pending, completed, failed, rolled_back",
-            )
-
     filters = UsageHistoryFilters(
-        virtual_lab_id=virtual_lab_id,
-        status=status_enum,
-        limit=min(limit, 100),
-        offset=max(offset, 0),
+        virtual_lab_id=query_params.virtual_lab_id,
+        status=query_params.get_status_enum(),
+        limit=query_params.limit,
+        offset=query_params.offset,
     )
 
     usages, pagination = await get_history_usecase.get_user_redemption_history(
@@ -196,6 +185,7 @@ async def get_user_redemption_history(
     response_model=VliAppResponse[PromotionCodeDetail],
     status_code=HTTPStatus.CREATED,
 )
+@verify_service_admin
 async def create_promotion_code(
     payload: PromotionCodeCreate,
     session: AsyncSession = Depends(default_session_factory),
@@ -204,7 +194,7 @@ async def create_promotion_code(
     """
     Create a new promotion code (admin only).
 
-    TODO: Add admin role verification
+    Requires membership in the admin group.
     """
     user_id = get_user_id_from_auth(auth)
 
@@ -228,11 +218,9 @@ async def create_promotion_code(
     response_model=VliAppResponse[Dict[str, Any]],
     status_code=HTTPStatus.OK,
 )
+@verify_service_admin
 async def list_promotion_codes(
-    active: bool | None = None,
-    search: str | None = None,
-    limit: int = 50,
-    offset: int = 0,
+    query_params: Annotated[ListPromotionCodesQueryParams, Depends()],
     session: AsyncSession = Depends(default_session_factory),
     auth: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> VliAppResponse[Dict[str, Any]]:
@@ -245,13 +233,13 @@ async def list_promotion_codes(
     - limit: Number of results per page (default: 50, max: 100)
     - offset: Number of results to skip (default: 0)
 
-    TODO: Add admin role verification
+    Requires membership in the admin group.
     """
     filters = PromotionCodeListFilters(
-        active=active,
-        search=search,
-        limit=min(limit, 100),
-        offset=max(offset, 0),
+        active=query_params.active,
+        search=query_params.search,
+        limit=query_params.limit,
+        offset=query_params.offset,
     )
 
     promotions, pagination = await list_usecase.list_promotions(
@@ -276,6 +264,7 @@ async def list_promotion_codes(
     response_model=VliAppResponse[PromotionCodeDetail],
     status_code=HTTPStatus.OK,
 )
+@verify_service_admin
 async def get_promotion_code_details(
     promotion_id: UUID4,
     session: AsyncSession = Depends(default_session_factory),
@@ -284,7 +273,7 @@ async def get_promotion_code_details(
     """
     Get promotion code details (admin only).
 
-    TODO: Add admin role verification
+    Requires membership in the admin group.
     """
     try:
         promotion = await get_details_usecase.get_promotion_details(
@@ -298,13 +287,12 @@ async def get_promotion_code_details(
         )
 
     except PromotionError as e:
-        raise HTTPException(
-            status_code=e.http_status_code,
-            detail={
-                "error_code": e.error_code,
-                "message": e.message,
-                "details": e.details,
-            },
+        raise VliError(
+            error_code=e.error_code,
+            http_status_code=e.http_status_code,
+            message=e.message,
+            details=e.details,
+            data=e.data,
         ) from e
 
 
@@ -316,6 +304,7 @@ async def get_promotion_code_details(
     response_model=VliAppResponse[PromotionCodeDetail],
     status_code=HTTPStatus.OK,
 )
+@verify_service_admin
 async def update_promotion_code(
     promotion_id: UUID4,
     payload: PromotionCodeUpdate,
@@ -325,7 +314,7 @@ async def update_promotion_code(
     """
     Update a promotion code (admin only).
 
-    TODO: Add admin role verification
+    Requires membership in the admin group.
     """
     try:
         promotion = await update_usecase.update_promotion_code(
@@ -340,13 +329,12 @@ async def update_promotion_code(
         )
 
     except PromotionError as e:
-        raise HTTPException(
-            status_code=e.http_status_code,
-            detail={
-                "error_code": e.error_code,
-                "message": e.message,
-                "details": e.details,
-            },
+        raise VliError(
+            error_code=e.error_code,
+            http_status_code=e.http_status_code,
+            message=e.message,
+            details=e.details,
+            data=e.data,
         ) from e
 
 
@@ -358,6 +346,7 @@ async def update_promotion_code(
     response_model=VliAppResponse[PromotionCodeDetail],
     status_code=HTTPStatus.OK,
 )
+@verify_service_admin
 async def deactivate_promotion_code(
     promotion_id: UUID4,
     session: AsyncSession = Depends(default_session_factory),
@@ -366,7 +355,7 @@ async def deactivate_promotion_code(
     """
     Deactivate a promotion code (admin only).
 
-    TODO: Add admin role verification
+    Requires membership in the admin group.
     """
     try:
         promotion = await deactivate_usecase.deactivate_promotion_code(
@@ -380,13 +369,12 @@ async def deactivate_promotion_code(
         )
 
     except PromotionError as e:
-        raise HTTPException(
-            status_code=e.http_status_code,
-            detail={
-                "error_code": e.error_code,
-                "message": e.message,
-                "details": e.details,
-            },
+        raise VliError(
+            error_code=e.error_code,
+            http_status_code=e.http_status_code,
+            message=e.message,
+            details=e.details,
+            data=e.data,
         ) from e
 
 
@@ -398,13 +386,10 @@ async def deactivate_promotion_code(
     response_model=VliAppResponse[PromotionCodeUsageStats],
     status_code=HTTPStatus.OK,
 )
+@verify_service_admin
 async def get_promotion_usage_statistics(
     promotion_id: UUID4,
-    start_date: str | None = None,
-    end_date: str | None = None,
-    status: str | None = None,
-    limit: int = 20,
-    offset: int = 0,
+    query_params: Annotated[GetPromotionUsageStatsQueryParams, Depends()],
     session: AsyncSession = Depends(default_session_factory),
     auth: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> VliAppResponse[PromotionCodeUsageStats]:
@@ -418,50 +403,14 @@ async def get_promotion_usage_statistics(
     - limit: Number of recent redemptions to return (default: 20)
     - offset: Offset for pagination (default: 0)
 
-    TODO: Add admin role verification
+    Requires membership in the admin group.
     """
-    from datetime import datetime
-
-    from virtual_labs.infrastructure.db.models import PromotionCodeUsageStatus
-
-    # Parse dates
-    start_dt = None
-    end_dt = None
-    if start_date:
-        try:
-            start_dt = datetime.fromisoformat(start_date.replace("Z", "+00:00"))
-        except ValueError:
-            raise HTTPException(
-                status_code=HTTPStatus.BAD_REQUEST,
-                detail=f"Invalid start_date format: {start_date}",
-            )
-
-    if end_date:
-        try:
-            end_dt = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
-        except ValueError:
-            raise HTTPException(
-                status_code=HTTPStatus.BAD_REQUEST,
-                detail=f"Invalid end_date format: {end_date}",
-            )
-
-    # Parse status
-    status_enum = None
-    if status:
-        try:
-            status_enum = PromotionCodeUsageStatus(status.lower())
-        except ValueError:
-            raise HTTPException(
-                status_code=HTTPStatus.BAD_REQUEST,
-                detail=f"Invalid status: {status}",
-            )
-
     filters = PromotionUsageFilters(
-        start_date=start_dt,
-        end_date=end_dt,
-        status=status_enum,
-        limit=min(limit, 100),
-        offset=max(offset, 0),
+        start_date=query_params.start_date,
+        end_date=query_params.end_date,
+        status=query_params.get_status_enum(),
+        limit=query_params.limit,
+        offset=query_params.offset,
     )
 
     try:
@@ -477,13 +426,12 @@ async def get_promotion_usage_statistics(
         )
 
     except PromotionError as e:
-        raise HTTPException(
-            status_code=e.http_status_code,
-            detail={
-                "error_code": e.error_code,
-                "message": e.message,
-                "details": e.details,
-            },
+        raise VliError(
+            error_code=e.error_code,
+            http_status_code=e.http_status_code,
+            message=e.message,
+            details=e.details,
+            data=e.data,
         ) from e
 
 
@@ -495,6 +443,7 @@ async def get_promotion_usage_statistics(
     response_model=VliAppResponse[PromotionAnalytics],
     status_code=HTTPStatus.OK,
 )
+@verify_service_admin
 async def get_system_promotion_analytics(
     session: AsyncSession = Depends(default_session_factory),
     auth: Tuple[AuthUser, str] = Depends(verify_jwt),
@@ -502,7 +451,7 @@ async def get_system_promotion_analytics(
     """
     Get system-wide promotion analytics (admin only).
 
-    TODO: Add admin role verification
+    Requires membership in the admin group.
     """
     analytics = await get_stats_usecase.get_system_analytics(db=session)
 
