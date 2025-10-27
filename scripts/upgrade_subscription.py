@@ -376,6 +376,103 @@ def parse_user_ids(user_id_str: str) -> List[uuid.UUID]:
         raise argparse.ArgumentTypeError(f"Invalid UUID format: {str(e)}")
 
 
+"""
+Subscription Upgrade CLI Tool
+==============================
+
+This script upgrades one or more users to lifetime Pro subscriptions with a 100-year validity period.
+
+Prerequisites:
+--------------
+1. Set up environment variables in .env.local file:
+   - POSTGRES_USER: Database username
+   - POSTGRES_PASSWORD: Database password
+   - POSTGRES_HOST: Database host
+   - POSTGRES_PORT: Database port
+   - POSTGRES_DB: Database name
+   
+2. For SSH tunnel connection, additionally set:
+   - SSH_HOST: SSH server hostname
+   - SSH_PORT: SSH server port (default: 22)
+   - SSH_USERNAME: SSH username
+   - SSH_PRIVATE_KEY_PATH: Path to SSH private key file
+
+Usage:
+------
+Basic usage (direct database connection):
+    python scripts/upgrade_subscription.py <user_id1>,<user_id2>,...
+
+With SSH tunnel:
+    python scripts/upgrade_subscription.py <user_id1>,<user_id2>,... --ssh
+
+Using poetry:
+    poetry run upgrade-subscription <user_id1>,<user_id2>,...
+    poetry run upgrade-subscription <user_id1>,<user_id2>,... --ssh
+
+Arguments:
+----------
+user_ids (required):
+    Comma-separated list of user UUIDs to upgrade to Pro subscription.
+    Example: "550e8400-e29b-41d4-a716-446655440000,6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+
+Options:
+--------
+--ssh:
+    Use SSH tunnel for database connection. Useful for connecting to remote
+    databases that are not directly accessible. Requires SSH configuration
+    in .env.local file.
+
+What the script does:
+--------------------
+For each user ID provided, the script will:
+1. Find the user's active virtual lab (if any)
+2. Delete ALL existing subscriptions and their associated payments
+3. Create a paused Free subscription (backup)
+4. Create an active Pro subscription with:
+   - 100-year validity period
+   - Manual payment record (marked as succeeded)
+   - Script source indicator
+   - Stripe IDs in manual format for tracking
+
+Examples:
+---------
+1. Upgrade a single user (local database):
+   python scripts/upgrade_subscription.py "550e8400-e29b-41d4-a716-446655440000"
+
+2. Upgrade multiple users (local database):
+   python scripts/upgrade_subscription.py "550e8400-e29b-41d4-a716-446655440000,6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+
+3. Upgrade users via SSH tunnel (remote database):
+   python scripts/upgrade_subscription.py "550e8400-e29b-41d4-a716-446655440000" --ssh
+
+4. Using poetry command:
+   poetry run upgrade-subscription "550e8400-e29b-41d4-a716-446655440000,6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+
+Output:
+-------
+The script provides detailed logging of:
+- Database connection status
+- Virtual lab lookup results
+- Existing subscription deletion count
+- New subscription creation details
+- Final summary with success/failure counts
+- Detailed results table for each user
+
+Notes:
+------
+- This is a destructive operation that deletes existing subscriptions
+- The Pro subscription will be valid for 100 years from the execution date
+- A paused Free subscription is created as a backup
+- All operations are wrapped in database transactions for safety
+- The script will rollback changes if any error occurs during a user's upgrade
+
+Caution:
+--------
+⚠️  This script should be used carefully as it permanently deletes existing
+    subscription data. Always verify user IDs before execution.
+"""
+
+
 async def _run_async_impl() -> None:
     parser = argparse.ArgumentParser(
         description="upgrade users to lifetime pro subscriptions"

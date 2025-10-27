@@ -37,7 +37,7 @@ class VliError(Exception):
     """Base class for virtual-lab backend service exceptions."""
 
     message: str
-    error_code: str
+    error_code: VliErrorCode
     http_status_code: HTTPStatus
     details: str | None
     data: dict[str, Any] | None

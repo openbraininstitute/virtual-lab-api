@@ -86,7 +86,7 @@ async def created_project(
                     else ""
                 )
 
-            now = datetime.utcnow()
+            now = datetime.now()
             # Ensure customer_id is str
             customer_id = cast(str, stripe_user.stripe_customer_id)
 

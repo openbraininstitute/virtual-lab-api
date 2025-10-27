@@ -11,6 +11,8 @@ from virtual_labs.core.exceptions.accounting_error import (
 )
 from virtual_labs.external.accounting.interfaces.report_interface import ReportInterface
 from virtual_labs.external.accounting.models import (
+    JobSubtype,
+    JobType,
     ProjectReportsResponse,
     VirtualLabReportsResponse,
 )
@@ -47,15 +49,31 @@ async def test_get_virtual_lab_reports_success(
                     "job_id": str(uuid4()),
                     "user_id": str(uuid4()),
                     "proj_id": str(uuid4()),
-                    "type": "oneshot",
-                    "subtype": "ml-llm",
+                    "type": JobType.ONESHOT,
+                    "subtype": JobSubtype.ML_LLM,
                     "reserved_at": "2025-01-10T10:12:03Z",
                     "started_at": "2025-01-10T10:12:04Z",
                     "amount": "39.2",
                     "count": 39,
                     "reserved_amount": "24.2",
                     "reserved_count": 24,
-                }
+                },
+                {
+                    "job_id": str(uuid4()),
+                    "user_id": str(uuid4()),
+                    "name": "LFPy: active single cell model IClamp",
+                    "proj_id": str(uuid4()),
+                    "type": JobType.LONGRUN,
+                    "subtype": JobSubtype.NOTEBOOK,
+                    "reserved_at": "2025-09-08T08:37:36.807277Z",
+                    "started_at": "2025-09-08T08:37:38Z",
+                    "finished_at": "2025-09-08T13:55:13.342013Z",
+                    "cancelled_at": "2025-09-08T13:55:13.342013Z",
+                    "amount": "315.9810",
+                    "duration": 19055,
+                    "reserved_amount": "0.0166",
+                    "reserved_duration": 1,
+                },
             ],
             "meta": {
                 "page": 1,
@@ -101,7 +119,13 @@ async def test_get_virtual_lab_reports_success(
     assert call_kwargs["params"] == expected_params
 
     assert isinstance(result, VirtualLabReportsResponse)
-    assert len(result.data.items) == 1
+    assert len(result.data.items) == 2
+    # first item is 'oneshot'
+    assert result.data.items[0].count == 39
+    assert result.data.items[0].duration is None
+    # second item is 'longrun'
+    assert result.data.items[1].count is None
+    assert result.data.items[1].duration == 19055
 
 
 @pytest.mark.asyncio
@@ -117,15 +141,30 @@ async def test_get_project_reports_success(
                 {
                     "job_id": str(uuid4()),
                     "user_id": str(uuid4()),
-                    "type": "oneshot",
-                    "subtype": "ml-llm",
+                    "type": JobType.ONESHOT,
+                    "subtype": JobSubtype.ML_LLM,
                     "reserved_at": "2025-01-10T10:12:03Z",
                     "started_at": "2025-01-10T10:12:04Z",
                     "amount": "39.2",
                     "count": 39,
                     "reserved_amount": "24.2",
                     "reserved_count": 24,
-                }
+                },
+                {
+                    "job_id": str(uuid4()),
+                    "user_id": str(uuid4()),
+                    "name": "Model parameter comparison plot",
+                    "type": JobType.LONGRUN,
+                    "subtype": JobSubtype.NOTEBOOK,
+                    "reserved_at": "2025-09-08T08:38:40.172405Z",
+                    "started_at": "2025-09-08T08:38:42Z",
+                    "finished_at": "2025-09-08T13:55:13.342013Z",
+                    "cancelled_at": "2025-09-08T13:55:13.342013Z",
+                    "amount": "314.9186",
+                    "duration": 18991,
+                    "reserved_amount": "0.0166",
+                    "reserved_duration": 1,
+                },
             ],
             "meta": {
                 "page": 1,
@@ -164,7 +203,13 @@ async def test_get_project_reports_success(
     assert call_kwargs["params"] == expected_params
 
     assert isinstance(result, ProjectReportsResponse)
-    assert len(result.data.items) == 1
+    assert len(result.data.items) == 2
+    # first item is 'oneshot'
+    assert result.data.items[0].count == 39
+    assert result.data.items[0].duration is None
+    # second item is 'longrun'
+    assert result.data.items[1].count is None
+    assert result.data.items[1].duration == 18991
 
 
 @pytest.mark.asyncio

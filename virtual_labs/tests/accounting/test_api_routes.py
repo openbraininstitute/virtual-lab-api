@@ -118,6 +118,8 @@ async def test_get_virtual_lab_reports(
                     "count": 39,
                     "reserved_amount": "24.2",
                     "reserved_count": 24,
+                    "duration": None,
+                    "reserved_duration": None,
                 }
             ],
             "meta": {

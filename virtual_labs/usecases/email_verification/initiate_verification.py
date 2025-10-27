@@ -49,7 +49,7 @@ async def initiate_email_verification(
     esm = EmailValidationMutationRepository(session)
 
     user_id = UUID(auth[0].sub)
-    rd_key = rl.build_key("initiate", str(user_id), email)
+    rd_key = rl.build_key_by_email("initiate", str(user_id), email)
 
     try:
         verification_code_entry = await es.get_latest_verification_code_entry(

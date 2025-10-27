@@ -36,7 +36,7 @@ async def verify_email_code(
     es = EmailValidationQueryRepository(session)
 
     user_id = UUID(auth[0].sub)
-    rd_key = rl.build_key("verify", str(user_id), email)
+    rd_key = rl.build_key_by_email("verify", str(user_id), email)
 
     try:
         now = datetime.utcnow()

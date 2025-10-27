@@ -4,7 +4,9 @@ from typing import Any, Callable
 
 from keycloak import KeycloakError  # type: ignore
 from loguru import logger
+from pydantic import UUID4
 from sqlalchemy.exc import NoResultFound, SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.exceptions.generic_exceptions import UserNotInList
@@ -13,6 +15,25 @@ from virtual_labs.repositories.labs import get_undeleted_virtual_lab
 from virtual_labs.shared.utils.auth import get_user_id_from_auth
 from virtual_labs.shared.utils.is_user_in_list import is_user_in_list
 from virtual_labs.shared.utils.uniq_list import uniq_list
+
+
+async def authorize_user_for_vlab_write(
+    user_id: str,
+    virtual_lab_id: UUID4,
+    session: AsyncSession,
+) -> bool:
+    gqr = GroupQueryRepository()
+    vlab = await get_undeleted_virtual_lab(
+        session,
+        lab_id=virtual_lab_id,
+    )
+    users = await gqr.a_retrieve_group_users(group_id=str(vlab.admin_group_id))
+    uniq_users = uniq_list([u.id for u in users])
+
+    return is_user_in_list(
+        list_=uniq_users,
+        user_id=user_id,
+    )
 
 
 def verify_vlab_write(f: Callable[..., Any]) -> Callable[..., Any]:
@@ -29,16 +50,11 @@ def verify_vlab_write(f: Callable[..., Any]) -> Callable[..., Any]:
             auth = kwargs["auth"]
             user_id = get_user_id_from_auth(auth)
 
-            gqr = GroupQueryRepository()
-
-            vlab = await get_undeleted_virtual_lab(
-                session,
-                lab_id=virtual_lab_id,
+            await authorize_user_for_vlab_write(
+                user_id=str(user_id),
+                virtual_lab_id=virtual_lab_id,
+                session=session,
             )
-            users = gqr.retrieve_group_users(group_id=str(vlab.admin_group_id))
-            uniq_users = uniq_list([u.id for u in users])
-
-            is_user_in_list(list_=uniq_users, user_id=str(user_id))
 
         except NoResultFound:
             raise VliError(

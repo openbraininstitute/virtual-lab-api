@@ -1,10 +1,13 @@
+import asyncio
 from functools import wraps
 from http import HTTPStatus as status
 from typing import Any, Callable
 
 from keycloak import KeycloakError  # type: ignore
 from loguru import logger
+from pydantic import UUID4
 from sqlalchemy.exc import NoResultFound, SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.exceptions.generic_exceptions import UserNotInList
@@ -17,6 +20,33 @@ from virtual_labs.shared.utils.is_user_in_list import (
     is_user_in_list_soft,
 )
 from virtual_labs.shared.utils.uniq_list import uniq_list
+
+
+async def authorize_user_for_member_invite(
+    user_id: str,
+    virtual_lab_id: UUID4,
+    invite_details: AddUser,
+    session: AsyncSession,
+) -> None:
+    gqr = GroupQueryRepository()
+    vlab = await get_undeleted_virtual_lab(
+        session,
+        lab_id=virtual_lab_id,
+    )
+    admins, members = await asyncio.gather(
+        gqr.a_retrieve_group_users(group_id=str(vlab.admin_group_id)),
+        gqr.a_retrieve_group_users(group_id=str(vlab.member_group_id)),
+    )
+    uniq_admin_users = uniq_list([u.id for u in admins])
+    uniq_member_users = uniq_list([u.id for u in members])
+
+    if is_user_in_list_soft(list_=uniq_admin_users, user_id=user_id) or (
+        is_user_in_list_soft(list_=uniq_member_users, user_id=user_id)
+        and invite_details.role == UserRoleEnum.member
+    ):
+        pass
+    else:
+        raise UserNotInList("User not found in the list")
 
 
 def verity_member_invite(f: Callable[..., Any]) -> Callable[..., Any]:
@@ -36,24 +66,12 @@ def verity_member_invite(f: Callable[..., Any]) -> Callable[..., Any]:
             auth = kwargs["auth"]
             user_id = get_user_id_from_auth(auth)
 
-            gqr = GroupQueryRepository()
-
-            vlab = await get_undeleted_virtual_lab(
-                session,
-                lab_id=virtual_lab_id,
+            await authorize_user_for_member_invite(
+                user_id=str(user_id),
+                virtual_lab_id=virtual_lab_id,
+                invite_details=invite_details,
+                session=session,
             )
-            admins = gqr.retrieve_group_users(group_id=str(vlab.admin_group_id))
-            members = gqr.retrieve_group_users(group_id=str(vlab.member_group_id))
-            uniq_admin_users = uniq_list([u.id for u in admins])
-            uniq_member_users = uniq_list([u.id for u in members])
-
-            if is_user_in_list_soft(list_=uniq_admin_users, user_id=str(user_id)) or (
-                is_user_in_list_soft(list_=uniq_member_users, user_id=str(user_id))
-                and invite_details.role == UserRoleEnum.member
-            ):
-                pass
-            else:
-                raise UserNotInList("User not found in the list")
 
         except NoResultFound:
             raise VliError(

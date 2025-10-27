@@ -1,10 +1,13 @@
+import asyncio
 from functools import wraps
 from http import HTTPStatus as status
 from typing import Any, Callable
 
 from keycloak import KeycloakError  # type:ignore
 from loguru import logger
+from pydantic import UUID4
 from sqlalchemy.exc import NoResultFound, SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.exceptions.generic_exceptions import UserNotInList
@@ -13,6 +16,24 @@ from virtual_labs.repositories.project_repo import ProjectQueryRepository
 from virtual_labs.shared.utils.auth import get_user_id_from_auth
 from virtual_labs.shared.utils.is_user_in_list import is_user_in_list
 from virtual_labs.shared.utils.uniq_list import uniq_list
+
+
+async def authorize_user_for_project_read(
+    user_id: str,
+    project_id: UUID4,
+    session: AsyncSession,
+) -> bool:
+    gqr = GroupQueryRepository()
+    pqr = ProjectQueryRepository(session)
+    project, _ = await pqr.retrieve_one_project_by_id(project_id=project_id)
+    admins, members = await asyncio.gather(
+        gqr.a_retrieve_group_users(group_id=str(project.admin_group_id)),
+        gqr.a_retrieve_group_users(group_id=str(project.member_group_id)),
+    )
+    users = admins + members
+    uniq_users = uniq_list([u.id for u in users])
+
+    return is_user_in_list(list_=uniq_users, user_id=user_id)
 
 
 def verify_project_read(f: Callable[..., Any]) -> Callable[..., Any]:
@@ -29,16 +50,12 @@ def verify_project_read(f: Callable[..., Any]) -> Callable[..., Any]:
             auth = kwargs["auth"]
             user_id = get_user_id_from_auth(auth)
 
-            gqr = GroupQueryRepository()
-            pqr = ProjectQueryRepository(session)
+            await authorize_user_for_project_read(
+                user_id=str(user_id),
+                project_id=project_id,
+                session=session,
+            )
 
-            project, _ = await pqr.retrieve_one_project_by_id(project_id=project_id)
-            admins = gqr.retrieve_group_users(group_id=str(project.admin_group_id))
-            members = gqr.retrieve_group_users(group_id=str(project.member_group_id))
-            users = admins + members
-
-            uniq_users = uniq_list([u.id for u in users])
-            is_user_in_list(list_=uniq_users, user_id=str(user_id))
         except NoResultFound:
             raise VliError(
                 error_code=VliErrorCode.DATABASE_ERROR,

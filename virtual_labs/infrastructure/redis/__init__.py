@@ -1,40 +1,38 @@
 from typing import Optional, cast
 
 from fastapi import Depends
-from redis.asyncio import Redis
+from redis.asyncio import ConnectionPool, Redis
 
 from virtual_labs.infrastructure.settings import settings
 
-# Singleton Redis client (optional, initialized lazily)
+# Singleton Redis client and connection pool (initialized lazily)
 _redis_client: Redis | None = None
+_connection_pool: ConnectionPool | None = None
 
 
 async def get_redis() -> Redis:
     """Dependency to provide an async Redis client."""
-    global _redis_client
+    global _redis_client, _connection_pool
 
     redis_host = settings.REDIS_HOST
     redis_port = settings.REDIS_PORT
-    if _redis_client is None:
-        _redis_client = Redis(
+
+    if _connection_pool is None:
+        _connection_pool = ConnectionPool(
             host=redis_host,
             port=redis_port,
             password=None,
             decode_responses=True,
-            auto_close_connection_pool=False,
         )
+
+    if _redis_client is None:
+        _redis_client = Redis(connection_pool=_connection_pool)
 
     try:
         await _redis_client.ping()
     except Exception:
         await _redis_client.close()
-        _redis_client = Redis(
-            host=redis_host,
-            port=redis_port,
-            password=None,
-            decode_responses=True,
-            auto_close_connection_pool=False,
-        )
+        _redis_client = Redis(connection_pool=_connection_pool)
 
     return _redis_client
 
@@ -46,9 +44,13 @@ class RateLimiter:
         self.redis = redis
         self.prefix = prefix
 
-    def build_key(self, action: str, user_id: str, email: str) -> str:
+    def build_key_by_email(self, action: str, user_id: str, email: str) -> str:
         """Construct a Redis key based on action, user_id, and email."""
         return f"{self.prefix}:{action}:{user_id}:{email}"
+
+    def build_universal_key(self, action: str, user_id: str) -> str:
+        """Construct a Redis key based on action, user_id."""
+        return f"{self.prefix}:{action}:{user_id}"
 
     async def get_count(self, key: str) -> Optional[int]:
         """Get the current count for a key, or None if it doesn't exist."""
@@ -70,6 +72,9 @@ class RateLimiter:
         return int(await self.redis.ttl(key))
 
 
-async def get_rate_limiter(redis: Redis = Depends(get_redis)) -> RateLimiter:
+async def get_rate_limiter(
+    redis: Redis = Depends(get_redis),
+    prefix: str = "rate_limit",
+) -> RateLimiter:
     """Dependency to provide RateLimiter instance."""
-    return RateLimiter(redis)
+    return RateLimiter(redis, prefix)

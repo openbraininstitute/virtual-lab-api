@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from http import HTTPStatus
 from typing import AsyncGenerator, Dict, Tuple
 from uuid import UUID, uuid4
@@ -39,7 +39,7 @@ def generate_test_invite_token(
     algorithm: str = "HS256",
 ) -> str:
     """Generates a JWT token for testing purposes."""
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     if expires_delta:
         expire = now + expires_delta
     else:
