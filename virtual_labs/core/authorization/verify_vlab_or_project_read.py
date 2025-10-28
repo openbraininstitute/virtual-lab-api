@@ -1,3 +1,4 @@
+import asyncio
 from functools import wraps
 from http import HTTPStatus as status
 from typing import Any, Callable
@@ -6,6 +7,7 @@ from uuid import UUID
 from fastapi import Depends
 from keycloak import KeycloakError  # type: ignore
 from loguru import logger
+from pydantic import UUID4
 from sqlalchemy.exc import NoResultFound, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,6 +21,44 @@ from virtual_labs.repositories.project_repo import ProjectQueryRepository
 from virtual_labs.shared.utils.auth import get_user_id_from_auth
 from virtual_labs.shared.utils.is_user_in_list import is_user_in_list
 from virtual_labs.shared.utils.uniq_list import uniq_list
+
+
+async def authorize_user_for_vlab_or_project_read(
+    user_id: str,
+    virtual_lab_id: UUID4,
+    project_id: UUID4,
+    session: AsyncSession,
+) -> bool:
+    pqr = ProjectQueryRepository(session)
+    gqr = GroupQueryRepository()
+    users = []
+
+    if virtual_lab_id:
+        vlab = await get_virtual_lab_soft(
+            session,
+            lab_id=virtual_lab_id,
+        )
+        if vlab:
+            vlab_admins = await gqr.a_retrieve_group_users(
+                group_id=str(vlab.admin_group_id)
+            )
+            users += vlab_admins
+
+    if project_id:
+        project, _ = await pqr.retrieve_one_project_by_id(project_id=project_id)
+        if project:
+            project_admins, project_members = await asyncio.gather(
+                gqr.a_retrieve_group_users(group_id=str(project.admin_group_id)),
+                gqr.a_retrieve_group_users(group_id=str(project.member_group_id)),
+            )
+            users += project_admins + project_members
+
+    uniq_users = uniq_list([u.id for u in users])
+
+    return is_user_in_list(
+        list_=uniq_users,
+        user_id=user_id,
+    )
 
 
 def verify_vlab_or_project_read(f: Callable[..., Any]) -> Callable[..., Any]:
@@ -36,35 +76,12 @@ def verify_vlab_or_project_read(f: Callable[..., Any]) -> Callable[..., Any]:
             auth = kwargs["auth"]
             user_id = get_user_id_from_auth(auth)
 
-            pqr = ProjectQueryRepository(session)
-            gqr = GroupQueryRepository()
-            users = []
-
-            if virtual_lab_id:
-                vlab = await get_virtual_lab_soft(
-                    session,
-                    lab_id=virtual_lab_id,
-                )
-                if vlab:
-                    vlab_admins = gqr.retrieve_group_users(
-                        group_id=str(vlab.admin_group_id)
-                    )
-                    users += vlab_admins
-
-            if project_id:
-                project, _ = await pqr.retrieve_one_project_by_id(project_id=project_id)
-                if project:
-                    project_admins = gqr.retrieve_group_users(
-                        group_id=str(project.admin_group_id)
-                    )
-                    project_members = gqr.retrieve_group_users(
-                        group_id=str(project.member_group_id)
-                    )
-                    users += project_admins + project_members
-
-            uniq_users = uniq_list([u.id for u in users])
-
-            is_user_in_list(list_=uniq_users, user_id=str(user_id))
+            await authorize_user_for_vlab_or_project_read(
+                user_id=str(user_id),
+                virtual_lab_id=virtual_lab_id,
+                project_id=project_id,
+                session=session,
+            )
 
         except NoResultFound:
             raise VliError(

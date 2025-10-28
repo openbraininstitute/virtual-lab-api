@@ -11,6 +11,7 @@ from pydantic import (
     HttpUrl,
     field_validator,
     model_validator,
+    ValidationInfo,
 )
 
 T = TypeVar("T")
@@ -112,9 +113,29 @@ class ProjectJobReport(BaseModel):
     reserved_at: datetime | None = None
     started_at: datetime | None = None
     amount: str
-    count: int
+    count: int | None = None
     reserved_amount: str
-    reserved_count: int
+    reserved_count: int | None = None
+    duration: int | None = None
+    reserved_duration: int | None = None
+
+    @field_validator("count", "reserved_count", mode="after")
+    def validate_oneshot_required_fields(
+        cls, v: int | None, info: ValidationInfo
+    ) -> int | None:
+        job_type = info.data.get("type")
+        if job_type == JobType.ONESHOT and v is None:
+            raise ValueError(f"{info.field_name} is required for oneshot jobs.")
+        return v
+
+    @field_validator("duration", "reserved_duration", mode="after")
+    def validate_longrun_required_fields(
+        cls, v: int | None, info: ValidationInfo
+    ) -> int | None:
+        job_type = info.data.get("type")
+        if job_type == JobType.LONGRUN and v is None:
+            raise ValueError(f"{info.field_name} is required for longrun jobs.")
+        return v
 
 
 class VirtualLabJobReport(ProjectJobReport):

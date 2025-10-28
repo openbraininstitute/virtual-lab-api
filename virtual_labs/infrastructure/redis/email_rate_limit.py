@@ -11,19 +11,31 @@ from virtual_labs.domain.email import (
 )
 from virtual_labs.infrastructure.kc.auth import a_verify_jwt
 from virtual_labs.infrastructure.kc.models import AuthUser
-from virtual_labs.infrastructure.redis import RateLimiter, get_rate_limiter
+from virtual_labs.infrastructure.redis import RateLimiter, get_redis
 from virtual_labs.infrastructure.settings import settings
+
+
+async def get_initiate_rate_limiter() -> RateLimiter:
+    """Get rate limiter for email initiation."""
+    redis = await get_redis()
+    return RateLimiter(redis, prefix="email_validation")
+
+
+async def get_verify_rate_limiter() -> RateLimiter:
+    """Get rate limiter for email verification."""
+    redis = await get_redis()
+    return RateLimiter(redis, prefix="email_validation")
 
 
 async def rate_limit_initiate(
     payload: InitiateEmailVerificationPayload,
     auth: Tuple[AuthUser, str] = Depends(a_verify_jwt),
-    rl: RateLimiter = Depends(get_rate_limiter),
+    rl: RateLimiter = Depends(get_initiate_rate_limiter),
 ) -> Optional[int]:
     """Enforce rate limit for initiating email verification (e.g., 3/1h)."""
 
     user_id = auth[0].sub
-    key = rl.build_key("initiate", user_id, payload.email)
+    key = rl.build_key_by_email("initiate", user_id, payload.email)
     count = await rl.get_count(key)
 
     if count is None:
@@ -54,12 +66,12 @@ async def rate_limit_initiate(
 async def rate_limit_verify(
     payload: EmailVerificationPayload,
     auth: Tuple[AuthUser, str] = Depends(a_verify_jwt),
-    rl: RateLimiter = Depends(get_rate_limiter),
+    rl: RateLimiter = Depends(get_verify_rate_limiter),
 ) -> Optional[int]:
     """Enforce rate limit for verifying email codes (e.g. 5/1h)."""
 
     user_id = auth[0].sub
-    key = rl.build_key("verify", user_id, payload.email)
+    key = rl.build_key_by_email("verify", user_id, payload.email)
     count = await rl.get_count(key)
 
     if count is None:

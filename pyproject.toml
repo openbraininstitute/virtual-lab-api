@@ -51,6 +51,9 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.pytest.ini_options]
 norecursedirs = ["tests/labs"]
+markers = [
+  "integration: mark a test as an integration test"
+]
 
 [tool.mypy]
 exclude = "scripts/*"

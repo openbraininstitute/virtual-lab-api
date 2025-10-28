@@ -307,7 +307,7 @@ async def create_paid_subscription_for_user(user_id: UUID) -> None:
     """
     async with session_context_factory() as session:
         # Create a paid subscription for the user
-        now = datetime.utcnow()
+        now = datetime.now()
         subscription = PaidSubscription(
             id=uuid4(),
             user_id=user_id,
