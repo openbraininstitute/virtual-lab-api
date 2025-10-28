@@ -42,6 +42,7 @@ from virtual_labs.infrastructure.kc.auth import verify_jwt
 from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.infrastructure.transport.httpx import httpx_factory
 from virtual_labs.usecases import project as project_cases
+from virtual_labs.domain.invite import InvitePayload
 
 router = APIRouter(
     prefix="/virtual-labs",
@@ -354,6 +355,25 @@ async def retrieve_project_users(
     auth: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> Response | VliError:
     return await project_cases.retrieve_all_users_per_project_use_case(
+        session, virtual_lab_id, project_id
+    )
+
+
+@router.get(
+    "/{virtual_lab_id}/projects/{project_id}/invites",
+    operation_id="post_invite_to_project",
+    summary="Invite user to a project",
+    response_model=VliAppResponse[ProjectUsersOut],
+)
+@verify_vlab_or_project_read
+async def invite_user_to_project(
+    virtual_lab_id: UUID4,
+    project_id: UUID4,
+    payload: InvitePayload,
+    session: AsyncSession = Depends(default_session_factory),
+    auth: Tuple[AuthUser, str] = Depends(verify_jwt),
+) -> Response | VliError:
+    return await project_cases.invite_user_to_project(
         session, virtual_lab_id, project_id
     )
 

@@ -25,6 +25,8 @@ async def send_email_to_user_or_rollback(
     email: EmailStr,
     lab_name: str,
     lab_id: UUID,
+    project_name: str,
+    project_id: UUID,
     invite_repo: InviteMutationRepository,
 ) -> None:
     try:
@@ -49,7 +51,7 @@ async def send_email_to_user_or_rollback(
         )
 
 
-async def invite_user_to_lab(
+async def invite_user_to_project(
     lab_id: UUID4,
     inviter_id: UUID4,
     invite_details: InvitePayload,

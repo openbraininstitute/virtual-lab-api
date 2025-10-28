@@ -6,12 +6,12 @@ from virtual_labs.core.types import UserRoleEnum
 from virtual_labs.infrastructure.email.email_utils import InviteOrigin
 
 
-class AddUser(BaseModel):
+class InvitePayload(BaseModel):
     email: EmailStr
     role: UserRoleEnum
 
 
-class DeleteLabInviteRequest(AddUser):
+class DeleteLabInviteRequest(InvitePayload):
     """Request body for deleting a lab invite"""
 
     pass

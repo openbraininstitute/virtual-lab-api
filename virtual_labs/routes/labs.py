@@ -23,8 +23,8 @@ from virtual_labs.domain.email import (
     VerificationCodeEmailResponse,
 )
 from virtual_labs.domain.invite import (
-    AddUser,
     DeleteLabInviteRequest,
+    InvitePayload,
 )
 from virtual_labs.domain.labs import (
     CreateLabOut,
@@ -254,7 +254,7 @@ async def update_virtual_lab(
 @verity_member_invite
 async def invite_user_to_virtual_lab(
     virtual_lab_id: UUID4,
-    invite_details: AddUser,
+    invite_details: InvitePayload,
     session: AsyncSession = Depends(default_session_factory),
     auth: tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> LabResponse[InviteSent]:

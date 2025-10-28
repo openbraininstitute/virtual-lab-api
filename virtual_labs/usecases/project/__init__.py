@@ -24,6 +24,7 @@ from .search_projects_per_lab_by_name import (
 from .update_project_data import update_project_data
 from .update_star_project_status import update_star_project_status_use_case
 from .update_user_role_in_project import update_user_role_in_project
+from .invite_user_to_project import invite_user_to_project
 
 __all__ = [
     "retrieve_all_user_projects_per_vl_use_case",
@@ -46,4 +47,5 @@ __all__ = [
     "get_project_stats",
     "get_user_project_groups",
     "attach_users_to_project",
+    "invite_user_to_project"
 ]

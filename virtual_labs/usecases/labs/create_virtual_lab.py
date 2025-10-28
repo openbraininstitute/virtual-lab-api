@@ -18,7 +18,7 @@ from virtual_labs.core.exceptions.generic_exceptions import (
 from virtual_labs.core.exceptions.identity_error import IdentityError
 from virtual_labs.core.types import UserRoleEnum
 from virtual_labs.domain import labs as domain
-from virtual_labs.domain.invite import AddUser
+from virtual_labs.domain.invite import InvitePayload
 from virtual_labs.infrastructure.db import models
 from virtual_labs.infrastructure.email.send_welcome_email import send_welcome_email
 from virtual_labs.infrastructure.kc.models import AuthUser, CreatedGroup
@@ -45,8 +45,8 @@ GroupIds = dict[Literal["member_group"] | Literal["admin_group"], CreatedGroup]
 UserInvites = TypedDict(
     "UserInvites",
     {
-        "successful_invites": list[AddUser],
-        "failed_invites": list[AddUser],
+        "successful_invites": list[InvitePayload],
+        "failed_invites": list[InvitePayload],
     },
 )
 
@@ -78,15 +78,15 @@ async def create_keycloak_groups(lab_id: UUID4, lab_name: str) -> GroupIds:
 
 async def invite_members_to_lab(
     db: AsyncSession,
-    members: list[AddUser],
+    members: list[InvitePayload],
     virtual_lab: models.VirtualLab,
     inviter_id: UUID4,
 ) -> UserInvites:
     user_repo = UserQueryRepository()
     invite_mutation_repo = InviteMutationRepository(db)
 
-    successful_invites: list[AddUser] = []
-    failed_invites: list[AddUser] = []
+    successful_invites: list[InvitePayload] = []
+    failed_invites: list[InvitePayload] = []
     inviting_user = user_repo.retrieve_user_from_kc(str(inviter_id))
 
     for member in members:
