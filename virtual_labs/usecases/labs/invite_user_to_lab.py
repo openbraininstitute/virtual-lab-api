@@ -29,7 +29,7 @@ async def send_email_to_user_or_rollback(
 ) -> None:
     try:
         await send_invite(
-            details=EmailDetails(
+            payload=EmailDetails(
                 recipient=email,
                 invite_id=invite_id,
                 lab_id=lab_id,

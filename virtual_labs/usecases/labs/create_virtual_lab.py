@@ -26,7 +26,6 @@ from virtual_labs.infrastructure.settings import settings
 from virtual_labs.infrastructure.stripe import get_stripe_repository
 from virtual_labs.repositories import labs as repository
 from virtual_labs.repositories.group_repo import GroupMutationRepository
-from virtual_labs.repositories.invite_repo import InviteMutationRepository
 from virtual_labs.repositories.stripe_user_repo import (
     StripeUserMutationRepository,
     StripeUserQueryRepository,
@@ -38,7 +37,6 @@ from virtual_labs.repositories.user_repo import (
 )
 from virtual_labs.shared.utils.auth import get_user_id_from_auth
 from virtual_labs.usecases import accounting as accounting_cases
-from virtual_labs.usecases.labs.invite_user_to_lab import send_email_to_user_or_rollback
 from virtual_labs.utils.subscription_type_resolver import resolve_tier
 
 GroupIds = dict[Literal["member_group"] | Literal["admin_group"], CreatedGroup]
@@ -76,59 +74,6 @@ async def create_keycloak_groups(lab_id: UUID4, lab_name: str) -> GroupIds:
         )
 
 
-async def invite_members_to_lab(
-    db: AsyncSession,
-    members: list[InvitePayload],
-    virtual_lab: models.VirtualLab,
-    inviter_id: UUID4,
-) -> UserInvites:
-    user_repo = UserQueryRepository()
-    invite_mutation_repo = InviteMutationRepository(db)
-
-    successful_invites: list[InvitePayload] = []
-    failed_invites: list[InvitePayload] = []
-    inviting_user = user_repo.retrieve_user_from_kc(str(inviter_id))
-
-    for member in members:
-        try:
-            invite = await invite_mutation_repo.add_lab_invite(
-                virtual_lab_id=UUID(str(virtual_lab.id)),
-                # Inviter details
-                inviter_id=inviter_id,
-                # Invitee details
-                invitee_role=member.role,
-                invitee_email=member.email,
-            )
-            # Need to refresh the lab because the invite is committed inside the repo.
-            await db.refresh(virtual_lab)
-            await send_email_to_user_or_rollback(
-                invite_id=UUID(str(invite.id)),
-                inviter_name=f"{inviting_user.firstName} {inviting_user.lastName}",
-                email=member.email,
-                lab_name=str(virtual_lab.name),
-                lab_id=UUID(str(virtual_lab.id)),
-                invite_repo=invite_mutation_repo,
-            )
-            successful_invites.append(member)
-
-        except VliError as error:
-            logger.error(
-                f"Email error when inviting user {member.email} during lab creation: {error}"
-            )
-            failed_invites.append(member)
-        except SQLAlchemyError as error:
-            logger.error(
-                f"Db error when inviting user {member.email} during lab creation: {error}"
-            )
-            failed_invites.append(member)
-        except Exception as error:
-            logger.error(
-                f"Unknown error when inviting user {member.email} during lab creation: {error}"
-            )
-            failed_invites.append(member)
-    return {"failed_invites": failed_invites, "successful_invites": successful_invites}
-
-
 async def create_virtual_lab(
     db: AsyncSession, lab: domain.VirtualLabCreate, auth: tuple[AuthUser, str]
 ) -> domain.CreateLabOut:
@@ -151,10 +96,11 @@ async def create_virtual_lab(
             raise ForbiddenOperation()
 
         new_lab_id = uuid4()
-        # Create admin & member groups
-        groups = await create_keycloak_groups(new_lab_id, lab.name)
+        groups = await create_keycloak_groups(
+            new_lab_id,
+            lab.name,
+        )
 
-        # Add user as admin for this lab
         user_repo.attach_user_to_group(
             user_id=owner_id, group_id=groups["admin_group"]["id"]
         )

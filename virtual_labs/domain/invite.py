@@ -11,19 +11,15 @@ class InvitePayload(BaseModel):
     role: UserRoleEnum
 
 
-class DeleteLabInviteRequest(InvitePayload):
-    """Request body for deleting a lab invite"""
-
-    pass
-
-
-class InviteDetailsOut(BaseModel):
+class InvitationResponse(BaseModel):
     accepted: bool
     invite_id: UUID4
     inviter_full_name: str
     origin: InviteOrigin
     virtual_lab_id: UUID4
     virtual_lab_name: str | None
+    project_id: UUID4 | None
+    project_name: str | None
 
 
 class InviteOut(BaseModel):

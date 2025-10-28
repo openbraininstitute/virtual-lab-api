@@ -1,6 +1,7 @@
 from http import HTTPStatus
 from uuid import UUID
 
+from fastapi import Response
 from loguru import logger
 from pydantic import UUID4, EmailStr
 from sqlalchemy.exc import SQLAlchemyError
@@ -9,7 +10,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.exceptions.email_error import EmailError
 from virtual_labs.core.exceptions.generic_exceptions import ForbiddenOperation
+from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.domain.invite import InvitePayload
+from virtual_labs.domain.labs import InvitationResponse
 from virtual_labs.infrastructure.email.invite_email import EmailDetails, send_invite
 from virtual_labs.repositories.invite_repo import (
     InviteMutationRepository,
@@ -31,7 +34,7 @@ async def send_email_to_user_or_rollback(
 ) -> None:
     try:
         await send_invite(
-            details=EmailDetails(
+            payload=EmailDetails(
                 recipient=email,
                 invite_id=invite_id,
                 lab_id=lab_id,
@@ -59,7 +62,7 @@ async def invite_user_to_project(
     project_id: UUID4,
     inviter_id: UUID4,
     invite_details: InvitePayload,
-) -> UUID4:
+) -> Response:
     prq = ProjectQueryRepository(session)
     user_repo = UserQueryRepository()
     invite_query_repo = InviteQueryRepository(session)
@@ -84,7 +87,6 @@ async def invite_user_to_project(
                 invitee_role=invite_details.role,
                 invitee_email=invite_details.email,
             )
-            await session.refresh(virtual_lab)
 
         else:
             logger.debug(
@@ -96,9 +98,10 @@ async def invite_user_to_project(
                     "accepted": False,
                 },
             )
-            # Need to refresh the lab because the invite is committed inside the repo.
-            await session.refresh(project)
-            await session.refresh(invite)
+
+        await session.refresh(virtual_lab)
+        await session.refresh(project)
+        await session.refresh(invite)
 
         await send_email_to_user_or_rollback(
             invite_id=UUID(str(invite.id)),
@@ -110,7 +113,10 @@ async def invite_user_to_project(
             project_name=project.name,
             invite_repo=invite_mutation_repo,
         )
-        return invite.id
+        return VliResponse.new(
+            message="Invite sent successfully",
+            data=InvitationResponse(id=invite.id),
+        )
     except ForbiddenOperation as e:
         logger.error(
             f"ForbiddenOperation when inviting user {invite_details.email} {e}"
@@ -128,6 +134,7 @@ async def invite_user_to_project(
             http_status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
         )
     except SQLAlchemyError as error:
+        logger.exception(error)
         logger.error(f"Db error when inviting user {invite_details.email}: {error}")
         raise VliError(
             message=f"Invite to user could not be sent due to an error in database. {error}",

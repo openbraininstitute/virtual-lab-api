@@ -28,23 +28,23 @@ class EmailDetails(BaseModel):
 fm_executor = FastMail(email_config)
 
 
-async def send_invite(details: EmailDetails) -> str:
+async def send_invite(payload: EmailDetails) -> str:
     try:
         origin = (
-            InviteOrigin.LAB if details.project_id is None else InviteOrigin.PROJECT
+            InviteOrigin.LAB if payload.project_id is None else InviteOrigin.PROJECT
         )
         display_origin = "virtual lab" if origin is InviteOrigin.LAB else "project"
-        invite_token = generate_encrypted_invite_token(details.invite_id, origin)
+        invite_token = generate_encrypted_invite_token(payload.invite_id, origin)
         invite_link = generate_invite_link(invite_token)
         invite_html = generate_invite_html(
             invite_link=invite_link,
-            lab_name=details.lab_name,
-            project_name=details.project_name,
+            lab_name=payload.lab_name,
+            project_name=payload.project_name,
         )
 
         message = MessageSchema(
             subject=f"Invitation to OBI {display_origin}",
-            recipients=[details.recipient],
+            recipients=[payload.recipient],
             body=invite_html,
             subtype=MessageType.html,
             attachments=[
@@ -60,13 +60,13 @@ async def send_invite(details: EmailDetails) -> str:
                 },
             ],
             template_body={
-                "inviter_name": details.inviter_name,
+                "inviter_name": payload.inviter_name,
                 "invite_link": invite_link,
                 "discover_link": f"{settings.LANDING_NAMESPACE}",
                 "origin": display_origin,
-                "invited_to": details.lab_name
+                "invited_to": payload.lab_name
                 if origin is InviteOrigin.LAB
-                else details.project_name,
+                else payload.project_name,
             },
         )
 
@@ -74,13 +74,13 @@ async def send_invite(details: EmailDetails) -> str:
             message=message,
             template_name="invitation_template.html",
         )
-        logger.debug(f"Invite link {invite_link} emailed to user {details.recipient}")
+        logger.debug(f"Invite link {invite_link} emailed to user {payload.recipient}")
         return invite_link
     except Exception as error:
         logger.error(
-            f"Invite ID {details.invite_id} could not be emailed to user {details.recipient} because of error {error}"
+            f"Invite ID {payload.invite_id} could not be emailed to user {payload.recipient} because of error {error}"
         )
         raise EmailError(
-            message=f"Invite ID {details.invite_id} could not be emailed to user {details.recipient}",
+            message=f"Invite ID {payload.invite_id} could not be emailed to user {payload.recipient}",
             detail=str(error),
         ) from error

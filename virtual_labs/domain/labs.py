@@ -116,8 +116,8 @@ class AllPlans(BaseModel):
     all_plans: list[PlanDomain]
 
 
-class InviteSent(BaseModel):
-    invite_id: UUID4
+class InvitationResponse(BaseModel):
+    id: UUID4
 
 
 class UserStats(BaseModel):

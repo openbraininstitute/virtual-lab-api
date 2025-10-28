@@ -18,6 +18,8 @@ from virtual_labs.core.authorization.verify_vlab_or_project_read import (
 from virtual_labs.core.exceptions.api_error import VliError
 from virtual_labs.core.types import UserGroup, UserRoleEnum, VliAppResponse
 from virtual_labs.domain.common import PageParams, PaginatedResultsResponse
+from virtual_labs.domain.invite import InvitePayload
+from virtual_labs.domain.labs import InvitationResponse
 from virtual_labs.domain.project import (
     AddUserToProjectIn,
     ProjectCreationBody,
@@ -41,8 +43,8 @@ from virtual_labs.infrastructure.db.config import default_session_factory
 from virtual_labs.infrastructure.kc.auth import verify_jwt
 from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.infrastructure.transport.httpx import httpx_factory
+from virtual_labs.shared.utils.auth import get_user_id_from_auth
 from virtual_labs.usecases import project as project_cases
-from virtual_labs.domain.invite import InvitePayload
 
 router = APIRouter(
     prefix="/virtual-labs",
@@ -359,13 +361,13 @@ async def retrieve_project_users(
     )
 
 
-@router.get(
+@router.post(
     "/{virtual_lab_id}/projects/{project_id}/invites",
     operation_id="post_invite_to_project",
     summary="Invite user to a project",
-    response_model=VliAppResponse[ProjectUsersOut],
+    response_model=VliAppResponse[InvitationResponse],
 )
-@verify_vlab_or_project_read
+@verify_vlab_write
 async def invite_user_to_project(
     virtual_lab_id: UUID4,
     project_id: UUID4,
@@ -374,7 +376,32 @@ async def invite_user_to_project(
     auth: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> Response | VliError:
     return await project_cases.invite_user_to_project(
-        session, virtual_lab_id, project_id
+        session=session,
+        virtual_lab_id=virtual_lab_id,
+        project_id=project_id,
+        inviter_id=get_user_id_from_auth(auth),
+        invite_details=payload,
+    )
+
+
+@router.post(
+    "/{virtual_lab_id}/projects/{project_id}/invites/cancel",
+    operation_id="post_invite_to_project",
+    summary="Invite user to a project",
+    response_model=VliAppResponse[InvitationResponse],
+)
+@verify_vlab_write
+async def cancel_project_invite_for_user(
+    virtual_lab_id: UUID4,
+    project_id: UUID4,
+    payload: InvitePayload,
+    session: AsyncSession = Depends(default_session_factory),
+    auth: Tuple[AuthUser, str] = Depends(verify_jwt),
+) -> Response | VliError:
+    return await project_cases.cancel_project_invite(
+        session=session,
+        project_id=project_id,
+        payload=payload,
     )
 
 

@@ -33,6 +33,15 @@ class UserQueryRepository:
                 message=f"User with id {user_id} not found", detail=str(error)
             )
 
+    async def a_retrieve_user_from_kc(self, user_id: str) -> UserRepresentation:
+        try:
+            user = await self.Kc.a_get_user(user_id)
+            return UserRepresentation(**user)
+        except Exception as error:
+            raise IdentityError(
+                message=f"User with id {user_id} not found", detail=str(error)
+            )
+
     def retrieve_user_by_email_soft(
         self, email: str
     ) -> List[UserRepresentation] | None:

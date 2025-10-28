@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.exceptions.identity_error import IdentityError
 from virtual_labs.core.response.api_response import VliResponse
-from virtual_labs.domain.invite import InviteDetailsOut
+from virtual_labs.domain.invite import InvitationResponse
 from virtual_labs.infrastructure.db.models import ProjectInvite, VirtualLabInvite
 from virtual_labs.infrastructure.email.email_utils import (
     InviteOrigin,
@@ -22,6 +22,7 @@ from virtual_labs.repositories.invite_repo import (
     InviteQueryRepository,
 )
 from virtual_labs.repositories.labs import get_undeleted_virtual_lab
+from virtual_labs.repositories.project_repo import ProjectQueryRepository
 from virtual_labs.repositories.user_repo import (
     UserQueryRepository,
 )
@@ -33,9 +34,9 @@ async def get_invite_details(
     invite_token: str,
     auth: Tuple[AuthUser, str],
 ) -> Response | VliError:
-    invite_query_repo = InviteQueryRepository(session)
-    user_query_repo = UserQueryRepository()
-
+    iqr = InviteQueryRepository(session)
+    uqr = UserQueryRepository()
+    pqr = ProjectQueryRepository(session)
     try:
         decoded_token = get_invite_details_from_token(
             invite_token=invite_token,
@@ -47,18 +48,25 @@ async def get_invite_details(
         vlab = None
 
         if origin == InviteOrigin.LAB.value:
-            invite = await invite_query_repo.get_vlab_invite_by_id(
-                invite_id=UUID(invite_id)
-            )
+            invite = await iqr.get_vlab_invite_by_id(invite_id=UUID(invite_id))
 
             vlab = await get_undeleted_virtual_lab(
                 db=session,
                 lab_id=UUID(str(invite.virtual_lab_id)),
             )
+        if origin == InviteOrigin.PROJECT.value:
+            invite = await iqr.get_project_invite_by_id(invite_id=UUID(invite_id))
+
+            project, vlab = await pqr.retrieve_one_project_by_id(
+                project_id=invite.project_id
+            )
         else:
             raise ValueError(f"Origin {origin} is not allowed.")
 
-        inviter = user_query_repo.retrieve_user_from_kc(str(invite.inviter_id))
+        inviter = await uqr.a_retrieve_user_from_kc(
+            str(invite.inviter_id),
+        )
+
         assert inviter is not None
 
         inviter_full_name = (
@@ -67,16 +75,18 @@ async def get_invite_details(
             else inviter.username
         )
 
-        return VliResponse[InviteDetailsOut].new(
+        return VliResponse[InvitationResponse].new(
             message=f"Invite for {origin} accepted successfully",
-            data=InviteDetailsOut.model_validate(
+            data=InvitationResponse.model_validate(
                 {
+                    "origin": origin,
                     "accepted": invite.accepted,
                     "invite_id": invite_id,
                     "inviter_full_name": inviter_full_name,
-                    "origin": origin,
                     "virtual_lab_id": vlab.id,
                     "virtual_lab_name": vlab.name,
+                    "project_id": project.id,
+                    "project_name": project.name,
                 }
             ),
         )
