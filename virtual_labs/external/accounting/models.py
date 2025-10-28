@@ -3,7 +3,7 @@ from decimal import Decimal
 from typing import Generic, Self, TypeVar
 from uuid import UUID
 
-from obp_accounting_sdk.constants import ServiceSubtype, ServiceType
+from obp_accounting_sdk.constants import ServiceSubtype, ServiceType  # type: ignore[import-untyped]
 from pydantic import (
     UUID4,
     AwareDatetime,

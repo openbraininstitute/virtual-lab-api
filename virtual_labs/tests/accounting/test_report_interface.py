@@ -4,7 +4,7 @@ from uuid import uuid4
 
 import pytest
 from httpx import AsyncClient, HTTPStatusError, Response
-from obp_accounting_sdk.constants import ServiceSubtype, ServiceType
+from obp_accounting_sdk.constants import ServiceSubtype, ServiceType  # type: ignore[import-untyped]
 
 from virtual_labs.core.exceptions.accounting_error import (
     AccountingError,
