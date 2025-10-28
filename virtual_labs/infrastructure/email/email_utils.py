@@ -37,7 +37,6 @@ def generate_encrypted_invite_token(invite_id: UUID4, origin: InviteOrigin) -> s
     )
 
 
-# TODO: The links here might need updating depending on the actual lab/project details page where the user should be redirected to.
 def generate_invite_link(invite_token: str) -> str:
     return f"{settings.INVITE_LINK_BASE}/invite?token={invite_token}"
 

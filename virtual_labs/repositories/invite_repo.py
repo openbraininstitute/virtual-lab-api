@@ -159,11 +159,9 @@ class InviteMutationRepository:
         inviter_id: UUID4,
         invitee_role: UserRoleEnum,
         invitee_email: EmailStr,
-        invitee_id: UUID4 | None,
     ) -> ProjectInvite:
         invite = ProjectInvite(
             inviter_id=inviter_id,
-            user_id=invitee_id,
             project_id=project_id,
             role=invitee_role.value,
             user_email=invitee_email,

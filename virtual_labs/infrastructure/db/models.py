@@ -138,12 +138,14 @@ class ProjectStar(Base):
 class ProjectInvite(Base):
     __tablename__ = "project_invite"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    inviter_id = Column(UUID(as_uuid=True), nullable=False)
-    user_id = Column(UUID(as_uuid=True))
-    accepted = Column(Boolean, default=False)
-    user_email = Column(String, nullable=False)
-    role = Column(String, nullable=False)
+    id: Mapped[uuid.UUID] = Column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    inviter_id: Mapped[uuid.UUID] = Column(UUID(as_uuid=True), nullable=False)
+    user_id: Mapped[uuid.UUID] = Column(UUID(as_uuid=True))
+    accepted: Mapped[bool] = Column(Boolean, default=False)
+    user_email: Mapped[str] = Column(String, nullable=False)
+    role: Mapped[str] = Column(String, nullable=False)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=func.now()
@@ -152,22 +154,28 @@ class ProjectInvite(Base):
         DateTime(timezone=True), default=func.now(), onupdate=func.now()
     )
 
-    project_id = Column(UUID(as_uuid=True), ForeignKey("project.id"), index=True)
+    project_id: Mapped[uuid.UUID] = Column(
+        UUID(as_uuid=True), ForeignKey("project.id"), index=True
+    )
     project = relationship("Project", back_populates="invites")
 
 
 class VirtualLabInvite(Base):
     __tablename__ = "virtual_lab_invite"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    inviter_id = Column(UUID, nullable=False)
-    user_id = Column(UUID)
-    role = Column(String, nullable=False)
-    user_email = Column(String, nullable=False)
-    virtual_lab_id = Column(UUID, ForeignKey("virtual_lab.id"), index=True)
+    id: Mapped[uuid.UUID] = Column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    inviter_id: Mapped[uuid.UUID] = Column(UUID, nullable=False)
+    user_id: Mapped[uuid.UUID] = Column(UUID)
+    role: Mapped[str] = Column(String, nullable=False)
+    user_email: Mapped[str] = Column(String, nullable=False)
+    virtual_lab_id: Mapped[uuid.UUID] = Column(
+        UUID, ForeignKey("virtual_lab.id"), index=True
+    )
     virtual_lab = relationship("VirtualLab", back_populates="invites")
 
-    accepted = Column(Boolean, default=False)
+    accepted: Mapped[bool] = Column(Boolean, default=False)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=func.now()

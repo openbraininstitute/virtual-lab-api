@@ -25,6 +25,9 @@ class EmailDetails(BaseModel):
     project_name: str | None = None
 
 
+fm_executor = FastMail(email_config)
+
+
 async def send_invite(details: EmailDetails) -> str:
     try:
         origin = (
@@ -34,7 +37,9 @@ async def send_invite(details: EmailDetails) -> str:
         invite_token = generate_encrypted_invite_token(details.invite_id, origin)
         invite_link = generate_invite_link(invite_token)
         invite_html = generate_invite_html(
-            invite_link, lab_name=details.lab_name, project_name=details.project_name
+            invite_link=invite_link,
+            lab_name=details.lab_name,
+            project_name=details.project_name,
         )
 
         message = MessageSchema(
@@ -64,8 +69,11 @@ async def send_invite(details: EmailDetails) -> str:
                 else details.project_name,
             },
         )
-        fm = FastMail(email_config)
-        await fm.send_message(message, template_name="invitation_template.html")
+
+        await fm_executor.send_message(
+            message=message,
+            template_name="invitation_template.html",
+        )
         logger.debug(f"Invite link {invite_link} emailed to user {details.recipient}")
         return invite_link
     except Exception as error:
