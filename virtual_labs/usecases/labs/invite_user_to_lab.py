@@ -67,6 +67,7 @@ async def invite_user_to_lab(
             email=invite_details.email,
             role=invite_details.role,
         )
+        invite_id: UUID | None = None
 
         if existing_invite is None:
             invite = await invite_mutation_repo.add_lab_invite(
@@ -75,35 +76,28 @@ async def invite_user_to_lab(
                 invitee_role=invite_details.role,
                 invitee_email=invite_details.email,
             )
-            # Need to refresh the lab because the invite is committed inside the repo.
             await db.refresh(lab)
-            await send_email_to_user_or_rollback(
-                invite_id=UUID(str(invite.id)),
-                inviter_name=f"{inviting_user.firstName} {inviting_user.lastName}",
-                email=invite_details.email,
-                lab_name=str(lab.name),
-                lab_id=UUID(str(lab.id)),
-                invite_repo=invite_mutation_repo,
-            )
-            return UUID(str(invite.id))
+            invite_id = invite.id
         else:
             logger.debug(
-                f"Invite {existing_invite.id} for user already exists. Updating the invite and sending refreshed link"
+                f"""Invite {existing_invite.id} for user already exists. 
+                Updating the invite and sending refreshed link"""
             )
             await invite_mutation_repo.update_lab_invite(UUID(str(existing_invite.id)))
-            # Need to refresh the lab because the invite is committed inside the repo.
             await db.refresh(lab)
             await db.refresh(existing_invite)
 
-            await send_email_to_user_or_rollback(
-                invite_id=UUID(str(existing_invite.id)),
-                inviter_name=f"{inviting_user.firstName} {inviting_user.lastName}",
-                email=invite_details.email,
-                lab_name=str(lab.name),
-                lab_id=UUID(str(lab.id)),
-                invite_repo=invite_mutation_repo,
-            )
-            return UUID(str(existing_invite.id))
+            invite_id = existing_invite.id
+
+        await send_email_to_user_or_rollback(
+            invite_id=UUID(str(invite_id)),
+            inviter_name=f"{inviting_user.firstName} {inviting_user.lastName}",
+            email=invite_details.email,
+            lab_name=str(lab.name),
+            lab_id=UUID(str(lab.id)),
+            invite_repo=invite_mutation_repo,
+        )
+        return invite_id
     except ForbiddenOperation as e:
         logger.error(
             f"ForbiddenOperation when inviting user {invite_details.email} {e}"

@@ -22,6 +22,7 @@ from virtual_labs.infrastructure.db.models import (
 from virtual_labs.repositories.group_repo import GroupQueryRepository
 from virtual_labs.repositories.user_repo import UserMutationRepository
 from virtual_labs.tests.utils import (
+    cleanup_all_user_labs,
     cleanup_resources,
     get_headers,
     session_context_factory,
@@ -163,9 +164,9 @@ async def created_project(
         headers=headers,
     )
 
-    assert (
-        project_response.status_code == HTTPStatus.OK
-    ), f"Failed to create project: {project_response.text}"
+    assert project_response.status_code == HTTPStatus.OK, (
+        f"Failed to create project: {project_response.text}"
+    )
 
     project_id = project_response.json()["data"]["project"]["id"]
     async with session_context_factory() as session:
@@ -387,7 +388,7 @@ class TestAttachUsersToProject:
         response_data = attach_response.json()["data"]
 
         # Assert response structure
-        assert len(response_data["added_users"]) == 2
+        assert len(response_data["added_users"]) == 1
         assert len(response_data["updated_users"]) == 0
         assert len(response_data["failed_operations"]) == 0
         assert len(response_data["email_sending_failures"]) == 0
@@ -702,7 +703,7 @@ class TestAttachUsersToProject:
         created_project: Tuple[str, str, str, Project, Dict[str, str]],
     ) -> None:
         """
-        Tests that attaching users fails with FORBIDDEN if the requesting user
+        tests that attaching users fails with FORBIDDEN if the requesting user
         has a paid subscription, but its status is not 'active' (e.g., 'canceled').
         """
         lab_id, project_id, owner_id, project_data, user_ids = created_project
@@ -752,3 +753,77 @@ class TestAttachUsersToProject:
         error_data = attach_response.json()
         assert error_data["error_code"] == "FORBIDDEN_OPERATION"
         assert "User does not have an active subscription" in error_data["message"]
+
+    async def test_create_project_adds_creator_to_vlab_member_group(
+        self,
+        async_test_client: AsyncClient,
+        test_user_ids: Dict[str, str],
+    ) -> None:
+        """
+        tests that when a user creates a new project, they are added to both
+        the project admin group and the virtual lab member group.
+        """
+        client = async_test_client
+        owner_username = "test-5"
+        owner_id = test_user_ids[owner_username]
+
+        await cleanup_all_user_labs(client=client, username=owner_username)
+
+        # create a virtual lab
+        lab_name = f"Test VL for Project Creation {uuid4()}"
+        lab_body = {
+            "name": lab_name,
+            "description": "Test virtual lab for project creation",
+            "reference_email": f"{owner_username}@test.org",
+            "entity": "Test University",
+            "email_status": "verified",
+        }
+        lab_response = await client.post(
+            "/virtual-labs",
+            json=lab_body,
+            headers=get_headers(owner_username),
+        )
+        assert lab_response.status_code == HTTPStatus.OK
+        lab_id = lab_response.json()["data"]["virtual_lab"]["id"]
+
+        gqr = GroupQueryRepository()
+
+        # get virtual lab member group ID
+        async with session_context_factory() as session:
+            db_lab = await session.get(VirtualLab, UUID(lab_id))
+            if not db_lab:
+                pytest.fail("Failed to retrieve created lab from DB.")
+            vl_member_group_id = str(db_lab.member_group_id)
+
+        # create a project
+        project_name = f"Test Project Creation {uuid4()}"
+        project_body = {
+            "name": project_name,
+            "description": "Test project for group membership",
+        }
+        project_response = await client.post(
+            f"/virtual-labs/{lab_id}/projects",
+            json=project_body,
+            headers=get_headers(owner_username),
+        )
+
+        assert project_response.status_code == HTTPStatus.OK
+        project_data = project_response.json()["data"]
+        created_project_id = project_data["project"]["id"]
+
+        # get project data to check project admin group
+        async with session_context_factory() as session:
+            db_project = await session.get(Project, UUID(created_project_id))
+            if not db_project:
+                pytest.fail("Failed to retrieve created project from DB.")
+            proj_admin_group_id = str(db_project.admin_group_id)
+
+        # assert creator is in project admin group
+        proj_admins = await gqr.a_retrieve_group_user_ids(proj_admin_group_id)
+        assert owner_id in proj_admins
+
+        # assert creator is also in virtual lab member group
+        vl_members = await gqr.a_retrieve_group_user_ids(vl_member_group_id)
+        assert owner_id in vl_members
+
+        await cleanup_resources(client=client, lab_id=lab_id, user=owner_username)

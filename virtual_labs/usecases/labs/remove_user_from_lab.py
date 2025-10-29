@@ -57,7 +57,7 @@ async def remove_user_from_lab(lab_id: UUID4, user_id: UUID4, db: AsyncSession) 
         )
     except KeycloakError as error:
         logger.warning(
-            f"Removing user {user_id} from lab {lab_id}, groups failed: {loads(error.error_message)["error"]}"
+            f"Removing user {user_id} from lab {lab_id}, groups failed: {loads(error.error_message)['error']}"
         )
         raise VliError(
             error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,

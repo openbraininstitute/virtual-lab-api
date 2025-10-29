@@ -4,6 +4,7 @@ from typing import Generic, Literal, TypeVar
 from pydantic import (
     UUID4,
     BaseModel,
+    ConfigDict,
     EmailStr,
     Field,
     JsonValue,
@@ -34,31 +35,41 @@ class VirtualLabUpdate(BaseModel):
 
 
 class PlanDomain(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     name: str
     price: float
     features: JsonValue
 
-    class Config:
-        from_attributes = True
-
 
 class VirtualLabDetails(VirtualLabBase):
+    model_config = ConfigDict(from_attributes=True)
+
     id: UUID4
     created_at: datetime
     updated_at: datetime | None = None
     members_count: int | None = None
     projects_count: int | None = None
 
-    class Config:
-        from_attributes = True
+
+class VirtualLab(VirtualLabBase):
+    model_config = ConfigDict(
+        from_attributes=True,
+    )
+
+    id: UUID4
+    created_at: datetime
+    updated_at: datetime | None = None
+    members_count: int | None = None
+    projects_count: int | None = None
+    created_by: UUID4
 
 
 class VirtualLabWithInviteDetails(VirtualLabDetails):
-    invite_id: UUID4
+    model_config = ConfigDict(from_attributes=True)
 
-    class Config:
-        from_attributes = True
+    invite_id: UUID4
 
 
 class VirtualLabUsers(BaseModel):
@@ -69,15 +80,14 @@ class VirtualLabUsers(BaseModel):
 
 
 class VirtualLabStats(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     virtual_lab_id: UUID4
     total_projects: int
     total_members: int
     total_pending_invites: int
     admin_users: list[UUID4]
     member_users: list[UUID4]
-
-    class Config:
-        from_attributes = True
 
 
 class VirtualLabUser(BaseModel):
@@ -86,6 +96,11 @@ class VirtualLabUser(BaseModel):
 
 class VirtualLabOut(BaseModel):
     virtual_lab: VirtualLabDetails
+
+
+class VirtualLabResponse(BaseModel):
+    virtual_lab: VirtualLab
+    admins: list[UUID4] | None = None
 
 
 class VirtualLabCreate(VirtualLabBase):

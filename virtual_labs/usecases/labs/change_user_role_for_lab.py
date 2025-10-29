@@ -114,7 +114,7 @@ async def change_user_role_for_lab(
     # TODO: The Keycloak error shoulf be replaced by IdentityError
     except KeycloakError as error:
         logger.warning(
-            f"Removing user {user_id} from lab {lab_id}, groups failed: {loads(error.error_message)["error"]}"
+            f"Removing user {user_id} from lab {lab_id}, groups failed: {loads(error.error_message)['error']}"
         )
         raise VliError(
             error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,

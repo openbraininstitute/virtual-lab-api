@@ -40,6 +40,9 @@ services:
       DB_DATABASE: keycloak
       DB_USER: keycloak
       DB_PASSWORD: keycloak
+      KC_SSL_REQUIRED: none
+      KC_HTTP_ENABLED: true
+      KC_HEALTH_ENABLED: true
     depends_on:
       keycloak-db:
         condition: service_healthy

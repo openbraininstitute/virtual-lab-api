@@ -46,9 +46,6 @@ def verify_service_admin(f: Callable[..., Any]) -> Callable[..., Any]:
             # Get user info including groups from Keycloak
             try:
                 user_info = kc_auth.userinfo(token=token)
-
-                print("–– – verify_admin.py:50 – user_info:", user_info)
-
             except KeycloakError as kc_error:
                 logger.error(
                     f"Keycloak error while fetching user info: CODE: {kc_error.response_code} "

@@ -45,19 +45,21 @@ async def get_invite_details(
         origin = decoded_token.get("origin")
 
         invite: VirtualLabInvite | ProjectInvite | None = None
-        vlab = None
+        virtual_lab = None
+        project = None
 
         if origin == InviteOrigin.LAB.value:
             invite = await iqr.get_vlab_invite_by_id(invite_id=UUID(invite_id))
 
-            vlab = await get_undeleted_virtual_lab(
+            virtual_lab = await get_undeleted_virtual_lab(
                 db=session,
                 lab_id=UUID(str(invite.virtual_lab_id)),
             )
-        if origin == InviteOrigin.PROJECT.value:
+        elif origin == InviteOrigin.PROJECT.value:
+            # invite = await iqr.get_project_invite_by_id(invite_id=UUID(invite_id))
             invite = await iqr.get_project_invite_by_id(invite_id=UUID(invite_id))
 
-            project, vlab = await pqr.retrieve_one_project_by_id(
+            project, virtual_lab = await pqr.retrieve_one_project_by_id(
                 project_id=invite.project_id
             )
         else:
@@ -76,17 +78,17 @@ async def get_invite_details(
         )
 
         return VliResponse[InvitationResponse].new(
-            message=f"Invite for {origin} accepted successfully",
+            message=f"Invite for {origin} received successfully",
             data=InvitationResponse.model_validate(
                 {
                     "origin": origin,
                     "accepted": invite.accepted,
                     "invite_id": invite_id,
                     "inviter_full_name": inviter_full_name,
-                    "virtual_lab_id": vlab.id,
-                    "virtual_lab_name": vlab.name,
-                    "project_id": project.id,
-                    "project_name": project.name,
+                    "virtual_lab_id": virtual_lab.id,
+                    "virtual_lab_name": virtual_lab.name,
+                    "project_id": project.id if project else None,
+                    "project_name": project.name if project else None,
                 }
             ),
         )
@@ -131,7 +133,7 @@ async def get_invite_details(
             message="Could not attach user to group",
         )
     except Exception as ex:
-        logger.error(f"Error during processing the invitation: ({ex})")
+        logger.exception(f"Error during processing the invitation: ({ex})")
         raise VliError(
             error_code=VliErrorCode.SERVER_ERROR,
             http_status_code=status.INTERNAL_SERVER_ERROR,

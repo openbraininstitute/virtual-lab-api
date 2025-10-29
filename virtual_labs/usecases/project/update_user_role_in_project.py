@@ -86,7 +86,7 @@ async def update_user_role_in_project(
         )
     except KeycloakError as error:
         logger.warning(
-            f"Updating user role/group failed: {loads(error.error_message)["error"]}"
+            f"Updating user role/group failed: {loads(error.error_message)['error']}"
         )
         raise VliError(
             error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,

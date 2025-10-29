@@ -18,6 +18,7 @@ from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.infrastructure.settings import settings
 from virtual_labs.repositories.group_repo import (
     GroupMutationRepository,
+    GroupQueryRepository,
 )
 from virtual_labs.repositories.labs import get_undeleted_virtual_lab
 from virtual_labs.repositories.project_repo import (
@@ -41,6 +42,7 @@ async def create_new_project_use_case(
     pmr = ProjectMutationRepository(session)
     pqr = ProjectQueryRepository(session)
     gmr = GroupMutationRepository()
+    gqr = GroupQueryRepository()
     umr = UserMutationRepository()
 
     project_id: UUID4 = uuid4()
@@ -55,7 +57,10 @@ async def create_new_project_use_case(
         )
 
     try:
-        await get_undeleted_virtual_lab(session, virtual_lab_id)
+        virtual_lab = await get_undeleted_virtual_lab(
+            session,
+            virtual_lab_id,
+        )
         if bool(
             await pqr.check_project_exists_by_name_per_vlab(
                 vlab_id=virtual_lab_id,
@@ -81,7 +86,7 @@ async def create_new_project_use_case(
         )
 
     try:
-        admin_group, member_group = await asyncio.gather(
+        admin_group, member_group, virtual_lab_admin_users = await asyncio.gather(
             gmr.a_create_project_group(
                 virtual_lab_id=virtual_lab_id,
                 project_id=project_id,
@@ -94,6 +99,9 @@ async def create_new_project_use_case(
                 payload=payload,
                 role=UserRoleEnum.member,
             ),
+            gqr.a_retrieve_group_user_ids(
+                group_id=str(virtual_lab.admin_group_id),
+            ),
         )
 
         assert admin_group is not None
@@ -103,6 +111,12 @@ async def create_new_project_use_case(
             user_id=user_id,
             group_id=admin_group["id"],
         )
+        if len(virtual_lab_admin_users) > 0:
+            batch_attach_users = [
+                umr.a_attach_user_to_group(user_id=UUID4(u), group_id=admin_group["id"])
+                for u in virtual_lab_admin_users
+            ]
+            await asyncio.gather(*batch_attach_users)
 
     except AssertionError:
         raise VliError(

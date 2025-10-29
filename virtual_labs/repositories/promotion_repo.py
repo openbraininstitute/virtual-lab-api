@@ -244,9 +244,6 @@ async def list_promotions(
 
     if filters.search:
         search_term = f"%{filters.search}%"
-
-        print("–– – promotion_repo.py:248 – search_term:", search_term)
-
         conditions.append(
             PromotionCode.code.ilike(search_term),
         )

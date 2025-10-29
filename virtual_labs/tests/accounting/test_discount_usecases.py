@@ -26,9 +26,10 @@ async def test_create_virtual_lab_discount() -> None:
         },
     }
 
-    with patch("httpx.AsyncClient") as mock_client, patch(
-        "virtual_labs.infrastructure.kc.auth.get_client_token"
-    ) as mock_token:
+    with (
+        patch("httpx.AsyncClient") as mock_client,
+        patch("virtual_labs.infrastructure.kc.auth.get_client_token") as mock_token,
+    ):
         mock_token.return_value = "test-token"
 
         mock_response = AsyncMock()

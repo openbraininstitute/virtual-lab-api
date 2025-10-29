@@ -1,10 +1,11 @@
 """Initialize db
 
 Revision ID: 49016d5a3d53
-Revises: 
+Revises:
 Create Date: 2024-03-11 14:02:14.137553
 
 """
+
 from typing import Sequence, Union
 
 import sqlalchemy as sa
