@@ -164,9 +164,9 @@ async def created_project(
         headers=headers,
     )
 
-    assert project_response.status_code == HTTPStatus.OK, (
-        f"Failed to create project: {project_response.text}"
-    )
+    assert (
+        project_response.status_code == HTTPStatus.OK
+    ), f"Failed to create project: {project_response.text}"
 
     project_id = project_response.json()["data"]["project"]["id"]
     async with session_context_factory() as session:

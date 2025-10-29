@@ -133,7 +133,8 @@ class SubscriptionRepository:
         user_id: Optional[UUID] = None,
         status: Optional[SubscriptionStatus] = None,
         subscription_type: Literal["free"] = "free",
-    ) -> list[FreeSubscription]: ...
+    ) -> list[FreeSubscription]:
+        ...
 
     @overload
     async def list_subscriptions(
@@ -141,7 +142,8 @@ class SubscriptionRepository:
         user_id: Optional[UUID] = None,
         status: Optional[SubscriptionStatus] = None,
         subscription_type: Literal["paid"] = "paid",
-    ) -> list[PaidSubscription]: ...
+    ) -> list[PaidSubscription]:
+        ...
 
     async def list_subscriptions(
         self,
