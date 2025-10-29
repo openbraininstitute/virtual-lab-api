@@ -111,6 +111,17 @@ async def create_new_project_use_case(
             user_id=user_id,
             group_id=admin_group["id"],
         )
+        # if user is not a virtual lab admin, add them to the virtual lab member group
+        if (
+            virtual_lab_admin_users
+            and len(virtual_lab_admin_users) > 0
+            and str(user_id) not in virtual_lab_admin_users
+        ):
+            await umr.a_attach_user_to_group(
+                user_id=user_id,
+                group_id=str(virtual_lab.member_group_id),
+            )
+        # if there are virtual lab admins, add them to the project admin group
         if len(virtual_lab_admin_users) > 0:
             batch_attach_users = [
                 umr.a_attach_user_to_group(user_id=UUID4(u), group_id=admin_group["id"])

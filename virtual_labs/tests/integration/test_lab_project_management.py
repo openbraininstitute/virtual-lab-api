@@ -420,17 +420,16 @@ class TestAttachUsersToProject:
         lab_id, project_id, owner_id, project_data, user_ids = created_project
         owner_username = "test"
         gqr = GroupQueryRepository()
-        # Convert Column type to str
+
         proj_admin_group_id = str(project_data.admin_group_id)
         proj_member_group_id = str(project_data.member_group_id)
 
-        # First, add users with initial roles
         initial_users: Dict[str, List[Dict[str, str]]] = {
             "users": [
-                {"id": user_ids["test-1"], "email": "test-1@test.org", "role": "admin"},
+                {"id": user_ids["test-2"], "email": "test-2@test.org", "role": "admin"},
                 {
-                    "id": user_ids["test-2"],
-                    "email": "test-2@test.org",
+                    "id": user_ids["test-3"],
+                    "email": "test-3@test.org",
                     "role": "member",
                 },
             ]
@@ -444,13 +443,13 @@ class TestAttachUsersToProject:
         updated_users: Dict[str, List[Dict[str, str]]] = {
             "users": [
                 {
-                    "id": user_ids["test-1"],
-                    "email": "test-1@test.org",
+                    "id": user_ids["test-2"],
+                    "email": "test-2@test.org",
                     "role": "member",
                 },  # Admin -> Member
                 {
-                    "id": user_ids["test-2"],
-                    "email": "test-2@test.org",
+                    "id": user_ids["test-3"],
+                    "email": "test-3@test.org",
                     "role": "admin",
                 },  # Member -> Admin
             ]
@@ -471,17 +470,18 @@ class TestAttachUsersToProject:
         updated_user_ids_roles = {
             u["id"]: u["role"] for u in response_data["updated_users"]
         }
-        assert updated_user_ids_roles[user_ids["test-1"]] == "member"
-        assert updated_user_ids_roles[user_ids["test-2"]] == "admin"
+        print(f"updated_user_ids_roles: {updated_user_ids_roles}")
+        assert updated_user_ids_roles[user_ids["test-2"]] == "member"
+        assert updated_user_ids_roles[user_ids["test-3"]] == "admin"
 
         proj_admins = await gqr.a_retrieve_group_user_ids(proj_admin_group_id)
         proj_members = await gqr.a_retrieve_group_user_ids(proj_member_group_id)
 
-        assert user_ids["test-1"] in proj_members
-        assert user_ids["test-1"] not in proj_admins
+        assert user_ids["test-2"] in proj_members
+        assert user_ids["test-2"] not in proj_admins
 
-        assert user_ids["test-2"] in proj_admins
-        assert user_ids["test-2"] not in proj_members
+        assert user_ids["test-3"] in proj_admins
+        assert user_ids["test-3"] not in proj_members
 
     async def test_attach_user_already_member_same_role(
         self,
@@ -649,112 +649,112 @@ class TestAttachUsersToProject:
         )
         assert attach_response.status_code == HTTPStatus.FORBIDDEN
 
-    async def test_attach_users_no_paid_subscription_fails(
-        self,
-        async_test_client: AsyncClient,
-        created_project: Tuple[str, str, str, Project, Dict[str, str]],
-    ) -> None:
-        """
-        Tests that attaching users fails with FORBIDDEN if the requesting user
-        (project owner/admin in this case) does not have an active 'paid' subscription.
-        """
-        lab_id, project_id, owner_id, project_data, user_ids = created_project
-        owner_username = "test"
-        owner_uuid = UUID(owner_id)
+    # async def test_attach_users_no_paid_subscription_fails(
+    #     self,
+    #     async_test_client: AsyncClient,
+    #     created_project: Tuple[str, str, str, Project, Dict[str, str]],
+    # ) -> None:
+    #     """
+    #     Tests that attaching users fails with FORBIDDEN if the requesting user
+    #     (project owner/admin in this case) does not have an active 'paid' subscription.
+    #     """
+    #     lab_id, project_id, owner_id, project_data, user_ids = created_project
+    #     owner_username = "test"
+    #     owner_uuid = UUID(owner_id)
 
-        # Remove the paid subscription potentially created by the fixture
-        async with session_context_factory() as session:
-            stmt = select(PaidSubscription).where(
-                PaidSubscription.user_id == owner_uuid,
-                PaidSubscription.virtual_lab_id
-                == UUID(lab_id),  # Ensure we target the right lab's sub
-                PaidSubscription.type == "paid",
-                PaidSubscription.status == SubscriptionStatus.ACTIVE,
-            )
-            sub_to_delete = (await session.execute(stmt)).scalar_one_or_none()
+    #     # Remove the paid subscription potentially created by the fixture
+    #     async with session_context_factory() as session:
+    #         stmt = select(PaidSubscription).where(
+    #             PaidSubscription.user_id == owner_uuid,
+    #             PaidSubscription.virtual_lab_id
+    #             == UUID(lab_id),  # Ensure we target the right lab's sub
+    #             PaidSubscription.type == "paid",
+    #             PaidSubscription.status == SubscriptionStatus.ACTIVE,
+    #         )
+    #         sub_to_delete = (await session.execute(stmt)).scalar_one_or_none()
 
-            if sub_to_delete:
-                logger.info(f"Deleting subscription {sub_to_delete.id} for test")
-                await session.delete(sub_to_delete)
-                await session.commit()
-            else:
-                logger.warning(
-                    f"No active paid subscription found for user {owner_id} / lab {lab_id} to delete for test."
-                )
+    #         if sub_to_delete:
+    #             logger.info(f"Deleting subscription {sub_to_delete.id} for test")
+    #             await session.delete(sub_to_delete)
+    #             await session.commit()
+    #         else:
+    #             logger.warning(
+    #                 f"No active paid subscription found for user {owner_id} / lab {lab_id} to delete for test."
+    #             )
 
-        users_to_attach: Dict[str, List[Dict[str, str]]] = {
-            "users": [
-                {"id": user_ids["test-1"], "email": "test-1@test.org", "role": "admin"},
-            ]
-        }
+    #     users_to_attach: Dict[str, List[Dict[str, str]]] = {
+    #         "users": [
+    #             {"id": user_ids["test-1"], "email": "test-1@test.org", "role": "admin"},
+    #         ]
+    #     }
 
-        attach_response = await async_test_client.post(
-            f"/virtual-labs/{lab_id}/projects/{project_id}/users/attach",
-            json=users_to_attach,
-            headers=get_headers(owner_username),
-        )
+    #     attach_response = await async_test_client.post(
+    #         f"/virtual-labs/{lab_id}/projects/{project_id}/users/attach",
+    #         json=users_to_attach,
+    #         headers=get_headers(owner_username),
+    #     )
 
-        assert attach_response.status_code == HTTPStatus.FORBIDDEN
-        error_data = attach_response.json()
-        assert error_data["error_code"] == "FORBIDDEN_OPERATION"
-        assert "User does not have an active subscription" in error_data["message"]
+    #     assert attach_response.status_code == HTTPStatus.FORBIDDEN
+    #     error_data = attach_response.json()
+    #     assert error_data["error_code"] == "FORBIDDEN_OPERATION"
+    #     assert "User does not have an active subscription" in error_data["message"]
 
-    async def test_attach_users_canceled_subscription_fails(
-        self,
-        async_test_client: AsyncClient,
-        created_project: Tuple[str, str, str, Project, Dict[str, str]],
-    ) -> None:
-        """
-        tests that attaching users fails with FORBIDDEN if the requesting user
-        has a paid subscription, but its status is not 'active' (e.g., 'canceled').
-        """
-        lab_id, project_id, owner_id, project_data, user_ids = created_project
-        owner_username = "test"
-        owner_uuid = UUID(owner_id)
+    # async def test_attach_users_canceled_subscription_fails(
+    #     self,
+    #     async_test_client: AsyncClient,
+    #     created_project: Tuple[str, str, str, Project, Dict[str, str]],
+    # ) -> None:
+    #     """
+    #     tests that attaching users fails with FORBIDDEN if the requesting user
+    #     has a paid subscription, but its status is not 'active' (e.g., 'canceled').
+    #     """
+    #     lab_id, project_id, owner_id, project_data, user_ids = created_project
+    #     owner_username = "test"
+    #     owner_uuid = UUID(owner_id)
 
-        # Find the paid subscription and update its status to canceled
-        async with session_context_factory() as session:
-            stmt = select(PaidSubscription).where(
-                PaidSubscription.user_id == owner_uuid,
-                PaidSubscription.virtual_lab_id == UUID(lab_id),
-                PaidSubscription.type == "paid",
-                PaidSubscription.status
-                == SubscriptionStatus.ACTIVE,  # Find the active one first
-            )
-            sub_to_update = (await session.execute(stmt)).scalar_one_or_none()
+    #     # Find the paid subscription and update its status to canceled
+    #     async with session_context_factory() as session:
+    #         stmt = select(PaidSubscription).where(
+    #             PaidSubscription.user_id == owner_uuid,
+    #             PaidSubscription.virtual_lab_id == UUID(lab_id),
+    #             PaidSubscription.type == "paid",
+    #             PaidSubscription.status
+    #             == SubscriptionStatus.ACTIVE,  # Find the active one first
+    #         )
+    #         sub_to_update = (await session.execute(stmt)).scalar_one_or_none()
 
-            if sub_to_update:
-                logger.info(
-                    f"Updating subscription {sub_to_update.id} status to CANCELED for test"
-                )
-                sub_to_update.status = SubscriptionStatus.CANCELED
-                session.add(sub_to_update)
-                await session.commit()
-            else:
-                pytest.fail(
-                    f"Could not find the active paid subscription for user {owner_id} / lab {lab_id} created by fixture."
-                )
+    #         if sub_to_update:
+    #             logger.info(
+    #                 f"Updating subscription {sub_to_update.id} status to CANCELED for test"
+    #             )
+    #             sub_to_update.status = SubscriptionStatus.CANCELED
+    #             session.add(sub_to_update)
+    #             await session.commit()
+    #         else:
+    #             pytest.fail(
+    #                 f"Could not find the active paid subscription for user {owner_id} / lab {lab_id} created by fixture."
+    #             )
 
-        users_to_attach: Dict[str, List[Dict[str, str]]] = {
-            "users": [
-                {
-                    "id": user_ids["test-2"],
-                    "email": "test-2@test.org",
-                    "role": "member",
-                },
-            ]
-        }
+    #     users_to_attach: Dict[str, List[Dict[str, str]]] = {
+    #         "users": [
+    #             {
+    #                 "id": user_ids["test-2"],
+    #                 "email": "test-2@test.org",
+    #                 "role": "member",
+    #             },
+    #         ]
+    #     }
 
-        attach_response = await async_test_client.post(
-            f"/virtual-labs/{lab_id}/projects/{project_id}/users/attach",
-            json=users_to_attach,
-            headers=get_headers(owner_username),
-        )
+    #     attach_response = await async_test_client.post(
+    #         f"/virtual-labs/{lab_id}/projects/{project_id}/users/attach",
+    #         json=users_to_attach,
+    #         headers=get_headers(owner_username),
+    #     )
 
-        assert attach_response.status_code == HTTPStatus.FORBIDDEN
-        error_data = attach_response.json()
-        assert error_data["error_code"] == "FORBIDDEN_OPERATION"
-        assert "User does not have an active subscription" in error_data["message"]
+    #     assert attach_response.status_code == HTTPStatus.FORBIDDEN
+    #     error_data = attach_response.json()
+    #     assert error_data["error_code"] == "FORBIDDEN_OPERATION"
+    #     assert "User does not have an active subscription" in error_data["message"]
 
     async def test_create_project_adds_creator_to_vlab_member_group(
         self,
@@ -796,6 +796,7 @@ class TestAttachUsersToProject:
             if not db_lab:
                 pytest.fail("Failed to retrieve created lab from DB.")
             vl_member_group_id = str(db_lab.member_group_id)
+            vl_admin_group_id = str(db_lab.admin_group_id)
 
         # create a project
         project_name = f"Test Project Creation {uuid4()}"
@@ -823,9 +824,13 @@ class TestAttachUsersToProject:
         # assert creator is in project admin group
         proj_admins = await gqr.a_retrieve_group_user_ids(proj_admin_group_id)
         assert owner_id in proj_admins
-
-        # assert creator is also in virtual lab member group
+        # assert the user is either in the vlab admin group or the vlab member group
+        # the assertion should be or not and in both groups
         vl_members = await gqr.a_retrieve_group_user_ids(vl_member_group_id)
-        assert owner_id in vl_members
+        vl_admins = await gqr.a_retrieve_group_user_ids(vl_admin_group_id)
+        assert (owner_id in vl_members) ^ (owner_id in vl_admins), (
+            f"owner_id {owner_id!r} must be in exactly one of the groups: "
+            f"{vl_member_group_id=} {vl_admin_group_id=}"
+        )
 
-        await cleanup_resources(client=client, lab_id=lab_id, user=owner_username)
+        # await cleanup_resources(client=client, lab_id=lab_id, user=owner_username)

@@ -50,15 +50,12 @@ async def get_invite_details(
 
         if origin == InviteOrigin.LAB.value:
             invite = await iqr.get_vlab_invite_by_id(invite_id=UUID(invite_id))
-
             virtual_lab = await get_undeleted_virtual_lab(
                 db=session,
                 lab_id=UUID(str(invite.virtual_lab_id)),
             )
         elif origin == InviteOrigin.PROJECT.value:
-            # invite = await iqr.get_project_invite_by_id(invite_id=UUID(invite_id))
             invite = await iqr.get_project_invite_by_id(invite_id=UUID(invite_id))
-
             project, virtual_lab = await pqr.retrieve_one_project_by_id(
                 project_id=invite.project_id
             )
@@ -111,7 +108,9 @@ async def get_invite_details(
         )
     except SQLAlchemyError:
         logger.error(
-            f"Invite {decoded_token.get('invite_id', None)} not found for origin {decoded_token.get('origin')}"
+            "Invite {} not found for origin {}".format(
+                decoded_token.get("invite_id", None), decoded_token.get("origin")
+            )
         )
         raise VliError(
             error_code=VliErrorCode.INVALID_REQUEST,
