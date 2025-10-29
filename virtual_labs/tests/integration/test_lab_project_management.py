@@ -164,9 +164,9 @@ async def created_project(
         headers=headers,
     )
 
-    assert (
-        project_response.status_code == HTTPStatus.OK
-    ), f"Failed to create project: {project_response.text}"
+    assert project_response.status_code == HTTPStatus.OK, (
+        f"Failed to create project: {project_response.text}"
+    )
 
     project_id = project_response.json()["data"]["project"]["id"]
     async with session_context_factory() as session:
@@ -388,6 +388,8 @@ class TestAttachUsersToProject:
         response_data = attach_response.json()["data"]
 
         # Assert response structure
+        # test-1 is already a project admin (added during project creation as VL admin)
+        # so only test-2 gets added as member
         assert len(response_data["added_users"]) == 1
         assert len(response_data["updated_users"]) == 0
         assert len(response_data["failed_operations"]) == 0
@@ -396,7 +398,7 @@ class TestAttachUsersToProject:
         added_user_ids_roles = {
             u["id"]: u["role"] for u in response_data["added_users"]
         }
-        assert added_user_ids_roles[user_ids["test-1"]] == "admin"
+        # Only test-2 should be in added_users as member
         assert added_user_ids_roles[user_ids["test-2"]] == "member"
 
         proj_admins = await gqr.a_retrieve_group_user_ids(proj_admin_group_id)
