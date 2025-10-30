@@ -43,7 +43,7 @@ services:
     depends_on:
       keycloak-db:
         condition: service_healthy
-    command: 
+    command:
       - start-dev
       - --http-port=9090
       - --hostname=keycloak
@@ -92,7 +92,6 @@ services:
       MP_SMTP_AUTH_ACCEPT_ANY: 1
       MP_SMTP_AUTH_ALLOW_INSECURE: 1
 
-
   stripe-cli:
     image: stripe/stripe-cli:latest
     container_name: stripe
@@ -101,8 +100,8 @@ services:
       STRIPE_API_KEY: ${STRIPE_SECRET_KEY}
       STRIPE_DEVICE_NAME: ${STRIPE_DEVICE_NAME}
     entrypoint:
-      - '/bin/sh'
-      - '-c'
+      - "/bin/sh"
+      - "-c"
       - stripe listen --forward-to http://host.docker.internal:8000/payments/webhook
     network_mode: host
     extra_hosts:
@@ -117,7 +116,7 @@ services:
     ports:
       - "6379:6379"
     healthcheck:
-      test: [ "CMD", "redis-cli","ping" ]
+      test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       retries: 5
       start_period: 5s
