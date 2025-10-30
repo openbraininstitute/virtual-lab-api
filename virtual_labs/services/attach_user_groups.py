@@ -167,6 +167,7 @@ async def manage_user_groups(
         )
         if is_virtual_lab_admin:
             # if it's virtual lab admin then no change of role should be done
+            # this is priority, as in virtual lab level only have administrators (no members)
             continue
 
         try:

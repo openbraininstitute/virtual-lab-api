@@ -1,3 +1,4 @@
+import asyncio
 from http import HTTPStatus
 from json import loads
 from uuid import UUID
@@ -28,24 +29,32 @@ async def change_user_role_for_lab(
     new_role: UserRoleEnum,
     db: AsyncSession,
 ) -> LabResponse[VirtualLabUser]:
-    user_mutation_repo = UserMutationRepository()
-    user_query_repo = UserQueryRepository()
-    group_repo = GroupQueryRepository()
+    umr = UserMutationRepository()
+    uqr = UserQueryRepository()
+    gqr = GroupQueryRepository()
 
     try:
-        lab = await lab_repository.get_undeleted_virtual_lab(db, lab_id)
-        user = user_query_repo.retrieve_user_from_kc(str(user_id))
-        if not is_user_in_lab(UUID(user.id), lab):
-            logger.debug(
-                f"Cannot change role of user {user.id} because they dont belong in lab {lab.name}"
+        virtual_lab = await lab_repository.get_undeleted_virtual_lab(db, lab_id)
+        user = await uqr.a_retrieve_user_from_kc(str(user_id))
+
+        if virtual_lab.owner_id == user_id:
+            raise VliError(
+                message="Cannot change role of owner of the virtual lab",
+                error_code=VliErrorCode.ENTITY_NOT_FOUND,
+                http_status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
             )
+
+        if not is_user_in_lab(UUID(user.id), virtual_lab):
             raise VliError(
                 message="Cannot change role of user that does not belong in lab",
                 error_code=VliErrorCode.ENTITY_NOT_FOUND,
                 http_status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
             )
 
-        admins = group_repo.retrieve_group_users(str(lab.admin_group_id))
+        admins = await gqr.a_retrieve_group_users(
+            str(virtual_lab.admin_group_id),
+        )
+
         if (
             len(admins) == 1
             and admins[0].id == str(user_id)
@@ -58,13 +67,13 @@ async def change_user_role_for_lab(
                 details="Lab needs to have at least 1 admin.",
             )
 
-        new_group_id = (
-            lab.admin_group_id
+        attach_group_id, detach_group_id = (
+            (virtual_lab.admin_group_id, virtual_lab.member_group_id)
             if new_role.value == UserRoleEnum.admin.value
-            else lab.member_group_id
+            else (virtual_lab.member_group_id, virtual_lab.admin_group_id)
         )
 
-        if user_query_repo.is_user_in_group(user_id, str(new_group_id)):
+        if uqr.is_user_in_group(user_id, str(attach_group_id)):
             # User already has `new_role`. Nothing else to do
             return LabResponse[VirtualLabUser](
                 message="User already has this role",
@@ -75,18 +84,17 @@ async def change_user_role_for_lab(
                 ),
             )
 
-        old_group_id = (
-            lab.member_group_id
-            if new_role.value == UserRoleEnum.admin.value
-            else lab.admin_group_id
+        await asyncio.gather(
+            umr.a_detach_user_from_group(
+                user_id=user_id,
+                group_id=str(detach_group_id),
+            ),
+            umr.a_attach_user_to_group(
+                user_id=user_id,
+                group_id=str(attach_group_id),
+            ),
         )
 
-        user_mutation_repo.detach_user_from_group(
-            user_id=user_id, group_id=str(old_group_id)
-        )
-        user_mutation_repo.attach_user_to_group(
-            user_id=user_id, group_id=str(new_group_id)
-        )
         return LabResponse[VirtualLabUser](
             message="Successfully changed user role",
             data=VirtualLabUser(
@@ -111,7 +119,7 @@ async def change_user_role_for_lab(
             message=error.message,
             details=error.detail,
         )
-    # TODO: The Keycloak error shoulf be replaced by IdentityError
+    # TODO: The Keycloak error should be replaced by IdentityError
     except KeycloakError as error:
         logger.warning(
             f"Removing user {user_id} from lab {lab_id}, groups failed: {loads(error.error_message)['error']}"

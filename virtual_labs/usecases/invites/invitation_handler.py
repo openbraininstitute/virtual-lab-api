@@ -81,16 +81,12 @@ async def invitation_handler(
             if virtual_lab.owner_id == user_id:
                 raise UserMatch
 
-            attach_group_id = (
-                virtual_lab.admin_group_id
+            attach_group_id, detach_group_id = (
+                (virtual_lab.admin_group_id, virtual_lab.member_group_id)
                 if vlab_invite.role == UserRoleEnum.admin.value
-                else virtual_lab.member_group_id
+                else (virtual_lab.member_group_id, virtual_lab.admin_group_id)
             )
-            detach_group_id = (
-                virtual_lab.member_group_id
-                if attach_group_id == virtual_lab.admin_group_id
-                else virtual_lab.admin_group_id
-            )
+
             await asyncio.gather(
                 umr.a_detach_user_from_group(
                     user_id=UUID(user.id),
@@ -150,16 +146,12 @@ async def invitation_handler(
             virtual_lab_member_group_id = virtual_lab.member_group_id
             virtual_lab_admin_group_id = virtual_lab.admin_group_id
 
-            attach_group_id = (
-                project.admin_group_id
+            attach_group_id, detach_group_id = (
+                (project.admin_group_id, project.member_group_id)
                 if project_invite.role == UserRoleEnum.admin.value
-                else project.member_group_id
+                else (project.member_group_id, project.admin_group_id)
             )
-            detach_group_id = (
-                project.member_group_id
-                if attach_group_id == project.admin_group_id
-                else project.admin_group_id
-            )
+
             # detach the user from other groups
             # and attach it to the new group based on the role
             _, _, virtual_lab_admin_users = await asyncio.gather(
