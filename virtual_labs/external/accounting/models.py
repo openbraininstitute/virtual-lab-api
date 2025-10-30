@@ -9,9 +9,9 @@ from pydantic import (
     AwareDatetime,
     BaseModel,
     HttpUrl,
+    ValidationInfo,
     field_validator,
     model_validator,
-    ValidationInfo,
 )
 
 T = TypeVar("T")
@@ -94,6 +94,7 @@ class JobSubtype(Enum):
     ML_LLM = "ml-llm"
     ML_RAG = "ml-rag"
     ML_RETRIEVAL = "ml-retrieval"
+    NEURON_MESH_SKELETONIZATION = "neuron-mesh-skeletonization"
     NOTEBOOK = "notebook"
     SINGLE_CELL_BUILD = "single-cell-build"
     SINGLE_CELL_SIM = "single-cell-sim"
