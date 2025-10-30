@@ -39,11 +39,11 @@ async def invitation_handler(
     auth: Tuple[AuthUser, str],
 ) -> Response | VliError:
     imr = InviteMutationRepository(session)
+    pqr = ProjectQueryRepository(session)
     iqr = InviteQueryRepository(session)
     umr = UserMutationRepository()
-    user_query_repo = UserQueryRepository()
-    pqr = ProjectQueryRepository(session)
     gqr = GroupQueryRepository()
+    uqr = UserQueryRepository()
 
     try:
         decoded_token = get_invite_details_from_token(
@@ -54,6 +54,11 @@ async def invitation_handler(
         origin = decoded_token.get("origin")
         virtual_lab_id = None
         project_id = None
+
+        user = await uqr.a_retrieve_user_from_kc(
+            user_id=str(user_id),
+        )
+        assert user is not None
 
         if origin == InviteOrigin.LAB.value:
             vlab_invite = await iqr.get_vlab_invite_by_id(invite_id=UUID(invite_id))
@@ -76,37 +81,48 @@ async def invitation_handler(
             if virtual_lab.owner_id == user_id:
                 raise UserMatch
 
-            user = await user_query_repo.a_retrieve_user_from_kc(
-                user_id=str(user_id),
-            )
-            assert user is not None
-
-            group_id = (
+            attach_group_id = (
                 virtual_lab.admin_group_id
                 if vlab_invite.role == UserRoleEnum.admin.value
                 else virtual_lab.member_group_id
             )
-            remaining_group_id = (
+            detach_group_id = (
                 virtual_lab.member_group_id
-                if group_id == virtual_lab.admin_group_id
+                if attach_group_id == virtual_lab.admin_group_id
                 else virtual_lab.admin_group_id
             )
             await asyncio.gather(
                 umr.a_detach_user_from_group(
                     user_id=UUID(user.id),
-                    group_id=str(remaining_group_id),
+                    group_id=str(detach_group_id),
                 ),
                 umr.a_attach_user_to_group(
                     user_id=UUID(user.id),
-                    group_id=str(group_id),
+                    group_id=str(attach_group_id),
                 ),
             )
+
+            # if the user invited as admin
+            # then add him to all virtual lab's projects admin group
+            if vlab_invite.role == UserRoleEnum.admin.value:
+                result = await pqr.retrieve_virtual_lab_projects(
+                    virtual_lab_id=virtual_lab.id,
+                )
+                batch_attach_users = [
+                    umr.a_attach_user_to_group(
+                        user_id=user_id, group_id=proj.admin_group_id
+                    )
+                    for proj in result
+                ]
+                await asyncio.gather(*batch_attach_users)
+
             await imr.update_lab_invite(
                 invite_id=UUID(str(vlab_invite.id)),
                 user_id=user_id,
                 accepted=True,
             )
             await session.refresh(virtual_lab)
+
             virtual_lab_id = virtual_lab.id
 
         elif origin == InviteOrigin.PROJECT.value:
@@ -131,22 +147,17 @@ async def invitation_handler(
             if project.owner_id == user_id or virtual_lab.owner_id == user_id:
                 raise UserMatch
 
-            user = await user_query_repo.a_retrieve_user_from_kc(
-                user_id=str(user_id),
-            )
-            assert user is not None
-
             virtual_lab_member_group_id = virtual_lab.member_group_id
             virtual_lab_admin_group_id = virtual_lab.admin_group_id
 
-            group_id = (
+            attach_group_id = (
                 project.admin_group_id
                 if project_invite.role == UserRoleEnum.admin.value
                 else project.member_group_id
             )
-            remaining_group_id = (
+            detach_group_id = (
                 project.member_group_id
-                if group_id == project.admin_group_id
+                if attach_group_id == project.admin_group_id
                 else project.admin_group_id
             )
             # detach the user from other groups
@@ -154,13 +165,16 @@ async def invitation_handler(
             _, _, virtual_lab_admin_users = await asyncio.gather(
                 umr.a_detach_user_from_group(
                     user_id=UUID(user.id),
-                    group_id=remaining_group_id,
+                    group_id=detach_group_id,
                 ),
                 umr.a_attach_user_to_group(
                     user_id=UUID(user.id),
-                    group_id=group_id,
+                    group_id=attach_group_id,
                 ),
-                gqr.a_retrieve_group_user_ids(virtual_lab_admin_group_id),
+                # retrieve the virtual lab admin group users
+                gqr.a_retrieve_group_user_ids(
+                    group_id=virtual_lab_admin_group_id,
+                ),
             )
             # if the user is not an admin of virtual lab
             # added it to the virtual lab member group
@@ -174,8 +188,10 @@ async def invitation_handler(
                 invite_id=project_invite.id,
                 properties={"accepted": True, "user_id": user_id},
             )
+
             await session.refresh(project)
             await session.refresh(virtual_lab)
+
             virtual_lab_id = virtual_lab.id
             project_id = project.id
 

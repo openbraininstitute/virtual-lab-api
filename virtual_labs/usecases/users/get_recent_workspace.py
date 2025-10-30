@@ -41,11 +41,15 @@ async def get_recent_workspace(
     """
     try:
         user_id = get_user_id_from_auth(auth)
-        preference_repo = UserPreferenceQueryRepository(session)
-        group_repo = GroupQueryRepository()
+        prefr = UserPreferenceQueryRepository(session)
+        gqr = GroupQueryRepository()
 
-        preference = await preference_repo.get_user_preference(user_id)
-        recent_workspace_data = await preference_repo.get_user_recent_workspace(user_id)
+        preference = await prefr.get_user_preference(
+            user_id,
+        )
+        recent_workspace_data = await prefr.get_user_recent_workspace(
+            user_id,
+        )
 
         workspace = None
         updated_at = None
@@ -55,12 +59,16 @@ async def get_recent_workspace(
                 user_id,
                 recent_workspace_data.virtual_lab_id,
                 recent_workspace_data.project_id,
-                group_repo,
+                gqr,
             )
             updated_at = preference.updated_at if preference else None
 
         if not workspace:
-            workspace = await _find_default_workspace(session, user_id, group_repo)
+            workspace = await _find_default_workspace(
+                session,
+                user_id,
+                gqr,
+            )
 
         virtual_lab = None
         project = None
@@ -76,8 +84,13 @@ async def get_recent_workspace(
                 select(Project).where(Project.id == workspace.project_id)
             )
             proj_obj = proj_result.scalar_one_or_none()
-            if proj_obj:
-                project = ProjectVlOut.model_validate(proj_obj)
+            if proj_obj is not None:
+                admins = await gqr.a_retrieve_group_user_ids(
+                    group_id=proj_obj.admin_group_id
+                )
+                project = ProjectVlOut.model_validate(
+                    {**proj_obj.__dict__, "admins": admins}
+                )
 
         recent_workspace = RecentWorkspaceOutWithDetails(
             user_id=user_id,

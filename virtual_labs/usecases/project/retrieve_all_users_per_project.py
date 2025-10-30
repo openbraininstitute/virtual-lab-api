@@ -43,11 +43,15 @@ async def retrieve_all_users_per_project_use_case(
     users = {}
 
     try:
-        admin_users_task = gqr.a_retrieve_group_users(str(project.admin_group_id))
-        member_users_task = gqr.a_retrieve_group_users(str(project.member_group_id))
         admin_users_raw, member_users_raw = await asyncio.gather(
-            admin_users_task, member_users_task
+            gqr.a_retrieve_group_users(
+                str(project.admin_group_id),
+            ),
+            gqr.a_retrieve_group_users(
+                str(project.member_group_id),
+            ),
         )
+
         for admin in admin_users_raw:
             users[admin.id] = UserWithInviteStatus(
                 **admin.model_dump(),

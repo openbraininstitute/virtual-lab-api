@@ -44,20 +44,18 @@ async def set_recent_workspace(
     """
     try:
         user_id = get_user_id_from_auth(auth)
-        preference_repo = UserPreferenceMutationRepository(session)
-        group_repo = GroupQueryRepository()
+        prefr = UserPreferenceMutationRepository(session)
+        gqr = GroupQueryRepository()
 
         await _validate_workspace_access(
             session,
             user_id,
             request.workspace.virtual_lab_id,
             request.workspace.project_id,
-            group_repo,
+            gqr,
         )
 
-        preference = await preference_repo.set_recent_workspace(
-            user_id, request.workspace
-        )
+        preference = await prefr.set_recent_workspace(user_id, request.workspace)
 
         virtual_lab = None
         project = None
@@ -73,8 +71,14 @@ async def set_recent_workspace(
             select(Project).where(Project.id == request.workspace.project_id)
         )
         proj_obj = proj_result.scalar_one_or_none()
-        if proj_obj:
-            project = ProjectVlOut.model_validate(proj_obj)
+
+        if proj_obj is not None:
+            admins = await gqr.a_retrieve_group_user_ids(
+                group_id=proj_obj.admin_group_id
+            )
+            project = ProjectVlOut.model_validate(
+                {**proj_obj.__dict__, "admins": admins}
+            )
 
         recent_workspace = RecentWorkspaceOutWithDetails(
             user_id=user_id,

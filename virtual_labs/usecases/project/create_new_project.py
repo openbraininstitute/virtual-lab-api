@@ -111,7 +111,7 @@ async def create_new_project_use_case(
             user_id=user_id,
             group_id=admin_group["id"],
         )
-        # if user is not a virtual lab admin, add them to the virtual lab member group
+        # if user is not a virtual lab admin, add him to the virtual lab member group
         if (
             virtual_lab_admin_users
             and len(virtual_lab_admin_users) > 0
@@ -164,8 +164,8 @@ async def create_new_project_use_case(
                 http_status_code=status.BAD_GATEWAY,
                 message="Project account creation failed",
             )
-    total_added_users = 0
 
+    project_admins = await gqr.a_retrieve_group_user_ids(group_id=admin_group["id"])
     try:
         project = await pmr.create_new_project(
             id=project_id,
@@ -180,15 +180,10 @@ async def create_new_project_use_case(
         balance_added = False
         if user_projects_count == 0 and settings.ACCOUNTING_BASE_URL is not None:
             try:
-                logger.info(
-                    f"Transferring all credits to first project {project_id} for user {user_id}"
-                )
-
                 vlab_balance_response = await accounting_cases.get_virtual_lab_balance(
                     virtual_lab_id=virtual_lab_id, include_projects=False
                 )
                 current_balance = float(vlab_balance_response.data.balance)
-
                 if current_balance > 0:
                     await accounting_cases.assign_project_budget(
                         virtual_lab_id=virtual_lab_id,
@@ -198,10 +193,6 @@ async def create_new_project_use_case(
                     balance_added = True
                     logger.info(
                         f"Successfully transferred {current_balance} credits to project {project_id}"
-                    )
-                else:
-                    logger.info(
-                        f"No credits to transfer for project {project_id} (balance: {current_balance})"
                     )
 
             except Exception as ex:
@@ -231,8 +222,13 @@ async def create_new_project_use_case(
             message="Error during creating a new project",
         )
     else:
-        project_out = ProjectVlOut.model_validate(project)
-        project_out.user_count = total_added_users + 1
+        project_out = ProjectVlOut.model_validate(
+            {
+                **project.__dict__,
+                "user_count": len(project_admins),
+                "admins": project_admins,
+            }
+        )
         return VliResponse.new(
             message="Project created successfully",
             data={
