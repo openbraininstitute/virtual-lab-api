@@ -367,7 +367,7 @@ async def retrieve_project_users(
     summary="Invite user to a project",
     response_model=VliAppResponse[InvitationResponse],
 )
-@verify_vlab_write
+@verify_vlab_or_project_write
 async def invite_user_to_project(
     virtual_lab_id: UUID4,
     project_id: UUID4,
