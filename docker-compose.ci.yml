@@ -30,7 +30,7 @@ services:
       - ls
 
   keycloak:
-    image: quay.io/keycloak/keycloak:26.3
+    image: quay.io/keycloak/keycloak:24.0
     container_name: keycloak
     environment:
       KEYCLOAK_ADMIN: admin
@@ -47,11 +47,8 @@ services:
       - start-dev
       - --http-port=9090
       - --hostname=keycloak
-      - --hostname-admin=localhost
-      - --hostname-strict=false
-      - --http-enabled=true
-      - --hostname=http://keycloak:9090
-      - --hostname-admin=http://localhost:9090
+      - --hostname-port=9090
+      - --hostname-strict-backchannel=true
       - --import-realm
     ports:
       - "9090:9090"

@@ -29,7 +29,7 @@ async def get_project_stats(
                 http_status_code=HTTPStatus.NOT_FOUND,
             ) from error
 
-        stats = await pqr.get_project_stats(project_id)
+        stats = await pqr.retrieve_project_stats(project_id)
 
         admin_users, member_users = await asyncio.gather(
             gqr.a_retrieve_group_users(group_id=str(project.admin_group_id)),

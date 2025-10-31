@@ -96,6 +96,7 @@ async def create_mock_lab_with_project(
         "description": "Test",
         "reference_email": "user@test.org",
         "entity": "EPFL, Switzerland",
+        "email_status": "verified",
     }
     headers = get_headers(owner_username)
     lab_response = await client.post(
@@ -131,6 +132,22 @@ def get_invite_token_from_email(recipient_email: str) -> str:
 
     encoded_invite_token = get_invite_token_from_email_body(email_body)
     return encoded_invite_token
+
+
+async def cleanup_all_user_labs(client: AsyncClient, username: str = "test") -> None:
+    """cleanup all virtual labs owned by a specific user."""
+    async with session_context_factory() as session:
+        stmt = select(VirtualLab.id).filter(
+            VirtualLab.owner_id
+            == await get_user_id_from_test_auth(f"Bearer {auth(username)}")
+        )
+        lab_ids = (await session.execute(statement=stmt)).scalars().all()
+
+    for lab_id in lab_ids:
+        try:
+            await cleanup_resources(client=client, lab_id=str(lab_id), user=username)
+        except Exception as e:
+            logger.debug(f"Error cleaning up lab {lab_id}: {e}")
 
 
 async def cleanup_resources(

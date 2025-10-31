@@ -51,9 +51,10 @@ async def test_get_virtual_lab_reports() -> None:
         },
     }
 
-    with patch("httpx.AsyncClient") as mock_client, patch(
-        "virtual_labs.infrastructure.kc.auth.get_client_token"
-    ) as mock_token:
+    with (
+        patch("httpx.AsyncClient") as mock_client,
+        patch("virtual_labs.infrastructure.kc.auth.get_client_token") as mock_token,
+    ):
         mock_token.return_value = "test-token"
 
         mock_response = AsyncMock()
@@ -109,9 +110,10 @@ async def test_get_project_reports() -> None:
         },
     }
 
-    with patch("httpx.AsyncClient") as mock_client, patch(
-        "virtual_labs.infrastructure.kc.auth.get_client_token"
-    ) as mock_token:
+    with (
+        patch("httpx.AsyncClient") as mock_client,
+        patch("virtual_labs.infrastructure.kc.auth.get_client_token") as mock_token,
+    ):
         mock_token.return_value = "test-token"
 
         mock_response = AsyncMock()

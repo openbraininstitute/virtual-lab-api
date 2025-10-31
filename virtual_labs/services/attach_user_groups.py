@@ -33,6 +33,7 @@ async def get_project_and_vl_groups(
     str,
     Set[str] | None,
     Set[str] | None,
+    list[str] | None,
 ]:
     """
     Get project and virtual lab groups and validate users are part of the virtual lab
@@ -59,7 +60,7 @@ async def get_project_and_vl_groups(
             unique_users_map[user_in.id] = user_in
 
     if not unique_users_map:
-        return unique_users_map, "", "", None, None
+        return unique_users_map, "", "", None, None, None
 
     # Get Virtual Lab group IDs
     vl_admin_group_id = str(virtual_lab.admin_group_id)
@@ -109,6 +110,7 @@ async def get_project_and_vl_groups(
         project_member_group_id,
         existing_proj_admin_ids,
         existing_proj_member_ids,
+        vl_admin_ids_list,
     )
 
 
@@ -119,6 +121,7 @@ async def manage_user_groups(
     existing_proj_admin_ids: Set[str] | None,
     existing_proj_member_ids: Set[str] | None,
     project_id: UUID4,
+    vl_admin_ids_list: list[str] | None,
 ) -> Tuple[
     List[AddUserProjectDetails],
     List[AddUserProjectDetails],
@@ -159,6 +162,14 @@ async def manage_user_groups(
 
         is_currently_admin = user_id_str in admin_ids
         is_currently_member = user_id_str in member_ids
+        is_virtual_lab_admin = (
+            user_id_str in vl_admin_ids_list if vl_admin_ids_list else False
+        )
+        if is_virtual_lab_admin:
+            # if it's virtual lab admin then no change of role should be done
+            # this is priority, as in virtual lab level only have administrators (no members)
+            continue
+
         try:
             if is_currently_admin:
                 if requested_role == UserRoleEnum.admin:
@@ -168,7 +179,9 @@ async def manage_user_groups(
                     continue
                 elif requested_role == UserRoleEnum.member:
                     logger.info(
-                        f"Changing role for user {user_id_str} from project admin to member in project {project_id}."
+                        "Changing role for user {} from project admin to member in project {}.".format(
+                            user_id_str, project_id
+                        )
                     )
                     await asyncio.gather(
                         umr.a_detach_user_from_group(

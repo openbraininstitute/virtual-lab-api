@@ -119,7 +119,7 @@ async def test_deleting_labs_deletes_all_projects_only_in_that_lab(
     assert count_before_deleting >= 2
 
     delete_response = await async_test_client.delete(
-        f"/virtual-labs/{lab_to_delete["id"]}", headers=get_headers()
+        f"/virtual-labs/{lab_to_delete['id']}", headers=get_headers()
     )
     assert delete_response.status_code == HTTPStatus.OK
 

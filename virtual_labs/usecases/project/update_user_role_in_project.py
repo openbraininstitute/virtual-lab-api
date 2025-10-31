@@ -1,3 +1,4 @@
+import asyncio
 from http import HTTPStatus as status
 from json import loads
 from typing import Tuple
@@ -49,6 +50,13 @@ async def update_user_role_in_project(
             project_id=project_id,
         )
 
+        if user_id == project.owner_id:
+            raise VliError(
+                error_code=VliErrorCode.NOT_ALLOWED_OP,
+                http_status_code=status.FORBIDDEN,
+                message="Update project owner role is not allowed",
+            )
+
         if not uqr.is_user_in_group(
             user_id=user_id,
             group_id=str(project.admin_group_id),
@@ -58,26 +66,27 @@ async def update_user_role_in_project(
         ):
             raise UserNotInList
 
-        new_group_id = (
-            project.admin_group_id
+        attach_group_id, detach_group_id = (
+            (project.admin_group_id, project.member_group_id)
             if new_role.value == UserRoleEnum.admin.value
-            else project.member_group_id
-        )
-        old_group_id = (
-            project.member_group_id
-            if new_role.value == UserRoleEnum.admin.value
-            else project.admin_group_id
+            else (project.member_group_id, project.admin_group_id)
         )
 
-        if uqr.is_user_in_group(user_id=user_id, group_id=str(new_group_id)):
+        if uqr.is_user_in_group(user_id=user_id, group_id=str(attach_group_id)):
             return VliResponse.new(
                 http_status_code=status.OK,
                 message="User already in this group",
             )
 
-        umr.detach_user_from_group(user_id=user_id, group_id=str(old_group_id))
-        umr.attach_user_to_group(user_id=user_id, group_id=str(new_group_id))
+        await asyncio.gather(
+            umr.a_detach_user_from_group(
+                user_id=user_id, group_id=str(detach_group_id)
+            ),
+            umr.a_attach_user_to_group(user_id=user_id, group_id=str(attach_group_id)),
+        )
 
+    except VliError:
+        raise
     except SQLAlchemyError:
         raise VliError(
             error_code=VliErrorCode.DATABASE_ERROR,
@@ -86,7 +95,7 @@ async def update_user_role_in_project(
         )
     except KeycloakError as error:
         logger.warning(
-            f"Updating user role/group failed: {loads(error.error_message)["error"]}"
+            f"Updating user role/group failed: {loads(error.error_message)['error']}"
         )
         raise VliError(
             error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
