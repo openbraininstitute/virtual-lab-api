@@ -10,7 +10,6 @@ from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.domain.common import PageParams
 from virtual_labs.domain.project import (
-    Project,
     ProjectsWithWorkspaceResponse,
     ProjectVlOut,
 )
@@ -26,9 +25,9 @@ from virtual_labs.shared.utils.auth import get_user_id_from_auth
 async def retrieve_all_user_projects_use_case(
     session: AsyncSession, auth: Tuple[AuthUser, str], pagination: PageParams
 ) -> Response:
+    prefr = UserPreferenceQueryRepository(session)
     pr = ProjectQueryRepository(session)
     gqr = GroupQueryRepository()
-    preference_repo = UserPreferenceQueryRepository(session)
 
     user_id = get_user_id_from_auth(auth)
 
@@ -44,15 +43,17 @@ async def retrieve_all_user_projects_use_case(
         projects = [
             ProjectVlOut.model_validate(
                 {
-                    **Project(**p.__dict__).model_dump(),
-                    "virtual_lab_id": v.id,
-                    "user_count": 0,  # Default value since we don't have this info
+                    **p.__dict__,
+                    "user_count": 0,
+                    "admins": await gqr.a_retrieve_group_user_ids(
+                        group_id=p.admin_group_id
+                    ),
                 }
             )
-            for p, v in results.rows
+            for p, _ in results.rows
         ]
 
-        recent_workspace = await preference_repo.get_user_recent_workspace(user_id)
+        recent_workspace = await prefr.get_user_recent_workspace(user_id)
     except SQLAlchemyError as err:
         print("error", err)
         raise VliError(

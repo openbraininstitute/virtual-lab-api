@@ -12,6 +12,8 @@ from sqlalchemy import delete
 
 from virtual_labs.core.types import UserRoleEnum
 from virtual_labs.infrastructure.db.models import (
+    Project,
+    ProjectInvite,
     VirtualLab,
     VirtualLabInvite,
 )
@@ -19,18 +21,20 @@ from virtual_labs.infrastructure.email.email_utils import InviteOrigin
 from virtual_labs.infrastructure.settings import settings
 from virtual_labs.repositories.group_repo import GroupQueryRepository
 from virtual_labs.tests.utils import (
+    cleanup_all_user_labs,
     cleanup_resources,
     create_mock_lab,
+    create_mock_lab_with_project,
     get_headers,
     get_invite_token_from_email,
     session_context_factory,
 )
 
-# Mark all tests in this module as async
+# mark all tests in this module as async
 pytestmark = pytest.mark.asyncio
 
 
-# Helper to generate invite tokens manually
+# helper to generate invite tokens manually
 def generate_test_invite_token(
     invite_id: UUID,
     origin: InviteOrigin = InviteOrigin.LAB,
@@ -54,7 +58,7 @@ def generate_test_invite_token(
     return encoded_jwt
 
 
-# Helper to check Keycloak group membership
+# helper to check Keycloak group membership
 async def check_user_group_membership(
     user_id: str, group_id: str, should_be_member: bool
 ) -> None:
@@ -70,7 +74,7 @@ async def check_user_group_membership(
         )
 
 
-# Main setup fixture for lab creation and user invites
+# main setup fixture for lab creation and user invites
 @pytest_asyncio.fixture
 async def setup_lab_and_invite(
     async_test_client: AsyncClient, test_user_ids: Dict[str, str]
@@ -81,46 +85,52 @@ async def setup_lab_and_invite(
     Sets up a Virtual Lab, invites a user, and yields necessary info.
     Cleans up resources afterwards.
     """
-    lab_response = await create_mock_lab(async_test_client, owner_username="test")
-    lab_id_str = lab_response.json()["data"]["virtual_lab"]["id"]
-    lab_id_uuid = UUID(lab_id_str)
+    # Pre-cleanup: Remove any stale labs from previous failed test runs
+    await cleanup_all_user_labs(client=async_test_client, username="test")
 
-    invitee_email = "test-2@test.com"
-    invitee_role = UserRoleEnum.admin
+    lab_id_str: str = ""
+    try:
+        lab_response = await create_mock_lab(async_test_client, owner_username="test")
+        lab_id_str = lab_response.json()["data"]["virtual_lab"]["id"]
+        lab_id_uuid = UUID(lab_id_str)
 
-    headers = get_headers("test")
+        invitee_email = "test-2@test.com"
+        invitee_role = UserRoleEnum.admin
 
-    db_lab = None
+        headers = get_headers("test")
 
-    async with session_context_factory() as session:
-        db_lab = await session.get(VirtualLab, lab_id_uuid)
-        if not db_lab:
-            pytest.fail(f"Failed to retrieve created lab {lab_id_uuid} from DB.")
+        db_lab = None
 
-    # Invite the user
-    invite_payload = {"email": invitee_email, "role": invitee_role.value}
-    invite_response = await async_test_client.post(
-        f"/virtual-labs/{lab_id_str}/invites", headers=headers, json=invite_payload
-    )
-    assert invite_response.status_code == HTTPStatus.OK
-    invite_id_str = invite_response.json()["data"]["invite_id"]
-    invite_id_uuid = UUID(invite_id_str)
+        async with session_context_factory() as session:
+            db_lab = await session.get(VirtualLab, lab_id_uuid)
+            if not db_lab:
+                pytest.fail(f"Failed to retrieve created lab {lab_id_uuid} from DB.")
 
-    await asyncio.sleep(1)
-    invite_token = get_invite_token_from_email(recipient_email=invitee_email)
-    assert invite_token is not None
+        # Invite the user
+        invite_payload = {"email": invitee_email, "role": invitee_role.value}
+        invite_response = await async_test_client.post(
+            f"/virtual-labs/{lab_id_str}/invites", headers=headers, json=invite_payload
+        )
+        assert invite_response.status_code == HTTPStatus.OK
+        invite_id_str = invite_response.json()["data"]["id"]
+        invite_id_uuid = UUID(invite_id_str)
 
-    assert db_lab is not None
-    yield (
-        async_test_client,
-        lab_id_str,
-        db_lab,
-        test_user_ids,
-        invite_token,
-        invite_id_uuid,
-    )
+        await asyncio.sleep(1)
+        invite_token = get_invite_token_from_email(recipient_email=invitee_email)
+        assert invite_token is not None
 
-    await cleanup_resources(client=async_test_client, lab_id=lab_id_str)
+        assert db_lab is not None
+        yield (
+            async_test_client,
+            lab_id_str,
+            db_lab,
+            test_user_ids,
+            invite_token,
+            invite_id_uuid,
+        )
+    finally:
+        if lab_id_str:
+            await cleanup_resources(client=async_test_client, lab_id=lab_id_str)
 
 
 @pytest.mark.integration
@@ -172,7 +182,8 @@ async def test_accept_admin_invite_success(
 
 @pytest.mark.integration
 async def test_accept_member_invite_success(
-    async_test_client: AsyncClient, test_user_ids: Dict[str, str]
+    async_test_client: AsyncClient,
+    test_user_ids: Dict[str, str],
 ) -> None:
     """
     Tests successfully accepting a member invite.
@@ -180,6 +191,9 @@ async def test_accept_member_invite_success(
     """
     client = async_test_client
     lab_owner_username = "test"
+
+    # Pre-cleanup: Remove any stale labs
+    await cleanup_all_user_labs(client=client, username=lab_owner_username)
 
     invitee_username = "test-3"
     invitee_email = "test-3@test.com"
@@ -209,7 +223,7 @@ async def test_accept_member_invite_success(
         json=invite_payload,
     )
     assert invite_response.status_code == HTTPStatus.OK
-    invite_id_str = invite_response.json()["data"]["invite_id"]
+    invite_id_str = invite_response.json()["data"]["id"]
     invite_id_uuid = UUID(invite_id_str)
 
     await asyncio.sleep(1)
@@ -465,6 +479,8 @@ async def test_accept_invite_role_change_before_accept(
     client = async_test_client
     lab_owner_username = "test"
 
+    await cleanup_all_user_labs(client=client, username=lab_owner_username)
+
     invitee_username = "test-4"
     invitee_email = "test-4@test.com"
     invitee_id = test_user_ids[invitee_username]
@@ -484,7 +500,6 @@ async def test_accept_invite_role_change_before_accept(
         admin_group_id = str(db_lab.admin_group_id)
         member_group_id = str(db_lab.member_group_id)
 
-    # 1. Invite user as ADMIN
     admin_invite_payload = {"email": invitee_email, "role": UserRoleEnum.admin.value}
     admin_invite_response = await client.post(
         f"/virtual-labs/{lab_id_str}/invites",
@@ -492,7 +507,7 @@ async def test_accept_invite_role_change_before_accept(
         json=admin_invite_payload,
     )
     assert admin_invite_response.status_code == HTTPStatus.OK
-    admin_invite_id_str = admin_invite_response.json()["data"]["invite_id"]
+    admin_invite_id_str = admin_invite_response.json()["data"]["id"]
 
     await asyncio.sleep(1)
     admin_invite_token = get_invite_token_from_email(recipient_email=invitee_email)
@@ -507,7 +522,7 @@ async def test_accept_invite_role_change_before_accept(
         json=member_invite_payload,
     )
     assert member_invite_response.status_code == HTTPStatus.OK
-    member_invite_id_str = member_invite_response.json()["data"]["invite_id"]
+    member_invite_id_str = member_invite_response.json()["data"]["id"]
 
     assert admin_invite_id_str != member_invite_id_str
     await asyncio.sleep(1)
@@ -574,11 +589,11 @@ async def test_accept_multiple_invites_different_emails_same_user(
     client = async_test_client
     lab_owner_username = "test"
 
-    # Emails to invite
+    await cleanup_all_user_labs(client=client, username=lab_owner_username)
+
     invitee_email_admin = "first-email-of-user@test.org"
     invitee_email_member = "another-email-for-the-user@test.org"
 
-    # The single user who will accept both invites
     accepting_user_username = "test-4"
     accepting_user_id = test_user_ids[accepting_user_username]
 
@@ -597,7 +612,6 @@ async def test_accept_multiple_invites_different_emails_same_user(
         admin_group_id = str(db_lab.admin_group_id)
         member_group_id = str(db_lab.member_group_id)
 
-    # 1. Invite email_A as ADMIN
     admin_invite_payload = {
         "email": invitee_email_admin,
         "role": UserRoleEnum.admin.value,
@@ -608,7 +622,7 @@ async def test_accept_multiple_invites_different_emails_same_user(
         json=admin_invite_payload,
     )
     assert admin_invite_response.status_code == HTTPStatus.OK
-    admin_invite_id_str = admin_invite_response.json()["data"]["invite_id"]
+    admin_invite_id_str = admin_invite_response.json()["data"]["id"]
     admin_invite_id_uuid = UUID(admin_invite_id_str)
     await asyncio.sleep(1)
     admin_invite_token = get_invite_token_from_email(
@@ -616,7 +630,6 @@ async def test_accept_multiple_invites_different_emails_same_user(
     )
     assert admin_invite_token is not None
 
-    # 2. Invite email_B as MEMBER
     member_invite_payload = {
         "email": invitee_email_member,
         "role": UserRoleEnum.member.value,
@@ -627,7 +640,7 @@ async def test_accept_multiple_invites_different_emails_same_user(
         json=member_invite_payload,
     )
     assert member_invite_response.status_code == HTTPStatus.OK
-    member_invite_id_str = member_invite_response.json()["data"]["invite_id"]
+    member_invite_id_str = member_invite_response.json()["data"]["id"]
     member_invite_id_uuid = UUID(member_invite_id_str)
     await asyncio.sleep(1)
     member_invite_token = get_invite_token_from_email(
@@ -635,10 +648,8 @@ async def test_accept_multiple_invites_different_emails_same_user(
     )
     assert member_invite_token is not None
 
-    # Ensure the invite IDs are different
     assert admin_invite_id_uuid != member_invite_id_uuid
 
-    # 3. User 'test-4' accepts the ADMIN invite (for email_A)
     accept_headers = get_headers(username=accepting_user_username)
 
     accept_admin_response = await client.post(
@@ -649,7 +660,6 @@ async def test_accept_multiple_invites_different_emails_same_user(
     assert accept_admin_data["status"] == "accepted"
     assert accept_admin_data["invite_id"] == admin_invite_id_str
 
-    # Verify state after first acceptance: user is ADMIN
     await check_user_group_membership(
         accepting_user_id, admin_group_id, should_be_member=True
     )
@@ -662,7 +672,6 @@ async def test_accept_multiple_invites_different_emails_same_user(
         assert invite_a.accepted is True
         assert invite_a.user_id == UUID(accepting_user_id)
 
-    # 4. SAME User 'test-4' accepts the MEMBER invite (for email_B)
     accept_member_response = await client.post(
         f"/invites?token={member_invite_token}", headers=accept_headers
     )
@@ -671,7 +680,6 @@ async def test_accept_multiple_invites_different_emails_same_user(
     assert accept_member_data["status"] == "accepted"
     assert accept_member_data["invite_id"] == member_invite_id_str
 
-    # Verify state after second acceptance: user should NOW be MEMBER, NOT ADMIN
     await check_user_group_membership(
         accepting_user_id, member_group_id, should_be_member=True
     )
@@ -688,5 +696,93 @@ async def test_accept_multiple_invites_different_emails_same_user(
         assert invite_a_check is not None
         assert invite_a_check.accepted is True
         assert invite_a_check.user_id == UUID(accepting_user_id)
+
+    await cleanup_resources(client=client, lab_id=lab_id_str)
+
+
+@pytest.mark.integration
+async def test_accept_project_admin_invite_success(
+    async_test_client: AsyncClient, test_user_ids: Dict[str, str]
+) -> None:
+    """
+    tests successfully accepting a project admin invite.
+    verifies user is added to both the project admin group and virtual lab member group.
+    """
+    client = async_test_client
+    lab_owner_username = "test"
+
+    await cleanup_all_user_labs(client=client, username=lab_owner_username)
+
+    lab_data, project_id_str = await create_mock_lab_with_project(
+        client, owner_username=lab_owner_username
+    )
+    lab_id_str = lab_data["id"]
+    lab_id_uuid = UUID(lab_id_str)
+    project_id_uuid = UUID(project_id_str)
+
+    invitee_username = "test-2"
+    invitee_email = "test-2@test.com"
+    invitee_id = test_user_ids[invitee_username]
+    invitee_role = UserRoleEnum.admin
+
+    # get lab and project details for group IDs
+    async with session_context_factory() as session:
+        db_lab = await session.get(VirtualLab, lab_id_uuid)
+        if not db_lab:
+            pytest.fail(f"Failed to retrieve created lab {lab_id_uuid} from DB.")
+        vlab_member_group_id = str(db_lab.member_group_id)
+
+        db_project = await session.get(Project, project_id_uuid)
+        if not db_project:
+            pytest.fail(
+                f"Failed to retrieve created project {project_id_uuid} from DB."
+            )
+        project_admin_group_id = str(db_project.admin_group_id)
+
+    # invite the user to the project as admin
+    invite_payload = {"email": invitee_email, "role": invitee_role.value}
+    invite_headers = get_headers(lab_owner_username)
+    invite_response = await client.post(
+        f"/virtual-labs/{lab_id_str}/projects/{project_id_str}/invites",
+        headers=invite_headers,
+        json=invite_payload,
+    )
+    assert invite_response.status_code == HTTPStatus.OK
+    invite_id_str = invite_response.json()["data"]["id"]
+    invite_id_uuid = UUID(invite_id_str)
+
+    await asyncio.sleep(1)
+    invite_token = get_invite_token_from_email(recipient_email=invitee_email)
+    assert invite_token is not None
+
+    # accept the invite
+    accept_headers = get_headers(username=invitee_username)
+    response = await client.post(
+        f"/invites?token={invite_token}", headers=accept_headers
+    )
+
+    assert response.status_code == HTTPStatus.OK
+    data = response.json()["data"]
+    assert data["status"] == "accepted"
+    assert data["origin"] == InviteOrigin.PROJECT.value
+    assert data["invite_id"] == str(invite_id_uuid)
+    assert data["virtual_lab_id"] == lab_id_str
+    assert data["project_id"] == project_id_str
+
+    # verify invite is accepted in DB
+    async with session_context_factory() as session:
+        db_invite = await session.get(ProjectInvite, invite_id_uuid)
+        assert db_invite is not None
+        assert db_invite.accepted is True
+
+    # verify user is in virtual lab member group
+    await check_user_group_membership(
+        invitee_id, vlab_member_group_id, should_be_member=True
+    )
+
+    # verify user is in project admin group
+    await check_user_group_membership(
+        invitee_id, project_admin_group_id, should_be_member=True
+    )
 
     await cleanup_resources(client=client, lab_id=lab_id_str)

@@ -31,7 +31,7 @@ async def test_email_invite_sent_for_virtual_lab() -> None:
     inviter = "Malory Archer"
 
     invite_link = await send_invite(
-        details=EmailDetails(
+        payload=EmailDetails(
             recipient=recipient_email,
             inviter_name=inviter,
             invite_id=mock_invite_id,
@@ -67,7 +67,7 @@ async def test_email_invite_sent_for_project() -> None:
     inviter = "Malory Archer"
 
     invite_link = await send_invite(
-        details=EmailDetails(
+        payload=EmailDetails(
             recipient=recipient_email,
             invite_id=mock_invite_id,
             inviter_name=inviter,
@@ -108,7 +108,7 @@ async def test_throws_email_error_if_email_could_not_be_sent() -> None:
         try:
             invite_id = uuid4()
             await send_invite(
-                details=EmailDetails(
+                payload=EmailDetails(
                     recipient="mock@mock.com",
                     invite_id=invite_id,
                     inviter_name="Pam Poovey",

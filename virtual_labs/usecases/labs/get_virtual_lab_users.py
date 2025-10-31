@@ -70,13 +70,17 @@ async def get_virtual_lab_users(
                 role=UserRoleEnum.admin,
             )
 
-        for member in member_users_raw:
-            if member.id not in user_roles:
-                user_roles[member.id] = UserWithInviteStatus(
-                    **member.model_dump(),
-                    invite_accepted=True,
-                    role=UserRoleEnum.member,
-                )
+        # NOTE: Only comment for the moment, it may be need later
+        # to return back the members
+        # currently virtual lab should only add admins through the UI
+
+        # for member in member_users_raw:
+        #     if member.id not in user_roles:
+        #         user_roles[member.id] = UserWithInviteStatus(
+        #             **member.model_dump(),
+        #             invite_accepted=True,
+        #             role=UserRoleEnum.member,
+        #         )
 
         invites = await invite_repo.get_pending_users_for_lab(lab_id)
         pending_users = [

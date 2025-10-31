@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.exceptions.generic_exceptions import UserNotInList
 from virtual_labs.core.types import UserRoleEnum
-from virtual_labs.domain.invite import AddUser
+from virtual_labs.domain.invite import InvitePayload
 from virtual_labs.repositories.group_repo import GroupQueryRepository
 from virtual_labs.repositories.labs import get_undeleted_virtual_lab
 from virtual_labs.shared.utils.auth import get_user_id_from_auth
@@ -25,7 +25,7 @@ from virtual_labs.shared.utils.uniq_list import uniq_list
 async def authorize_user_for_member_invite(
     user_id: str,
     virtual_lab_id: UUID4,
-    invite_details: AddUser,
+    invite_details: InvitePayload,
     session: AsyncSession,
 ) -> None:
     gqr = GroupQueryRepository()
@@ -61,7 +61,7 @@ def verity_member_invite(f: Callable[..., Any]) -> Callable[..., Any]:
     async def wrapper(*args: Any, **kwargs: Any) -> Any:
         try:
             virtual_lab_id = kwargs["virtual_lab_id"]
-            invite_details: AddUser = kwargs["invite_details"]
+            invite_details: InvitePayload = kwargs["invite_details"]
             session = kwargs["session"]
             auth = kwargs["auth"]
             user_id = get_user_id_from_auth(auth)

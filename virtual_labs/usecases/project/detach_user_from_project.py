@@ -59,7 +59,7 @@ async def detach_user_from_project(
         )
     except KeycloakError as error:
         logger.warning(
-            f"Detaching user from project: {loads(error.error_message)["error"]}"
+            f"Detaching user from project: {loads(error.error_message)['error']}"
         )
         raise VliError(
             error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,

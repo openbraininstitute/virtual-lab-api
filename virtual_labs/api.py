@@ -89,9 +89,9 @@ def custom_openapi() -> dict[str, Any]:
         description="API description",
         routes=app.routes,
     )
-    openapi_schema["components"]["schemas"][
-        "HTTPValidationError"
-    ] = VlmValidationError.model_json_schema()
+    openapi_schema["components"]["schemas"]["HTTPValidationError"] = (
+        VlmValidationError.model_json_schema()
+    )
 
     app.openapi_schema = openapi_schema
     return app.openapi_schema

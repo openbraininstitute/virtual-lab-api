@@ -49,7 +49,12 @@ async def retrieve_all_user_projects_per_vl_use_case(
             unique_users = uniq_list([u.id for u in admins + members])
             user_count = len(unique_users)
 
-            project_out = ProjectVlOut.model_validate(project)
+            project_out = ProjectVlOut.model_validate(
+                {
+                    **project.__dict__,
+                    "admins": [i.id for i in admins],
+                },
+            )
             project_out.user_count = user_count
             projects.append(project_out)
 

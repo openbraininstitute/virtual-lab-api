@@ -30,7 +30,7 @@ class ProjectQueryRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
-    async def get_project_stats(
+    async def retrieve_project_stats(
         self,
         project_id: UUID,
     ) -> dict[str, int]:
@@ -81,6 +81,24 @@ class ProjectQueryRepository:
             "total_notebooks": stats.total_notebooks,
         }
 
+    async def retrieve_virtual_lab_projects(
+        self, virtual_lab_id: UUID
+    ) -> list[Project]:
+        stmt = (
+            select(Project)
+            .join(VirtualLab)
+            .filter(
+                and_(
+                    Project.virtual_lab_id == virtual_lab_id,
+                    ~Project.deleted,
+                    ~VirtualLab.deleted,
+                )
+            )
+            .order_by(Project.created_at.desc())
+        )
+        result = await self.session.scalars(stmt)
+        return list(result)
+
     async def retrieve_projects_per_vl_batch(
         self,
         virtual_lab_id: UUID4,
@@ -124,7 +142,7 @@ class ProjectQueryRepository:
         self,
         groups: List[str],
         pagination: PageParams,
-    ) -> PaginatedDbResult[List[Row[Tuple[Project, VirtualLab]]]]:
+    ) -> PaginatedDbResult[List[Tuple[Project, VirtualLab]]]:
         query = (
             select(Project, VirtualLab)
             .join(VirtualLab)
@@ -153,7 +171,7 @@ class ProjectQueryRepository:
 
         return PaginatedDbResult(
             count=count or 0,
-            rows=[row for row in result],
+            rows=[row.t for row in result],
         )
 
     async def retrieve_one_project_strict(
