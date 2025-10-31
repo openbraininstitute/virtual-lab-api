@@ -11,9 +11,11 @@ from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.exceptions.email_error import EmailError
 from virtual_labs.core.exceptions.generic_exceptions import ForbiddenOperation
 from virtual_labs.core.response.api_response import VliResponse
+from virtual_labs.core.types import UserRoleEnum
 from virtual_labs.domain.invite import InvitePayload
 from virtual_labs.domain.labs import InvitationResponse
 from virtual_labs.infrastructure.email.invite_email import EmailDetails, send_invite
+from virtual_labs.repositories.group_repo import GroupQueryRepository
 from virtual_labs.repositories.invite_repo import (
     InviteMutationRepository,
     InviteQueryRepository,
@@ -63,25 +65,38 @@ async def invite_user_to_project(
     inviter_id: UUID4,
     invite_details: InvitePayload,
 ) -> Response:
+    imr = InviteMutationRepository(session)
     prq = ProjectQueryRepository(session)
-    user_repo = UserQueryRepository()
-    invite_query_repo = InviteQueryRepository(session)
-    invite_mutation_repo = InviteMutationRepository(session)
+    iqr = InviteQueryRepository(session)
+    ur = UserQueryRepository()
+    gqr = GroupQueryRepository()
 
     try:
         project, virtual_lab = await prq.retrieve_one_project_strict(
-            virtual_lab_id=virtual_lab_id, project_id=project_id
+            virtual_lab_id=virtual_lab_id,
+            project_id=project_id,
         )
 
-        inviting_user = user_repo.retrieve_user_from_kc(str(inviter_id))
-        invite = await invite_query_repo.get_project_invite_by_params(
+        virtual_lab_admins = await gqr.a_retrieve_group_user_ids(
+            group_id=virtual_lab.admin_group_id,
+        )
+
+        # allow the project admins to invite members
+        if (
+            inviter_id not in virtual_lab_admins
+            and invite_details.role == UserRoleEnum.admin.value
+        ):
+            raise ForbiddenOperation("Project admins can only invite members")
+
+        inviting_user = ur.retrieve_user_from_kc(str(inviter_id))
+        invite = await iqr.get_project_invite_by_params(
             project_id=UUID(str(project_id)),
             email=invite_details.email,
             role=invite_details.role,
         )
 
         if invite is None:
-            invite = await invite_mutation_repo.add_project_invite(
+            invite = await imr.add_project_invite(
                 project_id=project_id,
                 inviter_id=inviter_id,
                 invitee_role=invite_details.role,
@@ -92,7 +107,7 @@ async def invite_user_to_project(
             logger.debug(
                 f"Invite {invite.id} for user already exists. Updating the invite and sending refreshed link"
             )
-            await invite_mutation_repo.update_project_invite(
+            await imr.update_project_invite(
                 invite_id=invite.id,
                 properties={
                     "accepted": False,
@@ -111,7 +126,7 @@ async def invite_user_to_project(
             lab_id=virtual_lab.id,
             project_id=project_id,
             project_name=project.name,
-            invite_repo=invite_mutation_repo,
+            invite_repo=imr,
         )
         return VliResponse.new(
             message="Invite sent successfully",
