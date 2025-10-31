@@ -28,9 +28,9 @@ class ProjectBody(BaseModel):
     name: Annotated[
         str, StringConstraints(strip_whitespace=True, min_length=1, max_length=250)
     ]
-    description: Optional[
-        Annotated[str, StringConstraints(strip_whitespace=True)]
-    ] = None
+    description: Optional[Annotated[str, StringConstraints(strip_whitespace=True)]] = (
+        None
+    )
 
 
 class ProjectUpdateBody(BaseModel):
@@ -41,9 +41,9 @@ class ProjectUpdateBody(BaseModel):
             str, StringConstraints(strip_whitespace=True, min_length=1, max_length=250)
         ]
     ] = None
-    description: Optional[
-        Annotated[str, StringConstraints(strip_whitespace=True)]
-    ] = None
+    description: Optional[Annotated[str, StringConstraints(strip_whitespace=True)]] = (
+        None
+    )
 
 
 class Project(BaseModel):
@@ -59,6 +59,7 @@ class Project(BaseModel):
 class ProjectVlOut(Project):
     virtual_lab_id: UUID4
     user_count: int = 0
+    admins: List[str] | None
 
 
 class ProjectStats(BaseModel):

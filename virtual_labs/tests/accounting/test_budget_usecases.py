@@ -23,9 +23,10 @@ async def test_top_up() -> None:
     amount = 100.0
     mock_response_data = {"message": "Top-up operation executed", "data": None}
 
-    with patch("httpx.AsyncClient") as mock_client, patch(
-        "virtual_labs.infrastructure.kc.auth.get_client_token"
-    ) as mock_token:
+    with (
+        patch("httpx.AsyncClient") as mock_client,
+        patch("virtual_labs.infrastructure.kc.auth.get_client_token") as mock_token,
+    ):
         mock_token.return_value = "test-token"
 
         mock_response = AsyncMock()
@@ -51,9 +52,10 @@ async def test_assign() -> None:
         "data": None,
     }
 
-    with patch("httpx.AsyncClient") as mock_client, patch(
-        "virtual_labs.infrastructure.kc.auth.get_client_token"
-    ) as mock_token:
+    with (
+        patch("httpx.AsyncClient") as mock_client,
+        patch("virtual_labs.infrastructure.kc.auth.get_client_token") as mock_token,
+    ):
         mock_token.return_value = "test-token"
 
         mock_response = AsyncMock()
@@ -79,9 +81,10 @@ async def test_reverse() -> None:
         "data": None,
     }
 
-    with patch("httpx.AsyncClient") as mock_client, patch(
-        "virtual_labs.infrastructure.kc.auth.get_client_token"
-    ) as mock_token:
+    with (
+        patch("httpx.AsyncClient") as mock_client,
+        patch("virtual_labs.infrastructure.kc.auth.get_client_token") as mock_token,
+    ):
         mock_token.return_value = "test-token"
 
         mock_response = AsyncMock()
@@ -108,9 +111,10 @@ async def test_move() -> None:
         "data": None,
     }
 
-    with patch("httpx.AsyncClient") as mock_client, patch(
-        "virtual_labs.infrastructure.kc.auth.get_client_token"
-    ) as mock_token:
+    with (
+        patch("httpx.AsyncClient") as mock_client,
+        patch("virtual_labs.infrastructure.kc.auth.get_client_token") as mock_token,
+    ):
         mock_token.return_value = "test-token"
 
         mock_response = AsyncMock()

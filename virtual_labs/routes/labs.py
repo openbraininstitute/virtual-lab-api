@@ -23,12 +23,11 @@ from virtual_labs.domain.email import (
     VerificationCodeEmailResponse,
 )
 from virtual_labs.domain.invite import (
-    AddUser,
-    DeleteLabInviteRequest,
+    InvitePayload,
 )
 from virtual_labs.domain.labs import (
     CreateLabOut,
-    InviteSent,
+    InvitationResponse,
     LabResponse,
     SearchLabResponse,
     VirtualLabCreate,
@@ -38,6 +37,7 @@ from virtual_labs.domain.labs import (
     VirtualLabUser,
     VirtualLabUsers,
 )
+from virtual_labs.domain.labs import VirtualLabResponse as IVirtualLabResponse
 from virtual_labs.infrastructure.db.config import default_session_factory
 from virtual_labs.infrastructure.kc.auth import a_verify_jwt, verify_jwt
 from virtual_labs.infrastructure.kc.models import AuthUser
@@ -128,7 +128,7 @@ async def search_virtual_lab_by_name(
 
 @router.get(
     "/{virtual_lab_id}",
-    response_model=LabResponse[VirtualLabOut],
+    response_model=LabResponse[IVirtualLabResponse],
     summary="Get non deleted virtual lab by id",
 )
 @verify_vlab_read
@@ -136,12 +136,12 @@ async def get_virtual_lab(
     virtual_lab_id: UUID4,
     session: AsyncSession = Depends(default_session_factory),
     auth: tuple[AuthUser, str] = Depends(verify_jwt),
-) -> LabResponse[VirtualLabOut]:
+) -> LabResponse[IVirtualLabResponse]:
     lab_response = await usecases.get_virtual_lab(
         session, virtual_lab_id, user_id=get_user_id_from_auth(auth)
     )
-    return LabResponse[VirtualLabOut](
-        message="Virtual lab resource for id {}".format(virtual_lab_id),
+    return LabResponse[IVirtualLabResponse](
+        message=f"Virtual lab {virtual_lab_id}",
         data=lab_response,
     )
 
@@ -249,23 +249,23 @@ async def update_virtual_lab(
 @router.post(
     "/{virtual_lab_id}/invites",
     summary="Invite user to lab by email",
-    response_model=LabResponse[InviteSent],
+    response_model=LabResponse[InvitationResponse],
 )
 @verity_member_invite
 async def invite_user_to_virtual_lab(
     virtual_lab_id: UUID4,
-    invite_details: AddUser,
+    invite_details: InvitePayload,
     session: AsyncSession = Depends(default_session_factory),
     auth: tuple[AuthUser, str] = Depends(verify_jwt),
-) -> LabResponse[InviteSent]:
+) -> LabResponse[InvitationResponse]:
     invite_id = await usecases.invite_user_to_lab(
         virtual_lab_id,
         inviter_id=get_user_id_from_auth(auth),
         invite_details=invite_details,
         db=session,
     )
-    return LabResponse[InviteSent](
-        message="Invite sent to user", data=InviteSent(invite_id=invite_id)
+    return LabResponse[InvitationResponse](
+        message="Invite sent to user", data=InvitationResponse(id=invite_id)
     )
 
 
@@ -323,7 +323,7 @@ async def delete_virtual_lab(
 @verify_vlab_write
 async def delete_lab_invite(
     virtual_lab_id: UUID4,
-    invite_details: DeleteLabInviteRequest,
+    invite_details: InvitePayload,
     session: AsyncSession = Depends(default_session_factory),
     auth: tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> LabResponse[None]:

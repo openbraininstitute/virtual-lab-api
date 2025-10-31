@@ -11,6 +11,7 @@ from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.domain.project import ProjectVlOut
 from virtual_labs.infrastructure.kc.models import AuthUser
+from virtual_labs.repositories.group_repo import GroupQueryRepository
 from virtual_labs.repositories.project_repo import ProjectQueryRepository
 
 
@@ -21,10 +22,18 @@ async def retrieve_single_project_use_case(
     auth: Optional[Tuple[AuthUser, str]],
 ) -> Response:
     pr = ProjectQueryRepository(session)
+    gqr = GroupQueryRepository()
+
     try:
         project, _ = await pr.retrieve_one_project_strict(virtual_lab_id, project_id)
+        admins = await gqr.a_retrieve_group_user_ids(group_id=project.admin_group_id)
 
-        _project = ProjectVlOut.model_validate(project)
+        _project = ProjectVlOut.model_validate(
+            {
+                **project.__dict__,
+                "admins": admins,
+            }
+        )
 
     except NoResultFound:
         raise VliError(

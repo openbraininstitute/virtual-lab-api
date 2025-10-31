@@ -89,13 +89,13 @@ async def test_existing_invite_is_updated_when_user_invited_again(
     invite_response = await client.post(
         f"/virtual-labs/{lab_id}/invites", headers=headers, json=invite
     )
-    first_invite_id = invite_response.json()["data"]["invite_id"]
+    first_invite_id = invite_response.json()["data"]["id"]
 
     # Invited second time
     reinvitation_response = await client.post(
         f"/virtual-labs/{lab_id}/invites", headers=headers, json=invite
     )
-    second_invite_id = reinvitation_response.json()["data"]["invite_id"]
+    second_invite_id = reinvitation_response.json()["data"]["id"]
 
     # Invite id is same
     assert first_invite_id == second_invite_id

@@ -18,6 +18,7 @@ from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.infrastructure.settings import settings
 from virtual_labs.repositories.group_repo import (
     GroupMutationRepository,
+    GroupQueryRepository,
 )
 from virtual_labs.repositories.labs import get_undeleted_virtual_lab
 from virtual_labs.repositories.project_repo import (
@@ -41,6 +42,7 @@ async def create_new_project_use_case(
     pmr = ProjectMutationRepository(session)
     pqr = ProjectQueryRepository(session)
     gmr = GroupMutationRepository()
+    gqr = GroupQueryRepository()
     umr = UserMutationRepository()
 
     project_id: UUID4 = uuid4()
@@ -55,7 +57,10 @@ async def create_new_project_use_case(
         )
 
     try:
-        await get_undeleted_virtual_lab(session, virtual_lab_id)
+        virtual_lab = await get_undeleted_virtual_lab(
+            session,
+            virtual_lab_id,
+        )
         if bool(
             await pqr.check_project_exists_by_name_per_vlab(
                 vlab_id=virtual_lab_id,
@@ -81,7 +86,7 @@ async def create_new_project_use_case(
         )
 
     try:
-        admin_group, member_group = await asyncio.gather(
+        admin_group, member_group, virtual_lab_admin_users = await asyncio.gather(
             gmr.a_create_project_group(
                 virtual_lab_id=virtual_lab_id,
                 project_id=project_id,
@@ -94,6 +99,9 @@ async def create_new_project_use_case(
                 payload=payload,
                 role=UserRoleEnum.member,
             ),
+            gqr.a_retrieve_group_user_ids(
+                group_id=str(virtual_lab.admin_group_id),
+            ),
         )
 
         assert admin_group is not None
@@ -103,6 +111,23 @@ async def create_new_project_use_case(
             user_id=user_id,
             group_id=admin_group["id"],
         )
+        # if user is not a virtual lab admin, add him to the virtual lab member group
+        if (
+            virtual_lab_admin_users
+            and len(virtual_lab_admin_users) > 0
+            and str(user_id) not in virtual_lab_admin_users
+        ):
+            await umr.a_attach_user_to_group(
+                user_id=user_id,
+                group_id=str(virtual_lab.member_group_id),
+            )
+        # if there are virtual lab admins, add them to the project admin group
+        if len(virtual_lab_admin_users) > 0:
+            batch_attach_users = [
+                umr.a_attach_user_to_group(user_id=UUID4(u), group_id=admin_group["id"])
+                for u in virtual_lab_admin_users
+            ]
+            await asyncio.gather(*batch_attach_users)
 
     except AssertionError:
         raise VliError(
@@ -139,8 +164,8 @@ async def create_new_project_use_case(
                 http_status_code=status.BAD_GATEWAY,
                 message="Project account creation failed",
             )
-    total_added_users = 0
 
+    project_admins = await gqr.a_retrieve_group_user_ids(group_id=admin_group["id"])
     try:
         project = await pmr.create_new_project(
             id=project_id,
@@ -155,15 +180,10 @@ async def create_new_project_use_case(
         balance_added = False
         if user_projects_count == 0 and settings.ACCOUNTING_BASE_URL is not None:
             try:
-                logger.info(
-                    f"Transferring all credits to first project {project_id} for user {user_id}"
-                )
-
                 vlab_balance_response = await accounting_cases.get_virtual_lab_balance(
                     virtual_lab_id=virtual_lab_id, include_projects=False
                 )
                 current_balance = float(vlab_balance_response.data.balance)
-
                 if current_balance > 0:
                     await accounting_cases.assign_project_budget(
                         virtual_lab_id=virtual_lab_id,
@@ -173,10 +193,6 @@ async def create_new_project_use_case(
                     balance_added = True
                     logger.info(
                         f"Successfully transferred {current_balance} credits to project {project_id}"
-                    )
-                else:
-                    logger.info(
-                        f"No credits to transfer for project {project_id} (balance: {current_balance})"
                     )
 
             except Exception as ex:
@@ -206,8 +222,13 @@ async def create_new_project_use_case(
             message="Error during creating a new project",
         )
     else:
-        project_out = ProjectVlOut.model_validate(project)
-        project_out.user_count = total_added_users + 1
+        project_out = ProjectVlOut.model_validate(
+            {
+                **project.__dict__,
+                "user_count": len(project_admins),
+                "admins": project_admins,
+            }
+        )
         return VliResponse.new(
             message="Project created successfully",
             data={

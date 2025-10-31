@@ -13,6 +13,7 @@ from virtual_labs.core.exceptions.generic_exceptions import EntityAlreadyExists
 from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.domain.project import ProjectUpdateBody, ProjectVlOut
 from virtual_labs.infrastructure.kc.models import AuthUser
+from virtual_labs.repositories.group_repo import GroupQueryRepository
 from virtual_labs.repositories.project_repo import (
     ProjectMutationRepository,
     ProjectQueryRepository,
@@ -30,6 +31,8 @@ async def update_project_data(
 ) -> Response:
     pmr = ProjectMutationRepository(session)
     pqr = ProjectQueryRepository(session)
+    gqr = GroupQueryRepository()
+
     try:
         (project, _) = await pqr.retrieve_one_project_by_id(project_id=project_id)
 
@@ -63,6 +66,20 @@ async def update_project_data(
             project_id=project_id,
             payload=ProjectUpdateBody(**newPayload),
         )
+
+        return VliResponse.new(
+            message="Project data updated successfully",
+            data={
+                "project": ProjectVlOut.model_validate(
+                    {
+                        **project.__dict__,
+                        "admins": await gqr.a_retrieve_group_user_ids(
+                            group_id=project.admin_group_id
+                        ),
+                    }
+                )
+            },
+        )
     except EntityAlreadyExists as ex:
         raise VliError(
             error_code=VliErrorCode.ENTITY_ALREADY_EXISTS,
@@ -85,9 +102,4 @@ async def update_project_data(
             error_code=VliErrorCode.SERVER_ERROR,
             http_status_code=status.INTERNAL_SERVER_ERROR,
             message="Error during updating project",
-        )
-    else:
-        return VliResponse.new(
-            message="Project data updated successfully",
-            data={"project": ProjectVlOut.model_validate(project)},
         )

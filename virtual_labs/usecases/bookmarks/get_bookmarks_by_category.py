@@ -20,9 +20,9 @@ async def get_bookmarks_by_category(
         repo = BookmarkQueryRepository(db)
         db_bookmarks = await repo.get_project_bookmarks(project_id, category)
 
-        grouped_bookmarks: defaultdict[
-            BookmarkCategory, list[BookmarkOut]
-        ] = defaultdict(list)
+        grouped_bookmarks: defaultdict[BookmarkCategory, list[BookmarkOut]] = (
+            defaultdict(list)
+        )
 
         for db_bookmark in db_bookmarks:
             grouped_bookmarks[BookmarkCategory(db_bookmark.category)].append(

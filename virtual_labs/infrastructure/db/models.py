@@ -75,6 +75,10 @@ class VirtualLab(Base):
         ),
     )
 
+    @property
+    def created_by(self) -> uuid.UUID:
+        return self.owner_id
+
 
 class Project(Base):
     __tablename__ = "project"
@@ -138,42 +142,52 @@ class ProjectStar(Base):
 class ProjectInvite(Base):
     __tablename__ = "project_invite"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    inviter_id = Column(UUID(as_uuid=True), nullable=False)
-    user_id = Column(UUID(as_uuid=True))
-    accepted = Column(Boolean, default=False)
-    user_email = Column(String, nullable=False)
-    role = Column(String, nullable=False)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    inviter_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    accepted: Mapped[bool | None] = mapped_column(Boolean, default=False, nullable=True)
+    user_email: Mapped[str] = mapped_column(String, nullable=False)
+    role: Mapped[str] = mapped_column(String, nullable=False)
 
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=func.now()
+        DateTime(timezone=True), default=func.now(), nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=func.now(), onupdate=func.now()
+        DateTime(timezone=True), default=func.now(), onupdate=func.now(), nullable=False
     )
 
-    project_id = Column(UUID(as_uuid=True), ForeignKey("project.id"), index=True)
-    project = relationship("Project", back_populates="invites")
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("project.id"), index=True, nullable=False
+    )
+    project: Mapped["Project"] = relationship("Project", back_populates="invites")
 
 
 class VirtualLabInvite(Base):
     __tablename__ = "virtual_lab_invite"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    inviter_id = Column(UUID, nullable=False)
-    user_id = Column(UUID)
-    role = Column(String, nullable=False)
-    user_email = Column(String, nullable=False)
-    virtual_lab_id = Column(UUID, ForeignKey("virtual_lab.id"), index=True)
-    virtual_lab = relationship("VirtualLab", back_populates="invites")
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    inviter_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    role: Mapped[str] = mapped_column(String, nullable=False)
+    user_email: Mapped[str] = mapped_column(String, nullable=False)
+    virtual_lab_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("virtual_lab.id"), index=True, nullable=False
+    )
+    virtual_lab: Mapped["VirtualLab"] = relationship(
+        "VirtualLab", back_populates="invites"
+    )
 
-    accepted = Column(Boolean, default=False)
+    accepted: Mapped[bool | None] = mapped_column(Boolean, default=False, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=func.now()
+        DateTime(timezone=True), default=func.now(), nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=func.now(), onupdate=func.now()
+        DateTime(timezone=True), default=func.now(), onupdate=func.now(), nullable=False
     )
 
 
@@ -217,25 +231,29 @@ class PaymentMethod(Base):
 class Bookmark(Base):
     __tablename__ = "bookmark"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    resource_id = Column(String, nullable=True, index=True)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False
+    )
+    resource_id: Mapped[str | None] = mapped_column(String, nullable=True, index=True)
     entity_id: Mapped[uuid.UUID | None] = mapped_column(
-        unique=False, index=True, nullable=True
+        UUID(as_uuid=True), nullable=True, index=True
     )
-    category = Column(SAEnum(BookmarkCategory), nullable=False)  # type: ignore[var-annotated]
-
+    category: Mapped[BookmarkCategory] = mapped_column(
+        SAEnum(BookmarkCategory), nullable=False, index=True
+    )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=func.now()
+        DateTime(timezone=True), default=func.now(), nullable=False
     )
-
-    project_id = Column(UUID(as_uuid=True), ForeignKey("project.id"), index=True)
-    project = relationship("Project", back_populates="bookmarks")
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("project.id"), index=True, nullable=False
+    )
+    project: Mapped["Project"] = relationship("Project", back_populates="bookmarks")
 
     __table_args__ = (
         UniqueConstraint(
-            resource_id,
-            category,
-            project_id,
+            "resource_id",
+            "category",
+            "project_id",
             name="bookmark_unique_for_resource_category_per_project",
         ),
     )
