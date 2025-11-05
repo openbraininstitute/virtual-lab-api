@@ -1157,6 +1157,21 @@ files = [
 ]
 
 [[package]]
+name = "obp-accounting-sdk"
+version = "0.4.2"
+description = "Python SDK for the OBP Accounting Service."
+optional = false
+python-versions = ">=3.11"
+groups = ["main"]
+files = [
+    {file = "obp_accounting_sdk-0.4.2-py3-none-any.whl", hash = "sha256:94757bd263e403f3f44012a91231a3c243c802025314910da6493ecf47f6bce5"},
+    {file = "obp_accounting_sdk-0.4.2.tar.gz", hash = "sha256:f88aba08dc890764573aafe5adaea866cd9911871dee78fed114916961a81d81"},
+]
+
+[package.dependencies]
+httpx = "*"
+
+[[package]]
 name = "orjson"
 version = "3.10.7"
 description = "Fast, correct Python JSON library supporting dataclasses, datetimes, and numpy"
@@ -2549,4 +2564,4 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "50097ffcfd7b4cd58318c25153310e1ad46bf2add5f9bdfc3fbafd6e82d97f6d"
+content-hash = "a21b09627956d3b8672b6c42b57c457b722ff537122214f282cd327980642fe5"

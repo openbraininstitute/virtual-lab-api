@@ -4,6 +4,7 @@ from uuid import uuid4
 
 import pytest
 from httpx import AsyncClient, HTTPStatusError, Response
+from obp_accounting_sdk.constants import ServiceSubtype, ServiceType  # type: ignore[import-untyped]
 
 from virtual_labs.core.exceptions.accounting_error import (
     AccountingError,
@@ -11,8 +12,6 @@ from virtual_labs.core.exceptions.accounting_error import (
 )
 from virtual_labs.external.accounting.interfaces.report_interface import ReportInterface
 from virtual_labs.external.accounting.models import (
-    JobSubtype,
-    JobType,
     ProjectReportsResponse,
     VirtualLabReportsResponse,
 )
@@ -49,8 +48,8 @@ async def test_get_virtual_lab_reports_success(
                     "job_id": str(uuid4()),
                     "user_id": str(uuid4()),
                     "proj_id": str(uuid4()),
-                    "type": JobType.ONESHOT,
-                    "subtype": JobSubtype.ML_LLM,
+                    "type": ServiceType.ONESHOT,
+                    "subtype": ServiceSubtype.ML_LLM,
                     "reserved_at": "2025-01-10T10:12:03Z",
                     "started_at": "2025-01-10T10:12:04Z",
                     "amount": "39.2",
@@ -63,8 +62,8 @@ async def test_get_virtual_lab_reports_success(
                     "user_id": str(uuid4()),
                     "name": "LFPy: active single cell model IClamp",
                     "proj_id": str(uuid4()),
-                    "type": JobType.LONGRUN,
-                    "subtype": JobSubtype.NOTEBOOK,
+                    "type": ServiceType.LONGRUN,
+                    "subtype": ServiceSubtype.NOTEBOOK,
                     "reserved_at": "2025-09-08T08:37:36.807277Z",
                     "started_at": "2025-09-08T08:37:38Z",
                     "finished_at": "2025-09-08T13:55:13.342013Z",
@@ -141,8 +140,8 @@ async def test_get_project_reports_success(
                 {
                     "job_id": str(uuid4()),
                     "user_id": str(uuid4()),
-                    "type": JobType.ONESHOT,
-                    "subtype": JobSubtype.ML_LLM,
+                    "type": ServiceType.ONESHOT,
+                    "subtype": ServiceSubtype.ML_LLM,
                     "reserved_at": "2025-01-10T10:12:03Z",
                     "started_at": "2025-01-10T10:12:04Z",
                     "amount": "39.2",
@@ -154,8 +153,8 @@ async def test_get_project_reports_success(
                     "job_id": str(uuid4()),
                     "user_id": str(uuid4()),
                     "name": "Model parameter comparison plot",
-                    "type": JobType.LONGRUN,
-                    "subtype": JobSubtype.NOTEBOOK,
+                    "type": ServiceType.LONGRUN,
+                    "subtype": ServiceSubtype.NOTEBOOK,
                     "reserved_at": "2025-09-08T08:38:40.172405Z",
                     "started_at": "2025-09-08T08:38:42Z",
                     "finished_at": "2025-09-08T13:55:13.342013Z",
