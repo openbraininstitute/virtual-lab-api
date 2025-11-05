@@ -31,7 +31,7 @@ requests = "^2.32.3"
 email-validator = "^2.2.0"
 redis = "^5.2.1"
 asyncssh = "^2.21.0"
-obp-accounting-sdk = "^0.4.0"
+obp-accounting-sdk = "^0.4.2"
 
 
 [tool.poetry.group.dev.dependencies]
