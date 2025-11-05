@@ -1,17 +1,17 @@
 from datetime import datetime
 from decimal import Decimal
-from enum import Enum
 from typing import Generic, Self, TypeVar
 from uuid import UUID
 
+from obp_accounting_sdk.constants import ServiceSubtype, ServiceType  # type: ignore[import-untyped]
 from pydantic import (
     UUID4,
     AwareDatetime,
     BaseModel,
     HttpUrl,
+    ValidationInfo,
     field_validator,
     model_validator,
-    ValidationInfo,
 )
 
 T = TypeVar("T")
@@ -83,33 +83,13 @@ class BudgetMoveResponse(BaseAccountingResponse):
     data: None
 
 
-class JobType(Enum):
-    ONESHOT = "oneshot"
-    LONGRUN = "longrun"
-    STORAGE = "storage"
-
-
-# TODO: Get these types from the accounting SDK module
-class JobSubtype(Enum):
-    ML_LLM = "ml-llm"
-    ML_RAG = "ml-rag"
-    ML_RETRIEVAL = "ml-retrieval"
-    NOTEBOOK = "notebook"
-    SINGLE_CELL_BUILD = "single-cell-build"
-    SINGLE_CELL_SIM = "single-cell-sim"
-    SMALL_CIRCUIT_SIM = "small-circuit-sim"
-    STORAGE = "storage"
-    SYNAPTOME_BUILD = "synaptome-build"
-    SYNAPTOME_SIM = "synaptome-sim"
-
-
 # TODO: Update according to the STORAGE report type
 class ProjectJobReport(BaseModel):
     job_id: UUID4
     user_id: UUID4
     name: str | None = None
-    type: JobType
-    subtype: JobSubtype
+    type: ServiceType
+    subtype: ServiceSubtype
     reserved_at: datetime | None = None
     started_at: datetime | None = None
     amount: str
@@ -124,7 +104,7 @@ class ProjectJobReport(BaseModel):
         cls, v: int | None, info: ValidationInfo
     ) -> int | None:
         job_type = info.data.get("type")
-        if job_type == JobType.ONESHOT and v is None:
+        if job_type == ServiceType.ONESHOT and v is None:
             raise ValueError(f"{info.field_name} is required for oneshot jobs.")
         return v
 
@@ -133,7 +113,7 @@ class ProjectJobReport(BaseModel):
         cls, v: int | None, info: ValidationInfo
     ) -> int | None:
         job_type = info.data.get("type")
-        if job_type == JobType.LONGRUN and v is None:
+        if job_type == ServiceType.LONGRUN and v is None:
             raise ValueError(f"{info.field_name} is required for longrun jobs.")
         return v
 
