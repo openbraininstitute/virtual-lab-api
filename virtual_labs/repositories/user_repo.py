@@ -50,7 +50,7 @@ class UserQueryRepository:
         ]
 
     def retrieve_user_by_email(self, email: str) -> UserRepresentation | None:
-        users = self.Kc.get_users({"email": email})
+        users = self.Kc.get_users({"email": email, "exact": "true"})
         if not isinstance(users, list):
             logger.error(
                 f"Expected a list of users for email {email} but received type {type(users)} : {users}"
