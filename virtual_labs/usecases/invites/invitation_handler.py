@@ -56,7 +56,7 @@ async def invitation_handler(
         project_id = None
 
         user = await uqr.a_retrieve_user_from_kc(
-            user_id=str(user_id),
+            user_id=user_id,
         )
         assert user is not None
 

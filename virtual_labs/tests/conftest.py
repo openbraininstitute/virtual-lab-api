@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from typing import Any, AsyncGenerator
 from uuid import uuid4
 
+import httpx
 import pytest_asyncio
 from httpx import AsyncClient, Response
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,17 +28,18 @@ async def async_test_client() -> AsyncGenerator[AsyncClient, None]:
     # if you need another test user please override the headers in the test
     headers = get_headers()
     async with AsyncClient(
-        app=app,
+        transport=httpx.ASGITransport(app=app),
         base_url="http://localhost:8000",
         headers=headers,
     ) as ac:
         yield ac
+    await ac.aclose()
 
 
 async_test_session = pytest_asyncio.fixture(default_session_factory)
 
 
-@pytest_asyncio.fixture(scope="session", autouse=True)
+@pytest_asyncio.fixture(scope="function", autouse=True)
 def event_loop(request: Any) -> Any:
     """Create an instance of the default event loop for each test case."""
     loop = asyncio.get_event_loop_policy().new_event_loop()

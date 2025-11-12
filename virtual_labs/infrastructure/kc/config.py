@@ -1,4 +1,4 @@
-from keycloak import KeycloakAdmin, KeycloakOpenID  # type: ignore
+from keycloak import KeycloakAdmin, KeycloakOpenID
 
 from virtual_labs.infrastructure.settings import settings
 

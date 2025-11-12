@@ -186,6 +186,8 @@ async def cleanup_resources(
             )
         )
         await session.commit()
+        await session.flush()
+        await session.close()
 
     project_ids = []
     async with session_context_factory() as session:
@@ -275,6 +277,8 @@ async def cleanup_resources(
         ).one()
 
         await session.commit()
+        await session.flush()
+        await session.close()
 
     # 4. Delete KC groups
     group_repo = GroupMutationRepository()

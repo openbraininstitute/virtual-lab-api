@@ -3,7 +3,7 @@ from http import HTTPStatus
 from json import loads
 from uuid import UUID
 
-from keycloak import KeycloakError  # type: ignore
+from keycloak import KeycloakError
 from loguru import logger
 from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
@@ -35,7 +35,7 @@ async def change_user_role_for_lab(
 
     try:
         virtual_lab = await lab_repository.get_undeleted_virtual_lab(db, lab_id)
-        user = await uqr.a_retrieve_user_from_kc(str(user_id))
+        user = await uqr.a_retrieve_user_from_kc(user_id)
 
         if virtual_lab.owner_id == user_id:
             raise VliError(

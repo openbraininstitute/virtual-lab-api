@@ -255,7 +255,7 @@ async def create_virtual_lab(
             stripe_user_mutation_repo = StripeUserMutationRepository(db_session=db)
             stripe_service = get_stripe_repository()
 
-            user = await user_query_repo.get_user(user_id=str(owner_id))
+            user = await user_query_repo.get_user(user_id=owner_id)
 
             customer = await stripe_user_repo.get_by_user_id(
                 user_id=owner_id,

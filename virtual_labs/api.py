@@ -11,7 +11,8 @@ from fastapi.responses import JSONResponse
 from fastapi.routing import APIRouter
 from loguru import logger
 from redis.asyncio import Redis
-from sentry_sdk.integrations.asgi import SentryAsgiMiddleware
+
+# from sentry_sdk.integrations.asgi import SentryAsgiMiddleware
 from starlette.middleware.cors import CORSMiddleware
 
 from virtual_labs.core.exceptions.api_error import (
@@ -70,7 +71,10 @@ if settings.CORS_ORIGINS:
     for origin in settings.CORS_ORIGINS:
         origins.append(origin)
 
-app.add_middleware(SentryAsgiMiddleware)
+# SentryAsgiMiddleware is apparently not needed anymore as long as
+# sentry_sdk.init() is called, see
+# https://docs.sentry.io/platforms/python/integrations/fastapi/
+# app.add_middleware(SentryAsgiMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -112,10 +116,10 @@ async def vli_exception_handler(request: Request, exception: VliError) -> JSONRe
     logger.error(f"{request.method} {request.url} failed: {repr(exception)}")
 
     return JSONResponse(
-        status_code=int(exception.http_status_code),
+        status_code=exception.http_status_code_as_int(),
         content=api.ErrorResponse(
             message=exception.message,
-            error_code=VliErrorCode(exception.error_code),
+            error_code=exception.error_code,
             details=exception.details,
             data=exception.data,
         ).model_dump(),

@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, cast
 
-from keycloak import KeycloakAdmin  # type: ignore
+from keycloak import KeycloakAdmin
 from loguru import logger
 from pydantic import UUID4
 
@@ -34,8 +34,8 @@ class GroupQueryRepository:
         members = await self.Kc.a_get_group_members(group_id=group_id)
         return [UserRepresentation(**member).id for member in members]
 
-    def retrieve_user_groups(self, user_id: str) -> List[GroupRepresentation]:
-        groups = self.Kc.get_user_groups(user_id=user_id)
+    def retrieve_user_groups(self, user_id: UUID4) -> List[GroupRepresentation]:
+        groups = self.Kc.get_user_groups(user_id=str(user_id))
         return [GroupRepresentation(**group) for group in groups]
 
     async def a_retrieve_user_groups(self, user_id: str) -> List[GroupRepresentation]:
@@ -79,6 +79,11 @@ class GroupMutationRepository:
         try:
             group_name = "vlab/{}/{}".format(vl_id, role.value)
             group_id = self.Kc.create_group({"name": group_name})
+            if group_id is None:
+                raise IdentityError(
+                    message=f"Error when creating {role} group for lab {vl_name} with id {vl_id}",
+                    detail="Group ID is None",
+                )
 
             return {"id": group_id, "name": group_name}
 
@@ -109,6 +114,11 @@ class GroupMutationRepository:
         group_id = self.Kc.create_group(
             {"name": group_name},
         )
+        if group_id is None:
+            raise IdentityError(
+                message=f"Error when creating {role} group for lab {virtual_lab_id} with project_id {project_id}",
+                detail="Group ID is None",
+            )
 
         return {"id": group_id, "name": group_name}
 
@@ -129,6 +139,11 @@ class GroupMutationRepository:
         group_id = await self.Kc.a_create_group(
             {"name": group_name},
         )
+        if group_id is None:
+            raise IdentityError(
+                message=f"Error when creating {role} group for lab {virtual_lab_id} with project_id {project_id}",
+                detail="Group ID is None",
+            )
 
         return {"id": group_id, "name": group_name}
 

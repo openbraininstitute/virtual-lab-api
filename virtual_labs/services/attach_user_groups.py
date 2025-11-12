@@ -2,7 +2,7 @@ import asyncio
 from json import loads
 from typing import Dict, List, Set, Tuple
 
-from keycloak import KeycloakError  # type: ignore
+from keycloak import KeycloakError
 from loguru import logger
 from pydantic import UUID4, EmailStr
 

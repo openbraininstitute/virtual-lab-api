@@ -7,7 +7,7 @@ from functools import wraps
 from http import HTTPStatus as status
 from typing import Any, Callable, Tuple
 
-from keycloak import KeycloakError  # type: ignore
+from keycloak import KeycloakError
 from loguru import logger
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
@@ -49,7 +49,7 @@ def verify_service_admin(f: Callable[..., Any]) -> Callable[..., Any]:
             except KeycloakError as kc_error:
                 logger.error(
                     f"Keycloak error while fetching user info: CODE: {kc_error.response_code} "
-                    f"BODY: {kc_error.response_body} MESSAGE: {kc_error.error_message}"
+                    f"BODY: {str(kc_error.response_body)} MESSAGE: {kc_error.error_message}"
                 )
                 raise VliError(
                     error_code=VliErrorCode.AUTHORIZATION_ERROR,
