@@ -16,6 +16,7 @@ Environment variables:
 import asyncio
 import json
 import os
+from sqlalchemy import text
 import stripe
 import argparse
 from typing import Dict
@@ -23,8 +24,7 @@ from uuid import UUID, uuid4
 
 from dotenv import load_dotenv
 from loguru import logger
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from virtual_labs.infrastructure.db.models import SubscriptionTier
 load_dotenv(".env.local")
@@ -39,7 +39,7 @@ DEFAULT_FREE_SANITY_ID = "831faa5c-dbbd-4d9a-9b1a-1cd661b61e40"
 DEFAULT_PRO_SANITY_ID = "21bfee77-bcaf-4c93-9447-14ffa1343a31"
 DEFAULT_PREMIUM_SANITY_ID = "78bd43f5-ad04-4d76-8374-23b35ff6dc6a"
 
-STRIPE_API_KEY = os.getenv("STRIPE_API_KEY")
+STRIPE_API_KEY = os.getenv("STRIPE_API_KEY", "")
 PROD_ID = os.getenv("PROD_ID", DEFAULT_PROD_ID)
 FREE_SANITY_ID = os.getenv("FREE_SANITY_ID", DEFAULT_FREE_SANITY_ID)
 PRO_SANITY_ID = os.getenv("PRO_SANITY_ID", DEFAULT_PRO_SANITY_ID)
@@ -147,8 +147,8 @@ async def fetch_stripe_data_for_plan(plan_name: str, test_mode: bool = False) ->
             }
         )
 
-        monthly_price =  next((p for p in prices.data if p.recurring.interval == "month"), None)
-        yearly_price = next((p for p in prices.data if p.recurring.interval == "year"), None)
+        monthly_price =  next((p for p in prices.data if p.recurring is not None and p.recurring.interval == "month"), None)
+        yearly_price = next((p for p in prices.data if p.recurring is not None and p.recurring.interval == "year"), None)
 
         if not monthly_price or not yearly_price:
             logger.warning(f"Missing prices for {plan_name} plan, using predefined data")
@@ -194,7 +194,7 @@ async def populate_subscription_tiers(test_mode: bool = False):
         return
 
     engine = create_async_engine(DATABASE_URL, echo=True)
-    async_session = sessionmaker(
+    async_session = async_sessionmaker(
         engine, class_=AsyncSession, expire_on_commit=False
     )
 
@@ -208,13 +208,13 @@ async def populate_subscription_tiers(test_mode: bool = False):
                 existing_plan = None
                 try:
                     if plan_data["stripe_product_id"]:
-                        result = await session.execute(
+                        result = await session.execute(text(
                             f"SELECT id FROM subscription_tier WHERE stripe_product_id = '{plan_data['stripe_product_id']}'"
-                        )
+                        ))
                     else:
-                        result = await session.execute(
+                        result = await session.execute(text(
                             f"SELECT id FROM subscription_tier WHERE name = '{plan_data['name']}'"
-                        )
+                        ))
                     existing_plan = result.scalar_one_or_none()
                 except Exception as e:
                     logger.warning(f"Error checking for existing plan {plan_name}: {str(e)}")

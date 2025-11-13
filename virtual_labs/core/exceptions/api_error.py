@@ -38,7 +38,7 @@ class VliError(Exception):
 
     message: str
     error_code: VliErrorCode
-    http_status_code: HTTPStatus
+    http_status_code: int | HTTPStatus | None
     details: str | None
     data: dict[str, Any] | None
 
@@ -48,7 +48,7 @@ class VliError(Exception):
         message: str,
         error_code: VliErrorCode,
         details: str | None = None,
-        http_status_code: HTTPStatus = HTTPStatus.BAD_REQUEST,
+        http_status_code: int | HTTPStatus | None = HTTPStatus.BAD_REQUEST,
         data: dict[str, Any] | None = None,
     ):
         super().__init__(message, error_code, http_status_code)
@@ -57,6 +57,14 @@ class VliError(Exception):
         self.http_status_code = http_status_code
         self.details = details
         self.data = data
+
+    def http_status_code_as_int(self) -> int:
+        if isinstance(self.http_status_code, HTTPStatus):
+            return self.http_status_code.value
+        elif isinstance(self.http_status_code, int):
+            return self.http_status_code
+        else:
+            return HTTPStatus.BAD_REQUEST.value
 
     def __repr__(self) -> str:
         class_name = self.__class__.__name__

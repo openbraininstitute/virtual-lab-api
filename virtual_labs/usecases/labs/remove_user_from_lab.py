@@ -1,7 +1,7 @@
 from http import HTTPStatus
 from json import loads
 
-from keycloak import KeycloakError  # type: ignore
+from keycloak import KeycloakError
 from loguru import logger
 from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError

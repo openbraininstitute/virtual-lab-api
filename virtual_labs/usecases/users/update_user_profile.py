@@ -2,7 +2,7 @@ from http import HTTPStatus
 from typing import Any, Dict, Tuple, cast
 
 from fastapi import Response
-from keycloak import KeycloakError  # type:ignore
+from keycloak import KeycloakError
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -53,7 +53,7 @@ async def update_user_profile(
         stripe_service = get_stripe_repository()
         stripe_user_mutation_repo = StripeUserMutationRepository(db_session=session)
 
-        kc_user = await user_query_repo.get_user(user_id=str(user_id))
+        kc_user = await user_query_repo.get_user(user_id=user_id)
 
         if not kc_user:
             raise EntityNotFound

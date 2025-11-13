@@ -3,7 +3,7 @@ from json import loads
 from typing import Tuple
 
 from fastapi.responses import Response
-from keycloak import KeycloakError  # type: ignore
+from keycloak import KeycloakError
 from loguru import logger
 from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
@@ -80,7 +80,7 @@ async def delete_project_use_case(
     except KeycloakError as ex:
         logger.warning(f"project deletion from KC: {loads(ex.error_message)['error']}")
         raise VliError(
-            error_code=ex.response_code or VliErrorCode.EXTERNAL_SERVICE_ERROR,
+            error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
             http_status_code=ex.response_code,
             message="Group deletion failed",
             details=loads(ex.error_message)["error"],

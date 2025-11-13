@@ -63,7 +63,7 @@ async def get_invite_details(
             raise ValueError(f"Origin {origin} is not allowed.")
 
         inviter = await uqr.a_retrieve_user_from_kc(
-            str(invite.inviter_id),
+            invite.inviter_id,
         )
 
         assert inviter is not None

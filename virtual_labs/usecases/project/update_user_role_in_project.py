@@ -4,7 +4,7 @@ from json import loads
 from typing import Tuple
 
 from fastapi.responses import Response
-from keycloak import KeycloakError  # type: ignore
+from keycloak import KeycloakError
 from loguru import logger
 from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError

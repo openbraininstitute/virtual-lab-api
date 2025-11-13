@@ -32,7 +32,7 @@ async def retrieve_all_user_projects_use_case(
     user_id = get_user_id_from_auth(auth)
 
     try:
-        groups = gqr.retrieve_user_groups(user_id=str(user_id))
+        groups = gqr.retrieve_user_groups(user_id=user_id)
         group_ids = [g.id for g in groups]
 
         results = await pr.retrieve_projects_batch(

@@ -4,7 +4,7 @@ from typing import Tuple
 from uuid import uuid4
 
 from fastapi.responses import Response
-from keycloak import KeycloakError  # type: ignore
+from keycloak import KeycloakError
 from loguru import logger
 from pydantic import UUID4
 from sqlalchemy.exc import IntegrityError, NoResultFound, SQLAlchemyError
@@ -138,7 +138,7 @@ async def create_new_project_use_case(
     except KeycloakError as ex:
         logger.error(f"Error during creating/attaching to group in KC: ({ex})")
         raise VliError(
-            error_code=ex.response_code or VliErrorCode.EXTERNAL_SERVICE_ERROR,
+            error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
             http_status_code=status.BAD_REQUEST,
             message="KC Group creation/attaching failed",
         )

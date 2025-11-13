@@ -5,7 +5,7 @@ from typing import Any, Callable
 from uuid import UUID
 
 from fastapi import Depends
-from keycloak import KeycloakError  # type: ignore
+from keycloak import KeycloakError
 from loguru import logger
 from pydantic import UUID4
 from sqlalchemy.exc import NoResultFound, SQLAlchemyError
@@ -103,15 +103,20 @@ def verify_vlab_or_project_read(f: Callable[..., Any]) -> Callable[..., Any]:
                 message="[verify_vlab_or_project_read] The supplied authentication is not authorized for this action",
             )
         except KeycloakError as error:
-            logger.error(
-                f"Keycloak error MESSAGE: {error.response_code} {error.response_body} {error.error_message}"
-            )
+            if error.response_body is None:
+                logger.error(
+                    f"Keycloak error MESSAGE: {error.response_code} body=None {error.error_message}"
+                )
+            else:
+                logger.error(
+                    f"Keycloak error MESSAGE: {error.response_code} {error.response_body.decode(encoding='utf-8')} {error.error_message}"
+                )
             logger.exception(f"Keycloak get error {error}")
             raise VliError(
                 error_code=VliErrorCode.INTERNAL_SERVER_ERROR,
                 http_status_code=error.response_code or status.BAD_REQUEST,
                 message="Checking for authorization failed",
-                details=error.__str__,
+                details=error.__str__(),
             )
         except Exception as error:
             logger.exception("Unknown error when checking for authorization", error)
@@ -196,15 +201,20 @@ async def verify_vlab_or_project_read_dep(
             message="[verify_vlab_or_project_read_dep] The supplied authentication is not authorized for this action",
         )
     except KeycloakError as error:
-        logger.error(
-            f"Keycloak error MESSAGE: {error.response_code} {error.response_body} {error.error_message}"
-        )
+        if error.response_body is None:
+            logger.error(
+                f"Keycloak error MESSAGE: {error.response_code} body=None {error.error_message}"
+            )
+        else:
+            logger.error(
+                f"Keycloak error MESSAGE: {error.response_code} {error.response_body.decode(encoding='utf-8')} {error.error_message}"
+            )
         logger.exception(f"Keycloak get error {error}")
         raise VliError(
             error_code=VliErrorCode.INTERNAL_SERVER_ERROR,
             http_status_code=error.response_code or status.BAD_REQUEST,
             message="Checking for authorization failed",
-            details=error.__str__,
+            details=error.__str__(),
         )
     except Exception as error:
         logger.exception("Unknown error when checking for authorization", error)

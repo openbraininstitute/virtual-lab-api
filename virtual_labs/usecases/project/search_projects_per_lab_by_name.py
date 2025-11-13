@@ -35,7 +35,7 @@ async def search_projects_per_virtual_lab_by_name_use_case(
             message="No search query provided",
         )
     try:
-        groups = gqr.retrieve_user_groups(user_id=str(user_id))
+        groups = gqr.retrieve_user_groups(user_id=user_id)
         group_ids = [g.id for g in groups]
 
         projects_vl_tuple = await pr.search(

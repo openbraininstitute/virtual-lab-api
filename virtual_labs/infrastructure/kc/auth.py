@@ -7,7 +7,7 @@ from fastapi.security import (
     HTTPBearer,
     OAuth2AuthorizationCodeBearer,
 )
-from keycloak import KeycloakError  # type:ignore
+from keycloak import KeycloakError
 from loguru import logger
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
@@ -47,9 +47,14 @@ def verify_jwt(
         token = header.credentials
         decoded_token = kc_auth.decode_token(token=token, validate=True)
     except KeycloakError as exception:
-        logger.error(
-            f"Keyclock error while decoding token CODE: {exception.response_code} BODY: {exception.response_body} MESSAGE: {exception.error_message}"
-        )
+        if exception.response_body is None:
+            logger.error(
+                f"Keyclock error while decoding token CODE: {exception.response_code} BODY: None MESSAGE: {exception.error_message}"
+            )
+        else:
+            logger.error(
+                f"Keyclock error while decoding token CODE: {exception.response_code} BODY: {exception.response_body.decode(encoding='utf-8')} MESSAGE: {exception.error_message}"
+            )
         logger.exception(f"Keycloak decode exception {exception}")
         raise VliError(
             error_code=VliErrorCode.AUTHORIZATION_ERROR,
@@ -119,9 +124,14 @@ async def a_verify_jwt(
         token = header.credentials
         decoded_token = await kc_auth.a_decode_token(token=token, validate=True)
     except KeycloakError as exception:
-        logger.error(
-            f"Keycloak error while decoding token CODE: {exception.response_code} BODY: {exception.response_body} MESSAGE: {exception.error_message}"
-        )
+        if exception.response_body is None:
+            logger.error(
+                f"Keycloak error while decoding token CODE: {exception.response_code} BODY: None MESSAGE: {exception.error_message}"
+            )
+        else:
+            logger.error(
+                f"Keycloak error while decoding token CODE: {exception.response_code} BODY: {exception.response_body.decode(encoding='utf-8')} MESSAGE: {exception.error_message}"
+            )
         logger.exception(f"Keycloak decode exception {exception}")
         raise VliError(
             error_code=VliErrorCode.AUTHORIZATION_ERROR,

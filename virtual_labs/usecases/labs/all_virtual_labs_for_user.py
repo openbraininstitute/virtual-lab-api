@@ -3,7 +3,7 @@ from http import HTTPStatus
 from typing import Tuple
 from uuid import UUID
 
-from keycloak import KeycloakGetError  # type: ignore
+from keycloak import KeycloakGetError
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 

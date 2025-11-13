@@ -1,7 +1,7 @@
 from typing import Any, Dict, List, Literal, Tuple, cast
 from uuid import UUID, uuid4
 
-from keycloak import KeycloakAdmin  # type: ignore
+from keycloak import KeycloakAdmin
 from loguru import logger
 from pydantic import UUID4
 
@@ -21,8 +21,8 @@ class UserQueryRepository:
         self.Kc = kc_realm
         self.Kc_auth = kc_auth
 
-    async def get_user(self, user_id: str) -> Dict[str, Any]:
-        user = await self.Kc.a_get_user(user_id=user_id)
+    async def get_user(self, user_id: UUID4) -> Dict[str, Any]:
+        user = await self.Kc.a_get_user(user_id=str(user_id))
         return cast(Dict[str, Any], user)
 
     def retrieve_user_from_kc(self, user_id: str) -> UserRepresentation:
@@ -33,9 +33,9 @@ class UserQueryRepository:
                 message=f"User with id {user_id} not found", detail=str(error)
             )
 
-    async def a_retrieve_user_from_kc(self, user_id: str) -> UserRepresentation:
+    async def a_retrieve_user_from_kc(self, user_id: UUID4) -> UserRepresentation:
         try:
-            user = await self.Kc.a_get_user(user_id)
+            user = await self.Kc.a_get_user(str(user_id))
             return UserRepresentation(**user)
         except Exception as error:
             raise IdentityError(
@@ -84,7 +84,7 @@ class UserQueryRepository:
         try:
             groups = [
                 GroupRepresentation(**group)
-                for group in self.Kc.get_user_groups(user_id=user_id)
+                for group in self.Kc.get_user_groups(user_id=str(user_id))
             ]
             return groups
         except Exception as error:
@@ -123,7 +123,7 @@ class UserMutationRepository:
         group_id: str,
     ) -> Any | Dict[str, str]:
         try:
-            return self.Kc.group_user_add(user_id=user_id, group_id=group_id)
+            return self.Kc.group_user_add(user_id=str(user_id), group_id=group_id)
         except Exception as error:
             logger.error(
                 f"Keycloak error when adding user {user_id} to group {group_id}: {error}"
@@ -142,7 +142,9 @@ class UserMutationRepository:
         group_id: str,
     ) -> Any | Dict[str, str]:
         try:
-            return await self.Kc.a_group_user_add(user_id=user_id, group_id=group_id)
+            return await self.Kc.a_group_user_add(
+                user_id=str(user_id), group_id=group_id
+            )
         except Exception as error:
             logger.error(
                 f"Keycloak error when adding user {user_id} to group {group_id}: {error}"
@@ -160,7 +162,7 @@ class UserMutationRepository:
         user_id: UUID4,
         group_id: str,
     ) -> Any | Dict[str, str]:
-        return self.Kc.group_user_remove(user_id=user_id, group_id=group_id)
+        return self.Kc.group_user_remove(user_id=str(user_id), group_id=group_id)
 
     async def a_detach_user_from_group(
         self,
@@ -168,7 +170,9 @@ class UserMutationRepository:
         user_id: UUID4,
         group_id: str,
     ) -> Any | Dict[str, str]:
-        return await self.Kc.a_group_user_remove(user_id=user_id, group_id=group_id)
+        return await self.Kc.a_group_user_remove(
+            user_id=str(user_id), group_id=group_id
+        )
 
     def create_user(
         self,
@@ -207,7 +211,7 @@ class UserMutationRepository:
         value: str,
         type: Literal["multiple", "unique"] = "unique",
     ) -> None:
-        user = await self.Kc.a_get_user(user_id=user_id)
+        user = await self.Kc.a_get_user(user_id=str(user_id))
 
         update_data: Dict[str, Any] = {}
         update_data["email"] = user.get("email")
@@ -222,7 +226,7 @@ class UserMutationRepository:
         merged_attributes.update(cast(Dict[Any, List[Any]], property_field))
         update_data["attributes"] = merged_attributes
 
-        await self.Kc.a_update_user(user_id=user_id, payload=update_data)
+        await self.Kc.a_update_user(user_id=str(user_id), payload=update_data)
 
     async def update_user_custom_properties(
         self,
@@ -238,7 +242,7 @@ class UserMutationRepository:
                         where type is either "multiple" or "unique"
 
         """
-        user = await self.Kc.a_get_user(user_id=user_id)
+        user = await self.Kc.a_get_user(user_id=str(user_id))
 
         update_data: Dict[str, Any] = {}
         update_data["email"] = user.get("email")
@@ -256,4 +260,4 @@ class UserMutationRepository:
 
         update_data["attributes"] = merged_attributes
 
-        await self.Kc.a_update_user(user_id=user_id, payload=update_data)
+        await self.Kc.a_update_user(user_id=str(user_id), payload=update_data)
