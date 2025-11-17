@@ -73,3 +73,4 @@ exclude = [
 populate-tiers = "scripts.populate_subscription_tiers:run_async"
 upgrade-subscription = "scripts.upgrade_subscription:run_async"
 send_email = "scripts.send_email:run_async"
+send_emails = "scripts.send_emails:run_async"
