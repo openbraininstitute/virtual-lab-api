@@ -72,7 +72,8 @@ async def send_invite(payload: EmailDetails) -> str:
 
         await fm_executor.send_message(
             message=message,
-            template_name="invitation_template.html",
+            html_template="invitation_template.html",
+            plain_template="invitation_template.txt",
         )
         logger.debug(f"Invite link {invite_link} emailed to user {payload.recipient}")
         return invite_link

@@ -1,0 +1,18 @@
+Invitation to OBI {{origin}}
+
+Great news! {% if inviter_name %}{{inviter_name}}{% endif %} invited you to join the {{origin}}
+{{invited_to}} on the Open Brain Platform.
+
+Use the following link to accept:
+{{invite_link}}
+
+What is Open Brain Institute ?
+
+OBI is the next generation platform that connects explorative features
+with a powerful set of model-building tools for conducting simulation
+experiments. From ion channel to whole-brain modeling, OBI supports
+neuroscientists in their research efforts. Explore, collect, and use
+real biological data to digitally simulate neurons.
+
+To discover more, use the following link:
+{{discover_link}}
