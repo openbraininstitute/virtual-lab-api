@@ -44,6 +44,8 @@ types-requests = "^2.31.0.20240311"
 pytest-asyncio = "0.21.1"
 python-dotenv = "^1.0.1"
 pytest-cov = "^6.1.1"
+typer = "^0.20.0"
+rich = "^14.2.0"
 
 [build-system]
 requires = ["poetry-core"]
@@ -73,3 +75,4 @@ exclude = [
 populate-tiers = "scripts.populate_subscription_tiers:run_async"
 upgrade-subscription = "scripts.upgrade_subscription:run_async"
 send_email = "scripts.send_email:run_async"
+fix-group-memberships = "scripts.fix_group_memberships:run_async"
