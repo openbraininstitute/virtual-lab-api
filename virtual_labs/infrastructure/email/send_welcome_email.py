@@ -12,6 +12,22 @@ async def send_welcome_email(recipient: str) -> str:
             body="",
             subtype=MessageType.html,
             template_body={},
+            attachments=[
+                {
+                    "file": str(
+                        email_config.TEMPLATE_FOLDER / "advertisement-video-poster.webp"
+                    ),
+                    "headers": {
+                        "Content-ID": "<advertisement-video-poster.webp>",
+                        "Content-Disposition": 'inline; filename="advertisement-video-poster.webp"', 
+                    },
+                    "mime_type": "image/webp",
+                    "mime_subtype": "webp",
+                    "Content-Type": "multipart/related",
+                }
+            ]
+            if email_config.TEMPLATE_FOLDER is not None
+            else [],
         )
         fm = FastMail(email_config)
         await fm.send_message(message, template_name="welcome.html")
