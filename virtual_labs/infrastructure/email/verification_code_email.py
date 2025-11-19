@@ -1,5 +1,6 @@
 from fastapi_mail import FastMail, MessageSchema, MessageType
 from loguru import logger
+from pydantic import NameEmail
 
 from virtual_labs.core.exceptions.email_error import EmailError
 from virtual_labs.domain.email import VerificationCodeEmailDetails
@@ -14,7 +15,7 @@ async def send_verification_code_email(details: VerificationCodeEmailDetails) ->
         invite_html = generate_email_verification_html(details)
         message = MessageSchema(
             subject=f"Action Required: Verify your email for {details.virtual_lab_name}",
-            recipients=[details.recipient],
+            recipients=[NameEmail("", details.recipient)],
             body=invite_html,
             subtype=MessageType.html,
             attachments=[

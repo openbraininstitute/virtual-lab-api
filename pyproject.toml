@@ -21,7 +21,7 @@ python-keycloak = "4.3.0"
 pydantic = {extras = ["email"], version = "^2.6.3"}
 httpx = "^0.27.0"
 alembic = "^1.13.1"
-fastapi-mail = "^1.4.1"
+fastapi-mail = "^1.5.8"
 pyjwt = "^2.8.0"
 asyncpg = "^0.29.0"
 asyncpg-stubs = "^0.29.1"
@@ -58,6 +58,9 @@ markers = [
 
 [tool.mypy]
 exclude = "scripts/*"
+plugins = ["pydantic.mypy"]
+
+
 
 [tool.ruff]
 # Exclude scripts directory from linting
@@ -73,3 +76,4 @@ exclude = [
 populate-tiers = "scripts.populate_subscription_tiers:run_async"
 upgrade-subscription = "scripts.upgrade_subscription:run_async"
 send_email = "scripts.send_email:run_async"
+

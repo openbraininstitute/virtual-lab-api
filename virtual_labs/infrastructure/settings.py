@@ -3,7 +3,7 @@ from os import getenv
 from typing import Any, Literal, Optional, TypeGuard, get_args
 
 from dotenv import load_dotenv
-from pydantic import EmailStr, PostgresDsn, ValidationInfo, field_validator
+from pydantic import EmailStr, PostgresDsn, SecretStr, ValidationInfo, field_validator
 from pydantic_core import MultiHostUrl
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -17,7 +17,7 @@ def _is_valid_env(env: str | None) -> TypeGuard[_ENVS]:
 
 
 _ENV = getenv("DEPLOYMENT_ENV")
-_DEPLOYMENT_ENV = _ENV if _is_valid_env(_ENV) else "development"
+_DEPLOYMENT_ENV: _ENVS = _ENV if _is_valid_env(_ENV) else "development"
 
 
 class Settings(BaseSettings):
@@ -38,8 +38,8 @@ class Settings(BaseSettings):
     POSTGRES_USER: str = "vlm"
     POSTGRES_PASSWORD: str = "vlm"
     POSTGRES_DB: str = "vlm"
-    DATABASE_URI: PostgresDsn = MultiHostUrl(
-        "postgresql+asyncpg://vlm:vlm@localhost:15432/vlm"
+    DATABASE_URI: PostgresDsn = PostgresDsn(
+        url=MultiHostUrl("postgresql+asyncpg://vlm:vlm@localhost:15432/vlm")
     )
 
     KC_SERVER_URI: str = "http://localhost:9090/"
@@ -53,7 +53,7 @@ class Settings(BaseSettings):
     VLAB_ADMIN_PATH: str = "/app/virtual-lab/account/subscription"
 
     MAIL_USERNAME: str = "dummyusername"
-    MAIL_PASSWORD: str = "dummypassword"
+    MAIL_PASSWORD: SecretStr = SecretStr("dummypassword")
     MAIL_FROM: EmailStr = "obp@bbp.org"
     MAIL_PORT: int = 1025
     MAIL_SERVER: str = "localhost"

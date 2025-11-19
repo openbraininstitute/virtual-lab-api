@@ -135,7 +135,8 @@ class CreateSubscriptionRequest(BaseModel):
         ..., description="stripe payment method id to use for billing"
     )
     metadata: Optional[Dict[str, str]] = Field(
-        default_factory=dict, description="additional metadata for the subscription"
+        default_factory=lambda: {},
+        description="additional metadata for the subscription",
     )
 
 

@@ -56,7 +56,7 @@ class EmailVerificationPayload(Email):
 
 
 class VerificationCodeEmailDetails(BaseModel):
-    recipient: EmailStr
+    recipient: str
     code: EmailVerificationCode
     virtual_lab_name: str
     expire_at: str

@@ -1,6 +1,6 @@
 from fastapi_mail import FastMail, MessageSchema, MessageType
 from loguru import logger
-from pydantic import UUID4, BaseModel, EmailStr
+from pydantic import UUID4, BaseModel, NameEmail
 
 from virtual_labs.core.exceptions.email_error import EmailError
 from virtual_labs.infrastructure.email.config import email_config
@@ -14,7 +14,7 @@ from virtual_labs.infrastructure.settings import settings
 
 
 class EmailDetails(BaseModel):
-    recipient: EmailStr
+    recipient: str
     inviter_name: str
     invite_id: UUID4
 
@@ -44,7 +44,7 @@ async def send_invite(payload: EmailDetails) -> str:
 
         message = MessageSchema(
             subject=f"Invitation to OBI {display_origin}",
-            recipients=[payload.recipient],
+            recipients=[NameEmail("", payload.recipient)],
             body=invite_html,
             subtype=MessageType.html,
             attachments=[
