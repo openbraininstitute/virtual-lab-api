@@ -21,6 +21,7 @@ define HELPTEXT
 		lint-check      Check linting issues in files but do not modify them to fix linting issues
 		style-check     Run formatting, and linting
 		type-check      Run static type checks
+		check-all       Run format, lint, style-check and type-check
 		test            Run tests
 		init-db         Create & seed db tables
 		check-db-schema Checks if db schema change requires a migration. Note: Not all changes can be checked here.
@@ -73,6 +74,8 @@ style-check:
 
 type-check:
 	poetry run mypy . --strict
+
+check-all: format lint style-check type-check
 
 test:
 	poetry run populate-tiers --test

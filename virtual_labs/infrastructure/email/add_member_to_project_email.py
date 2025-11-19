@@ -1,6 +1,6 @@
 from fastapi_mail import FastMail, MessageSchema, MessageType
 from loguru import logger
-from pydantic import UUID4, BaseModel, EmailStr
+from pydantic import UUID4, BaseModel, NameEmail
 
 from virtual_labs.core.exceptions.email_error import EmailError
 from virtual_labs.infrastructure.email.config import email_config
@@ -11,7 +11,7 @@ from virtual_labs.infrastructure.settings import settings
 
 
 class EmailDetails(BaseModel):
-    recipient: EmailStr
+    recipient: str
     inviter_name: str
     lab_name: str
     lab_id: UUID4
@@ -27,7 +27,7 @@ async def send_add_member_to_project_email(details: EmailDetails) -> str:
         )
         message = MessageSchema(
             subject=f"You have been given access to OBI's project titled {details.project_name}",
-            recipients=[details.recipient],
+            recipients=[NameEmail("", details.recipient)],
             body=body_html,
             subtype=MessageType.html,
             attachments=[
