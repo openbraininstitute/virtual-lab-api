@@ -28,7 +28,7 @@ from virtual_labs.routes.bookmarks import router as bookmarks_router
 from virtual_labs.routes.common import router as common_router
 from virtual_labs.routes.invites import router as invite_router
 from virtual_labs.routes.labs import router as virtual_lab_router
-from virtual_labs.routes.notebooks import router as notebook_router
+
 from virtual_labs.routes.payments import router as payments_router
 from virtual_labs.routes.projects import router as project_router
 from virtual_labs.routes.promotions import admin_router as admin_promotions_router
@@ -162,7 +162,7 @@ base_router.include_router(invite_router)
 base_router.include_router(payments_router)
 base_router.include_router(bookmarks_router)
 base_router.include_router(accounting_router)
-base_router.include_router(notebook_router)
+
 base_router.include_router(subscription_router)
 base_router.include_router(user_router)
 base_router.include_router(promotions_router)

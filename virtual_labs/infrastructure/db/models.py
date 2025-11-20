@@ -259,29 +259,6 @@ class Bookmark(Base):
     )
 
 
-class Notebook(Base):
-    __tablename__ = "notebook"
-
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=func.now()
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=func.now(), onupdate=func.now()
-    )
-
-    project_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("project.id"), index=True
-    )
-    github_file_url: Mapped[str] = mapped_column(nullable=False)
-
-    __table_args__ = (
-        UniqueConstraint("project_id", "github_file_url", name="uq_project_file_url"),
-    )
-
-
 class EmailVerificationCode(Base):
     __tablename__ = "email_verification_codes"
 

@@ -68,7 +68,7 @@ class ProjectStats(BaseModel):
     total_bookmarks: int
     total_pending_invites: int
     total_members: int
-    total_notebooks: int
+
     admin_users: list[UUID4]
     member_users: list[UUID4]
 
