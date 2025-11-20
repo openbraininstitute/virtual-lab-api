@@ -16,7 +16,6 @@ from virtual_labs.domain.project import (
 )
 from virtual_labs.infrastructure.db.models import (
     Bookmark,
-    Notebook,
     Project,
     ProjectInvite,
     ProjectStar,
@@ -53,13 +52,11 @@ class ProjectQueryRepository:
                 func.count(distinct(ProjectInvite.id))
                 .filter(~ProjectInvite.accepted)
                 .label("total_pending_invites"),
-                func.count(distinct(Notebook.id)).label("total_notebooks"),
             )
             .select_from(base_query)
             .outerjoin(ProjectStar, base_query.c.id == ProjectStar.project_id)
             .outerjoin(Bookmark, base_query.c.id == Bookmark.project_id)
             .outerjoin(ProjectInvite, base_query.c.id == ProjectInvite.project_id)
-            .outerjoin(Notebook, base_query.c.id == Notebook.project_id)
             .group_by(base_query.c.id)
         )
 
@@ -71,14 +68,12 @@ class ProjectQueryRepository:
                 "total_stars": 0,
                 "total_bookmarks": 0,
                 "total_pending_invites": 0,
-                "total_notebooks": 0,
             }
 
         return {
             "total_stars": stats.total_stars,
             "total_bookmarks": stats.total_bookmarks,
             "total_pending_invites": stats.total_pending_invites,
-            "total_notebooks": stats.total_notebooks,
         }
 
     async def retrieve_virtual_lab_projects(

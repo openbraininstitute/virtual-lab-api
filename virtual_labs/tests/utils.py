@@ -18,7 +18,6 @@ from virtual_labs.infrastructure.db.config import session_pool
 from virtual_labs.infrastructure.db.models import (
     Bookmark,
     FreeSubscription,
-    Notebook,
     PaidSubscription,
     PaymentMethod,
     Project,
@@ -233,10 +232,6 @@ async def cleanup_resources(
 
             await session.execute(
                 statement=delete(Bookmark).where(Bookmark.project_id == project_id)
-            )
-
-            await session.execute(
-                statement=delete(Notebook).where(Notebook.project_id == project_id)
             )
 
             logger.debug(f"Deleting project {project_id}")

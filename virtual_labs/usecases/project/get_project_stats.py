@@ -42,7 +42,6 @@ async def get_project_stats(
             total_stars=stats["total_stars"],
             total_bookmarks=stats["total_bookmarks"],
             total_pending_invites=stats["total_pending_invites"],
-            total_notebooks=stats["total_notebooks"],
             total_members=total_members,
             admin_users=[UUID(user.id) for user in admin_users],
             member_users=[UUID(user.id) for user in member_users],
