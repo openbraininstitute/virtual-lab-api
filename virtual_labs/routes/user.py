@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Dict, Tuple
 
 from fastapi import APIRouter, Depends, Response
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -6,6 +6,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from virtual_labs.core.types import VliAppResponse
 from virtual_labs.domain.labs import UserStats
 from virtual_labs.domain.user import (
+    OnboardingFeature,
+    OnboardingStatus,
+    OnboardingUpdateRequest,
     SetRecentWorkspaceRequest,
     UpdateUserProfileRequest,
     UserGroupsResponse,
@@ -17,12 +20,16 @@ from virtual_labs.infrastructure.kc.auth import a_verify_jwt
 from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.usecases.labs.get_user_stats import get_user_stats
 from virtual_labs.usecases.users import (
-    get_all_user_groups,
-    get_recent_workspace,
+    get_user_onboarding_status,
     get_user_profile,
+    reset_all_user_onboarding_status,
+    reset_user_onboarding_status,
     set_recent_workspace,
+    update_user_onboarding_status,
     update_user_profile,
 )
+from virtual_labs.usecases.users.get_all_user_groups import get_all_user_groups
+from virtual_labs.usecases.users.get_recent_workspace import get_recent_workspace
 
 router = APIRouter(
     prefix="/users",
@@ -154,6 +161,107 @@ async def set_recent_workspace_endpoint(
     """
     return await set_recent_workspace(
         request=payload,
+        auth=auth,
+        session=session,
+    )
+
+
+@router.get(
+    "/preferences/onboarding",
+    summary="Get onboarding status",
+    description="Get the user's onboarding status for all features",
+    response_model=VliAppResponse[Dict[str, OnboardingStatus]],
+)
+async def get_onboarding_status_endpoint(
+    session: AsyncSession = Depends(default_session_factory),
+    auth: Tuple[AuthUser, str] = Depends(a_verify_jwt),
+) -> Response:
+    """
+    Get the user's onboarding status.
+
+    Returns:
+        Response: Onboarding status dictionary
+    """
+    return await get_user_onboarding_status(
+        auth=auth,
+        session=session,
+    )
+
+
+@router.put(
+    "/preferences/onboarding/{feature}",
+    summary="Update onboarding status",
+    description="Update the onboarding status for a specific feature",
+    response_model=VliAppResponse[Dict[str, OnboardingStatus]],
+)
+async def update_onboarding_status_endpoint(
+    feature: OnboardingFeature,
+    payload: OnboardingUpdateRequest,
+    session: AsyncSession = Depends(default_session_factory),
+    auth: Tuple[AuthUser, str] = Depends(a_verify_jwt),
+) -> Response:
+    """
+    Update the onboarding status for a specific feature.
+
+    Args:
+        feature: The feature identifier
+        payload: The status update
+
+    Returns:
+        Response: Updated feature status
+    """
+    return await update_user_onboarding_status(
+        feature=feature.value,
+        payload=payload,
+        auth=auth,
+        session=session,
+    )
+
+
+@router.delete(
+    "/preferences/onboarding/{feature}",
+    summary="Reset onboarding status",
+    description="Reset the onboarding status for a specific feature",
+    response_model=VliAppResponse[Dict[str, OnboardingStatus]],
+)
+async def reset_onboarding_status_endpoint(
+    feature: OnboardingFeature,
+    session: AsyncSession = Depends(default_session_factory),
+    auth: Tuple[AuthUser, str] = Depends(a_verify_jwt),
+) -> Response:
+    """
+    Reset the onboarding status for a specific feature.
+
+    Args:
+        feature: The feature identifier
+
+    Returns:
+        Response: Status of the reset operation
+    """
+    return await reset_user_onboarding_status(
+        feature=feature.value,
+        auth=auth,
+        session=session,
+    )
+
+
+@router.delete(
+    "/preferences/onboarding",
+    summary="Reset all onboarding status",
+    description="Reset the onboarding status for all features",
+    response_model=VliAppResponse[Dict[str, OnboardingStatus]],
+)
+async def reset_all_onboarding_status_endpoint(
+    session: AsyncSession = Depends(default_session_factory),
+    auth: Tuple[AuthUser, str] = Depends(a_verify_jwt),
+) -> Response:
+    """
+    Reset the onboarding status for all features.
+
+    Returns:
+        Response: Status of the reset operation
+    """
+    return await reset_all_user_onboarding_status(
         auth=auth,
         session=session,
     )

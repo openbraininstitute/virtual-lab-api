@@ -27,6 +27,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
 from virtual_labs.domain.bookmark import BookmarkCategory
+from virtual_labs.domain.user import OnboardingStatusDict
 
 
 class Base(DeclarativeBase):
@@ -657,6 +658,10 @@ class UserPreference(Base):
 
     virtual_lab = relationship("VirtualLab", foreign_keys=[virtual_lab_id])
     project = relationship("Project", foreign_keys=[project_id])
+
+    onboarding_progress: Mapped[Dict[str, OnboardingStatusDict]] = mapped_column(
+        JSON, default={}, server_default="{}"
+    )
 
     __table_args__ = (
         Index("ix_user_preference_workspace", "virtual_lab_id", "project_id"),
