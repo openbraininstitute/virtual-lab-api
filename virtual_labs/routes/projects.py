@@ -386,7 +386,7 @@ async def invite_user_to_project(
 
 @router.post(
     "/{virtual_lab_id}/projects/{project_id}/invites/cancel",
-    operation_id="post_invite_to_project",
+    operation_id="cancel_invite_to_project",
     summary="Invite user to a project",
     response_model=VliAppResponse[InvitationResponse],
 )

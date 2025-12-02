@@ -4,6 +4,12 @@ from .get_recent_workspace import get_recent_workspace
 from .get_user_profile import get_user_profile
 from .set_recent_workspace import set_recent_workspace
 from .update_user_profile import update_user_profile
+from .onboarding import (
+    get_user_onboarding_status,
+    update_user_onboarding_status,
+    reset_user_onboarding_status,
+    reset_all_user_onboarding_status,
+)
 
 __all__ = [
     "get_all_user_groups",
@@ -12,4 +18,8 @@ __all__ = [
     "get_user_profile",
     "set_recent_workspace",
     "update_user_profile",
+    "get_user_onboarding_status",
+    "update_user_onboarding_status",
+    "reset_user_onboarding_status",
+    "reset_all_user_onboarding_status",
 ]
