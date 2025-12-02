@@ -37,7 +37,7 @@ async def cancel_project_invite(
             )
 
         raise VliError(
-            message=f"No invite found for user {payload.email} for lab {project_id}",
+            message=f"No invite found for user {payload.email} for project {project_id}",
             http_status_code=HTTPStatus.NOT_FOUND,
             error_code=VliErrorCode.ENTITY_NOT_FOUND,
         )
