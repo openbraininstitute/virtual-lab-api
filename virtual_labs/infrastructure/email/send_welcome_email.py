@@ -15,16 +15,13 @@ async def send_welcome_email(recipient: str) -> str:
             template_body={},
             attachments=[
                 {
-                    "file": str(
-                        email_config.TEMPLATE_FOLDER / "advertisement-video-poster.webp"
-                    ),
+                    "file": "virtual_labs/infrastructure/email/assets/advertisement-video-poster.webp",
                     "headers": {
-                        "Content-ID": "<advertisement-video-poster.webp>",
+                        "Content-ID": "<advertisement-video-poster>",
                         "Content-Disposition": 'inline; filename="advertisement-video-poster.webp"',
                     },
-                    "mime_type": "image/webp",
+                    "mime_type": "image",
                     "mime_subtype": "webp",
-                    "Content-Type": "multipart/related",
                 }
             ]
             if email_config.TEMPLATE_FOLDER is not None
