@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from enum import Enum
 from datetime import datetime
+from enum import Enum
 from typing import TYPE_CHECKING, Annotated, Any, List, Optional, TypedDict
 
 from pydantic import (
@@ -188,3 +188,46 @@ class OnboardingStatusDict(TypedDict):
     completed_at: Optional[str]
     current_step: Optional[int]
     dismissed: bool
+
+
+# Workspace Hierarchy Species Preference Domain Models
+class WorkspaceHierarchySpeciesPreference(BaseModel):
+    """
+    Request/Response model for brain region preference.
+    Stores user's selected hierarchy, species taxonomy, and brain region context.
+    """
+
+    hierarchy_id: UUID4 = Field(
+        ...,
+        description="UUID identifier for the selected hierarchy",
+    )
+    species_name: str = Field(
+        ...,
+        min_length=1,
+        description="Identifier for the species taxonomy",
+    )
+    brain_region_id: Optional[UUID4] = Field(
+        default=None,
+        description="UUID identifier for the selected brain region",
+    )
+    brain_region_name: Optional[str] = Field(
+        default=None,
+        description="Annotation value for the brain region",
+    )
+
+
+class WorkspaceHierarchySpeciesPreferenceDict(TypedDict):
+    """TypedDict for workspace hierarchy species preference stored in DB JSON"""
+
+    hierarchy_id: str  # UUID stored as string in JSON
+    species_name: str
+    brain_region_id: Optional[str]  # UUID stored as string in JSON
+    brain_region_name: Optional[str]
+
+
+class WorkspaceHierarchySpeciesPreferenceResponse(BaseModel):
+    """Response model for workspace hierarchy species preference"""
+
+    user_id: UUID4
+    preference: Optional[WorkspaceHierarchySpeciesPreference] = None
+    updated_at: Optional[datetime] = None

@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, TypedDict
 from uuid import uuid4
 
 from sqlalchemy import (
@@ -27,7 +27,25 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
 from virtual_labs.domain.bookmark import BookmarkCategory
-from virtual_labs.domain.user import OnboardingStatusDict
+
+
+# TypedDicts for JSON columns - defined here to avoid circular imports
+class OnboardingStatusDict(TypedDict):
+    """TypedDict for onboarding status stored in DB JSON"""
+
+    completed: bool
+    completed_at: Optional[str]
+    current_step: Optional[int]
+    dismissed: bool
+
+
+class WorkspaceHierarchySpeciesPreferenceDict(TypedDict):
+    """TypedDict for workspace hierarchy species preference stored in DB JSON"""
+
+    hierarchy_id: str  # UUID stored as string in JSON
+    species_name: str
+    brain_region_id: Optional[str]  # UUID stored as string in JSON
+    brain_region_name: Optional[str]
 
 
 class Base(DeclarativeBase):
@@ -662,6 +680,10 @@ class UserPreference(Base):
     onboarding_progress: Mapped[Dict[str, OnboardingStatusDict]] = mapped_column(
         JSON, default={}, server_default="{}"
     )
+
+    workspace_hierarchy_species: Mapped[
+        Optional[WorkspaceHierarchySpeciesPreferenceDict]
+    ] = mapped_column(JSON, nullable=True)
 
     __table_args__ = (
         Index("ix_user_preference_workspace", "virtual_lab_id", "project_id"),
