@@ -95,12 +95,12 @@ def verify_jwt(
     try:
         user = AuthUser(**decoded_token)
         return (user, token)
-    except Exception:
+    except Exception as exception:
         raise VliError(
             error_code=VliErrorCode.INVALID_REQUEST,
             http_status_code=status.BAD_REQUEST,
             message="Generating authentication details failed",
-            details="The user details is not correct",
+            details=f"The user details is not correct, exc: {exception}, decoded token: {decoded_token}",
         )
 
 
@@ -167,12 +167,12 @@ async def a_verify_jwt(
     try:
         user = AuthUser(**decoded_token)
         return (user, token)
-    except Exception:
+    except Exception as exception:
         raise VliError(
             error_code=VliErrorCode.INVALID_REQUEST,
             http_status_code=status.BAD_REQUEST,
             message="Generating authentication details failed",
-            details="The user details is not correct",
+            details=f"The user details is not correct, exc: {exception}, decoded_token: {decoded_token}",
         )
 
 
