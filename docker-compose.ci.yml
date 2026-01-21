@@ -40,6 +40,9 @@ services:
       DB_DATABASE: keycloak
       DB_USER: keycloak
       DB_PASSWORD: keycloak
+      KC_SSL_REQUIRED: none
+      KC_HTTP_ENABLED: true
+      KC_HEALTH_ENABLED: true
     depends_on:
       keycloak-db:
         condition: service_healthy
@@ -47,8 +50,11 @@ services:
       - start-dev
       - --http-port=9090
       - --hostname=keycloak
-      - --hostname-port=9090
-      - --hostname-strict-backchannel=true
+      - --hostname-admin=localhost
+      - --hostname-strict=false
+      - --http-enabled=true
+      - --hostname=http://keycloak:9090
+      - --hostname-admin=http://localhost:9090
       - --import-realm
     ports:
       - "9090:9090"
@@ -56,6 +62,16 @@ services:
       - ls
     volumes:
       - ./env-prep/realm-export.json:/opt/keycloak/data/import/realm-import.json
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "bash -ec 'exec 3<>/dev/tcp/127.0.0.1/9000; printf \"GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n\" >&3; head -n 1 <&3 | grep -q \" 200 \"'"
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 60
+      start_period: 20s
 
   virtual-lab-db:
     image: postgres:17.6
