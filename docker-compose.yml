@@ -30,7 +30,7 @@ services:
       - ls
 
   keycloak:
-    image: quay.io/keycloak/keycloak:26.3
+    image: quay.io/keycloak/keycloak:26.4.7
     container_name: keycloak
     environment:
       KEYCLOAK_ADMIN: admin
@@ -106,8 +106,8 @@ services:
       STRIPE_API_KEY: ${STRIPE_SECRET_KEY}
       STRIPE_DEVICE_NAME: ${STRIPE_DEVICE_NAME}
     entrypoint:
-      - '/bin/sh'
-      - '-c'
+      - "/bin/sh"
+      - "-c"
       - stripe listen --forward-to http://host.docker.internal:8000/payments/webhook
     network_mode: host
     extra_hosts:
@@ -121,7 +121,7 @@ services:
     ports:
       - "6379:6379"
     healthcheck:
-      test: [ "CMD", "redis-cli","ping" ]
+      test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       retries: 5
       start_period: 5s

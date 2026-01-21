@@ -1,6 +1,6 @@
 from typing import Annotated, Any, List, Optional, TypedDict
 
-from pydantic import UUID4, BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field
 
 
 class BaseUserRepresentation(BaseModel):
@@ -38,7 +38,7 @@ class GroupRepresentation(BaseModel):
 
 
 class AuthUser(BaseModel):
-    sid: UUID4
+    sid: str
     sub: str
     username: Annotated[str, Field(alias="preferred_username")]
     email: EmailStr

@@ -30,22 +30,33 @@ done
 # Use environment file only if specified
 if [ "$USE_ENV_FILE" = true ]; then
   echo "Using environment file: $ENV_FILE"
-  docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" -p vlm-project up --wait
+  COMPOSE_BASE=(docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" -p vlm-project)
 else
   echo "No environment file specified, using CI configuration"
-  docker compose -f "$COMPOSE_FILE_CI" -p vlm-project up --wait
+  COMPOSE_BASE=(docker compose -f "$COMPOSE_FILE_CI" -p vlm-project)
 fi
+
+"${COMPOSE_BASE[@]}" up --wait
 
 # Wait for Keycloak to be ready and realm to be imported
 echo "Waiting for Keycloak to be ready..."
+KEYCLOAK_READY="false"
 for i in {1..60}; do
   if curl -s -f "$KC_SERVER_URI/realms/$KC_REALM_NAME" > /dev/null 2>&1; then
     echo "Keycloak is ready!"
+    KEYCLOAK_READY="true"
     break
   fi
   echo "Waiting for Keycloak... ($i/60)"
   sleep 2
 done
+
+if [ "$KEYCLOAK_READY" != "true" ]; then
+  echo "Keycloak did not become ready in time." >&2
+  "${COMPOSE_BASE[@]}" ps || true
+  "${COMPOSE_BASE[@]}" logs --no-color keycloak || true
+  exit 1
+fi
 
 # Additional wait to ensure realm is fully imported
 sleep 5
