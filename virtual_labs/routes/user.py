@@ -13,6 +13,8 @@ from virtual_labs.domain.user import (
     UpdateUserProfileRequest,
     UserGroupsResponse,
     UserProfileResponse,
+    WorkspaceHierarchySpeciesPreference,
+    WorkspaceHierarchySpeciesPreferenceResponse,
 )
 from virtual_labs.domain.workspace import RecentWorkspaceResponseWithDetails
 from virtual_labs.infrastructure.db.config import default_session_factory
@@ -22,11 +24,13 @@ from virtual_labs.usecases.labs.get_user_stats import get_user_stats
 from virtual_labs.usecases.users import (
     get_user_onboarding_status,
     get_user_profile,
+    get_workspace_hierarchy_species_preference,
     reset_all_user_onboarding_status,
     reset_user_onboarding_status,
     set_recent_workspace,
     update_user_onboarding_status,
     update_user_profile,
+    update_workspace_hierarchy_species_preference,
 )
 from virtual_labs.usecases.users.get_all_user_groups import get_all_user_groups
 from virtual_labs.usecases.users.get_recent_workspace import get_recent_workspace
@@ -262,6 +266,59 @@ async def reset_all_onboarding_status_endpoint(
         Response: Status of the reset operation
     """
     return await reset_all_user_onboarding_status(
+        auth=auth,
+        session=session,
+    )
+
+
+@router.get(
+    "/preferences/workspace-hierarchy-species",
+    summary="Get workspace hierarchy species preference",
+    description="Retrieve the user's brain region hierarchy and species taxonomy preference",
+    response_model=VliAppResponse[WorkspaceHierarchySpeciesPreferenceResponse],
+    response_model_exclude_none=False,
+)
+async def get_workspace_hierarchy_species_endpoint(
+    session: AsyncSession = Depends(default_session_factory),
+    auth: Tuple[AuthUser, str] = Depends(a_verify_jwt),
+) -> Response:
+    """
+    Get the user's workspace hierarchy species preference.
+
+    Returns:
+        Response: Preference data including hierarchy_id, species_name,
+                  brain_region_id, and brain_region_name
+    """
+    return await get_workspace_hierarchy_species_preference(
+        auth=auth,
+        session=session,
+    )
+
+
+@router.patch(
+    "/preferences/workspace-hierarchy-species",
+    summary="Update workspace hierarchy species preference",
+    description="Set or update the user's brain region hierarchy and species taxonomy preference",
+    response_model=VliAppResponse[WorkspaceHierarchySpeciesPreferenceResponse],
+    response_model_exclude_none=False,
+)
+async def update_workspace_hierarchy_species_endpoint(
+    payload: WorkspaceHierarchySpeciesPreference,
+    session: AsyncSession = Depends(default_session_factory),
+    auth: Tuple[AuthUser, str] = Depends(a_verify_jwt),
+) -> Response:
+    """
+    Update the user's workspace hierarchy species preference.
+
+    Args:
+        payload: The preference data containing hierarchy_id, species_name,
+                 and optional brain_region_id and brain_region_name
+
+    Returns:
+        Response: Updated preference data
+    """
+    return await update_workspace_hierarchy_species_preference(
+        payload=payload,
         auth=auth,
         session=session,
     )
