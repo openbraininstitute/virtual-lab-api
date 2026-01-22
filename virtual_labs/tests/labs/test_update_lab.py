@@ -88,4 +88,7 @@ async def test_update_lab_compute_cell_service_admin_endpoint_forbidden(
     assert response.status_code == 403
     error_data = response.json()
     assert error_data["error_code"] == "AUTHORIZATION_ERROR"
-    assert "administrative" in error_data.get("details", "").lower() or "admin" in error_data.get("message", "").lower()
+    assert (
+        "administrative" in error_data.get("details", "").lower()
+        or "admin" in error_data.get("message", "").lower()
+    )
