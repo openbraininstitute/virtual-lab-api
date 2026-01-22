@@ -55,8 +55,8 @@ class Base(DeclarativeBase):
 class ComputeCell(str, Enum):
     """Enum for available compute cells."""
 
-    CELL_A = "cell_a"
-    CELL_B = "cell_b"
+    CELL_A = "cell_a"  # aws
+    CELL_B = "cell_b"  # azure
 
 
 class VirtualLab(Base):
