@@ -21,16 +21,16 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     # Create the enum type
-    op.execute("CREATE TYPE computecell AS ENUM ('cell-a', 'cell-b')")
+    op.execute("CREATE TYPE computecell AS ENUM ('CELL_A', 'CELL_B')")
 
     # Add column with default value
     op.add_column(
         "virtual_lab",
         sa.Column(
             "compute_cell",
-            sa.Enum("cell-a", "cell-b", name="computecell"),
+            sa.Enum("CELL_A", "CELL_B", name="computecell"),
             nullable=False,
-            server_default="cell-a",
+            server_default="CELL_A",
         ),
     )
 

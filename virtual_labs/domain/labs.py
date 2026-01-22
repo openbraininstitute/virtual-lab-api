@@ -10,12 +10,10 @@ T = TypeVar("T")
 
 
 class ComputeCell(str, Enum):
-    """
-    Enum representing available compute cells.
-    """
+    """Enum representing available compute cells."""
 
-    CELL_A = "cell-a"
-    CELL_B = "cell-b"
+    CELL_A = "cell_a"
+    CELL_B = "cell_b"
 
 
 class LabResponse(BaseModel, Generic[T]):

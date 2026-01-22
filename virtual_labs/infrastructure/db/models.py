@@ -53,12 +53,10 @@ class Base(DeclarativeBase):
 
 
 class ComputeCell(str, Enum):
-    """
-    Enum representing available compute cells.
-    """
+    """Enum for available compute cells."""
 
-    CELL_A = "cell-a"
-    CELL_B = "cell-b"
+    CELL_A = "cell_a"
+    CELL_B = "cell_b"
 
 
 class VirtualLab(Base):
@@ -79,7 +77,7 @@ class VirtualLab(Base):
         SAEnum(ComputeCell),
         nullable=False,
         default=ComputeCell.CELL_A,
-        server_default="cell-a",
+        server_default="CELL_A",
     )
 
     deleted: Mapped[bool] = mapped_column(
