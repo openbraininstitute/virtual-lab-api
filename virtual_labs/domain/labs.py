@@ -1,18 +1,21 @@
 from datetime import datetime
+from enum import Enum
 from typing import Generic, Literal, TypeVar
 
-from pydantic import (
-    UUID4,
-    BaseModel,
-    ConfigDict,
-    EmailStr,
-    Field,
-    JsonValue,
-)
+from pydantic import UUID4, BaseModel, ConfigDict, EmailStr, Field, JsonValue
 
 from virtual_labs.domain.user import UserWithInviteStatus
 
 T = TypeVar("T")
+
+
+class ComputeCell(str, Enum):
+    """
+    Enum representing available compute cells.
+    """
+
+    CELL_A = "cell-a"
+    CELL_B = "cell-b"
 
 
 class LabResponse(BaseModel, Generic[T]):
@@ -25,6 +28,7 @@ class VirtualLabBase(BaseModel):
     description: str
     reference_email: EmailStr
     entity: str
+    compute_cell: ComputeCell = ComputeCell.CELL_A
 
 
 class VirtualLabUpdate(BaseModel):
@@ -32,6 +36,13 @@ class VirtualLabUpdate(BaseModel):
     description: str | None = None
     reference_email: EmailStr | None = None
     entity: str | None = None
+    compute_cell: ComputeCell | None = None
+
+
+class VirtualLabComputeCellUpdate(BaseModel):
+    """Model for updating compute_cell - only accessible by service admins"""
+
+    compute_cell: ComputeCell
 
 
 class PlanDomain(BaseModel):

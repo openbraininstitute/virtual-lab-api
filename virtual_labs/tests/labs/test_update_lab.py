@@ -50,3 +50,42 @@ async def test_update_lab(
     data = response.json()["data"]["virtual_lab"]
     assert data["name"] == update_body["name"]
     assert data["entity"] == update_body["entity"]
+
+
+@pytest.mark.asyncio
+async def test_update_lab_compute_cell_forbidden(
+    mock_lab_create: tuple[AsyncClient, str, dict[str, str]],
+) -> None:
+    """Test that regular users cannot update compute_cell field"""
+    client, lab_id, headers = mock_lab_create
+
+    update_body = {
+        "name": "New Name",
+        "compute_cell": "cell-b",
+    }
+    response = await client.patch(
+        f"/virtual-labs/{lab_id}", headers=headers, json=update_body
+    )
+    assert response.status_code == 403
+    error_data = response.json()
+    assert error_data["error_code"] == "FORBIDDEN_OPERATION"
+    assert "service admins" in error_data["message"].lower()
+
+
+@pytest.mark.asyncio
+async def test_update_lab_compute_cell_service_admin_endpoint_forbidden(
+    mock_lab_create: tuple[AsyncClient, str, dict[str, str]],
+) -> None:
+    """Test that regular users cannot access the service admin compute_cell endpoint"""
+    client, lab_id, headers = mock_lab_create
+
+    update_body = {
+        "compute_cell": "cell-b",
+    }
+    response = await client.patch(
+        f"/virtual-labs/{lab_id}/compute-cell", headers=headers, json=update_body
+    )
+    assert response.status_code == 403
+    error_data = response.json()
+    assert error_data["error_code"] == "AUTHORIZATION_ERROR"
+    assert "administrative" in error_data.get("details", "").lower() or "admin" in error_data.get("message", "").lower()

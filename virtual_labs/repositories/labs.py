@@ -112,6 +112,7 @@ async def create_virtual_lab(db: AsyncSession, lab: VirtualLabDbCreate) -> Virtu
         reference_email=lab.reference_email,
         projects=[],
         entity=lab.entity,
+        compute_cell=lab.compute_cell,
     )
     db.add(db_lab)
     await db.commit()
@@ -136,6 +137,9 @@ async def update_virtual_lab(
                 ),
                 "updated_at": func.now(),
                 "entity": data_to_update.get("entity", current.entity),
+                "compute_cell": data_to_update.get(
+                    "compute_cell", current.compute_cell
+                ),
             }
         )
     )
