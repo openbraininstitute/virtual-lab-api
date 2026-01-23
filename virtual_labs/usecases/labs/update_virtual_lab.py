@@ -15,7 +15,10 @@ async def update_virtual_lab(
     db: AsyncSession, lab_id: UUID4, lab: domain.VirtualLabUpdate, user_id: UUID4
 ) -> domain.VirtualLabOut:
     try:
-        db_lab = await repository.update_virtual_lab(db, lab_id, lab)
+        # Exclude compute_cell from update payload for regular users
+        lab_dict = lab.model_dump(exclude_unset=True, exclude={"compute_cell"})
+        lab_update = domain.VirtualLabUpdate(**lab_dict)
+        db_lab = await repository.update_virtual_lab(db, lab_id, lab_update)
 
         return domain.VirtualLabOut(
             virtual_lab=domain.VirtualLabDetails.model_validate(db_lab)

@@ -52,6 +52,13 @@ class Base(DeclarativeBase):
     pass
 
 
+class ComputeCell(str, Enum):
+    """Enum for available compute cells."""
+
+    CELL_A = "cell_a"  # aws
+    CELL_B = "cell_b"  # azure
+
+
 class VirtualLab(Base):
     __tablename__ = "virtual_lab"
 
@@ -66,6 +73,12 @@ class VirtualLab(Base):
     description: Mapped[str | None] = mapped_column(Text)
     reference_email: Mapped[str | None] = mapped_column(String(255))
     entity: Mapped[str] = mapped_column(String, nullable=False)
+    compute_cell: Mapped[ComputeCell] = mapped_column(
+        SAEnum(ComputeCell),
+        nullable=False,
+        default=ComputeCell.CELL_A,
+        server_default="CELL_A",
+    )
 
     deleted: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, index=True

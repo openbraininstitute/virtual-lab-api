@@ -112,6 +112,7 @@ async def create_virtual_lab(db: AsyncSession, lab: VirtualLabDbCreate) -> Virtu
         reference_email=lab.reference_email,
         projects=[],
         entity=lab.entity,
+        compute_cell=lab.compute_cell,
     )
     db.add(db_lab)
     await db.commit()
@@ -136,6 +137,24 @@ async def update_virtual_lab(
                 ),
                 "updated_at": func.now(),
                 "entity": data_to_update.get("entity", current.entity),
+            }
+        )
+    )
+    await db.execute(statement=query)
+    await db.commit()
+    return await get_undeleted_virtual_lab(db, lab_id)
+
+
+async def update_virtual_lab_compute_cell(
+    db: AsyncSession, lab_id: UUID4, compute_cell: labs.ComputeCell
+) -> VirtualLab:
+    """Update only the compute_cell field for a virtual lab."""
+    query = (
+        update(VirtualLab)
+        .where(VirtualLab.id == lab_id)
+        .values(
+            {
+                "compute_cell": compute_cell,
             }
         )
     )

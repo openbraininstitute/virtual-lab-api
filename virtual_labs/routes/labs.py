@@ -5,31 +5,26 @@ from pydantic import UUID4
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.authorization import (
+    verify_service_admin,
     verify_user_authenticated,
     verify_vlab_read,
     verify_vlab_write,
     verity_member_invite,
 )
-from virtual_labs.core.types import (
-    LabTypeEnum,
-    UserGroup,
-    UserRoleEnum,
-    VliAppResponse,
-)
+from virtual_labs.core.types import LabTypeEnum, UserGroup, UserRoleEnum, VliAppResponse
 from virtual_labs.domain.common import VirtualLabResponse
 from virtual_labs.domain.email import (
     EmailVerificationPayload,
     InitiateEmailVerificationPayload,
     VerificationCodeEmailResponse,
 )
-from virtual_labs.domain.invite import (
-    InvitePayload,
-)
+from virtual_labs.domain.invite import InvitePayload
 from virtual_labs.domain.labs import (
     CreateLabOut,
     InvitationResponse,
     LabResponse,
     SearchLabResponse,
+    VirtualLabComputeCellUpdate,
     VirtualLabCreate,
     VirtualLabOut,
     VirtualLabStats,
@@ -238,12 +233,36 @@ async def update_virtual_lab(
     virtual_lab_id: UUID4,
     lab: VirtualLabUpdate,
     session: AsyncSession = Depends(default_session_factory),
-    auth: tuple[AuthUser, str] = Depends(verify_jwt),
+    auth: tuple[AuthUser, str] = Depends(a_verify_jwt),
 ) -> LabResponse[VirtualLabOut]:
     updated_lab = await usecases.update_virtual_lab(
         session, virtual_lab_id, lab=lab, user_id=get_user_id_from_auth(auth)
     )
     return LabResponse[VirtualLabOut](message="Updated virtual lab", data=updated_lab)
+
+
+@router.patch(
+    "/{virtual_lab_id}/compute-cell",
+    response_model=LabResponse[VirtualLabOut],
+    summary="Update virtual lab compute cell (Service Admin only)",
+)
+@verify_service_admin
+async def update_virtual_lab_compute_cell(
+    virtual_lab_id: UUID4,
+    payload: VirtualLabComputeCellUpdate,
+    session: AsyncSession = Depends(default_session_factory),
+    auth: tuple[AuthUser, str] = Depends(verify_jwt),
+) -> LabResponse[VirtualLabOut]:
+    from virtual_labs.usecases.labs.update_virtual_lab_compute_cell import (
+        update_virtual_lab_compute_cell as update_compute_cell_usecase,
+    )
+
+    updated_lab = await update_compute_cell_usecase(
+        session, virtual_lab_id, compute_cell=payload.compute_cell
+    )
+    return LabResponse[VirtualLabOut](
+        message="Updated virtual lab compute cell", data=updated_lab
+    )
 
 
 @router.post(
