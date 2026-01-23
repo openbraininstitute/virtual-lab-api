@@ -233,7 +233,7 @@ async def update_virtual_lab(
     virtual_lab_id: UUID4,
     lab: VirtualLabUpdate,
     session: AsyncSession = Depends(default_session_factory),
-    auth: tuple[AuthUser, str] = Depends(verify_jwt),
+    auth: tuple[AuthUser, str] = Depends(a_verify_jwt),
 ) -> LabResponse[VirtualLabOut]:
     updated_lab = await usecases.update_virtual_lab(
         session, virtual_lab_id, lab=lab, user_id=get_user_id_from_auth(auth)

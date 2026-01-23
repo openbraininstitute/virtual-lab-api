@@ -18,9 +18,9 @@ async def update_virtual_lab_compute_cell(
     This function should only be called by service admins.
     """
     try:
-        # Create an update object with only compute_cell
-        lab_update = domain.VirtualLabUpdate(compute_cell=compute_cell)
-        db_lab = await repository.update_virtual_lab(db, lab_id, lab_update)
+        db_lab = await repository.update_virtual_lab_compute_cell(
+            db, lab_id, compute_cell
+        )
 
         return domain.VirtualLabOut(
             virtual_lab=domain.VirtualLabDetails.model_validate(db_lab)

@@ -15,14 +15,6 @@ async def update_virtual_lab(
     db: AsyncSession, lab_id: UUID4, lab: domain.VirtualLabUpdate, user_id: UUID4
 ) -> domain.VirtualLabOut:
     try:
-        # Only service admins can update compute_cell
-        if lab.compute_cell is not None:
-            raise VliError(
-                message="Updating compute_cell is not allowed. Only service admins can modify this field.",
-                error_code=VliErrorCode.FORBIDDEN_OPERATION,
-                http_status_code=HTTPStatus.FORBIDDEN,
-            )
-
         # Exclude compute_cell from update payload for regular users
         lab_dict = lab.model_dump(exclude_unset=True, exclude={"compute_cell"})
         lab_update = domain.VirtualLabUpdate(**lab_dict)

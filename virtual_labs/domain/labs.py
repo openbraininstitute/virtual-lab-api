@@ -34,7 +34,6 @@ class VirtualLabUpdate(BaseModel):
     description: str | None = None
     reference_email: EmailStr | None = None
     entity: str | None = None
-    compute_cell: ComputeCell | None = None
 
 
 class VirtualLabComputeCellUpdate(BaseModel):
