@@ -28,7 +28,6 @@ from virtual_labs.routes.bookmarks import router as bookmarks_router
 from virtual_labs.routes.common import router as common_router
 from virtual_labs.routes.invites import router as invite_router
 from virtual_labs.routes.labs import router as virtual_lab_router
-
 from virtual_labs.routes.payments import router as payments_router
 from virtual_labs.routes.projects import router as project_router
 from virtual_labs.routes.promotions import admin_router as admin_promotions_router
@@ -65,15 +64,11 @@ app = FastAPI(
     docs_url=f"{settings.BASE_PATH}/docs",
 )
 
-origins = []
-if settings.CORS_ORIGINS:
-    for origin in settings.CORS_ORIGINS:
-        origins.append(origin)
-
 app.add_middleware(SentryAsgiMiddleware)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=settings.CORS_ORIGINS,
+    allow_origin_regex=settings.CORS_ORIGIN_REGEX,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
