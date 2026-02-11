@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     BASE_PATH: str = ""
     DEBUG_DATABASE_ECHO: bool = False
     CORS_ORIGINS: list[str] = []
+    CORS_ORIGIN_REGEX: str | None = None
     POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: int = 15432
     POSTGRES_USER: str = "vlm"
