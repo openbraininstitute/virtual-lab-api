@@ -258,13 +258,13 @@ class StripeRepository:
                     "payment_settings": {
                         "save_default_payment_method": "on_subscription"
                     },
-                    # "discounts": [
-                    #     {
-                    #         "coupon": discount_id,
-                    #     }
-                    # ]
-                    # if discount_id
-                    # else "",
+                    "discounts": [
+                        {
+                            "coupon": discount_id,
+                        }
+                    ]
+                    if discount_id
+                    else "",
                     "description": "Creating subscription",
                 }
             )
