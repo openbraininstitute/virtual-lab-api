@@ -95,6 +95,9 @@ class Settings(BaseSettings):
     PAID_SUBSCRIPTION_DISCOUNT: Decimal = Decimal("0.5")
     MAX_PROJECTS_NUMBER: int = 20
 
+    # There's a single configuration set in staging and production with a static name
+    AWS_SES_CONFIGURATION_SET: str = "main-ses-config"
+
     @field_validator("DATABASE_URI", mode="before")
     @classmethod
     def build_db_connection(cls, v: Optional[str], values: ValidationInfo) -> Any:

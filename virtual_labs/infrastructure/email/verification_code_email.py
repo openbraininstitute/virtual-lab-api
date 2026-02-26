@@ -8,6 +8,7 @@ from virtual_labs.infrastructure.email.config import email_config
 from virtual_labs.infrastructure.email.email_utils import (
     generate_email_verification_html,
 )
+from virtual_labs.infrastructure.settings import settings
 
 
 async def send_verification_code_email(details: VerificationCodeEmailDetails) -> str:
@@ -35,6 +36,7 @@ async def send_verification_code_email(details: VerificationCodeEmailDetails) ->
                 "virtual_lab_name": details.virtual_lab_name,
                 "expire_at": details.expire_at,
             },
+            headers={"X-SES-CONFIGURATION-SET": settings.AWS_SES_CONFIGURATION_SET},
         )
         fm = FastMail(email_config)
         await fm.send_message(message, template_name="email_verification_code.html")
