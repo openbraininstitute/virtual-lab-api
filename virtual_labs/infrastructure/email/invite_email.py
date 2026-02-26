@@ -68,6 +68,7 @@ async def send_invite(payload: EmailDetails) -> str:
                 if origin is InviteOrigin.LAB
                 else payload.project_name,
             },
+            headers={"X-SES-CONFIGURATION-SET": settings.AWS_SES_CONFIGURATION_SET},
         )
 
         await fm_executor.send_message(

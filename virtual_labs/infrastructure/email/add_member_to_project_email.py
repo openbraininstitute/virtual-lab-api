@@ -48,6 +48,7 @@ async def send_add_member_to_project_email(details: EmailDetails) -> str:
                 "lab_name": details.lab_name,
                 "project_link": project_link,
             },
+            headers={"X-SES-CONFIGURATION-SET": settings.AWS_SES_CONFIGURATION_SET},
         )
         fm = FastMail(email_config)
         await fm.send_message(
