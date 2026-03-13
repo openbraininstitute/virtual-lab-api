@@ -357,3 +357,11 @@ async def get_virtual_labs_where_user_is_member(
     result = (await db.execute(statement=query)).unique().scalars().all()
 
     return list(result)
+
+
+async def get_virtual_lab_id_by_project_id(
+    db: AsyncSession, project_id: UUID4
+) -> Project:
+    """Returns a non-deleted project by id. Raises NoResultFound if not found."""
+    query = select(Project).where(Project.id == project_id, ~Project.deleted)
+    return (await db.execute(statement=query)).scalar_one()

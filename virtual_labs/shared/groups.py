@@ -1,3 +1,6 @@
-"""Keycloak group path constants."""
+"""Keycloak group path constants, sourced from application settings."""
 
-VLAB_SERVICE_ADMIN_GROUP: str = "/service/virtual-lab-svc/admin"
+from virtual_labs.infrastructure.settings import settings
+
+VLAB_SERVICE_ADMIN_GROUP: str = settings.VLAB_SERVICE_ADMIN_GROUP
+ENTITYCORE_SERVICE_ADMIN_GROUP: str = settings.ENTITYCORE_SERVICE_ADMIN_GROUP
