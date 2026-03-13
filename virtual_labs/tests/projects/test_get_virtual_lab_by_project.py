@@ -114,7 +114,7 @@ async def test_get_virtual_lab_by_project_invalid_uuid_returns_422(
 FAKE_USER = AuthUser(
     sid="fake-sid",
     sub=str(uuid4()),
-    preferred_username="admin-user",
+    username="admin-user",
     email="admin@test.org",
     email_verified=True,
     name="Admin User",
