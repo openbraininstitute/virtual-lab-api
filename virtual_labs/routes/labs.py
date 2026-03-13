@@ -41,6 +41,7 @@ from virtual_labs.infrastructure.redis.email_rate_limit import (
     rate_limit_initiate,
     rate_limit_verify,
 )
+from virtual_labs.shared.groups import VLAB_SERVICE_ADMIN_GROUP
 from virtual_labs.shared.utils.auth import get_user_id_from_auth
 from virtual_labs.usecases import email_verification as email_verification_usecases
 from virtual_labs.usecases import labs as usecases
@@ -246,7 +247,7 @@ async def update_virtual_lab(
     response_model=LabResponse[VirtualLabOut],
     summary="Update virtual lab compute cell (Service Admin only)",
 )
-@verify_service_admin
+@verify_service_admin([VLAB_SERVICE_ADMIN_GROUP])
 async def update_virtual_lab_compute_cell(
     virtual_lab_id: UUID4,
     payload: VirtualLabComputeCellUpdate,
