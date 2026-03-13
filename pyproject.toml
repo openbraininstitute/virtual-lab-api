@@ -30,6 +30,8 @@ sentry-sdk = {extras = ["fastapi"], version = "^2.14.0"}
 requests = "^2.32.3"
 email-validator = "^2.2.0"
 redis = "^5.2.1"
+rich = "^13.0"
+InquirerPy = "^0.3.4"
 asyncssh = "^2.21.0"
 obp-accounting-sdk = "^0.5.1"
 
@@ -76,3 +78,4 @@ exclude = [
 populate-tiers = "scripts.populate_subscription_tiers:run_async"
 upgrade-subscription = "scripts.upgrade_subscription:run_async"
 send_emails = "scripts.send_emails:run_async"
+manage-coupons = "scripts.manage_stripe_coupons:run_async"
