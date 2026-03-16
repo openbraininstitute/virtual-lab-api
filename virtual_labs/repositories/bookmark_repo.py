@@ -110,9 +110,8 @@ class BookmarkMutationRepository:
             return 0
 
         combined_condition = or_(*delete_conditions)
-        stmt = delete(Bookmark).where(combined_condition)
+        stmt = delete(Bookmark).where(combined_condition).returning(Bookmark.id)
 
         result = await self.session.execute(statement=stmt)
         await self.session.commit()
-        deleted: int = result.rowcount  # type: ignore[attr-defined]
-        return deleted or 0
+        return len(result.all())
