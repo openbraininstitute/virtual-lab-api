@@ -41,7 +41,7 @@ def upgrade() -> None:
         subscriptiontierenum = sa.Enum(
             "FREE", "PRO", "PREMIUM", name="subscriptiontierenum"
         )
-        subscriptiontierenum.create(op.get_bind())  # type: ignore[no-untyped-call]
+        subscriptiontierenum.create(op.get_bind())
 
     # Check if tier column exists and its type
     result = connection.execute(
@@ -160,7 +160,7 @@ def downgrade() -> None:
         ),
         sa.Column(
             "features",
-            postgresql.JSON(astext_type=sa.Text()),  # type: ignore
+            postgresql.JSON(astext_type=sa.Text()),
             autoincrement=False,
             nullable=False,
         ),
@@ -194,7 +194,7 @@ def downgrade() -> None:
     )
     # Drop the enum type
     subscriptiontierenum = sa.Enum(name="subscriptiontierenum")
-    subscriptiontierenum.drop(op.get_bind())  # type: ignore[no-untyped-call]
+    subscriptiontierenum.drop(op.get_bind())
 
     op.drop_index(op.f("ix_subscription_tier_tier"), table_name="subscription_tier")
     op.drop_column("subscription_tier", "tier")

@@ -30,8 +30,6 @@ sentry-sdk = {extras = ["fastapi"], version = "^2.14.0"}
 requests = "^2.32.3"
 email-validator = "^2.2.0"
 redis = "^5.2.1"
-rich = "^13.0"
-InquirerPy = "^0.3.4"
 asyncssh = "^2.21.0"
 obp-accounting-sdk = "^0.5.1"
 
@@ -46,6 +44,10 @@ types-requests = "^2.31.0.20240311"
 pytest-asyncio = "0.21.1"
 python-dotenv = "^1.0.1"
 pytest-cov = "^6.1.1"
+
+[tool.poetry.group.scripts.dependencies]
+rich = "^13.0"
+InquirerPy = "^0.3.4"
 
 [build-system]
 requires = ["poetry-core"]
