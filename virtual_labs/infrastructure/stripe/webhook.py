@@ -678,7 +678,7 @@ class StripeWebhook:
 
         if "succeeded" in event_type or "paid" in event_type:
             payment.payment_date = datetime.now()
-            product_id: str = (
+            product_id: str | None = (
                 event_data.get("lines", {})
                 .get("data", [])[0]
                 .get("price", {})
@@ -698,6 +698,8 @@ class StripeWebhook:
                 await self.subscription_repository.get_subscription_tier_by_product_id(
                     product_id=product_id
                 )
+                if product_id
+                else None
             )
             if not subscription_tier:
                 # get the pro tier
