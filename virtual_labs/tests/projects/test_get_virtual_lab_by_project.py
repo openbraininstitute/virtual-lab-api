@@ -83,15 +83,17 @@ async def test_get_virtual_lab_by_project_nonexistent_project_returns_403(
 
 
 @pytest.mark.asyncio
-async def test_get_virtual_lab_by_project_no_auth_returns_401(
-    async_test_client: AsyncClient,
-) -> None:
+async def test_get_virtual_lab_by_project_no_auth_returns_401() -> None:
     """Requests without authentication should be rejected."""
     fake_project_id = uuid4()
 
-    response = await async_test_client.get(
-        f"/virtual-labs/projects/{fake_project_id}/virtual-lab",
-    )
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://localhost:8000",
+    ) as client:
+        response = await client.get(
+            f"/virtual-labs/projects/{fake_project_id}/virtual-lab",
+        )
     assert response.status_code == 401
 
 
