@@ -3,7 +3,7 @@
 import asyncio
 from uuid import UUID
 
-from virtual_labs.repositories.user_repo import UserMutationRepository
+from virtual_labs.repositories.user_kc_repo import UserMutationRepository
 
 
 async def main():

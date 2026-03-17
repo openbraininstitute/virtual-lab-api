@@ -16,7 +16,7 @@ from virtual_labs.repositories.invite_repo import (
     InviteMutationRepository,
     InviteQueryRepository,
 )
-from virtual_labs.repositories.user_repo import UserQueryRepository
+from virtual_labs.repositories.user_kc_repo import UserQueryRepository
 
 
 async def send_email_to_user_or_rollback(

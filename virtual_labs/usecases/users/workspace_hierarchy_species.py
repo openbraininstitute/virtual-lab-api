@@ -25,6 +25,7 @@ from virtual_labs.domain.user import (
 )
 from virtual_labs.infrastructure.db.models import UserPreference
 from virtual_labs.infrastructure.kc.models import AuthUser
+from virtual_labs.repositories.user_preference_repo import UserPreferenceQueryRepository
 from virtual_labs.shared.utils.auth import get_user_id_from_auth
 
 
@@ -43,11 +44,9 @@ async def get_workspace_hierarchy_species_preference(
         Response: JSON response with preference data or null if not set
     """
     user_id = get_user_id_from_auth(auth)
-
+    up = UserPreferenceQueryRepository(session)
     try:
-        stmt = select(UserPreference).where(UserPreference.user_id == user_id)
-        result = await session.execute(stmt)
-        preference = result.scalar_one_or_none()
+        preference = await up.get_user_preference(user_id=user_id)
 
         preference_data = None
         updated_at = None

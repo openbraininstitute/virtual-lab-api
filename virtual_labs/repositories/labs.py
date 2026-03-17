@@ -71,7 +71,10 @@ async def get_undeleted_virtual_lab(db: AsyncSession, lab_id: UUID4) -> VirtualL
 
 
 async def get_virtual_lab_by_definition_tuple(
-    db: AsyncSession, owner_id: UUID4, name: str, email: EmailStr
+    db: AsyncSession,
+    owner_id: UUID4,
+    name: str,
+    email: EmailStr,
 ) -> VirtualLab | None:
     """Returns a non-deleted virtual lab matching the owner_id, and name."""
     result = await db.execute(
@@ -155,6 +158,24 @@ async def update_virtual_lab_compute_cell(
         .values(
             {
                 "compute_cell": compute_cell,
+            }
+        )
+    )
+    await db.execute(statement=query)
+    await db.commit()
+    return await get_undeleted_virtual_lab(db, lab_id)
+
+
+async def update_virtual_lab_email_status(
+    db: AsyncSession, lab_id: UUID4, email_status: bool
+) -> VirtualLab:
+    """Update only the compute_cell field for a virtual lab."""
+    query = (
+        update(VirtualLab)
+        .where(VirtualLab.id == lab_id)
+        .values(
+            {
+                "email_verified": email_status,
             }
         )
     )

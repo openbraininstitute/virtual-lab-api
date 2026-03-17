@@ -16,7 +16,7 @@ from virtual_labs.domain.labs import LabResponse, VirtualLabUser
 from virtual_labs.domain.user import UserWithInviteStatus
 from virtual_labs.repositories import labs as lab_repository
 from virtual_labs.repositories.group_repo import GroupQueryRepository
-from virtual_labs.repositories.user_repo import (
+from virtual_labs.repositories.user_kc_repo import (
     UserMutationRepository,
     UserQueryRepository,
 )

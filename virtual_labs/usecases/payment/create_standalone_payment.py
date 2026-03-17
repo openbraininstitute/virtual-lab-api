@@ -26,7 +26,7 @@ from virtual_labs.repositories.stripe_user_repo import (
     StripeUserQueryRepository,
 )
 from virtual_labs.repositories.subscription_repo import SubscriptionRepository
-from virtual_labs.repositories.user_repo import UserQueryRepository
+from virtual_labs.repositories.user_kc_repo import UserQueryRepository
 from virtual_labs.shared.utils.auth import get_user_id_from_auth, get_user_metadata
 
 

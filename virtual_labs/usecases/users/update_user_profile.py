@@ -2,7 +2,7 @@ from http import HTTPStatus
 from typing import Any, Dict, Tuple, cast
 
 from fastapi import Response
-from keycloak import KeycloakError  # type:ignore
+from keycloak import KeycloakError
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -24,7 +24,7 @@ from virtual_labs.repositories.stripe_user_repo import (
     StripeUserMutationRepository,
     StripeUserQueryRepository,
 )
-from virtual_labs.repositories.user_repo import (
+from virtual_labs.repositories.user_kc_repo import (
     UserMutationRepository,
     UserQueryRepository,
 )

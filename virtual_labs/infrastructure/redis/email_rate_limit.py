@@ -1,7 +1,8 @@
 from http import HTTPStatus as status
-from typing import Optional, Tuple
+from typing import Annotated, Optional, Tuple
 
-from fastapi import Depends
+from fastapi import Depends, Header
+from pydantic import UUID4
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.domain.email import (
@@ -28,6 +29,7 @@ async def get_verify_rate_limiter() -> RateLimiter:
 
 
 async def rate_limit_initiate(
+    virtual_lab_id: Annotated[UUID4, Header()],
     payload: InitiateEmailVerificationPayload,
     auth: Tuple[AuthUser, str] = Depends(a_verify_jwt),
     rl: RateLimiter = Depends(get_initiate_rate_limiter),
@@ -35,7 +37,13 @@ async def rate_limit_initiate(
     """Enforce rate limit for initiating email verification (e.g., 3/1h)."""
 
     user_id = auth[0].sub
-    key = rl.build_key_by_email("initiate", user_id, payload.email)
+    key = rl.build_key_by_email(
+        "initiate",
+        user_id,
+        str(virtual_lab_id),
+        payload.email,
+    )
+
     count = await rl.get_count(key)
 
     if count is None:
@@ -71,7 +79,12 @@ async def rate_limit_verify(
     """Enforce rate limit for verifying email codes (e.g. 5/1h)."""
 
     user_id = auth[0].sub
-    key = rl.build_key_by_email("verify", user_id, payload.email)
+    key = rl.build_key_by_email(
+        "verify",
+        user_id,
+        str(payload.virtual_lab_id),
+        payload.email,
+    )
     count = await rl.get_count(key)
 
     if count is None:

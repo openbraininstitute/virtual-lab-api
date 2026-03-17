@@ -1,7 +1,7 @@
 from pydantic import UUID4
 
 from virtual_labs.infrastructure.db.models import VirtualLab
-from virtual_labs.repositories.user_repo import UserQueryRepository
+from virtual_labs.repositories.user_kc_repo import UserQueryRepository
 
 
 def is_user_in_lab(user_id: UUID4, lab: VirtualLab) -> bool:

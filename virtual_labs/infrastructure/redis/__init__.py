@@ -44,9 +44,11 @@ class RateLimiter:
         self.redis = redis
         self.prefix = prefix
 
-    def build_key_by_email(self, action: str, user_id: str, email: str) -> str:
+    def build_key_by_email(
+        self, action: str, user_id: str, virtual_lab_id: str, email: str
+    ) -> str:
         """Construct a Redis key based on action, user_id, and email."""
-        return f"{self.prefix}:{action}:{user_id}:{email}"
+        return f"{self.prefix}:{action}:{user_id}:{virtual_lab_id}:{email}"
 
     def build_universal_key(self, action: str, user_id: str) -> str:
         """Construct a Redis key based on action, user_id."""
@@ -70,6 +72,10 @@ class RateLimiter:
     async def get_ttl(self, key: str) -> int:
         """Get the remaining TTL in seconds for a key."""
         return int(await self.redis.ttl(key))
+
+    async def delete(self, key: str) -> int:
+        """Delete a key from Redis."""
+        return int(await self.redis.delete(key))
 
 
 async def get_rate_limiter(

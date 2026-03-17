@@ -1,7 +1,7 @@
 from http import HTTPStatus
 from json import loads
 
-from keycloak import KeycloakError  # type: ignore
+from keycloak import KeycloakError
 from loguru import logger
 from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.repositories import labs as lab_repository
 from virtual_labs.repositories.group_repo import GroupQueryRepository
-from virtual_labs.repositories.user_repo import UserMutationRepository
+from virtual_labs.repositories.user_kc_repo import UserMutationRepository
 from virtual_labs.shared.utils.is_user_in_lab import is_user_admin_of_lab
 
 

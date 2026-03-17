@@ -9,7 +9,7 @@ from virtual_labs.core.exceptions.generic_exceptions import EntityNotFound
 from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.domain.user import Address, UserProfile, UserProfileResponse
 from virtual_labs.infrastructure.kc.models import AuthUser
-from virtual_labs.repositories.user_repo import UserQueryRepository
+from virtual_labs.repositories.user_kc_repo import UserQueryRepository
 from virtual_labs.shared.utils.auth import get_user_id_from_auth
 
 

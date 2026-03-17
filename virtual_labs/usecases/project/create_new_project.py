@@ -4,7 +4,7 @@ from typing import Tuple
 from uuid import uuid4
 
 from fastapi.responses import Response
-from keycloak import KeycloakError  # type: ignore
+from keycloak import KeycloakError
 from loguru import logger
 from pydantic import UUID4
 from sqlalchemy.exc import IntegrityError, NoResultFound, SQLAlchemyError
@@ -25,7 +25,7 @@ from virtual_labs.repositories.project_repo import (
     ProjectMutationRepository,
     ProjectQueryRepository,
 )
-from virtual_labs.repositories.user_repo import (
+from virtual_labs.repositories.user_kc_repo import (
     UserMutationRepository,
 )
 from virtual_labs.shared.utils.auth import get_user_id_from_auth

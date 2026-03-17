@@ -14,7 +14,7 @@ from virtual_labs.domain.user import UserWithInviteStatus
 from virtual_labs.repositories.group_repo import GroupQueryRepository
 from virtual_labs.repositories.invite_repo import InviteQueryRepository
 from virtual_labs.repositories.project_repo import ProjectQueryRepository
-from virtual_labs.repositories.user_repo import UserQueryRepository
+from virtual_labs.repositories.user_kc_repo import UserQueryRepository
 from virtual_labs.usecases.labs.get_virtual_lab_users import get_pending_user
 
 

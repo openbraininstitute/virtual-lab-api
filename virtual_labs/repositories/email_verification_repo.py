@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from pydantic import EmailStr
@@ -18,7 +18,7 @@ class EmailValidationQueryRepository:
     async def check_email_verified(
         self,
         email: EmailStr,
-        virtual_lab_name: str,
+        virtual_lab_id: UUID,
         user_id: UUID,
     ) -> bool:
         """Check if an email already exists and validated in the database."""
@@ -26,7 +26,7 @@ class EmailValidationQueryRepository:
         query = select(EmailVerificationCode).filter(
             EmailVerificationCode.email == email,
             EmailVerificationCode.user_id == user_id,
-            EmailVerificationCode.virtual_lab_name == virtual_lab_name,
+            EmailVerificationCode.virtual_lab_id == virtual_lab_id,
             EmailVerificationCode.is_verified == true(),
         )
         email_verification_code = await self.session.scalar(statement=query)
@@ -35,9 +35,10 @@ class EmailValidationQueryRepository:
 
     async def get_verification_code(
         self,
+        *,
         user_id: UUID,
-        email: str,
-        virtual_lab_name: str,
+        email: EmailStr,
+        virtual_lab_id: UUID,
     ) -> EmailVerificationCode | None:
         now = datetime.utcnow()
         result = await self.session.execute(
@@ -45,7 +46,7 @@ class EmailValidationQueryRepository:
             .filter(
                 EmailVerificationCode.email == email,
                 EmailVerificationCode.user_id == user_id,
-                EmailVerificationCode.virtual_lab_name == virtual_lab_name,
+                EmailVerificationCode.virtual_lab_id == virtual_lab_id,
                 EmailVerificationCode.is_verified == false(),
                 EmailVerificationCode.expires_at >= now,
             )
@@ -56,15 +57,15 @@ class EmailValidationQueryRepository:
 
     async def get_verified_entry_by_definition_tuple(
         self,
-        email: str,
+        email: EmailStr,
         user_id: UUID,
-        virtual_lab_name: str,
+        virtual_lab_id: UUID,
     ) -> EmailVerificationCode | None:
         result = await self.session.execute(
             select(EmailVerificationCode).filter(
                 EmailVerificationCode.email == email,
                 EmailVerificationCode.user_id == user_id,
-                EmailVerificationCode.virtual_lab_name == virtual_lab_name,
+                EmailVerificationCode.virtual_lab_id == virtual_lab_id,
                 EmailVerificationCode.is_verified == true(),
             )
         )
@@ -72,7 +73,8 @@ class EmailValidationQueryRepository:
 
     async def get_latest_verification_code_entry(
         self,
-        email: str,
+        email: EmailStr,
+        virtual_lab_id: UUID,
         user_id: UUID,
     ) -> EmailVerificationCode | None:
         """Get the most recent lock time for unverified tokens"""
@@ -81,9 +83,11 @@ class EmailValidationQueryRepository:
             select(EmailVerificationCode)
             .filter(
                 EmailVerificationCode.email == email,
+                EmailVerificationCode.virtual_lab_id == virtual_lab_id,
                 EmailVerificationCode.user_id == user_id,
                 EmailVerificationCode.is_verified == false(),
-                EmailVerificationCode.expires_at >= datetime.utcnow(),
+                EmailVerificationCode.expires_at
+                >= datetime.now(timezone.utc).replace(tzinfo=None),
             )
             .order_by(EmailVerificationCode.created_at.desc())
             .limit(1)
@@ -102,21 +106,21 @@ class EmailValidationMutationRepository:
     async def generate_verification_token(
         self,
         user_id: UUID,
-        email: str,
-        virtual_lab_name: str,
+        virtual_lab_id: UUID,
+        email: EmailStr,
         code: str,
         code_expiry: int = 1,
     ) -> EmailVerificationCode:
         """Generate and store a new verification token."""
-
-        expires_at = datetime.utcnow() + timedelta(hours=code_expiry)
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        expires_at = now + timedelta(hours=code_expiry)
 
         entry = EmailVerificationCode(
             email=email,
+            user_id=user_id,
+            virtual_lab_id=virtual_lab_id,
             code=code,
             expires_at=expires_at,
-            user_id=user_id,
-            virtual_lab_name=virtual_lab_name,
         )
 
         self.session.add(entry)

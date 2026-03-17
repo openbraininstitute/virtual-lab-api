@@ -72,6 +72,9 @@ class VirtualLab(Base):
     name: Mapped[str] = mapped_column(String(250), nullable=False, index=True)
     description: Mapped[str | None] = mapped_column(Text)
     reference_email: Mapped[str | None] = mapped_column(String(255))
+    email_verified: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, index=True
+    )
     entity: Mapped[str] = mapped_column(String, nullable=False)
     compute_cell: Mapped[ComputeCell] = mapped_column(
         SAEnum(ComputeCell),
@@ -298,14 +301,18 @@ class EmailVerificationCode(Base):
         primary_key=True, default=uuid4, server_default=func.gen_random_uuid()
     )
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
-    virtual_lab_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    # Deprecated – kept for backward compatibility, replaced by virtual_lab_id
+    virtual_lab_name: Mapped[str] = mapped_column(String(255), nullable=True)
+    virtual_lab_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False
+    )
     email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     code: Mapped[str] = mapped_column(String(6), nullable=False, index=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     verified_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False
+        DateTime, default=func.now(), nullable=False
     )
 
     __table_args__ = (
@@ -316,7 +323,7 @@ class EmailVerificationCode(Base):
             "ix_verification_codes_compound_properties",
             "email",
             "code",
-            "virtual_lab_name",
+            "virtual_lab_id",
             "user_id",
         ),
         Index("ix_verification_codes_created_at", "created_at"),
@@ -643,7 +650,10 @@ class StripeUser(Base):
     stripe_customer_id: Mapped[Optional[str]] = mapped_column(
         String(255), nullable=False, unique=True
     )
-    user_id = Column(UUID(as_uuid=True), nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        nullable=False,
+    )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=func.now(), nullable=False

@@ -18,7 +18,7 @@ from virtual_labs.infrastructure.kc.models import (
 from virtual_labs.repositories import labs as lab_repository
 from virtual_labs.repositories.group_repo import GroupQueryRepository
 from virtual_labs.repositories.invite_repo import InviteQueryRepository
-from virtual_labs.repositories.user_repo import UserQueryRepository
+from virtual_labs.repositories.user_kc_repo import UserQueryRepository
 
 
 def get_pending_user(
