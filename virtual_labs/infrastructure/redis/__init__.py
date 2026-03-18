@@ -89,7 +89,7 @@ class RateLimiter:
 
         if _value == -2:
             return None
-        return _value
+        return int(_value)
 
     async def delete(self, key: str) -> int:
         """Delete a key from Redis."""

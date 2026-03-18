@@ -1,5 +1,8 @@
+from typing import Any, cast
+
 from pydantic import UUID4
 from sqlalchemy import and_, delete, or_, select
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.domain.bookmark import BookmarkCategory, DeleteBookmarkIn
@@ -112,6 +115,6 @@ class BookmarkMutationRepository:
         combined_condition = or_(*delete_conditions)
         stmt = delete(Bookmark).where(combined_condition)
 
-        result = await self.session.execute(statement=stmt)
+        result = cast(CursorResult[Any], await self.session.execute(statement=stmt))
         await self.session.commit()
-        return result.rowcount
+        return int(result.rowcount or 0)
