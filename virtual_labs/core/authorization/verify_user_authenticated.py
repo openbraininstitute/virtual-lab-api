@@ -5,7 +5,7 @@ from typing import Any, Callable
 from loguru import logger
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
-from virtual_labs.repositories.user_kc_repo import UserQueryRepository
+from virtual_labs.repositories.user_repo import UserQueryRepository
 from virtual_labs.shared.utils.auth import get_user_id_from_auth
 
 

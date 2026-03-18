@@ -1,7 +1,7 @@
 from typing import Any, Dict, List, Literal, Tuple, cast
 from uuid import UUID, uuid4
 
-from keycloak import KeycloakAdmin
+from keycloak import KeycloakAdmin  # type: ignore[import-untyped]
 from loguru import logger
 from pydantic import UUID4
 

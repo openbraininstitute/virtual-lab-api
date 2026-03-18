@@ -18,21 +18,21 @@ from virtual_labs.core.types import UserRoleEnum
 from virtual_labs.domain import labs as domain
 from virtual_labs.domain.invite import InvitePayload
 from virtual_labs.infrastructure.db import models
+from virtual_labs.infrastructure.email.send_welcome_email import send_welcome_email
 from virtual_labs.infrastructure.kc.models import AuthUser, CreatedGroup
 from virtual_labs.infrastructure.settings import settings
-from virtual_labs.infrastructure.stripe import get_stripe_repository
 from virtual_labs.repositories import labs as repository
 from virtual_labs.repositories.group_repo import GroupMutationRepository
-from virtual_labs.repositories.stripe_user_repo import (
-    StripeUserMutationRepository,
-    StripeUserQueryRepository,
-)
 from virtual_labs.repositories.subscription_repo import SubscriptionRepository
-from virtual_labs.repositories.user_kc_repo import (
+from virtual_labs.repositories.user_repo import (
     UserMutationRepository,
     UserQueryRepository,
 )
-from virtual_labs.shared.utils.auth import get_user_id_from_auth
+from virtual_labs.services.stripe_customer import ensure_stripe_customer
+from virtual_labs.shared.utils.auth import (
+    get_user_email_from_auth,
+    get_user_id_from_auth,
+)
 from virtual_labs.usecases import accounting as accounting_cases
 from virtual_labs.utils.subscription_type_resolver import resolve_tier
 
@@ -79,12 +79,10 @@ async def create_virtual_lab(
     group_repo = GroupMutationRepository()
     user_repo = UserMutationRepository()
     subscription_repo = SubscriptionRepository(db_session=db)
-    owner_id = get_user_id_from_auth(auth)
-
     user_query_repo = UserQueryRepository()
-    stripe_user_repo = StripeUserQueryRepository(db_session=db)
-    stripe_user_mutation_repo = StripeUserMutationRepository(db_session=db)
-    stripe_service = get_stripe_repository()
+
+    owner_id = get_user_id_from_auth(auth)
+    owner_email = get_user_email_from_auth(auth)
 
     # 1. Create kc groups and add user to admin group
     try:
@@ -235,22 +233,20 @@ async def create_virtual_lab(
             ],
         )
 
-        # 5. Ensure stripe customer exists
-        # user = await user_query_repo.get_user(user_id=str(owner_id))
-        # await ensure_stripe_customer(
-        #     user_id=owner_id,
-        #     email=lab.reference_email,
-        #     name=f"{user.get('firstName', '')} {user.get('lastName', '')}",
-        #     stripe_service=stripe_service,
-        #     stripe_user_query_repo=stripe_user_repo,
-        #     stripe_user_mutation_repo=stripe_user_mutation_repo,
-        # )
+        user = await user_query_repo.get_user(user_id=str(owner_id))
+        await ensure_stripe_customer(
+            session=db,
+            user_id=owner_id,
+            email=user.get("email", owner_email),
+            name=f"{user.get('firstName', '')} {user.get('lastName', '')}",
+        )
+
+        if user.get("email", owner_email):
+            await send_welcome_email(owner_email)
 
         created_lab = domain.CreateLabOut(
             virtual_lab=lab_details,
         )
-
-        # await send_welcome_email(lab.reference_email)
 
         return created_lab
 

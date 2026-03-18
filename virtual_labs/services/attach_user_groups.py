@@ -2,7 +2,7 @@ import asyncio
 from json import loads
 from typing import Dict, List, Set, Tuple
 
-from keycloak import KeycloakError
+from keycloak import KeycloakError  # type: ignore[import-untyped]
 from loguru import logger
 from pydantic import UUID4, EmailStr
 
@@ -20,7 +20,7 @@ from virtual_labs.infrastructure.email.add_member_to_project_email import (
     send_add_member_to_project_email,
 )
 from virtual_labs.repositories.group_repo import GroupQueryRepository
-from virtual_labs.repositories.user_kc_repo import UserMutationRepository
+from virtual_labs.repositories.user_repo import UserMutationRepository
 
 
 async def get_project_and_vl_groups(

@@ -9,7 +9,7 @@ from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.exceptions.identity_error import IdentityError
 from virtual_labs.domain.labs import SearchLabResponse, VirtualLabDetails
 from virtual_labs.repositories import labs as respository
-from virtual_labs.repositories.user_kc_repo import UserQueryRepository
+from virtual_labs.repositories.user_repo import UserQueryRepository
 
 
 async def search_virtual_labs_by_name(

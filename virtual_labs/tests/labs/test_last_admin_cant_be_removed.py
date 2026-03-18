@@ -6,7 +6,7 @@ import pytest_asyncio
 from httpx import AsyncClient
 
 from virtual_labs.infrastructure.kc.models import UserRepresentation
-from virtual_labs.repositories.user_kc_repo import UserQueryRepository
+from virtual_labs.repositories.user_repo import UserQueryRepository
 from virtual_labs.tests.utils import cleanup_resources, create_mock_lab
 
 

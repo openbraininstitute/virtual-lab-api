@@ -21,7 +21,7 @@ from virtual_labs.repositories.labs import get_user_virtual_lab
 from virtual_labs.repositories.stripe_repo import StripeRepository
 from virtual_labs.repositories.stripe_user_repo import StripeUserQueryRepository
 from virtual_labs.repositories.subscription_repo import SubscriptionRepository
-from virtual_labs.repositories.user_kc_repo import UserMutationRepository
+from virtual_labs.repositories.user_repo import UserMutationRepository
 from virtual_labs.services.credit_converter import CreditConverter
 from virtual_labs.utils.subscription_type_resolver import resolve_tier
 

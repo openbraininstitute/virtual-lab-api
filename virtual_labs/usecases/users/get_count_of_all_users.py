@@ -5,7 +5,7 @@ from loguru import logger
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.domain.labs import LabResponse
 from virtual_labs.domain.user import AllUsersCount
-from virtual_labs.repositories.user_kc_repo import UserQueryRepository
+from virtual_labs.repositories.user_repo import UserQueryRepository
 
 
 async def get_count_of_all_users() -> LabResponse[AllUsersCount]:

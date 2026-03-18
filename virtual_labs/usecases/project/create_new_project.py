@@ -1,10 +1,10 @@
 import asyncio
 from http import HTTPStatus as status
 from typing import Tuple
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from fastapi.responses import Response
-from keycloak import KeycloakError
+from keycloak import KeycloakError  # type: ignore[import-untyped]
 from loguru import logger
 from pydantic import UUID4
 from sqlalchemy.exc import IntegrityError, NoResultFound, SQLAlchemyError
@@ -25,7 +25,7 @@ from virtual_labs.repositories.project_repo import (
     ProjectMutationRepository,
     ProjectQueryRepository,
 )
-from virtual_labs.repositories.user_kc_repo import (
+from virtual_labs.repositories.user_repo import (
     UserMutationRepository,
 )
 from virtual_labs.shared.utils.auth import get_user_id_from_auth
@@ -124,7 +124,7 @@ async def create_new_project_use_case(
         # if there are virtual lab admins, add them to the project admin group
         if len(virtual_lab_admin_users) > 0:
             batch_attach_users = [
-                umr.a_attach_user_to_group(user_id=UUID4(u), group_id=admin_group["id"])
+                umr.a_attach_user_to_group(user_id=UUID(u), group_id=admin_group["id"])
                 for u in virtual_lab_admin_users
             ]
             await asyncio.gather(*batch_attach_users)

@@ -23,7 +23,7 @@ from virtual_labs.repositories.invite_repo import (
 )
 from virtual_labs.repositories.labs import get_undeleted_virtual_lab
 from virtual_labs.repositories.project_repo import ProjectQueryRepository
-from virtual_labs.repositories.user_kc_repo import (
+from virtual_labs.repositories.user_repo import (
     UserQueryRepository,
 )
 

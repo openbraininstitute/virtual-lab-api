@@ -20,7 +20,7 @@ from virtual_labs.infrastructure.db.models import (
     VirtualLab,
 )
 from virtual_labs.repositories.group_repo import GroupQueryRepository
-from virtual_labs.repositories.user_kc_repo import UserMutationRepository
+from virtual_labs.repositories.user_repo import UserMutationRepository
 from virtual_labs.tests.utils import (
     cleanup_all_user_labs,
     cleanup_resources,

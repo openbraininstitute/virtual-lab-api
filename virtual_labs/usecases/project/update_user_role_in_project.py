@@ -4,7 +4,7 @@ from json import loads
 from typing import Tuple
 
 from fastapi.responses import Response
-from keycloak import KeycloakError
+from keycloak import KeycloakError  # type: ignore[import-untyped]
 from loguru import logger
 from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
@@ -16,7 +16,7 @@ from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.core.types import UserRoleEnum
 from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.repositories.project_repo import ProjectQueryRepository
-from virtual_labs.repositories.user_kc_repo import (
+from virtual_labs.repositories.user_repo import (
     UserMutationRepository,
     UserQueryRepository,
 )

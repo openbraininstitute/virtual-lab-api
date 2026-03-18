@@ -1,4 +1,4 @@
-from typing import Optional, cast
+from typing import Optional, Union, cast
 
 from fastapi import Depends
 from redis.asyncio import ConnectionPool, Redis
@@ -26,13 +26,19 @@ async def get_redis() -> Redis:
         )
 
     if _redis_client is None:
-        _redis_client = Redis(connection_pool=_connection_pool)
+        _redis_client = Redis(
+            connection_pool=_connection_pool,
+            decode_responses=True,
+        )
 
     try:
         await _redis_client.ping()
     except Exception:
         await _redis_client.close()
-        _redis_client = Redis(connection_pool=_connection_pool)
+        _redis_client = Redis(
+            connection_pool=_connection_pool,
+            decode_responses=True,
+        )
 
     return _redis_client
 
@@ -59,10 +65,18 @@ class RateLimiter:
         count = await self.redis.get(key)
         return int(count) if count is not None else None
 
-    async def set(self, key: str, value: int, ttl: int = 3600) -> int:
-        """Set a value for a key with an optional TTL (default 1 hour)."""
-        _value = await self.redis.set(key, value, ex=ttl)
-        return cast(int, _value)
+    async def get(self, key: str) -> Optional[str]:
+        """Get the current count for a key, or None if it doesn't exist."""
+        _value = await self.redis.get(key)
+        return str(_value) if _value is not None else None
+
+    async def set(
+        self, key: str, value: Union[str, int, bytes], ttl: int = 3600
+    ) -> bool:
+        """Set a value for a key with an optional TTL (default 1 hour). Returns True if set."""
+        # redis.set returns a boolean (True if the operation was successful)
+        result = await self.redis.set(key, value, ex=ttl)
+        return bool(result)
 
     async def increment(self, key: str) -> int:
         """Increment the count for a key."""
@@ -74,8 +88,8 @@ class RateLimiter:
         _value = await self.redis.ttl(key)
 
         if _value == -2:
-            return None  # key does not exist
-        return _value  # -1 or positive
+            return None
+        return _value
 
     async def delete(self, key: str) -> int:
         """Delete a key from Redis."""

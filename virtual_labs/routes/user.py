@@ -1,6 +1,6 @@
-from typing import Annotated, Dict, Literal, Tuple
+from typing import Annotated, Dict, Tuple
 
-from fastapi import APIRouter, Depends, Header, Query, Response
+from fastapi import APIRouter, Depends, Header, Response
 from pydantic import UUID4, EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -339,24 +339,40 @@ async def update_workspace_hierarchy_species_endpoint(
 
 
 @router.get(
-    "/email/verification",
-    operation_id="get_email_verification_status",
-    summary="get email verification status",
+    "/email/verification/initiate-status",
+    operation_id="get_initiate_status",
+    summary="Check if user can request a new verification code",
     response_model=VliAppResponse[VerificationCodeEmailResponse],
 )
-async def get_verification_status(
+async def get_initiate_status(
     virtual_lab_id: Annotated[UUID4, Header()],
     email: EmailStr,
-    kind: Literal["initiate", "verify"] = Query(...),
-    session: AsyncSession = Depends(default_session_factory),
     rl: RateLimiter = Depends(get_initiate_rate_limiter),
     auth: Tuple[AuthUser, str] = Depends(a_verify_jwt),
 ) -> Response:
-    return await email_verification_usecases.get_verification_status(
-        session,
+    return await email_verification_usecases.get_initiate_status(
         rl,
         email=email,
-        kind=kind,
+        virtual_lab_id=virtual_lab_id,
+        auth=auth,
+    )
+
+
+@router.get(
+    "/email/verification/verify-status",
+    operation_id="get_verify_status",
+    summary="Check if user can submit a verification code",
+    response_model=VliAppResponse[VerificationCodeEmailResponse],
+)
+async def get_verify_status(
+    virtual_lab_id: Annotated[UUID4, Header()],
+    email: EmailStr,
+    rl: RateLimiter = Depends(get_verify_rate_limiter),
+    auth: Tuple[AuthUser, str] = Depends(a_verify_jwt),
+) -> Response:
+    return await email_verification_usecases.get_verify_status(
+        rl,
+        email=email,
         virtual_lab_id=virtual_lab_id,
         auth=auth,
     )

@@ -294,42 +294,6 @@ class Bookmark(Base):
     )
 
 
-class EmailVerificationCode(Base):
-    __tablename__ = "email_verification_codes"
-
-    id: Mapped[uuid.UUID] = mapped_column(
-        primary_key=True, default=uuid4, server_default=func.gen_random_uuid()
-    )
-    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
-    # Deprecated – kept for backward compatibility, replaced by virtual_lab_id
-    virtual_lab_name: Mapped[str] = mapped_column(String(255), nullable=True)
-    virtual_lab_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), nullable=False
-    )
-    email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
-    code: Mapped[str] = mapped_column(String(6), nullable=False, index=True)
-    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    is_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    verified_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=func.now(), nullable=False
-    )
-
-    __table_args__ = (
-        # ensure the token is exactly 6 digits
-        CheckConstraint("code ~* '^[0-9]{6}$'", name="valid_code_check"),
-        # composite index for email and token
-        Index(
-            "ix_verification_codes_compound_properties",
-            "email",
-            "code",
-            "virtual_lab_id",
-            "user_id",
-        ),
-        Index("ix_verification_codes_created_at", "created_at"),
-    )
-
-
 class SubscriptionStatus(str, Enum):
     """
     Enum representing Stripe subscription statuses.
