@@ -69,9 +69,13 @@ class RateLimiter:
         _value = await self.redis.incr(key)
         return cast(int, _value)
 
-    async def get_ttl(self, key: str) -> int:
+    async def get_ttl(self, key: str) -> Optional[int]:
         """Get the remaining TTL in seconds for a key."""
-        return int(await self.redis.ttl(key))
+        _value = await self.redis.ttl(key)
+
+        if _value == -2:
+            return None  # key does not exist
+        return _value  # -1 or positive
 
     async def delete(self, key: str) -> int:
         """Delete a key from Redis."""

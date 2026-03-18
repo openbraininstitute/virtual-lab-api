@@ -1,7 +1,7 @@
 import secrets
 from datetime import datetime, timezone
 from http import HTTPStatus as status
-from typing import Tuple
+from typing import Literal, Tuple
 from uuid import UUID
 
 from fastapi import Response
@@ -90,7 +90,7 @@ async def initiate_email_verification(
             expire_at_minutes = int(
                 (verification_code_entry.expires_at - now).total_seconds() / 60
             )
-
+        print("@@@verification_code_entry", verification_code_entry.code)
         email_details = VerificationCodeEmailDetails(
             recipient=email,
             code=code,
@@ -143,6 +143,7 @@ async def get_verification_status(
     *,
     virtual_lab_id: UUID,
     email: EmailStr,
+    kind: Literal["initiate", "verify"],
     auth: Tuple[AuthUser, str],
 ) -> Response:
     """get status of email verification"""
@@ -151,7 +152,7 @@ async def get_verification_status(
     user_id = UUID(auth[0].sub)
 
     key = rl.build_key_by_email(
-        "initiate",
+        kind,
         str(user_id),
         str(virtual_lab_id),
         email,
@@ -163,7 +164,8 @@ async def get_verification_status(
         attempts = None
         remaining_attempts = None
         count = await rl.get_count(key)
-
+        ttl = await rl.get_ttl(key)
+        print("----key", key, "@@count", count, "@@ttl", ttl)
         if (count or 0) >= settings.MAX_INIT_ATTEMPTS:
             verification_status = VerificationCodeStatus.LOCKED.value
         else:
@@ -173,29 +175,24 @@ async def get_verification_status(
                 virtual_lab_id=virtual_lab_id,
             )
 
-            now = datetime.now(timezone.utc).replace(tzinfo=None)
-            expire_at_minutes = (
-                int((verification_code_entry.expires_at - now).total_seconds() / 60)
-                if verification_code_entry
-                else None
-            )
-
             attempts = await rl.get_count(key)
             remaining_attempts = settings.MAX_INIT_ATTEMPTS - (attempts or 0)
 
-            if not verification_code_entry:
+            if not verification_code_entry or (ttl and ttl <= 0):
                 verification_status = VerificationCodeStatus.EXPIRED.value
             if verification_code_entry and verification_code_entry.is_verified:
                 verification_status = VerificationCodeStatus.VERIFIED.value
             if expire_at_minutes and expire_at_minutes > 0:
                 verification_status = VerificationCodeStatus.CODE_SENT.value
+            else:
+                verification_status = VerificationCodeStatus.WAITING.value
 
         return VliResponse.new(
             message="Verification status",
             data={
                 "message": "Verification status",
                 "status": verification_status,
-                "remaining_time": expire_at_minutes,
+                "remaining_time": ttl,
                 "attempts": attempts,
                 "remaining_attempts": remaining_attempts,
             },

@@ -53,7 +53,7 @@ async def rate_limit_initiate(
 
     if count >= settings.MAX_INIT_ATTEMPTS:
         remaining_seconds = await rl.get_ttl(key)
-        remaining_time = remaining_seconds // 60 if remaining_seconds > 0 else 0
+        remaining_time = remaining_seconds
         raise VliError(
             error_code=VliErrorCode.RATE_LIMIT_ERROR,
             http_status_code=status.BAD_REQUEST,
@@ -72,6 +72,7 @@ async def rate_limit_initiate(
 
 
 async def rate_limit_verify(
+    virtual_lab_id: Annotated[UUID4, Header()],
     payload: EmailVerificationPayload,
     auth: Tuple[AuthUser, str] = Depends(a_verify_jwt),
     rl: RateLimiter = Depends(get_verify_rate_limiter),
@@ -82,7 +83,7 @@ async def rate_limit_verify(
     key = rl.build_key_by_email(
         "verify",
         user_id,
-        str(payload.virtual_lab_id),
+        str(virtual_lab_id),
         payload.email,
     )
     count = await rl.get_count(key)
@@ -94,7 +95,8 @@ async def rate_limit_verify(
 
     if count >= settings.MAX_VERIFY_ATTEMPTS:
         remaining_seconds = await rl.get_ttl(key)
-        remaining_time = remaining_seconds // 60 if remaining_seconds > 0 else 0
+        remaining_time = remaining_seconds
+
         raise VliError(
             error_code=VliErrorCode.RATE_LIMIT_ERROR,
             http_status_code=status.TOO_MANY_REQUESTS,

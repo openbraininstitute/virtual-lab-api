@@ -24,7 +24,6 @@ from virtual_labs.repositories.email_verification_repo import (
     EmailValidationQueryRepository,
 )
 from virtual_labs.repositories.labs import update_virtual_lab_email_status
-from virtual_labs.repositories.stripe_user_repo import StripeUserQueryRepository
 from virtual_labs.shared.utils.auth import get_user_id_from_auth
 
 
@@ -38,7 +37,6 @@ async def verify_email_code(
     auth: Tuple[AuthUser, str],
 ) -> Response:
     es = EmailValidationQueryRepository(session)
-    su = StripeUserQueryRepository(session)
     user_id = get_user_id_from_auth(auth)
 
     rd_key = rl.build_key_by_email(
@@ -49,7 +47,7 @@ async def verify_email_code(
     )
 
     try:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         vlab = await lab_repository.get_virtual_lab_soft(session, lab_id=virtual_lab_id)
 
         if vlab and vlab.email_verified:
@@ -83,6 +81,14 @@ async def verify_email_code(
         if verification_code_entry.code != code.strip():
             attempts = await rl.get_count(rd_key)
             remaining_attempts = settings.MAX_VERIFY_ATTEMPTS - (attempts or 0)
+            print(
+                "———rd_key",
+                rd_key,
+                "@@attempts",
+                attempts,
+                "@@remaining_attempts",
+                remaining_attempts,
+            )
 
             raise EmailVerificationException(
                 f"Invalid code, {remaining_attempts} attempts remaining",

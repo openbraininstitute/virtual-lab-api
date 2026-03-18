@@ -1,7 +1,7 @@
-from typing import Annotated, Dict, Tuple
+from typing import Annotated, Dict, Literal, Tuple
 
-from fastapi import APIRouter, Depends, Header, Response
-from pydantic import UUID4
+from fastapi import APIRouter, Depends, Header, Query, Response
+from pydantic import UUID4, EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.types import VliAppResponse
@@ -338,7 +338,7 @@ async def update_workspace_hierarchy_species_endpoint(
     )
 
 
-@router.post(
+@router.get(
     "/email/verification",
     operation_id="get_email_verification_status",
     summary="get email verification status",
@@ -346,7 +346,8 @@ async def update_workspace_hierarchy_species_endpoint(
 )
 async def get_verification_status(
     virtual_lab_id: Annotated[UUID4, Header()],
-    payload: InitiateEmailVerificationPayload,
+    email: EmailStr,
+    kind: Literal["initiate", "verify"] = Query(...),
     session: AsyncSession = Depends(default_session_factory),
     rl: RateLimiter = Depends(get_initiate_rate_limiter),
     auth: Tuple[AuthUser, str] = Depends(a_verify_jwt),
@@ -354,7 +355,8 @@ async def get_verification_status(
     return await email_verification_usecases.get_verification_status(
         session,
         rl,
-        email=payload.email,
+        email=email,
+        kind=kind,
         virtual_lab_id=virtual_lab_id,
         auth=auth,
     )

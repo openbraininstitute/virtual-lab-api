@@ -19,6 +19,7 @@ class VerificationCodeStatus(Enum):
     CODE_SENT = "code_sent"
     EXPIRED = "expired"
     VERIFIED = "verified"
+    WAITING = "waiting"
 
 
 class Email(BaseModel):
@@ -36,7 +37,6 @@ class InitiateEmailVerificationPayload(
 
 
 class EmailVerificationPayload(Email):
-    virtual_lab_id: UUID
     code: EmailVerificationCode
 
 
