@@ -114,4 +114,5 @@ class BookmarkMutationRepository:
 
         result = await self.session.execute(statement=stmt)
         await self.session.commit()
-        return result.rowcount
+        deleted: int = result.rowcount  # type: ignore[attr-defined]
+        return deleted or 0

@@ -42,6 +42,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
       - name: Use Python cache
         uses: actions/cache@v3
         with:
@@ -50,9 +55,10 @@ jobs:
             .venv
           key: ${{ runner.os }}-pip-${{ hashFiles('**/poetry.lock') }}
 
-      - name: Install Poetry
+      - name: Install dependencies
         run: |
           pip install poetry
+          poetry install
 
       - name: Run styling checks
         run: make style-check
@@ -64,6 +70,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
       - name: Use Python cache
         uses: actions/cache@v3
         with:
@@ -72,9 +83,10 @@ jobs:
             .venv
           key: ${{ runner.os }}-pip-${{ hashFiles('**/poetry.lock') }}
 
-      - name: Install Poetry
+      - name: Install dependencies
         run: |
           pip install poetry
+          poetry install
 
       - name: Run type checks
         run: make type-check
@@ -86,6 +98,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
       - name: Use Python cache
         uses: actions/cache@v3
         with:
@@ -94,9 +111,10 @@ jobs:
             .venv
           key: ${{ runner.os }}-pip-${{ hashFiles('**/poetry.lock') }}
 
-      - name: Install Poetry
+      - name: Install dependencies
         run: |
           pip install poetry
+          poetry install
 
       - name: Start services
         run: |
