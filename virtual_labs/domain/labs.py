@@ -25,7 +25,7 @@ class VirtualLabBase(BaseModel):
     name: str = Field(max_length=250)
     description: str
     reference_email: EmailStr | None = None
-    email_verified: bool
+    email_verified: bool = False
     entity: str
     compute_cell: ComputeCell = ComputeCell.CELL_A
 

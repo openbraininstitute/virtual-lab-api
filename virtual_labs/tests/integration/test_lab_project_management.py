@@ -199,7 +199,6 @@ class TestVirtualLabCreation:
             "description": "Test Success Description",
             "reference_email": f"{owner_username}@test.org",
             "entity": "Test University",
-            "email_status": "verified",
         }
         headers = get_headers(owner_username)
 
@@ -267,7 +266,6 @@ class TestVirtualLabCreation:
             "description": "Duplicate Test",
             "reference_email": "test@test.org",
             "entity": "EPFL",
-            "email_status": "verified",
         }
         headers = get_headers(owner_username)
         response = await async_test_client.post(
@@ -296,7 +294,6 @@ class TestVirtualLabCreation:
             "description": "Second Lab Test",
             "reference_email": "test@test.org",
             "entity": "EPFL",
-            "email_status": "verified",
         }
         headers = get_headers(owner_username)
         response = await async_test_client.post(
@@ -320,7 +317,6 @@ class TestVirtualLabCreation:
             "description": "Unverified Email Test",
             "reference_email": f"{owner_username}@test.org",
             "entity": "Test Institute",
-            "email_status": "registered",
         }
         headers = get_headers(owner_username)
         response = await async_test_client.post(
@@ -344,7 +340,6 @@ class TestVirtualLabCreation:
             "description": "Missing Name Test",
             "reference_email": f"{owner_username}@test.org",
             "entity": "Test Co",
-            "email_status": "verified",
         }
         headers = get_headers(owner_username)
         response = await async_test_client.post(
@@ -778,7 +773,6 @@ class TestAttachUsersToProject:
             "description": "Test virtual lab for project creation",
             "reference_email": f"{owner_username}@test.org",
             "entity": "Test University",
-            "email_status": "verified",
         }
         lab_response = await client.post(
             "/virtual-labs",

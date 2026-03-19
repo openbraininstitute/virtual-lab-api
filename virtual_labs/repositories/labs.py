@@ -167,7 +167,9 @@ async def update_virtual_lab_compute_cell(
 
 
 async def update_virtual_lab_email_status(
-    db: AsyncSession, lab_id: UUID4, email_status: bool
+    db: AsyncSession,
+    lab_id: UUID4,
+    email_status: bool,
 ) -> VirtualLab:
     """Update only the compute_cell field for a virtual lab."""
     query = (

@@ -50,7 +50,6 @@ async def mock_user_with_lab_and_project(
             "description": "Test Lab for User Preferences",
             "reference_email": "user@test.org",
             "entity": "Test Entity",
-            "email_status": "verified",
         },
         headers=headers,
     )
@@ -106,7 +105,6 @@ async def mock_user_with_multiple_projects(
             "description": "Test Lab for Multiple Projects",
             "reference_email": "user@test.org",
             "entity": "Test Entity",
-            "email_status": "verified",
         },
         headers=headers,
     )

@@ -221,7 +221,6 @@ class TestSetRecentWorkspace:
                 "description": "Other user's lab",
                 "reference_email": "other@test.org",
                 "entity": "Other Entity",
-                "email_status": "verified",
             },
             headers=other_user_headers,
         )
