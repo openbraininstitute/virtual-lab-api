@@ -241,7 +241,7 @@ async def create_virtual_lab(
             name=f"{user.get('firstName', '')} {user.get('lastName', '')}",
         )
 
-        if user.get("email", owner_email):
+        if user.get("email", owner_email) is not None:
             await send_welcome_email(owner_email)
 
         created_lab = domain.CreateLabOut(

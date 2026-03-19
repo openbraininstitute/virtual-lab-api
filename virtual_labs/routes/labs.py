@@ -32,6 +32,7 @@ from virtual_labs.domain.labs import VirtualLabResponse as IVirtualLabResponse
 from virtual_labs.infrastructure.db.config import default_session_factory
 from virtual_labs.infrastructure.kc.auth import a_verify_jwt, verify_jwt
 from virtual_labs.infrastructure.kc.models import AuthUser
+from virtual_labs.shared.groups import VLAB_SERVICE_ADMIN_GROUP
 from virtual_labs.shared.utils.auth import get_user_id_from_auth
 from virtual_labs.usecases import labs as usecases
 from virtual_labs.usecases.labs.check_virtual_lab_name_exists import LabExists
@@ -192,7 +193,7 @@ async def update_virtual_lab(
     response_model=LabResponse[VirtualLabOut],
     summary="Update virtual lab compute cell (Service Admin only)",
 )
-@verify_service_admin
+@verify_service_admin([VLAB_SERVICE_ADMIN_GROUP])
 async def update_virtual_lab_compute_cell(
     virtual_lab_id: UUID4,
     payload: VirtualLabComputeCellUpdate,

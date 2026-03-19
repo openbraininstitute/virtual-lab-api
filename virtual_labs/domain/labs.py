@@ -132,6 +132,11 @@ class InvitationResponse(BaseModel):
     id: UUID4
 
 
+class ProjectVirtualLabMapping(BaseModel):
+    project_id: UUID4
+    virtual_lab_id: UUID4
+
+
 class UserStats(BaseModel):
     """Statistics about a user's virtual labs and projects"""
 
