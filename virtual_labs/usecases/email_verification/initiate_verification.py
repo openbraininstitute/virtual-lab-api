@@ -1,4 +1,5 @@
 import secrets
+from datetime import datetime, timedelta, timezone
 from http import HTTPStatus as status
 from typing import Tuple
 from uuid import UUID
@@ -16,6 +17,7 @@ from virtual_labs.domain.email import (
     VerificationCodeEmailDetails,
     VerificationCodeStatus,
 )
+from virtual_labs.infrastructure.db.models import EmailVerification
 from virtual_labs.infrastructure.email.verification_code_email import (
     send_verification_code_email,
 )
@@ -59,6 +61,7 @@ async def initiate_email_verification(
         )
 
         existing_code = await rl.get(code_key)
+        is_new_code = False
 
         if existing_code:
             code = existing_code
@@ -67,6 +70,7 @@ async def initiate_email_verification(
             code = _generate_verification_code()
             await rl.set(code_key, code, ttl=settings.INITIATE_LOCK_SECONDS)
             code_ttl = settings.INITIATE_LOCK_SECONDS
+            is_new_code = True
 
         email_details = VerificationCodeEmailDetails(
             recipient=email,
@@ -77,6 +81,24 @@ async def initiate_email_verification(
         )
 
         await send_verification_code_email(details=email_details)
+
+        # audit: persist after we're done reading from the session
+        if is_new_code:
+            try:
+                verification_record = EmailVerification(
+                    user_id=user_id,
+                    virtual_lab_id=virtual_lab_id,
+                    email=email,
+                    code=code,
+                    expires_at=datetime.now(timezone.utc)
+                    + timedelta(seconds=settings.INITIATE_LOCK_SECONDS),
+                )
+                session.add(verification_record)
+                await session.commit()
+            except Exception as audit_err:
+                logger.warning(
+                    f"Failed to persist email verification audit record: {audit_err}"
+                )
 
         attempts = await rl.get_count(initiate_key) or 0
         remaining_attempts = max(settings.MAX_INIT_ATTEMPTS - attempts, 0)

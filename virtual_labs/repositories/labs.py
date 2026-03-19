@@ -169,6 +169,7 @@ async def update_virtual_lab_compute_cell(
 async def update_virtual_lab_email_status(
     db: AsyncSession,
     lab_id: UUID4,
+    email: EmailStr,
     email_status: bool,
 ) -> VirtualLab:
     """Update only the compute_cell field for a virtual lab."""
@@ -177,6 +178,7 @@ async def update_virtual_lab_email_status(
         .where(VirtualLab.id == lab_id)
         .values(
             {
+                "reference_email": email,
                 "email_verified": email_status,
             }
         )

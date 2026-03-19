@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from http import HTTPStatus as status
 from typing import Tuple
 from uuid import UUID
@@ -5,11 +6,13 @@ from uuid import UUID
 from fastapi import Response
 from loguru import logger
 from pydantic import EmailStr
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.domain.email import VerificationCodeStatus
+from virtual_labs.infrastructure.db.models import EmailVerification
 from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.infrastructure.redis import RateLimiter
 from virtual_labs.infrastructure.settings import settings
@@ -95,6 +98,7 @@ async def verify_email_code(
             db=session,
             lab_id=virtual_lab_id,
             email_status=True,
+            email=email,
         )
 
         user = await user_query_repo.get_user(user_id=str(user_id))
@@ -107,6 +111,29 @@ async def verify_email_code(
 
         await rl.delete(code_key)
         await rl.delete(verify_key)
+
+        # audit: mark the verification record as verified
+        try:
+            result = await session.execute(
+                select(EmailVerification)
+                .where(
+                    EmailVerification.user_id == user_id,
+                    EmailVerification.virtual_lab_id == virtual_lab_id,
+                    EmailVerification.email == email,
+                    EmailVerification.verified.is_(False),
+                )
+                .order_by(EmailVerification.created_at.desc())
+                .limit(1)
+            )
+            verification_record = result.scalar_one_or_none()
+            if verification_record:
+                verification_record.verified = True
+                verification_record.verified_at = datetime.now(timezone.utc)
+                await session.commit()
+        except Exception as audit_err:
+            logger.warning(
+                f"Failed to update email verification audit record: {audit_err}"
+            )
 
         return VliResponse.new(
             message="Email verified successfully",

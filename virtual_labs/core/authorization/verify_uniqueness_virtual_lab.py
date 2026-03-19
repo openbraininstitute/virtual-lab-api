@@ -18,7 +18,8 @@ async def verify_uniq_virtual_lab(
     """Dependency that raises if the authenticated user already owns a virtual lab."""
     owner_id = get_user_id_from_auth(auth)
     existing = await get_user_virtual_lab(db=db, owner_id=owner_id)
-    if existing:
+
+    if existing is not None:
         raise VliError(
             message="User already has a virtual lab",
             error_code=VliErrorCode.FORBIDDEN_OPERATION,
