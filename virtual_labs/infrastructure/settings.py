@@ -95,6 +95,9 @@ class Settings(BaseSettings):
     PAID_SUBSCRIPTION_DISCOUNT: Decimal = Decimal("0.5")
     MAX_PROJECTS_NUMBER: int = 20
 
+    VLAB_SERVICE_ADMIN_GROUP: str = "/service/virtual-lab-svc/admin"
+    ENTITYCORE_SERVICE_ADMIN_GROUP: str = "/service/entitycore/admin"
+
     # There's a single configuration set in staging and production with a static name
     AWS_SES_CONFIGURATION_SET: str = "main-ses-config"
 

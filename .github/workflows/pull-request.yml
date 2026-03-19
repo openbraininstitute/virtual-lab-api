@@ -60,6 +60,9 @@ jobs:
           pip install poetry
           poetry install
 
+      - name: Install dependencies
+        run: poetry sync
+
       - name: Run styling checks
         run: make style-check
 
@@ -88,6 +91,9 @@ jobs:
           pip install poetry
           poetry install
 
+      - name: Install dependencies
+        run: poetry sync
+
       - name: Run type checks
         run: make type-check
 
@@ -115,6 +121,9 @@ jobs:
         run: |
           pip install poetry
           poetry install
+
+      - name: Install dependencies
+        run: poetry sync
 
       - name: Start services
         run: |

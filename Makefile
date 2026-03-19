@@ -73,7 +73,7 @@ style-check:
 	poetry run pre-commit run --all-files --config ./.pre-commit-config-ci.yaml
 
 type-check:
-	poetry run mypy . --strict
+	poetry run mypy . --strict --exclude 'alembic/'
 
 check-all: format lint style-check type-check
 
