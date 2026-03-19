@@ -49,6 +49,12 @@ UserInvites = TypedDict(
 )
 
 
+MULTIPLE_VLABS_ALLOWED_USER_IDS = [
+    "16588c8b-ec88-4a49-a413-a0bb3a7b8541"  # Staging
+    "a713cff1-d67d-4f3f-9c28-a92fae3ddf30"  # Prod
+]
+
+
 async def create_keycloak_groups(lab_id: UUID4, lab_name: str) -> GroupIds:
     kc = GroupMutationRepository()
 
@@ -92,7 +98,7 @@ async def create_virtual_lab(
             db=db,
             owner_id=owner_id,
         )
-        if has_vlab:
+        if owner_id not in MULTIPLE_VLABS_ALLOWED_USER_IDS and has_vlab:
             raise ForbiddenOperation()
 
         new_lab_id = uuid4()
@@ -114,7 +120,7 @@ async def create_virtual_lab(
     except ForbiddenOperation:
         logger.error(f"User {owner_id} already has a virtual lab")
         raise VliError(
-            message="User already have a virtual lab",
+            message="User already has a virtual lab",
             error_code=VliErrorCode.ENTITY_ALREADY_EXISTS,
             http_status_code=HTTPStatus.BAD_REQUEST,
         )
