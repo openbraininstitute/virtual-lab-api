@@ -114,4 +114,5 @@ class BookmarkMutationRepository:
 
         result = await self.session.execute(statement=stmt)
         await self.session.commit()
-        return len(result.all())
+        deleted_ids = result.scalars().all()
+        return len(deleted_ids)
