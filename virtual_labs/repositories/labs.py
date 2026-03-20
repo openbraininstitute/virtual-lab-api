@@ -16,7 +16,6 @@ class VirtualLabDbCreate(labs.VirtualLabCreate):
     owner_id: UUID4
     admin_group_id: str
     member_group_id: str
-    is_course_vlab: bool = False
 
 
 async def get_paginated_virtual_labs(
