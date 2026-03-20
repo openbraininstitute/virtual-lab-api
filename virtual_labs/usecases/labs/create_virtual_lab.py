@@ -4,6 +4,7 @@ from http import HTTPStatus
 from typing import Literal, TypedDict
 from uuid import UUID, uuid4
 from contextlib import contextmanager
+from typing import Iterator
 
 from loguru import logger
 from pydantic import UUID4
@@ -334,7 +335,7 @@ async def create_course_vlab(
     if settings.ACCOUNTING_BASE_URL is not None:
         try:
             await accounting_cases.create_virtual_lab_account(
-                virtual_lab_id=new_lab_id, name=lab.name, balance=0
+                virtual_lab_id=new_lab_id, name=lab.name, balance=Decimal(0)
             )
 
         except Exception as ex:
@@ -377,7 +378,7 @@ async def create_course_vlab(
 
 
 def _cleanup_kc_groups(
-    groups: dict | None, group_repo: GroupMutationRepository, error_context: str
+    groups: GroupIds, group_repo: GroupMutationRepository, error_context: str
 ) -> None:
     if not groups:
         return
@@ -391,8 +392,8 @@ def _cleanup_kc_groups(
 
 @contextmanager
 def handle_vlab_creation_errors(
-    groups: dict | None, group_repo: GroupMutationRepository
-):
+    groups: GroupIds, group_repo: GroupMutationRepository
+) -> Iterator[None]:
     try:
         yield
     except IntegrityError as error:
