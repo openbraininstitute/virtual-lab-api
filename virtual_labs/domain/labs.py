@@ -27,6 +27,8 @@ class VirtualLabBase(BaseModel):
     reference_email: EmailStr
     entity: str
     compute_cell: ComputeCell = ComputeCell.CELL_A
+    is_course_vlab: bool
+    is_course_initialized: bool
 
 
 class VirtualLabUpdate(BaseModel):
