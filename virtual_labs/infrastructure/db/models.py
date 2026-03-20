@@ -97,6 +97,11 @@ class VirtualLab(Base):
     payment_methods = relationship("PaymentMethod", back_populates="virtual_lab")
     payments = relationship("SubscriptionPayment", back_populates="virtual_lab")
 
+    is_course_vlab: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_course_initialized: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
+    )
+
     __table_args__ = (
         Index(
             "unique_lab_name_for_non_deleted",

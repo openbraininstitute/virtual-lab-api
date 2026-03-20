@@ -183,6 +183,16 @@ async def create_virtual_lab(
     return LabResponse[CreateLabOut](message="Newly created virtual lab", data=result)
 
 
+@router.post("", response_model=LabResponse[CreateLabOut])
+async def create_course_vlab(
+    lab: VirtualLabCreate,
+    session: AsyncSession = Depends(default_session_factory),
+    auth: tuple[AuthUser, str] = Depends(verify_jwt),
+) -> LabResponse[CreateLabOut]:
+    result = await usecases.create_course_vlab(session, lab, auth)
+    return LabResponse[CreateLabOut](message="Newly created virtual lab", data=result)
+
+
 @router.post(
     "/email/initiate-verification",
     operation_id="initiate_email_verification",
