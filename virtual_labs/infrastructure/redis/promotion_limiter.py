@@ -55,11 +55,12 @@ def rate_limit_promotion_redemption(
 
             if current_count is not None and current_count >= max_attempts:
                 ttl = await rate_limiter.get_ttl(rate_limit_key)
+                remaining_minutes = (ttl // 60) if ttl is not None else 0
                 raise VliError(
                     error_code=VliErrorCode.LIMIT_EXCEEDED,
                     http_status_code=HTTPStatus.TOO_MANY_REQUESTS,
                     details=f"Rate limit exceeded. You can only redeem promotion codes {max_attempts} times per {window_seconds // 60} minutes. ",
-                    message=f"You have exceeded the attempts limit, Try again in {ttl // 60} mins.",
+                    message=f"You have exceeded the attempts limit, Try again in {remaining_minutes} mins.",
                     data={
                         "retry_after": ttl,
                         "max_attempts": max_attempts,

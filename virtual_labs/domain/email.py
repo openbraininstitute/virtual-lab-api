@@ -1,7 +1,8 @@
 from enum import Enum
 from typing import Annotated
+from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, StringConstraints
+from pydantic import UUID4, BaseModel, EmailStr, StringConstraints
 
 CODE_LENGTH = 6
 
@@ -18,46 +19,31 @@ class VerificationCodeStatus(Enum):
     CODE_SENT = "code_sent"
     EXPIRED = "expired"
     VERIFIED = "verified"
+    WAITING = "waiting"
 
 
 class Email(BaseModel):
     email: EmailStr
 
-    # @field_validator("email")
-    # def validate_email(cls, value: str) -> str:
-    #     # DNS validation (check MX records)
-    #     domain = value.split("@")[-1]
-    #     try:
-    #         # Check if the domain has MX records
-    #         dns.resolver.resolve(domain, "MX")
-    #     except (dns.resolver.NoAnswer, dns.resolver.NXDOMAIN):
-    #         raise ValueError(
-    #             "Email domain does not exist or is not configured to receive emails"
-    #         )
 
-    #     return value
+class VirtualLabContext(BaseModel):
+    virtual_lab_id: UUID4
 
 
-class InitiateEmailVerificationPayload(Email):
-    virtual_lab_name: str
-
-    @property
-    def name(self) -> str:
-        return self.virtual_lab_name.strip()
+class InitiateEmailVerificationPayload(
+    Email,
+):
+    pass
 
 
 class EmailVerificationPayload(Email):
-    virtual_lab_name: str
     code: EmailVerificationCode
-
-    @property
-    def name(self) -> str:
-        return self.virtual_lab_name.strip()
 
 
 class VerificationCodeEmailDetails(BaseModel):
-    recipient: str
+    recipient: EmailStr
     code: EmailVerificationCode
+    virtual_lab_id: UUID
     virtual_lab_name: str
     expire_at: str
 

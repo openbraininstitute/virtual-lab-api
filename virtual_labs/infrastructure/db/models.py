@@ -72,6 +72,9 @@ class VirtualLab(Base):
     name: Mapped[str] = mapped_column(String(250), nullable=False, index=True)
     description: Mapped[str | None] = mapped_column(Text)
     reference_email: Mapped[str | None] = mapped_column(String(255))
+    email_verified: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, index=True
+    )
     entity: Mapped[str] = mapped_column(String, nullable=False)
     compute_cell: Mapped[ComputeCell] = mapped_column(
         SAEnum(ComputeCell),
@@ -288,38 +291,6 @@ class Bookmark(Base):
             "project_id",
             name="bookmark_unique_for_resource_category_per_project",
         ),
-    )
-
-
-class EmailVerificationCode(Base):
-    __tablename__ = "email_verification_codes"
-
-    id: Mapped[uuid.UUID] = mapped_column(
-        primary_key=True, default=uuid4, server_default=func.gen_random_uuid()
-    )
-    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
-    virtual_lab_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
-    code: Mapped[str] = mapped_column(String(6), nullable=False, index=True)
-    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    is_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    verified_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False
-    )
-
-    __table_args__ = (
-        # ensure the token is exactly 6 digits
-        CheckConstraint("code ~* '^[0-9]{6}$'", name="valid_code_check"),
-        # composite index for email and token
-        Index(
-            "ix_verification_codes_compound_properties",
-            "email",
-            "code",
-            "virtual_lab_name",
-            "user_id",
-        ),
-        Index("ix_verification_codes_created_at", "created_at"),
     )
 
 
@@ -643,7 +614,10 @@ class StripeUser(Base):
     stripe_customer_id: Mapped[Optional[str]] = mapped_column(
         String(255), nullable=False, unique=True
     )
-    user_id = Column(UUID(as_uuid=True), nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        nullable=False,
+    )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=func.now(), nullable=False
@@ -859,4 +833,56 @@ class PromotionCodeRedemptionAttempt(Base):
     __table_args__ = (
         Index("ix_promotion_attempt_user_time", "user_id", "attempted_at"),
         Index("ix_promotion_attempt_code_time", "code_attempted", "attempted_at"),
+    )
+
+
+class EmailVerification(Base):
+    """
+    Tracks each email verification code sent.
+    One row per code generation — gives a full history of
+    who verified what email for which lab, and whether it succeeded.
+    """
+
+    __tablename__ = "email_verification"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, index=True
+    )
+    virtual_lab_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("virtual_lab.id"), nullable=False, index=True
+    )
+    email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    # NOTE: storing the code in plaintext is not best practice.
+    # ideally this should be a hashed value (e.g. sha-256)
+    # since the code is short-lived (TTL-bound in Redis) and this table is
+    # purely for audit/history purposes
+    # Redis remains the source of truth for live verification.
+    code: Mapped[str] = mapped_column(String(6), nullable=False)
+    verified: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, index=True
+    )
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    verified_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    virtual_lab = relationship("VirtualLab")
+
+    __table_args__ = (
+        Index("ix_email_verif_user_lab", "user_id", "virtual_lab_id"),
+        Index("ix_email_verif_user_email", "user_id", "email", "verified"),
     )
