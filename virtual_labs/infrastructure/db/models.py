@@ -100,7 +100,7 @@ class VirtualLab(Base):
     payment_methods = relationship("PaymentMethod", back_populates="virtual_lab")
     payments = relationship("SubscriptionPayment", back_populates="virtual_lab")
 
-    is_course_vlab: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    course_template_project_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     is_course_initialized: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False
     )

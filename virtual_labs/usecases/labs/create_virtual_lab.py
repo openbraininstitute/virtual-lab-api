@@ -306,7 +306,6 @@ async def create_course_vlab(
             member_group_id=groups["member_group"]["id"],
             is_course_vlab=True,
             **lab.model_dump(),
-            email_status="verified",
         )
 
         db_lab = await repository.create_virtual_lab(db, lab_with_ids)
