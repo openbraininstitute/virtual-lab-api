@@ -25,7 +25,13 @@ def upgrade() -> None:
         "virtual_lab", sa.Column("course_template_project_id", sa.UUID(), nullable=True)
     )
     op.add_column(
-        "virtual_lab", sa.Column("is_course_initialized", sa.Boolean(), nullable=False)
+        "virtual_lab",
+        sa.Column(
+            "is_course_initialized",
+            sa.Boolean(),
+            nullable=False,
+            server_default=sa.text("false"),
+        ),
     )
     # ### end Alembic commands ###
 
