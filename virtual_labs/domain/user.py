@@ -190,7 +190,6 @@ class OnboardingStatusDict(TypedDict):
     dismissed: bool
 
 
-# Workspace Hierarchy Species Preference Domain Models
 class WorkspaceHierarchySpeciesPreference(BaseModel):
     """
     Request/Response model for brain region preference.
@@ -231,3 +230,11 @@ class WorkspaceHierarchySpeciesPreferenceResponse(BaseModel):
     user_id: UUID4
     preference: Optional[WorkspaceHierarchySpeciesPreference] = None
     updated_at: Optional[datetime] = None
+
+
+class UserRecord(BaseModel):
+    user_id: UUID4
+    hierarchy_preference: Optional[WorkspaceHierarchySpeciesPreference] = None
+    recent_workspace: Optional[Workspace] = None
+    email: EmailStr
+    email_verified: bool

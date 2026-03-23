@@ -1,6 +1,7 @@
 from .verify_project_read import verify_project_read
 from .verify_project_write import verify_project_write
 from .verify_service_admin import verify_service_admin
+from .verify_uniqueness_virtual_lab import verify_uniq_virtual_lab
 from .verify_user_authenticated import verify_user_authenticated
 from .verify_vlab_or_project_read import (
     verify_vlab_or_project_read,
@@ -21,5 +22,6 @@ __all__ = [
     "verify_project_read",
     "verify_vlab_read",
     "verify_user_authenticated",
+    "verify_uniq_virtual_lab",
     "verity_member_invite",
 ]

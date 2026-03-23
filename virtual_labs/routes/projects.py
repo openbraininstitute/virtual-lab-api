@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.authorization import (
     verify_project_read,
+    verify_service_admin,
     verify_vlab_or_project_write,
     verify_vlab_read,
     verify_vlab_write,
@@ -19,7 +20,7 @@ from virtual_labs.core.exceptions.api_error import VliError
 from virtual_labs.core.types import UserGroup, UserRoleEnum, VliAppResponse
 from virtual_labs.domain.common import PageParams, PaginatedResultsResponse
 from virtual_labs.domain.invite import InvitePayload
-from virtual_labs.domain.labs import InvitationResponse
+from virtual_labs.domain.labs import InvitationResponse, ProjectVirtualLabMapping
 from virtual_labs.domain.project import (
     AddUserToProjectIn,
     ProjectCreationBody,
@@ -43,6 +44,7 @@ from virtual_labs.infrastructure.db.config import default_session_factory
 from virtual_labs.infrastructure.kc.auth import verify_jwt
 from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.infrastructure.transport.httpx import httpx_factory
+from virtual_labs.shared.groups import ENTITYCORE_SERVICE_ADMIN_GROUP
 from virtual_labs.shared.utils.auth import get_user_id_from_auth
 from virtual_labs.usecases import project as project_cases
 
@@ -110,6 +112,30 @@ async def retrieve_stars_project(
         pagination=PageParams(
             page=page,
             size=size,
+        ),
+    )
+
+
+@router.get(
+    "/projects/{project_id}/virtual-lab",
+    operation_id="get_virtual_lab_by_project",
+    summary="Get virtual lab ID for a project (Entitycore Admin only)",
+    response_model=VliAppResponse[ProjectVirtualLabMapping],
+)
+@verify_service_admin([ENTITYCORE_SERVICE_ADMIN_GROUP])
+async def get_virtual_lab_by_project(
+    project_id: UUID4,
+    session: AsyncSession = Depends(default_session_factory),
+    auth: Tuple[AuthUser, str] = Depends(verify_jwt),
+) -> VliAppResponse[ProjectVirtualLabMapping]:
+    from virtual_labs.repositories.labs import get_virtual_lab_id_by_project_id
+
+    project = await get_virtual_lab_id_by_project_id(session, project_id)
+    return VliAppResponse(
+        message="Virtual lab for project",
+        data=ProjectVirtualLabMapping(
+            project_id=project.id,
+            virtual_lab_id=project.virtual_lab_id,
         ),
     )
 

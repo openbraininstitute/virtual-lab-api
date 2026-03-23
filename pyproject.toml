@@ -41,9 +41,13 @@ pre-commit = "^3.6.2"
 pytest = "^8.0.2"
 requests = "^2.31.0"
 types-requests = "^2.31.0.20240311"
-pytest-asyncio = "0.21.1"
+pytest-asyncio = "^0.23"
 python-dotenv = "^1.0.1"
 pytest-cov = "^6.1.1"
+
+[tool.poetry.group.scripts.dependencies]
+rich = "^13.0"
+InquirerPy = "^0.3.4"
 
 [build-system]
 requires = ["poetry-core"]
@@ -51,6 +55,7 @@ build-backend = "poetry.core.masonry.api"
 
 
 [tool.pytest.ini_options]
+asyncio_mode = "strict"
 norecursedirs = ["tests/labs"]
 markers = [
   "integration: mark a test as an integration test"
@@ -76,3 +81,4 @@ exclude = [
 populate-tiers = "scripts.populate_subscription_tiers:run_async"
 upgrade-subscription = "scripts.upgrade_subscription:run_async"
 send_emails = "scripts.send_emails:run_async"
+manage-coupons = "scripts.manage_stripe_coupons:run_async"

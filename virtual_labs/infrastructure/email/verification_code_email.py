@@ -15,7 +15,7 @@ async def send_verification_code_email(details: VerificationCodeEmailDetails) ->
     try:
         invite_html = generate_email_verification_html(details)
         message = MessageSchema(
-            subject=f"Action Required: Verify your email for {details.virtual_lab_name}",
+            subject=f"Action Required: Verify your email to proceed with your purchase for {details.virtual_lab_name}",
             recipients=[NameEmail("", details.recipient)],
             body=invite_html,
             subtype=MessageType.html,

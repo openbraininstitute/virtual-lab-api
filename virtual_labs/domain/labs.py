@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import Enum
-from typing import Generic, Literal, TypeVar
+from typing import Generic, TypeVar
 
 from pydantic import UUID4, BaseModel, ConfigDict, EmailStr, Field, JsonValue
 
@@ -24,7 +24,8 @@ class LabResponse(BaseModel, Generic[T]):
 class VirtualLabBase(BaseModel):
     name: str = Field(max_length=250)
     description: str
-    reference_email: EmailStr
+    reference_email: EmailStr | None = None
+    email_verified: bool = False
     entity: str
     compute_cell: ComputeCell = ComputeCell.CELL_A
     is_course_vlab: bool = False
@@ -114,19 +115,7 @@ class VirtualLabResponse(BaseModel):
 
 
 class VirtualLabCreate(VirtualLabBase):
-    email_status: (
-        Literal[
-            "none",
-            "error",
-            "verified",
-            "locked",
-            "code_sent",
-            "expired",
-            "not-match",
-            "registered",
-        ]
-        | None
-    )
+    pass
 
 
 class CreateLabOut(BaseModel):
@@ -143,6 +132,11 @@ class AllPlans(BaseModel):
 
 class InvitationResponse(BaseModel):
     id: UUID4
+
+
+class ProjectVirtualLabMapping(BaseModel):
+    project_id: UUID4
+    virtual_lab_id: UUID4
 
 
 class UserStats(BaseModel):

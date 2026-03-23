@@ -43,18 +43,18 @@ services:
       KC_SSL_REQUIRED: none
       KC_HTTP_ENABLED: true
       KC_HEALTH_ENABLED: true
+      KC_HOSTNAME_STRICT_HTTPS: false
     depends_on:
       keycloak-db:
         condition: service_healthy
     command:
       - start-dev
       - --http-port=9090
-      - --hostname=keycloak
-      - --hostname-admin=localhost
       - --hostname-strict=false
       - --http-enabled=true
       - --hostname=http://keycloak:9090
       - --hostname-admin=http://localhost:9090
+      - --spi-realm-default-ssl-required=none
       - --import-realm
     ports:
       - "9090:9090"

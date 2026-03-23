@@ -71,7 +71,10 @@ async def get_undeleted_virtual_lab(db: AsyncSession, lab_id: UUID4) -> VirtualL
 
 
 async def get_virtual_lab_by_definition_tuple(
-    db: AsyncSession, owner_id: UUID4, name: str, email: EmailStr
+    db: AsyncSession,
+    owner_id: UUID4,
+    name: str,
+    email: EmailStr,
 ) -> VirtualLab | None:
     """Returns a non-deleted virtual lab matching the owner_id, and name."""
     result = await db.execute(
@@ -155,6 +158,28 @@ async def update_virtual_lab_compute_cell(
         .values(
             {
                 "compute_cell": compute_cell,
+            }
+        )
+    )
+    await db.execute(statement=query)
+    await db.commit()
+    return await get_undeleted_virtual_lab(db, lab_id)
+
+
+async def update_virtual_lab_email_status(
+    db: AsyncSession,
+    lab_id: UUID4,
+    email: EmailStr,
+    email_status: bool,
+) -> VirtualLab:
+    """Update only the compute_cell field for a virtual lab."""
+    query = (
+        update(VirtualLab)
+        .where(VirtualLab.id == lab_id)
+        .values(
+            {
+                "reference_email": email,
+                "email_verified": email_status,
             }
         )
     )
@@ -357,3 +382,11 @@ async def get_virtual_labs_where_user_is_member(
     result = (await db.execute(statement=query)).unique().scalars().all()
 
     return list(result)
+
+
+async def get_virtual_lab_id_by_project_id(
+    db: AsyncSession, project_id: UUID4
+) -> Project:
+    """Returns a non-deleted project by id. Raises NoResultFound if not found."""
+    query = select(Project).where(Project.id == project_id, ~Project.deleted)
+    return (await db.execute(statement=query)).scalar_one()

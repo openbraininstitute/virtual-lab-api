@@ -199,7 +199,6 @@ class TestVirtualLabCreation:
             "description": "Test Success Description",
             "reference_email": f"{owner_username}@test.org",
             "entity": "Test University",
-            "email_status": "verified",
         }
         headers = get_headers(owner_username)
 
@@ -267,7 +266,6 @@ class TestVirtualLabCreation:
             "description": "Duplicate Test",
             "reference_email": "test@test.org",
             "entity": "EPFL",
-            "email_status": "verified",
         }
         headers = get_headers(owner_username)
         response = await async_test_client.post(
@@ -296,7 +294,6 @@ class TestVirtualLabCreation:
             "description": "Second Lab Test",
             "reference_email": "test@test.org",
             "entity": "EPFL",
-            "email_status": "verified",
         }
         headers = get_headers(owner_username)
         response = await async_test_client.post(
@@ -305,14 +302,15 @@ class TestVirtualLabCreation:
             headers=headers,
         )
 
-        assert response.status_code == HTTPStatus.BAD_REQUEST
+        assert response.status_code == HTTPStatus.FORBIDDEN
         error_data = response.json()
-        assert error_data["error_code"] == "ENTITY_ALREADY_EXISTS"
+        assert error_data["error_code"] == "FORBIDDEN_OPERATION"
         assert "User already has a virtual lab" in error_data["message"]
 
     async def test_create_virtual_lab_unverified_email(
         self, async_test_client: AsyncClient, test_user_ids: Dict[str, str]
     ) -> None:
+        """Users can create a virtual lab even with an unverified email."""
         owner_username = "test-2"
         lab_name = f"Unverified Email Lab {uuid4()}"
         body = {
@@ -320,7 +318,6 @@ class TestVirtualLabCreation:
             "description": "Unverified Email Test",
             "reference_email": f"{owner_username}@test.org",
             "entity": "Test Institute",
-            "email_status": "registered",
         }
         headers = get_headers(owner_username)
         response = await async_test_client.post(
@@ -329,11 +326,7 @@ class TestVirtualLabCreation:
             headers=headers,
         )
 
-        assert response.status_code == HTTPStatus.BAD_REQUEST
-        error_data = response.json()
-
-        assert error_data["error_code"] == "INVALID_REQUEST"
-        assert "Email must be verified to create a virtual lab" in error_data["message"]
+        assert response.status_code == HTTPStatus.OK
 
     async def test_create_virtual_lab_missing_name(
         self, async_test_client: AsyncClient, test_user_ids: Dict[str, str]
@@ -344,7 +337,6 @@ class TestVirtualLabCreation:
             "description": "Missing Name Test",
             "reference_email": f"{owner_username}@test.org",
             "entity": "Test Co",
-            "email_status": "verified",
         }
         headers = get_headers(owner_username)
         response = await async_test_client.post(
@@ -778,7 +770,6 @@ class TestAttachUsersToProject:
             "description": "Test virtual lab for project creation",
             "reference_email": f"{owner_username}@test.org",
             "entity": "Test University",
-            "email_status": "verified",
         }
         lab_response = await client.post(
             "/virtual-labs",

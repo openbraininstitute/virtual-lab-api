@@ -83,7 +83,8 @@ class Settings(BaseSettings):
 
     MAX_INIT_ATTEMPTS: int = 3
     MAX_VERIFY_ATTEMPTS: int = 5
-    LOCK_TIME_SECONDS: int = 3600
+    INITIATE_LOCK_SECONDS: int = 3600  # 1 hour window for code requests
+    VERIFY_LOCK_SECONDS: int = 900  # 15 minute window for code verification
 
     ENABLE_DISCOUNT: bool = False
     DISCOUNT_MONTHLY_ID: str = "monthly-special-launch-price"
@@ -94,6 +95,9 @@ class Settings(BaseSettings):
 
     PAID_SUBSCRIPTION_DISCOUNT: Decimal = Decimal("0.5")
     MAX_PROJECTS_NUMBER: int = 20
+
+    VLAB_SERVICE_ADMIN_GROUP: str = "/service/virtual-lab-svc/admin"
+    ENTITYCORE_SERVICE_ADMIN_GROUP: str = "/service/entitycore/admin"
 
     # There's a single configuration set in staging and production with a static name
     AWS_SES_CONFIGURATION_SET: str = "main-ses-config"

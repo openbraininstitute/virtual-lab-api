@@ -1,4 +1,4 @@
-from typing import Annotated, Dict, List, Tuple
+from typing import Annotated, Dict, List
 
 from fastapi import APIRouter, Body, Depends, Query, Response
 from pydantic import UUID4
@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.authorization import (
     verify_service_admin,
+    verify_uniq_virtual_lab,
     verify_user_authenticated,
     verify_vlab_read,
     verify_vlab_write,
@@ -13,11 +14,6 @@ from virtual_labs.core.authorization import (
 )
 from virtual_labs.core.types import LabTypeEnum, UserGroup, UserRoleEnum, VliAppResponse
 from virtual_labs.domain.common import VirtualLabResponse
-from virtual_labs.domain.email import (
-    EmailVerificationPayload,
-    InitiateEmailVerificationPayload,
-    VerificationCodeEmailResponse,
-)
 from virtual_labs.domain.invite import InvitePayload
 from virtual_labs.domain.labs import (
     CreateLabOut,
@@ -36,13 +32,8 @@ from virtual_labs.domain.labs import VirtualLabResponse as IVirtualLabResponse
 from virtual_labs.infrastructure.db.config import default_session_factory
 from virtual_labs.infrastructure.kc.auth import a_verify_jwt, verify_jwt
 from virtual_labs.infrastructure.kc.models import AuthUser
-from virtual_labs.infrastructure.redis import RateLimiter, get_rate_limiter
-from virtual_labs.infrastructure.redis.email_rate_limit import (
-    rate_limit_initiate,
-    rate_limit_verify,
-)
+from virtual_labs.shared.groups import VLAB_SERVICE_ADMIN_GROUP
 from virtual_labs.shared.utils.auth import get_user_id_from_auth
-from virtual_labs.usecases import email_verification as email_verification_usecases
 from virtual_labs.usecases import labs as usecases
 from virtual_labs.usecases.labs.check_virtual_lab_name_exists import LabExists
 
@@ -177,6 +168,7 @@ async def create_virtual_lab(
     lab: VirtualLabCreate,
     session: AsyncSession = Depends(default_session_factory),
     auth: tuple[AuthUser, str] = Depends(verify_jwt),
+    _: None = Depends(verify_uniq_virtual_lab),
 ) -> LabResponse[CreateLabOut]:
     result = await usecases.create_virtual_lab(session, lab, auth)
     return LabResponse[CreateLabOut](message="Newly created virtual lab", data=result)
@@ -190,51 +182,6 @@ async def create_course_vlab(
 ) -> LabResponse[CreateLabOut]:
     result = await usecases.create_course_vlab(session, lab, auth)
     return LabResponse[CreateLabOut](message="Newly created virtual lab", data=result)
-
-
-@router.post(
-    "/email/initiate-verification",
-    operation_id="initiate_email_verification",
-    summary="initiate email verification",
-    response_model=VliAppResponse[VerificationCodeEmailResponse],
-)
-async def initiate_email_verification(
-    payload: InitiateEmailVerificationPayload,
-    session: AsyncSession = Depends(default_session_factory),
-    rl: RateLimiter = Depends(get_rate_limiter),
-    auth: Tuple[AuthUser, str] = Depends(a_verify_jwt),
-    _: int | None = Depends(rate_limit_initiate),
-) -> Response:
-    return await email_verification_usecases.initiate_email_verification(
-        session,
-        rl,
-        email=payload.email,
-        virtual_lab_name=payload.name,
-        auth=auth,
-    )
-
-
-@router.post(
-    "/email/verify-code",
-    operation_id="verify_code_email_verification",
-    summary="finish email verification",
-    response_model=VliAppResponse[VerificationCodeEmailResponse],
-)
-async def complete_email_verification(
-    payload: EmailVerificationPayload,
-    session: AsyncSession = Depends(default_session_factory),
-    rl: RateLimiter = Depends(get_rate_limiter),
-    auth: Tuple[AuthUser, str] = Depends(a_verify_jwt),
-    _: int | None = Depends(rate_limit_verify),
-) -> Response:
-    return await email_verification_usecases.verify_email_code(
-        session,
-        rl,
-        email=payload.email,
-        code=payload.code,
-        virtual_lab_name=payload.name,
-        auth=auth,
-    )
 
 
 @router.patch("/{virtual_lab_id}", response_model=LabResponse[VirtualLabOut])
@@ -256,7 +203,7 @@ async def update_virtual_lab(
     response_model=LabResponse[VirtualLabOut],
     summary="Update virtual lab compute cell (Service Admin only)",
 )
-@verify_service_admin
+@verify_service_admin([VLAB_SERVICE_ADMIN_GROUP])
 async def update_virtual_lab_compute_cell(
     virtual_lab_id: UUID4,
     payload: VirtualLabComputeCellUpdate,

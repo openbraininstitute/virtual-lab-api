@@ -35,6 +35,7 @@ from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.infrastructure.redis.promotion_limiter import (
     rate_limit_promotion_redemption,
 )
+from virtual_labs.shared.groups import VLAB_SERVICE_ADMIN_GROUP
 from virtual_labs.shared.utils.auth import get_user_id_from_auth
 from virtual_labs.usecases.promotion import (
     get_user_redemption_history as get_history_usecase,
@@ -185,7 +186,7 @@ async def get_user_redemption_history(
     response_model=VliAppResponse[PromotionCodeDetail],
     status_code=HTTPStatus.CREATED,
 )
-@verify_service_admin
+@verify_service_admin([VLAB_SERVICE_ADMIN_GROUP])
 async def create_promotion_code(
     payload: PromotionCodeCreate,
     session: AsyncSession = Depends(default_session_factory),
@@ -218,7 +219,7 @@ async def create_promotion_code(
     response_model=VliAppResponse[Dict[str, Any]],
     status_code=HTTPStatus.OK,
 )
-@verify_service_admin
+@verify_service_admin([VLAB_SERVICE_ADMIN_GROUP])
 async def list_promotion_codes(
     query_params: Annotated[ListPromotionCodesQueryParams, Depends()],
     session: AsyncSession = Depends(default_session_factory),
@@ -264,7 +265,7 @@ async def list_promotion_codes(
     response_model=VliAppResponse[PromotionCodeDetail],
     status_code=HTTPStatus.OK,
 )
-@verify_service_admin
+@verify_service_admin([VLAB_SERVICE_ADMIN_GROUP])
 async def get_promotion_code_details(
     promotion_id: UUID4,
     session: AsyncSession = Depends(default_session_factory),
@@ -304,7 +305,7 @@ async def get_promotion_code_details(
     response_model=VliAppResponse[PromotionCodeDetail],
     status_code=HTTPStatus.OK,
 )
-@verify_service_admin
+@verify_service_admin([VLAB_SERVICE_ADMIN_GROUP])
 async def update_promotion_code(
     promotion_id: UUID4,
     payload: PromotionCodeUpdate,
@@ -346,7 +347,7 @@ async def update_promotion_code(
     response_model=VliAppResponse[PromotionCodeDetail],
     status_code=HTTPStatus.OK,
 )
-@verify_service_admin
+@verify_service_admin([VLAB_SERVICE_ADMIN_GROUP])
 async def deactivate_promotion_code(
     promotion_id: UUID4,
     session: AsyncSession = Depends(default_session_factory),
@@ -386,7 +387,7 @@ async def deactivate_promotion_code(
     response_model=VliAppResponse[PromotionCodeUsageStats],
     status_code=HTTPStatus.OK,
 )
-@verify_service_admin
+@verify_service_admin([VLAB_SERVICE_ADMIN_GROUP])
 async def get_promotion_usage_statistics(
     promotion_id: UUID4,
     query_params: Annotated[GetPromotionUsageStatsQueryParams, Depends()],
@@ -443,7 +444,7 @@ async def get_promotion_usage_statistics(
     response_model=VliAppResponse[PromotionAnalytics],
     status_code=HTTPStatus.OK,
 )
-@verify_service_admin
+@verify_service_admin([VLAB_SERVICE_ADMIN_GROUP])
 async def get_system_promotion_analytics(
     session: AsyncSession = Depends(default_session_factory),
     auth: Tuple[AuthUser, str] = Depends(verify_jwt),

@@ -1,4 +1,4 @@
-from typing import Optional, cast
+from typing import Optional, Union, cast
 
 from fastapi import Depends
 from redis.asyncio import ConnectionPool, Redis
@@ -26,13 +26,19 @@ async def get_redis() -> Redis:
         )
 
     if _redis_client is None:
-        _redis_client = Redis(connection_pool=_connection_pool)
+        _redis_client = Redis(
+            connection_pool=_connection_pool,
+            decode_responses=True,
+        )
 
     try:
         await _redis_client.ping()
     except Exception:
         await _redis_client.close()
-        _redis_client = Redis(connection_pool=_connection_pool)
+        _redis_client = Redis(
+            connection_pool=_connection_pool,
+            decode_responses=True,
+        )
 
     return _redis_client
 
@@ -44,9 +50,11 @@ class RateLimiter:
         self.redis = redis
         self.prefix = prefix
 
-    def build_key_by_email(self, action: str, user_id: str, email: str) -> str:
+    def build_key_by_email(
+        self, action: str, user_id: str, virtual_lab_id: str, email: str
+    ) -> str:
         """Construct a Redis key based on action, user_id, and email."""
-        return f"{self.prefix}:{action}:{user_id}:{email}"
+        return f"{self.prefix}:{action}:{user_id}:{virtual_lab_id}:{email}"
 
     def build_universal_key(self, action: str, user_id: str) -> str:
         """Construct a Redis key based on action, user_id."""
@@ -57,19 +65,35 @@ class RateLimiter:
         count = await self.redis.get(key)
         return int(count) if count is not None else None
 
-    async def set(self, key: str, value: int, ttl: int = 3600) -> int:
-        """Set a value for a key with an optional TTL (default 1 hour)."""
-        _value = await self.redis.set(key, value, ex=ttl)
-        return cast(int, _value)
+    async def get(self, key: str) -> Optional[str]:
+        """Get the current count for a key, or None if it doesn't exist."""
+        _value = await self.redis.get(key)
+        return str(_value) if _value is not None else None
+
+    async def set(
+        self, key: str, value: Union[str, int, bytes], ttl: int = 3600
+    ) -> bool:
+        """Set a value for a key with an optional TTL (default 1 hour). Returns True if set."""
+        # redis.set returns a boolean (True if the operation was successful)
+        result = await self.redis.set(key, value, ex=ttl)
+        return bool(result)
 
     async def increment(self, key: str) -> int:
         """Increment the count for a key."""
         _value = await self.redis.incr(key)
         return cast(int, _value)
 
-    async def get_ttl(self, key: str) -> int:
+    async def get_ttl(self, key: str) -> Optional[int]:
         """Get the remaining TTL in seconds for a key."""
-        return int(await self.redis.ttl(key))
+        _value = await self.redis.ttl(key)
+
+        if _value == -2:
+            return None
+        return int(_value)
+
+    async def delete(self, key: str) -> int:
+        """Delete a key from Redis."""
+        return int(await self.redis.delete(key))
 
 
 async def get_rate_limiter(
