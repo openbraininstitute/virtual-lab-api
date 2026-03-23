@@ -20,7 +20,6 @@ async def mock_lab_create(
         "description": "Test",
         "reference_email": "user@test.org",
         "entity": "EPFL, Switzerland",
-        "email_status": "verified",
     }
     headers = get_headers()
     lab_create_response = await client.post(

@@ -1,9 +1,15 @@
-from typing import Dict, Tuple
+from typing import Annotated, Dict, Tuple
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Header, Response
+from pydantic import UUID4, EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.types import VliAppResponse
+from virtual_labs.domain.email import (
+    EmailVerificationPayload,
+    InitiateEmailVerificationPayload,
+    VerificationCodeEmailResponse,
+)
 from virtual_labs.domain.labs import UserStats
 from virtual_labs.domain.user import (
     OnboardingFeature,
@@ -20,6 +26,14 @@ from virtual_labs.domain.workspace import RecentWorkspaceResponseWithDetails
 from virtual_labs.infrastructure.db.config import default_session_factory
 from virtual_labs.infrastructure.kc.auth import a_verify_jwt
 from virtual_labs.infrastructure.kc.models import AuthUser
+from virtual_labs.infrastructure.redis import RateLimiter
+from virtual_labs.infrastructure.redis.email_rate_limit import (
+    get_initiate_rate_limiter,
+    get_verify_rate_limiter,
+    rate_limit_initiate,
+    rate_limit_verify,
+)
+from virtual_labs.usecases import email_verification as email_verification_usecases
 from virtual_labs.usecases.labs.get_user_stats import get_user_stats
 from virtual_labs.usecases.users import (
     get_user_onboarding_status,
@@ -321,4 +335,95 @@ async def update_workspace_hierarchy_species_endpoint(
         payload=payload,
         auth=auth,
         session=session,
+    )
+
+
+@router.get(
+    "/email/verification/initiate-status",
+    operation_id="get_initiate_status",
+    summary="Check if user can request a new verification code",
+    response_model=VliAppResponse[VerificationCodeEmailResponse],
+)
+async def get_initiate_status(
+    virtual_lab_id: Annotated[UUID4, Header()],
+    email: EmailStr,
+    rl: RateLimiter = Depends(get_initiate_rate_limiter),
+    auth: Tuple[AuthUser, str] = Depends(a_verify_jwt),
+) -> Response:
+    return await email_verification_usecases.get_initiate_status(
+        rl,
+        email=email,
+        virtual_lab_id=virtual_lab_id,
+        auth=auth,
+    )
+
+
+@router.get(
+    "/email/verification/verify-status",
+    operation_id="get_verify_status",
+    summary="Check if user can submit a verification code",
+    response_model=VliAppResponse[VerificationCodeEmailResponse],
+)
+async def get_verify_status(
+    virtual_lab_id: Annotated[UUID4, Header()],
+    email: EmailStr,
+    rl: RateLimiter = Depends(get_verify_rate_limiter),
+    auth: Tuple[AuthUser, str] = Depends(a_verify_jwt),
+) -> Response:
+    return await email_verification_usecases.get_verify_status(
+        rl,
+        email=email,
+        virtual_lab_id=virtual_lab_id,
+        auth=auth,
+    )
+
+
+@router.post(
+    "/email/verification/generate",
+    operation_id="initiate_email_verification",
+    summary="initiate email verification",
+    response_model=VliAppResponse[VerificationCodeEmailResponse],
+)
+async def initiate_email_verification(
+    virtual_lab_id: Annotated[UUID4, Header()],
+    payload: InitiateEmailVerificationPayload,
+    session: AsyncSession = Depends(default_session_factory),
+    rl: RateLimiter = Depends(
+        get_initiate_rate_limiter,
+    ),
+    auth: Tuple[AuthUser, str] = Depends(a_verify_jwt),
+    _: int | None = Depends(rate_limit_initiate),
+) -> Response:
+    return await email_verification_usecases.initiate_email_verification(
+        session,
+        rl,
+        email=payload.email,
+        virtual_lab_id=virtual_lab_id,
+        auth=auth,
+    )
+
+
+@router.post(
+    "/email/verification/confirm",
+    operation_id="confirm_code_email_verification",
+    summary="confirm email verification",
+    response_model=VliAppResponse[VerificationCodeEmailResponse],
+)
+async def complete_email_verification(
+    virtual_lab_id: Annotated[UUID4, Header()],
+    payload: EmailVerificationPayload,
+    session: AsyncSession = Depends(default_session_factory),
+    rl: RateLimiter = Depends(
+        get_verify_rate_limiter,
+    ),
+    auth: Tuple[AuthUser, str] = Depends(a_verify_jwt),
+    _: int | None = Depends(rate_limit_verify),
+) -> Response:
+    return await email_verification_usecases.verify_email_code(
+        session,
+        rl,
+        email=payload.email,
+        code=payload.code,
+        virtual_lab_id=virtual_lab_id,
+        auth=auth,
     )
