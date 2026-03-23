@@ -23,6 +23,7 @@ from uuid import UUID, uuid4
 
 from dotenv import load_dotenv
 from loguru import logger
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -208,13 +209,13 @@ async def populate_subscription_tiers(test_mode: bool = False):
                 existing_plan = None
                 try:
                     if plan_data["stripe_product_id"]:
-                        result = await session.execute(
+                        result = await session.execute(text(
                             f"SELECT id FROM subscription_tier WHERE stripe_product_id = '{plan_data['stripe_product_id']}'"
-                        )
+                        ))
                     else:
-                        result = await session.execute(
+                        result = await session.execute(text(
                             f"SELECT id FROM subscription_tier WHERE name = '{plan_data['name']}'"
-                        )
+                        ))
                     existing_plan = result.scalar_one_or_none()
                 except Exception as e:
                     logger.warning(f"Error checking for existing plan {plan_name}: {str(e)}")
