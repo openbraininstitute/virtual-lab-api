@@ -18,12 +18,48 @@ async def send_welcome_email(recipient: str) -> str:
                 {
                     "file": "virtual_labs/infrastructure/email/assets/advertisement-video-poster.webp",
                     "headers": {
-                        "Content-ID": "<advertisement-video-poster>",
+                        "Content-ID": "<advertisement-video-poster@openbraininstitute.org>",
                         "Content-Disposition": 'inline; filename="advertisement-video-poster.webp"',
                     },
                     "mime_type": "image",
                     "mime_subtype": "webp",
-                }
+                },
+                {
+                    "file": "virtual_labs/infrastructure/email/assets/youtube-filled-light-40.png",
+                    "headers": {
+                        "Content-ID": "<youtube-filled-light-40@openbraininstitute.org>",
+                        "Content-Disposition": 'inline; filename="youtube-filled-light-40.png"',
+                    },
+                    "mime_type": "image",
+                    "mime_subtype": "png",
+                },
+                {
+                    "file": "virtual_labs/infrastructure/email/assets/open-brain-institute-logo-large.png",
+                    "headers": {
+                        "Content-ID": "<open-brain-institute-logo-large@openbraininstitute.org>",
+                        "Content-Disposition": 'inline; filename="open-brain-institute-logo-large.png"',
+                    },
+                    "mime_type": "image",
+                    "mime_subtype": "png",
+                },
+                {
+                    "file": "virtual_labs/infrastructure/email/assets/twitter-filled-light-40.png",
+                    "headers": {
+                        "Content-ID": "<twitter-filled-light-40@openbraininstitute.org>",
+                        "Content-Disposition": 'inline; filename="twitter-filled-light-40.png"',
+                    },
+                    "mime_type": "image",
+                    "mime_subtype": "png",
+                },
+                {
+                    "file": "virtual_labs/infrastructure/email/assets/linkedin-filled-light-40.png",
+                    "headers": {
+                        "Content-ID": "<linkedin-filled-light-40@openbraininstitute.org>",
+                        "Content-Disposition": 'inline; filename="linkedin-filled-light-40.png"',
+                    },
+                    "mime_type": "image",
+                    "mime_subtype": "png",
+                },
             ]
             if email_config.TEMPLATE_FOLDER is not None
             else [],
