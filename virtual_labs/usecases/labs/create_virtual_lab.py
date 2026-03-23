@@ -48,12 +48,6 @@ UserInvites = TypedDict(
 )
 
 
-MULTIPLE_VLABS_ALLOWED_USER_IDS = [
-    "16588c8b-ec88-4a49-a413-a0bb3a7b8541"  # Staging
-    "a713cff1-d67d-4f3f-9c28-a92fae3ddf30"  # Prod
-]
-
-
 async def create_keycloak_groups(lab_id: UUID4, lab_name: str) -> GroupIds:
     kc = GroupMutationRepository()
 
