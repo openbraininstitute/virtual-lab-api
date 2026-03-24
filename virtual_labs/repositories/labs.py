@@ -1,5 +1,5 @@
 from pydantic import UUID4, EmailStr
-from sqlalchemy import false, func, select, update
+from sqlalchemy import exists, false, func, select, update
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import noload
@@ -390,3 +390,17 @@ async def get_virtual_lab_id_by_project_id(
     """Returns a non-deleted project by id. Raises NoResultFound if not found."""
     query = select(Project).where(Project.id == project_id, ~Project.deleted)
     return (await db.execute(statement=query)).scalar_one()
+
+
+async def project_belongs_to_lab(
+    session, project_id: UUID4, virtual_lab_id: UUID4
+) -> bool:
+    stmt = select(
+        exists().where(
+            Project.id == project_id,
+            Project.virtual_lab_id == virtual_lab_id,
+            Project.deleted == False,  # noqa E712
+        )
+    )
+
+    return await session.scalar(stmt)

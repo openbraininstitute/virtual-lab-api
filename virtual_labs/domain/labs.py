@@ -37,6 +37,7 @@ class VirtualLabUpdate(BaseModel):
     description: str | None = None
     reference_email: EmailStr | None = None
     entity: str | None = None
+    course_template_project_id: UUID4 | None = None
 
 
 class VirtualLabComputeCellUpdate(BaseModel):

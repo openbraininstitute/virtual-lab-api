@@ -1,10 +1,9 @@
+from contextlib import contextmanager
 from datetime import timezone
 from decimal import Decimal
 from http import HTTPStatus
-from typing import Literal, TypedDict
+from typing import Iterator, Literal, TypedDict
 from uuid import UUID, uuid4
-from contextlib import contextmanager
-from typing import Iterator
 
 from loguru import logger
 from pydantic import UUID4
@@ -304,7 +303,6 @@ async def create_course_vlab(
             owner_id=user_id,
             admin_group_id=groups["admin_group"]["id"],
             member_group_id=groups["member_group"]["id"],
-            is_course_vlab=True,
             **lab.model_dump(),
         )
 
