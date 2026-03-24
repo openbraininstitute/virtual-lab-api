@@ -393,7 +393,7 @@ async def get_virtual_lab_id_by_project_id(
 
 
 async def project_belongs_to_lab(
-    session, project_id: UUID4, virtual_lab_id: UUID4
+    session: AsyncSession, project_id: UUID4, virtual_lab_id: UUID4
 ) -> bool:
     stmt = select(
         exists().where(
@@ -403,4 +403,4 @@ async def project_belongs_to_lab(
         )
     )
 
-    return await session.scalar(stmt)
+    return bool(await session.scalar(stmt))
