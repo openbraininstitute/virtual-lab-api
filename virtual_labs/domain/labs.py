@@ -66,7 +66,7 @@ class VirtualLabDetails(VirtualLabBase):
     updated_at: datetime | None = None
     members_count: int | None = None
     projects_count: int | None = None
-    course: Course
+    course: Course | None = None
 
 
 class VirtualLab(VirtualLabBase):
