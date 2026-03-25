@@ -140,6 +140,12 @@ async def update_virtual_lab(
                 ),
                 "updated_at": func.now(),
                 "entity": data_to_update.get("entity", current.entity),
+                "course_template_project_id": data_to_update.get("course", {}).get(
+                    "template_project_id", current.course_template_project_id
+                ),
+                "is_course_initialized": data_to_update.get("course", {}).get(
+                    "is_initialized", current.is_course_initialized
+                ),
             }
         )
     )
