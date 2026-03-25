@@ -28,8 +28,6 @@ class VirtualLabBase(BaseModel):
     email_verified: bool = False
     entity: str
     compute_cell: ComputeCell = ComputeCell.CELL_A
-    course_template_project_id: UUID4 | None = None
-    is_course_initialized: bool = False
 
 
 class VirtualLabUpdate(BaseModel):
@@ -115,8 +113,13 @@ class VirtualLabResponse(BaseModel):
     admins: list[UUID4] | None = None
 
 
+class Course(BaseModel):
+    course_template_project_id: UUID4 | None = None
+    is_course_initialized: bool = False
+
+
 class VirtualLabCreate(VirtualLabBase):
-    is_course_vlab: bool = False
+    course: Course | None = None
 
 
 class CreateLabOut(BaseModel):

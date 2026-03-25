@@ -172,7 +172,7 @@ async def create_virtual_lab(
 ) -> LabResponse[CreateLabOut]:
     result = (
         await usecases.create_virtual_lab(session, lab, auth)
-        if not lab.is_course_vlab
+        if not lab.course
         else await usecases.create_course_vlab(session, lab, auth)
     )
     return LabResponse[CreateLabOut](message="Newly created virtual lab", data=result)
