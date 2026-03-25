@@ -30,11 +30,17 @@ class VirtualLabBase(BaseModel):
     compute_cell: ComputeCell = ComputeCell.CELL_A
 
 
+class Course(BaseModel):
+    template_project_id: UUID4 | None = None
+    is_initialized: bool = False
+
+
 class VirtualLabUpdate(BaseModel):
     name: str | None = None
     description: str | None = None
     reference_email: EmailStr | None = None
     entity: str | None = None
+    course: Course | None = None
 
 
 class VirtualLabComputeCellUpdate(BaseModel):
@@ -60,6 +66,7 @@ class VirtualLabDetails(VirtualLabBase):
     updated_at: datetime | None = None
     members_count: int | None = None
     projects_count: int | None = None
+    course: Course | None = None
 
 
 class VirtualLab(VirtualLabBase):
@@ -113,7 +120,7 @@ class VirtualLabResponse(BaseModel):
 
 
 class VirtualLabCreate(VirtualLabBase):
-    pass
+    course: Course | None = None
 
 
 class CreateLabOut(BaseModel):

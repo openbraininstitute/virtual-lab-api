@@ -1,9 +1,17 @@
 from decimal import Decimal
 from os import getenv
 from typing import Any, Literal, Optional, TypeGuard, get_args
+from uuid import UUID
 
 from dotenv import load_dotenv
-from pydantic import EmailStr, PostgresDsn, SecretStr, ValidationInfo, field_validator
+from pydantic import (
+    UUID4,
+    EmailStr,
+    PostgresDsn,
+    SecretStr,
+    ValidationInfo,
+    field_validator,
+)
 from pydantic_core import MultiHostUrl
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -101,6 +109,11 @@ class Settings(BaseSettings):
 
     # There's a single configuration set in staging and production with a static name
     AWS_SES_CONFIGURATION_SET: str = "main-ses-config"
+    MULTIPLE_VLABS_ALLOWED_USER_IDS: UUID4 = UUID(
+        "16588c8b-ec88-4a49-a413-a0bb3a7b8541"
+    )  # id of 'obi-virtual-lab' user in staging
+
+    # PROD: "a713cff1-d67d-4f3f-9c28-a92fae3ddf30"
 
     @field_validator("DATABASE_URI", mode="before")
     @classmethod

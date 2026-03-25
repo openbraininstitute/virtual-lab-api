@@ -170,7 +170,11 @@ async def create_virtual_lab(
     auth: tuple[AuthUser, str] = Depends(verify_jwt),
     _: None = Depends(verify_uniq_virtual_lab),
 ) -> LabResponse[CreateLabOut]:
-    result = await usecases.create_virtual_lab(session, lab, auth)
+    result = (
+        await usecases.create_virtual_lab(session, lab, auth)
+        if not lab.course
+        else await usecases.create_course_vlab(session, lab, auth)
+    )
     return LabResponse[CreateLabOut](message="Newly created virtual lab", data=result)
 
 

@@ -18,7 +18,31 @@ async def update_virtual_lab(
         # Exclude compute_cell from update payload for regular users
         lab_dict = lab.model_dump(exclude_unset=True, exclude={"compute_cell"})
         lab_update = domain.VirtualLabUpdate(**lab_dict)
+
+        if (
+            lab_update.course
+            and lab_update.course.template_project_id
+            and not await repository.project_belongs_to_lab(
+                db, lab_update.course.template_project_id, lab_id
+            )
+        ):
+            raise VliError(
+                message="Project does not belong to this virtual lab",
+                error_code=VliErrorCode.FORBIDDEN_OPERATION,
+                http_status_code=HTTPStatus.FORBIDDEN,
+            )
+
         db_lab = await repository.update_virtual_lab(db, lab_id, lab_update)
+        lab_dict = {c.name: getattr(db_lab, c.name) for c in db_lab.__table__.columns}
+
+        lab_dict["course"] = {
+            "template_project_id": db_lab.course_template_project_id,
+            "is_initialized": db_lab.is_course_initialized,
+        }
+
+        return domain.VirtualLabOut(
+            virtual_lab=domain.VirtualLabDetails.model_validate(lab_dict)
+        )
 
         return domain.VirtualLabOut(
             virtual_lab=domain.VirtualLabDetails.model_validate(db_lab)

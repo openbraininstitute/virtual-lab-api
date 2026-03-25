@@ -1,7 +1,8 @@
+from contextlib import contextmanager
 from datetime import timezone
 from decimal import Decimal
 from http import HTTPStatus
-from typing import Literal, TypedDict
+from typing import Iterator, Literal, TypedDict
 from uuid import UUID, uuid4
 
 from loguru import logger
@@ -186,7 +187,7 @@ async def create_virtual_lab(
             )
 
     # 4. Save lab to db
-    try:
+    with handle_vlab_creation_errors(groups=groups, group_repo=group_repo):
         lab_with_ids = repository.VirtualLabDbCreate(
             id=new_lab_id,
             owner_id=owner_id,
@@ -250,38 +251,101 @@ async def create_virtual_lab(
 
         return created_lab
 
-    except IntegrityError as error:
-        # Clean up created resources
-        if groups:
-            logger.info("Cleaning up KC groups due to database error")
-            try:
-                group_repo.delete_group(group_id=groups["admin_group"]["id"])
-                group_repo.delete_group(group_id=groups["member_group"]["id"])
-            except Exception as cleanup_error:
-                logger.error(f"Error cleaning up KC groups: {cleanup_error}")
 
-        logger.error(
-            "Virtual lab could not be created due to database error {}".format(error)
+async def create_course_vlab(
+    db: AsyncSession, lab: domain.VirtualLabCreate, auth: tuple[AuthUser, str]
+) -> domain.CreateLabOut:
+    user_id = get_user_id_from_auth(auth)
+    group_repo = GroupMutationRepository()
+
+    new_lab_id = uuid4()
+
+    groups = await create_keycloak_groups(
+        new_lab_id,
+        lab.name,
+    )
+
+    user_repo = UserMutationRepository()
+
+    user_repo.attach_user_to_group(
+        user_id=user_id, group_id=groups["admin_group"]["id"]
+    )
+
+    # Create virtual lab account in accounting system
+    if settings.ACCOUNTING_BASE_URL is not None:
+        try:
+            await accounting_cases.create_virtual_lab_account(
+                virtual_lab_id=new_lab_id, name=lab.name, balance=Decimal(0)
+            )
+
+        except Exception as ex:
+            # Clean up created resources - groups
+            if groups:
+                logger.info("Cleaning up KC groups due to accounting error")
+                try:
+                    group_repo.delete_group(group_id=groups["admin_group"]["id"])
+                    group_repo.delete_group(group_id=groups["member_group"]["id"])
+                except Exception as cleanup_error:
+                    logger.error(f"Error cleaning up KC groups: {cleanup_error}")
+
+            logger.error(f"Error when creating virtual lab account: {ex}")
+            await db.rollback()
+            raise VliError(
+                error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
+                http_status_code=HTTPStatus.BAD_GATEWAY,
+                message="Virtual lab account creation failed",
+            )
+
+    # Create lab in database
+    with handle_vlab_creation_errors(groups=groups, group_repo=group_repo):
+        lab_with_ids = repository.VirtualLabDbCreate(
+            id=new_lab_id,
+            owner_id=user_id,
+            admin_group_id=groups["admin_group"]["id"],
+            member_group_id=groups["member_group"]["id"],
+            **lab.model_dump(),
         )
+
+        db_lab = await repository.create_virtual_lab(db, lab_with_ids)
+        lab_details = domain.VirtualLabDetails.model_validate(db_lab)
+        created_lab = domain.CreateLabOut(
+            virtual_lab=lab_details,
+        )
+
+        return created_lab
+
+
+def _cleanup_kc_groups(
+    groups: GroupIds, group_repo: GroupMutationRepository, error_context: str
+) -> None:
+    if not groups:
+        return
+    logger.info(f"Cleaning up KC groups due to {error_context}")
+    try:
+        group_repo.delete_group(group_id=groups["admin_group"]["id"])
+        group_repo.delete_group(group_id=groups["member_group"]["id"])
+    except Exception as cleanup_error:
+        logger.error(f"Error cleaning up KC groups: {cleanup_error}")
+
+
+@contextmanager
+def handle_vlab_creation_errors(
+    groups: GroupIds, group_repo: GroupMutationRepository
+) -> Iterator[None]:
+    try:
+        yield
+    except IntegrityError as error:
+        _cleanup_kc_groups(groups, group_repo, "database error")
+        logger.error(f"Virtual lab could not be created due to database error {error}")
         raise VliError(
             message="Another virtual lab with same name already exists",
             error_code=VliErrorCode.ENTITY_ALREADY_EXISTS,
             http_status_code=HTTPStatus.CONFLICT,
         )
     except SQLAlchemyError as error:
-        # Clean up created resources
-        if groups:
-            logger.info("Cleaning up KC groups due to database error")
-            try:
-                group_repo.delete_group(group_id=groups["admin_group"]["id"])
-                group_repo.delete_group(group_id=groups["member_group"]["id"])
-            except Exception as cleanup_error:
-                logger.error(f"Error cleaning up KC groups: {cleanup_error}")
-
+        _cleanup_kc_groups(groups, group_repo, "database error")
         logger.error(
-            "Virtual lab could not be created due to an unknown database error {}".format(
-                error
-            )
+            f"Virtual lab could not be created due to an unknown database error {error}"
         )
         raise VliError(
             message="Virtual lab could not be saved to the database",
@@ -289,30 +353,13 @@ async def create_virtual_lab(
             http_status_code=HTTPStatus.BAD_REQUEST,
         )
     except VliError as error:
-        # Clean up created resources
-        if groups:
-            logger.info("Cleaning up KC groups due to VLI error")
-            try:
-                group_repo.delete_group(group_id=groups["admin_group"]["id"])
-                group_repo.delete_group(group_id=groups["member_group"]["id"])
-            except Exception as cleanup_error:
-                logger.error(f"Error cleaning up KC groups: {cleanup_error}")
-
+        _cleanup_kc_groups(groups, group_repo, "VLI error")
         raise error
     except Exception as error:
-        # Clean up created resources
-        if groups:
-            logger.info("Cleaning up KC groups due to unknown error")
-            try:
-                group_repo.delete_group(group_id=groups["admin_group"]["id"])
-                group_repo.delete_group(group_id=groups["member_group"]["id"])
-            except Exception as cleanup_error:
-                logger.error(f"Error cleaning up KC groups: {cleanup_error}")
-
+        _cleanup_kc_groups(groups, group_repo, "unknown error")
         logger.error(
-            "Virtual lab could not be created due to an unknown error {}".format(error)
+            f"Virtual lab could not be created due to an unknown error {error}"
         )
-
         raise VliError(
             message="Virtual lab could not be created",
             error_code=VliErrorCode.SERVER_ERROR,
