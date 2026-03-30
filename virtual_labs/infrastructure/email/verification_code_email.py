@@ -39,7 +39,11 @@ async def send_verification_code_email(details: VerificationCodeEmailDetails) ->
             headers={"X-SES-CONFIGURATION-SET": settings.AWS_SES_CONFIGURATION_SET},
         )
         fm = FastMail(email_config)
-        await fm.send_message(message, template_name="email_verification_code.html")
+        await fm.send_message(
+            message=message,
+            html_template="email_verification_code.html",
+            plain_template="email_verification_code.txt",
+        )
         return "email sent successfully"
     except Exception as error:
         logger.info("Error during sending verification code email")

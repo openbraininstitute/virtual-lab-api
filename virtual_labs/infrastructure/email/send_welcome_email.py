@@ -66,7 +66,11 @@ async def send_welcome_email(recipient: str) -> str:
             headers={"X-SES-CONFIGURATION-SET": settings.AWS_SES_CONFIGURATION_SET},
         )
         fm = FastMail(email_config)
-        await fm.send_message(message, template_name="welcome.html")
+        await fm.send_message(
+            message=message,
+            html_template="welcome.html",
+            plain_template="welcome.txt",
+        )
         logger.info(f"A welcome email has been sent to {recipient}")
         return f"email sent successfully to {recipient}"
     except Exception as error:
