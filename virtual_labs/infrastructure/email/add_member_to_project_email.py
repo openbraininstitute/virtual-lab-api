@@ -52,7 +52,9 @@ async def send_add_member_to_project_email(details: EmailDetails) -> str:
         )
         fm = FastMail(email_config)
         await fm.send_message(
-            message, template_name="add_member_to_project_template.html"
+            message=message,
+            html_template="add_member_to_project_template.html",
+            plain_template="add_member_to_project_template.txt",
         )
         logger.debug(f"Project link {project_link} emailed to user {details.recipient}")
         return project_link

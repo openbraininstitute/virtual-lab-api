@@ -1,0 +1,13 @@
+You have been added to the project titled {{project_name}}, in {{lab_name}}.
+
+You can now access the project by clicking on the link below:
+
+{{project_link}}
+
+---
+
+What is Open Brain Institute?
+
+OBI is the next generation platform that connects explorative features with a powerful set of model-building tools for conducting simulation experiments. From ion channel to whole-brain modeling, OBI supports neuroscientists in their research efforts. Explore, collect, and use real biological data to digitally simulate neurons.
+
+Discover more: {{discover_link}}
