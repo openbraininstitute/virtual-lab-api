@@ -1,8 +1,8 @@
-import asyncio
 from contextlib import asynccontextmanager
-from typing import Any, AsyncGenerator
+from typing import AsyncGenerator
 from uuid import uuid4
 
+import pytest
 import pytest_asyncio
 from httpx import AsyncClient, Response
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -37,12 +37,18 @@ async def async_test_client() -> AsyncGenerator[AsyncClient, None]:
 async_test_session = pytest_asyncio.fixture(default_session_factory)
 
 
-@pytest_asyncio.fixture(scope="session", autouse=True)
-def event_loop(request: Any) -> Any:
-    """Create an instance of the default event loop for each test case."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    for item in items:
+        if "asyncio" in item.keywords:
+            item.add_marker(pytest.mark.asyncio(loop_scope="session"))
+
+
+# @pytest_asyncio.fixture(scope="session", autouse=True)
+# def event_loop(request: Any) -> Any:
+#     """Create an instance of the default event loop for each test case."""
+#     loop = asyncio.get_event_loop_policy().new_event_loop()
+#     yield loop
+#     loop.close()
 
 
 @pytest_asyncio.fixture
