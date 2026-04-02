@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Annotated, TypedDict
 
-from pydantic import UUID4, BaseModel, Field
+from pydantic import UUID4, BaseModel, ConfigDict, Field
 
 
 class BookmarkCategory(Enum):
@@ -23,9 +23,7 @@ class BookmarkIn(BaseModel):
     resource_id: Annotated[str | None, Field(alias="resourceId")] = None
     category: BookmarkCategory
 
-    class Config:
-        from_attributes = True
-        populate_by_name = True
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
 class BookmarkOut(BaseModel):
@@ -35,9 +33,7 @@ class BookmarkOut(BaseModel):
     resource_id: Annotated[str | None, Field(alias="resourceId")] = None
     category: BookmarkCategory
 
-    class Config:
-        from_attributes = True
-        populate_by_name = True
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
 class DeleteBookmarkIn(BookmarkIn):

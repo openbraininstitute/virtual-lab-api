@@ -1,7 +1,7 @@
 from http import HTTPStatus
 
 from loguru import logger
-from pydantic import UUID4, BaseModel
+from pydantic import UUID4, BaseModel, ConfigDict
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,8 +18,7 @@ class ProjectWithIds(BaseModel):
     admin_group_id: str
     member_group_id: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 async def delete_virtual_lab(

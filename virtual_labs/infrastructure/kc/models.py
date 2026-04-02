@@ -1,6 +1,6 @@
 from typing import Annotated, Any, List, Optional, TypedDict
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 class BaseUserRepresentation(BaseModel):
@@ -16,8 +16,7 @@ class BaseUserRepresentation(BaseModel):
     requiredActions: List[Any]
     notBefore: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserRepresentation(BaseUserRepresentation):
@@ -33,8 +32,7 @@ class GroupRepresentation(BaseModel):
     name: str
     path: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class AuthUser(BaseModel):
@@ -45,16 +43,14 @@ class AuthUser(BaseModel):
     email_verified: bool
     name: Optional[str] = None
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class ClientToken(BaseModel):
     access_token: str
     expires_in: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 CreatedGroup = TypedDict("CreatedGroup", {"id": str, "name": str})

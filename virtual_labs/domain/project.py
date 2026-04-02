@@ -14,12 +14,11 @@ from virtual_labs.domain.user import UserWithInviteStatus, Workspace
 
 
 class VirtualLabModel(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: UUID4
     name: str
     description: str
-
-    class Config:
-        from_attributes = True
 
 
 class ProjectBody(BaseModel):
@@ -63,6 +62,8 @@ class ProjectVlOut(Project):
 
 
 class ProjectStats(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     project_id: UUID4
     total_stars: int
     total_bookmarks: int
@@ -71,9 +72,6 @@ class ProjectStats(BaseModel):
 
     admin_users: list[UUID4]
     member_users: list[UUID4]
-
-    class Config:
-        from_attributes = True
 
 
 class ProjectExistenceOut(BaseModel):
@@ -150,11 +148,10 @@ class ProjectStarStatusUpdateOut(BaseModel):
 
 
 class ProjectStar(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: UUID4
     user_id: UUID4
-
-    class Config:
-        from_attributes = True
 
 
 class ProjectUsersOut(BaseModel):
