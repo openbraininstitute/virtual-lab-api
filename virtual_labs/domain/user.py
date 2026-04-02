@@ -8,6 +8,7 @@ from pydantic import (
     UUID4,
     AliasChoices,
     BaseModel,
+    ConfigDict,
     EmailStr,
     Field,
     computed_field,
@@ -45,9 +46,7 @@ class ShortenedUser(BaseModel):
     def name(self) -> str:
         return (f"{self.first_name} {self.last_name}").strip()
 
-    class Config:
-        from_attributes = True
-        # populate_by_name = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class AllUsersCount(BaseModel):
@@ -96,8 +95,7 @@ class UserProfile(BaseModel):
     def full_name(self) -> str:
         return f"{self.first_name} {self.last_name}"
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UpdateUserProfileRequest(BaseModel):

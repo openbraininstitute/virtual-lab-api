@@ -10,8 +10,7 @@ class PaginatedDbResult(BaseModel, Generic[K]):
     count: int
     rows: K
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 class UserRoleEnum(str, Enum):
