@@ -102,7 +102,7 @@ class Settings(BaseSettings):
     ENABLE_WELCOME_BONUS: bool = True
 
     PAID_SUBSCRIPTION_DISCOUNT: Decimal = Decimal("0.5")
-    MAX_PROJECTS_NUMBER: int = 50
+    MAX_PROJECTS_NUMBER: int = 20
 
     VLAB_SERVICE_ADMIN_GROUP: str = "/service/virtual-lab-svc/admin"
     ENTITYCORE_SERVICE_ADMIN_GROUP: str = "/service/entitycore/admin"
