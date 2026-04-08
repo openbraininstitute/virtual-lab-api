@@ -1,7 +1,7 @@
 from typing import Annotated, Dict, List
 
 from fastapi import APIRouter, Body, Depends, Query, Response
-from pydantic import UUID4
+from pydantic import UUID4, BaseModel, EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.authorization import (
@@ -324,4 +324,21 @@ async def get_user_groups_for_virtual_lab(
     """
     return await usecases.get_user_virtual_lab_groups(
         session=session, virtual_lab_id=virtual_lab_id, auth=auth
+    )
+
+
+class EmailCheckRequest(BaseModel):
+    emails: list[EmailStr]
+
+
+@router.post("/{virtual_lab_id}/missing-student-emails", response_model=list[str])
+@verify_vlab_write
+async def check_unassigned_emails(
+    virtual_lab_id: UUID4,
+    payload: EmailCheckRequest,
+    session: AsyncSession = Depends(default_session_factory),
+    auth: tuple[AuthUser, str] = Depends(verify_jwt),
+) -> list[str]:
+    return await usecases.get_missing_student_emails(
+        session, virtual_lab_id, payload.emails
     )
