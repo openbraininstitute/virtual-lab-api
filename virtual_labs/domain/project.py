@@ -32,6 +32,8 @@ class ProjectBody(BaseModel):
         None
     )
 
+    student_email: Optional[EmailStr] = None
+
 
 class ProjectUpdateBody(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)

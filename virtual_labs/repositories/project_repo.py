@@ -409,6 +409,7 @@ class ProjectMutationRepository:
             id=id,
             name=payload.name,
             description=payload.description,
+            student_email=payload.student_email,
             virtual_lab_id=virtual_lab_id,
             admin_group_id=admin_group_id,
             member_group_id=member_group_id,
