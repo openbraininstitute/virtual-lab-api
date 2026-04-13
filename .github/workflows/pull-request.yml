@@ -129,10 +129,6 @@ jobs:
         run: |
           IS_CI="True" make init-ci
 
-      - name: Check Stripe Logs
-        if: failure()
-        run: docker logs stripe
-
       - name: Check database schema migrations
         run: make check-db-schema
 
