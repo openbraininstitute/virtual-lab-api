@@ -1,5 +1,6 @@
 from uuid import UUID
 
+from pydantic import EmailStr
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -7,8 +8,8 @@ from virtual_labs.infrastructure.db.models import Project
 
 
 async def get_missing_student_emails(
-    session: AsyncSession, virtual_lab_id: UUID, provided_emails: list[str]
-) -> list[str]:
+    session: AsyncSession, virtual_lab_id: UUID, provided_emails: list[EmailStr]
+) -> list[EmailStr]:
     email_set = set(provided_emails)
 
     stmt = select(Project.student_email).where(
