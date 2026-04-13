@@ -109,7 +109,7 @@ class Settings(BaseSettings):
 
     # There's a single configuration set in staging and production with a static name
     AWS_SES_CONFIGURATION_SET: str = "main-ses-config"
-    MULTIPLE_VLABS_ALLOWED_USER_IDS: UUID4 = UUID(
+    MULTIPLE_VLABS_ALLOWED_USER_ID: UUID4 = UUID(
         "16588c8b-ec88-4a49-a413-a0bb3a7b8541"
     )  # id of 'obi-virtual-lab' user in staging
 

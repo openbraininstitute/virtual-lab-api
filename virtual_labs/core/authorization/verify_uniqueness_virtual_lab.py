@@ -19,7 +19,7 @@ async def verify_uniq_virtual_lab(
     """Dependency that raises if the authenticated user already owns a virtual lab."""
     owner_id = get_user_id_from_auth(auth)
 
-    if owner_id == settings.MULTIPLE_VLABS_ALLOWED_USER_IDS:
+    if owner_id == settings.MULTIPLE_VLABS_ALLOWED_USER_ID:
         return
 
     existing = await get_user_virtual_lab(db=db, owner_id=owner_id)
