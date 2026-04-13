@@ -15,7 +15,7 @@ from .search_virtual_labs import search_virtual_labs_by_name
 from .update_virtual_lab import update_virtual_lab
 from .get_virtual_lab_stats import get_virtual_lab_stats
 from .get_user_groups import get_user_virtual_lab_groups
-from .missing_student_email import get_missing_student_emails
+from .missing_contact_email import get_missing_contact_emails
 
 __all__ = [
     "create_virtual_lab",
@@ -34,5 +34,5 @@ __all__ = [
     "get_virtual_lab_stats",
     "get_user_virtual_lab_groups",
     "get_user_stats",
-    "get_missing_student_emails",
+    "get_missing_contact_emails",
 ]

@@ -32,7 +32,7 @@ class ProjectBody(BaseModel):
         None
     )
 
-    student_email: Optional[EmailStr] = None
+    contact_email: Optional[EmailStr] = None
 
 
 class ProjectUpdateBody(BaseModel):

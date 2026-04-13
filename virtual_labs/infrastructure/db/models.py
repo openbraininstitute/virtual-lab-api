@@ -131,7 +131,7 @@ class Project(Base):
     admin_group_id: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     member_group_id: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     owner_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
-    student_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    contact_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     name: Mapped[str] = mapped_column(String(250), nullable=False, index=True)
     description: Mapped[str | None] = mapped_column(Text)
     deleted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
