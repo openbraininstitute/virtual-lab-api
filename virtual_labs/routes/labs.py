@@ -338,7 +338,7 @@ async def check_unassigned_emails(
     payload: EmailCheckRequest,
     session: AsyncSession = Depends(default_session_factory),
     auth: tuple[AuthUser, str] = Depends(verify_jwt),
-) -> list[str]:
+) -> list[EmailStr]:
     return await usecases.get_missing_student_emails(
         session, virtual_lab_id, payload.emails
     )
