@@ -1,7 +1,7 @@
 from typing import Annotated, Dict, List
 
 from fastapi import APIRouter, Body, Depends, Query, Response
-from pydantic import UUID4
+from pydantic import UUID4, BaseModel, EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.authorization import (
@@ -170,7 +170,11 @@ async def create_virtual_lab(
     auth: tuple[AuthUser, str] = Depends(verify_jwt),
     _: None = Depends(verify_uniq_virtual_lab),
 ) -> LabResponse[CreateLabOut]:
-    result = await usecases.create_virtual_lab(session, lab, auth)
+    result = (
+        await usecases.create_virtual_lab(session, lab, auth)
+        if not lab.course
+        else await usecases.create_course_vlab(session, lab, auth)
+    )
     return LabResponse[CreateLabOut](message="Newly created virtual lab", data=result)
 
 
@@ -320,4 +324,21 @@ async def get_user_groups_for_virtual_lab(
     """
     return await usecases.get_user_virtual_lab_groups(
         session=session, virtual_lab_id=virtual_lab_id, auth=auth
+    )
+
+
+class EmailCheckRequest(BaseModel):
+    emails: list[EmailStr]
+
+
+@router.post("/{virtual_lab_id}/missing-student-emails", response_model=list[str])
+@verify_vlab_write
+async def check_unassigned_emails(
+    virtual_lab_id: UUID4,
+    payload: EmailCheckRequest,
+    session: AsyncSession = Depends(default_session_factory),
+    auth: tuple[AuthUser, str] = Depends(verify_jwt),
+) -> list[EmailStr]:
+    return await usecases.get_missing_contact_emails(
+        session, virtual_lab_id, payload.emails
     )

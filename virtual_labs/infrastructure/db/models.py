@@ -100,6 +100,13 @@ class VirtualLab(Base):
     payment_methods = relationship("PaymentMethod", back_populates="virtual_lab")
     payments = relationship("SubscriptionPayment", back_populates="virtual_lab")
 
+    course_template_project_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True)
+    )
+    is_course_initialized: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
+    )
+
     __table_args__ = (
         Index(
             "unique_lab_name_for_non_deleted",
@@ -124,6 +131,7 @@ class Project(Base):
     admin_group_id: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     member_group_id: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     owner_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    contact_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     name: Mapped[str] = mapped_column(String(250), nullable=False, index=True)
     description: Mapped[str | None] = mapped_column(Text)
     deleted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)

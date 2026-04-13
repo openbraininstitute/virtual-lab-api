@@ -48,8 +48,16 @@ async def create_new_project_use_case(
     project_id: UUID4 = uuid4()
     user_id = get_user_id_from_auth(auth)
 
+    virtual_lab = await get_undeleted_virtual_lab(
+        session,
+        virtual_lab_id,
+    )
+
     user_projects_count = await pqr.get_owned_projects_count(user_id=user_id)
-    if user_projects_count >= settings.MAX_PROJECTS_NUMBER:
+    if (
+        not virtual_lab.course_template_project_id
+        and user_projects_count >= settings.MAX_PROJECTS_NUMBER
+    ):
         raise VliError(
             error_code=VliErrorCode.LIMIT_EXCEEDED,
             http_status_code=status.BAD_REQUEST,
@@ -57,10 +65,6 @@ async def create_new_project_use_case(
         )
 
     try:
-        virtual_lab = await get_undeleted_virtual_lab(
-            session,
-            virtual_lab_id,
-        )
         if bool(
             await pqr.check_project_exists_by_name_per_vlab(
                 vlab_id=virtual_lab_id,
