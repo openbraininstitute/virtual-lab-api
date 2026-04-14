@@ -53,6 +53,7 @@ class Project(BaseModel):
     id: UUID4
     name: str
     description: str | None
+    contact_email: str | None
     created_at: datetime
     updated_at: datetime | None
 
