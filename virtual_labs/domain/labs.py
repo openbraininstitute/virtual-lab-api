@@ -21,6 +21,11 @@ class LabResponse(BaseModel, Generic[T]):
     data: T
 
 
+class Course(BaseModel):
+    template_project_id: UUID4 | None = None
+    is_initialized: bool = False
+
+
 class VirtualLabBase(BaseModel):
     name: str = Field(max_length=250)
     description: str
@@ -28,11 +33,7 @@ class VirtualLabBase(BaseModel):
     email_verified: bool = False
     entity: str
     compute_cell: ComputeCell = ComputeCell.CELL_A
-
-
-class Course(BaseModel):
-    template_project_id: UUID4 | None = None
-    is_initialized: bool = False
+    course: Course | None
 
 
 class VirtualLabUpdate(BaseModel):
