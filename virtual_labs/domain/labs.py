@@ -80,6 +80,7 @@ class VirtualLab(VirtualLabBase):
     members_count: int | None = None
     projects_count: int | None = None
     created_by: UUID4
+    course: Course | None = None
 
 
 class VirtualLabWithInviteDetails(VirtualLabDetails):
