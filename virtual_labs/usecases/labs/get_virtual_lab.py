@@ -24,6 +24,7 @@ async def get_virtual_lab(
                     column.name: getattr(db_lab, column.name)
                     for column in db_lab.__table__.columns
                 },
+                created_by=db_lab.created_by,
                 course=Course(
                     template_project_id=db_lab.course_template_project_id,
                     is_initialized=db_lab.is_course_initialized,
