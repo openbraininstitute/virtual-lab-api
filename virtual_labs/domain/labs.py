@@ -33,7 +33,6 @@ class VirtualLabBase(BaseModel):
     email_verified: bool = False
     entity: str
     compute_cell: ComputeCell = ComputeCell.CELL_A
-    course: Course | None
 
 
 class VirtualLabUpdate(BaseModel):
