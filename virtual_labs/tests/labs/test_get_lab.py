@@ -20,6 +20,7 @@ async def mock_lab_create(
         "description": "Test",
         "reference_email": "user@test.org",
         "entity": "EPFL, Switzerland",
+        "course": {"template_project_id": str(uuid4()), "is_initialized": False},
     }
     headers = get_headers()
     lab_create_response = await client.post(
@@ -53,6 +54,7 @@ async def test_get_lab_by_id(
 ) -> None:
     client, lab, headers = mock_lab_create
     lab_id = lab["id"]
+    course = lab["course"]
     response = await client.get(f"/virtual-labs/{lab_id}", headers=headers)
     assert response.status_code == HTTPStatus.OK
     expected_response = {
@@ -64,6 +66,7 @@ async def test_get_lab_by_id(
         "created_at": lab["created_at"],
         "nexus_organization_id": lab["nexus_organization_id"],
         "updated_at": lab["created_at"],
+        "course": course,
     }
     actual_response = response.json()["data"]["virtual_lab"]
     assert actual_response == expected_response
