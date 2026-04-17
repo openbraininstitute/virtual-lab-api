@@ -10,6 +10,7 @@ from virtual_labs.repositories.user_preference_repo import (
     UserPreferenceMutationRepository,
 )
 from virtual_labs.tests.utils import (
+    cleanup_all_user_labs,
     cleanup_resources,
     get_headers,
     get_user_id_from_test_auth,
@@ -25,22 +26,7 @@ async def mock_user_with_lab_and_project(
     headers = get_headers()
 
     # Clean up any existing virtual labs for this user BEFORE creating a new one
-    existing_labs_response = await client.get(
-        "/virtual-labs",
-        headers=headers,
-    )
-
-    if existing_labs_response.status_code == 200:
-        existing_labs = (
-            existing_labs_response.json().get("data", {}).get("virtual_labs", [])
-        )
-        for lab in existing_labs:
-            lab_id = lab.get("id")
-            if lab_id:
-                try:
-                    await cleanup_resources(client, lab_id)
-                except Exception as e:
-                    print(f"Error cleaning up existing lab {lab_id}: {e}")
+    await cleanup_all_user_labs(client)
 
     # Create virtual lab
     vl_response = await client.post(
@@ -81,22 +67,7 @@ async def mock_user_with_multiple_projects(
     headers = get_headers()
 
     # Clean up any existing virtual labs for this user BEFORE creating a new one
-    existing_labs_response = await client.get(
-        "/virtual-labs",
-        headers=headers,
-    )
-
-    if existing_labs_response.status_code == 200:
-        existing_labs = (
-            existing_labs_response.json().get("data", {}).get("virtual_labs", [])
-        )
-        for lab in existing_labs:
-            lab_id = lab.get("id")
-            if lab_id:
-                try:
-                    await cleanup_resources(client, lab_id)
-                except Exception as e:
-                    print(f"Error cleaning up existing lab {lab_id}: {e}")
+    await cleanup_all_user_labs(client)
 
     vl_response = await client.post(
         "/virtual-labs",

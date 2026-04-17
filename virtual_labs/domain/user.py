@@ -13,9 +13,11 @@ from pydantic import (
     Field,
     computed_field,
     field_validator,
+    model_validator,
 )
 
 from virtual_labs.core.types import UserGroup, UserRoleEnum
+from virtual_labs.infrastructure.db.models import SpeciesSelectionMode
 
 if TYPE_CHECKING:
     from virtual_labs.domain.labs import VirtualLabDetails
@@ -194,12 +196,12 @@ class WorkspaceHierarchySpeciesPreference(BaseModel):
     Stores user's selected hierarchy, species taxonomy, and brain region context.
     """
 
-    hierarchy_id: UUID4 = Field(
-        ...,
+    hierarchy_id: Optional[UUID4] = Field(
+        default=None,
         description="UUID identifier for the selected hierarchy",
     )
-    species_name: str = Field(
-        ...,
+    species_name: Optional[str] = Field(
+        default=None,
         min_length=1,
         description="Identifier for the species taxonomy",
     )
@@ -212,14 +214,35 @@ class WorkspaceHierarchySpeciesPreference(BaseModel):
         description="Annotation value for the brain region",
     )
 
+    species_selection_mode: SpeciesSelectionMode = "focused"
+
+    @model_validator(mode="after")
+    def _check(self) -> "WorkspaceHierarchySpeciesPreference":
+        if self.species_selection_mode == "all":
+            # coerce all id/name fields to None when mode is 'all'
+            self.hierarchy_id = None
+            self.species_name = None
+            self.brain_region_id = None
+            self.brain_region_name = None
+        else:
+            # focused mode must carry a hierarchy + species (matches current contract)
+            if not self.hierarchy_id or not self.species_name:
+                raise ValueError(
+                    "hierarchy_id and species_name are required in 'focused' mode"
+                )
+        return self
+
 
 class WorkspaceHierarchySpeciesPreferenceDict(TypedDict):
     """TypedDict for workspace hierarchy species preference stored in DB JSON"""
 
-    hierarchy_id: str  # UUID stored as string in JSON
-    species_name: str
+    hierarchy_id: Optional[str]  # UUID stored as string in JSON
+    species_name: Optional[str]
     brain_region_id: Optional[str]  # UUID stored as string in JSON
     brain_region_name: Optional[str]
+    species_selection_mode: (
+        SpeciesSelectionMode  # absent == "focused" for backward-compat
+    )
 
 
 class WorkspaceHierarchySpeciesPreferenceResponse(BaseModel):

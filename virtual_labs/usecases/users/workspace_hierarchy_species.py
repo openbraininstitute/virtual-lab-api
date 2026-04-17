@@ -56,13 +56,16 @@ async def get_workspace_hierarchy_species_preference(
                 preference.workspace_hierarchy_species
             )
             brain_region_id_str = pref_dict.get("brain_region_id")
+            hierarchy_id_str = pref_dict.get("hierarchy_id")
+            species_selection_mode = pref_dict.get("species_selection_mode", "focused")
             preference_data = WorkspaceHierarchySpeciesPreference(
-                hierarchy_id=UUID(pref_dict["hierarchy_id"]),
-                species_name=pref_dict["species_name"],
+                hierarchy_id=UUID(hierarchy_id_str) if hierarchy_id_str else None,
+                species_name=pref_dict.get("species_name"),
                 brain_region_id=UUID(brain_region_id_str)
                 if brain_region_id_str
                 else None,
                 brain_region_name=pref_dict.get("brain_region_name"),
+                species_selection_mode=species_selection_mode,
             )
             updated_at = preference.updated_at
 
@@ -115,12 +118,13 @@ async def update_workspace_hierarchy_species_preference(
         preference = result.scalar_one_or_none()
 
         preference_dict: WorkspaceHierarchySpeciesPreferenceDict = {
-            "hierarchy_id": str(payload.hierarchy_id),
+            "hierarchy_id": str(payload.hierarchy_id) if payload.hierarchy_id else None,
             "species_name": payload.species_name,
             "brain_region_id": str(payload.brain_region_id)
             if payload.brain_region_id
             else None,
             "brain_region_name": payload.brain_region_name,
+            "species_selection_mode": payload.species_selection_mode,
         }
 
         if not preference:
