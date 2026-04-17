@@ -78,9 +78,10 @@ async def test_delete_user_from_lab(
     mock_lab_invite: tuple[AsyncClient, str, str],
 ) -> None:
     client, lab_id, invitee_id = mock_lab_invite
-    response = await client.delete(
-        f"virtual-labs/{lab_id}/users/{invitee_id}",
+    response = await client.post(
+        f"/virtual-labs/{lab_id}/users/detach",
         headers=get_headers("test"),
+        json={"user_id": invitee_id},
     )
     assert response.status_code == 200
     lab_users_response = await client.get(

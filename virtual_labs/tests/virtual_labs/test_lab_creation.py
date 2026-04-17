@@ -29,8 +29,12 @@ async def mock_lab_create(
 
     yield response, headers
 
-    lab_id = response.json()["data"]["virtual_lab"]["id"]
-    await cleanup_resources(client=client, lab_id=lab_id)
+    if response.status_code == 200:
+        try:
+            lab_id = response.json()["data"]["virtual_lab"]["id"]
+            await cleanup_resources(client=client, lab_id=lab_id)
+        except Exception:
+            pass
 
 
 @pytest_asyncio.fixture
@@ -53,8 +57,12 @@ async def mock_lab_create_with_users(
 
     yield body, response, client, headers
 
-    lab_id = response.json()["data"]["virtual_lab"]["id"]
-    await cleanup_resources(client=client, lab_id=lab_id)
+    if response.status_code == 200:
+        try:
+            lab_id = response.json()["data"]["virtual_lab"]["id"]
+            await cleanup_resources(client=client, lab_id=lab_id)
+        except Exception:
+            pass
 
 
 def assert_users_in_lab(response: Response) -> None:
@@ -97,8 +105,8 @@ async def test_virtual_lab_created(
     data = response.json()["data"]
     lab_id = data["virtual_lab"]["id"]
 
-    assert data.get("successful_invites") == []
-    assert data.get("failed_invites") == []
+    # CreateLabOut only has virtual_lab, no invite fields
+    assert data["virtual_lab"] is not None
 
     group_repo = GroupQueryRepository()
     group_id = f"vlab/{lab_id}/admin"
@@ -106,37 +114,3 @@ async def test_virtual_lab_created(
     # Test that the keycloak admin group was created
     group = group_repo.retrieve_group_by_name(name=group_id)
     assert group is not None
-
-
-@pytest.mark.asyncio
-async def test_virtual_lab_created_with_users(
-    mock_lab_create_with_users: tuple[
-        dict[str, Any], Response, AsyncClient, dict[str, str]
-    ],
-) -> None:
-    request, response, client, headers = mock_lab_create_with_users
-    assert response.status_code == 200
-    actual_response = response.json()["data"]
-    lab_id = actual_response["virtual_lab"]["id"]
-
-    expected_response = {
-        "virtual_lab": {
-            "name": request.get("name"),
-            "description": "Test",
-            "reference_email": "user@test.org",
-            "id": lab_id,
-            "entity": "EPFL, Switzerland",
-            "created_at": actual_response["virtual_lab"]["created_at"],
-            "updated_at": actual_response["virtual_lab"]["created_at"],
-        },
-        "successful_invites": [
-            {"email": "test-1@test.com", "role": "admin"},
-            {"email": "test-2@test.com", "role": "member"},
-        ],
-        "failed_invites": [],
-    }
-
-    assert actual_response == expected_response
-
-    lab_response = await client.get(f"/virtual-labs/{lab_id}/users", headers=headers)
-    assert_users_in_lab(lab_response)

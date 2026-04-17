@@ -88,6 +88,26 @@ def custom_openapi() -> dict[str, Any]:
         VlmValidationError.model_json_schema()
     )
 
+    # hide DELETE endpoints and subscription/accounting from Swagger in production
+    if settings.DEPLOYMENT_ENV == "production":
+        hidden_tags = {"Subscriptions", "Accounting Endpoints"}
+        for path_key, path_item in list(openapi_schema.get("paths", {}).items()):
+            path_item.pop("delete", None)
+            # Remove operations tagged with hidden tags
+            for method in list(path_item.keys()):
+                op_tags = set(path_item[method].get("tags", []))
+                if op_tags & hidden_tags:
+                    path_item.pop(method)
+            # Remove empty paths
+            if not path_item:
+                openapi_schema["paths"].pop(path_key)
+
+    # mark all bookmark endpoints as deprecated in all environments
+    for path_key, path_item in openapi_schema.get("paths", {}).items():
+        if "/bookmarks" in path_key:
+            for method_detail in path_item.values():
+                method_detail["deprecated"] = True
+
     app.openapi_schema = openapi_schema
     return app.openapi_schema
 

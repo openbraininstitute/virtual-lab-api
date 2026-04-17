@@ -69,6 +69,7 @@ async def invitation_handler(
                         "origin": origin,
                         "invite_id": invite_id,
                         "virtual_lab_id": vlab_invite.virtual_lab_id,
+                        "project_id": None,
                         "status": "already_accepted",
                     },
                 )

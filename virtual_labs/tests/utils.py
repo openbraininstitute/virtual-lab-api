@@ -68,6 +68,8 @@ def get_client_headers() -> dict[str, str]:
 async def create_mock_lab(
     client: AsyncClient, owner_username: str = "test"
 ) -> Response:
+    await cleanup_all_user_labs(client, owner_username)
+
     body = {
         "name": f"Test Lab {uuid4()}",
         "description": "Test",
@@ -89,6 +91,8 @@ async def create_mock_lab(
 async def create_mock_lab_with_project(
     client: AsyncClient, owner_username: str = "test"
 ) -> tuple[dict[str, str], str]:
+    await cleanup_all_user_labs(client, owner_username)
+
     body = {
         "name": f"Test Lab {uuid4()}",
         "description": "Test",

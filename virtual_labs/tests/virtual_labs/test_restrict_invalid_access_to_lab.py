@@ -93,9 +93,10 @@ async def test_non_member_user_cannot_delete_lab_users(
     mock_lab_create: tuple[AsyncClient, str, dict[str, str]],
 ) -> None:
     client, lab_id, member_headers = mock_lab_create
-    response = await client.delete(
-        f"/virtual-labs/{lab_id}/users/{uuid4()}",
+    response = await client.post(
+        f"/virtual-labs/{lab_id}/users/detach",
         headers=get_headers(non_member_user),
+        json={"user_id": str(uuid4())},
     )
 
     assert response.status_code == HTTPStatus.FORBIDDEN
@@ -107,8 +108,9 @@ async def test_non_member_user_cannot_change_member_role(
 ) -> None:
     client, lab_id, member_headers = mock_lab_create
     response = await client.patch(
-        f"/virtual-labs/{lab_id}/users/{uuid4()}?new_role=admin",
+        f"/virtual-labs/{lab_id}/users/role",
         headers=get_headers(non_member_user),
+        json={"user_id": str(uuid4()), "new_role": "admin"},
     )
 
     assert response.status_code == HTTPStatus.FORBIDDEN

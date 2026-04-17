@@ -33,13 +33,12 @@ async def test_last_admin_cannot_be_deleted(
             UserQueryRepository().retrieve_user_by_email("test@test.com"),
         )
     ).id
-    delete_admin_response = await client.delete(
-        f"/virtual-labs/{lab_id}/users/{admin_id}"
+    delete_admin_response = await client.post(
+        f"/virtual-labs/{lab_id}/users/detach", json={"user_id": admin_id}
     )
-    assert delete_admin_response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+    assert delete_admin_response.status_code == HTTPStatus.FORBIDDEN
     assert (
-        delete_admin_response.json()["message"]
-        == f"Last admin of lab {lab_id} cannot be removed"
+        delete_admin_response.json()["message"] == "Virtual lab owner cannot be removed"
     )
 
 
@@ -55,10 +54,11 @@ async def test_last_admin_cannot_be_converted_to_member(
         )
     ).id
     change_role_response = await client.patch(
-        f"/virtual-labs/{lab_id}/users/{admin_id}?new_role=member"
+        f"/virtual-labs/{lab_id}/users/role",
+        json={"user_id": admin_id, "new_role": "member"},
     )
     assert change_role_response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
     assert (
         change_role_response.json()["message"]
-        == f"Last admin of lab {lab_id} cannot be converted to member"
+        == "Cannot change role of owner of the virtual lab"
     )
