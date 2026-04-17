@@ -40,7 +40,7 @@ def assert_invite_response(response: Response) -> None:
     assert response.status_code == 200
     data = response.json()
     assert data["message"] == "Invite sent to user"
-    assert data["data"]["invite_id"] is not None
+    assert data["data"]["id"] is not None
 
 
 def assert_right_users_in_lab(response: Response) -> None:
@@ -113,8 +113,6 @@ async def test_user_already_in_lab_cannot_be_reinvited(
     invite_response = await client.post(
         f"/virtual-labs/{lab_id}/invites", headers=headers, json=invite
     )
-    assert invite_response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
-    assert (
-        "User with email test@test.com is already in lab"
-        in invite_response.json()["message"]
-    )
+    # wer changed the api to creates/updates an invite even for existing members and returns 200
+    assert invite_response.status_code == HTTPStatus.OK
+    assert invite_response.json()["data"]["id"] is not None

@@ -44,19 +44,21 @@ async def mock_lab_create(
 async def create_mock_lab_with_project(
     async_test_client: AsyncClient,
 ) -> AsyncGenerator[
-    Callable[[], Coroutine[Any, Any, tuple[dict[str, str], str, str]]], None
+    Callable[..., Coroutine[Any, Any, tuple[dict[str, str], str, str]]], None
 ]:
     client = async_test_client
-    labs_with_project = []
+    labs_with_project: list[tuple[tuple[dict[str, str], str, str], str]] = []
 
-    async def make_virtual_lab() -> tuple[dict[str, str], str, str]:
+    async def make_virtual_lab(
+        owner_username: str = "test",
+    ) -> tuple[dict[str, str], str, str]:
         body = {
             "name": f"Test Lab {uuid4()}",
             "description": "Test",
             "reference_email": "user@test.org",
             "entity": "EPFL, Switzerland",
         }
-        headers = get_headers("test")
+        headers = get_headers(owner_username)
         lab_response = await client.post(
             "/virtual-labs",
             json=body,
@@ -78,14 +80,14 @@ async def create_mock_lab_with_project(
         project_id = project_response.json()["data"]["project"]["id"]
         virtual_lab_id = lab_response.json()["data"]["virtual_lab"]["id"]
         lab = (lab_response.json()["data"]["virtual_lab"], virtual_lab_id, project_id)
-        labs_with_project.append(lab)
+        labs_with_project.append((lab, owner_username))
 
         return lab
 
     yield make_virtual_lab
 
-    for lab in labs_with_project:
-        await cleanup_resources(client, lab[1])
+    for lab, user in labs_with_project:
+        await cleanup_resources(client, lab[1], user=user)
 
 
 @pytest.mark.asyncio
@@ -107,28 +109,51 @@ async def test_delete_lab(
 async def test_deleting_labs_deletes_all_projects_only_in_that_lab(
     async_test_client: AsyncClient,
     create_mock_lab_with_project: Callable[
-        [], Coroutine[Any, Any, tuple[dict[str, str], str, str]]
+        ..., Coroutine[Any, Any, tuple[dict[str, str], str, str]]
     ],
 ) -> None:
+    # lab1 owned by "test" (default user), lab2 owned by "test-1"
     lab_to_delete, _, project_1_id = await create_mock_lab_with_project()
-    _, _, project_2_id = await create_mock_lab_with_project()
+    _, _, project_2_id = await create_mock_lab_with_project(owner_username="test-1")
 
-    user_projects = await async_test_client.get("/virtual-labs/projects")
+    # GET /virtual-labs/projects is user-scoped, so query per-user
+    test_headers = get_headers()
+    test1_headers = get_headers("test-1")
+
+    user_projects = await async_test_client.get(
+        "/virtual-labs/projects", headers=test_headers
+    )
     count_before_deleting = user_projects.json()["data"]["total"]
-    assert count_before_deleting >= 2
+    assert count_before_deleting >= 1
+
+    test1_projects_before = await async_test_client.get(
+        "/virtual-labs/projects", headers=test1_headers
+    )
+    test1_count_before = test1_projects_before.json()["data"]["total"]
+    assert test1_count_before >= 1
 
     delete_response = await async_test_client.delete(
-        f"/virtual-labs/{lab_to_delete['id']}", headers=get_headers()
+        f"/virtual-labs/{lab_to_delete['id']}", headers=test_headers
     )
     assert delete_response.status_code == HTTPStatus.OK
 
-    user_projects_after = await async_test_client.get("/virtual-labs/projects")
+    # After deleting lab1, "test" user should have 0 projects from that lab
+    user_projects_after = await async_test_client.get(
+        "/virtual-labs/projects", headers=test_headers
+    )
     count_after_deleting = user_projects_after.json()["data"]["total"]
     assert count_after_deleting < count_before_deleting
 
     project_ids = [
         project["id"] for project in user_projects_after.json()["data"]["results"]
     ]
-
     assert project_1_id not in project_ids
-    assert project_2_id in project_ids
+
+    # test-1's project should still exist
+    test1_projects_after = await async_test_client.get(
+        "/virtual-labs/projects", headers=test1_headers
+    )
+    test1_project_ids = [
+        project["id"] for project in test1_projects_after.json()["data"]["results"]
+    ]
+    assert project_2_id in test1_project_ids

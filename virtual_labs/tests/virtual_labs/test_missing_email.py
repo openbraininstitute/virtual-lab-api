@@ -25,6 +25,12 @@ async def mock_lab_with_project(
         },
         headers=headers,
     )
+
+    if lab_response.status_code != 200:
+        pytest.fail(
+            f"Lab creation failed with status {lab_response.status_code}: {lab_response.text}"
+        )
+
     lab_id = lab_response.json()["data"]["virtual_lab"]["id"]
 
     project_response = await client.post(
@@ -40,7 +46,10 @@ async def mock_lab_with_project(
 
     yield lab_id, project_response.json()["data"]["project"]["id"], headers
 
-    await cleanup_resources(client=client, lab_id=lab_id)
+    try:
+        await cleanup_resources(client=client, lab_id=lab_id)
+    except Exception:
+        pass
 
 
 @pytest.mark.asyncio

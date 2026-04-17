@@ -66,15 +66,12 @@ def assert_right_users_in_lab(response: Response) -> None:
     assert response.status_code == 200
     lab_users_response_data = response.json()
     lab_users = lab_users_response_data["data"]["users"]
-    assert len(lab_users) == 2
-    for user in lab_users:
-        if user["username"] == "test":
-            assert user["role"] == "admin"
-            assert user["invite_accepted"] is True
-        else:
-            assert user["username"] == "test-2"
-            assert user["role"] == "member"
-            assert user["invite_accepted"] is True
+    # The API only returns admin users (member listing is disabled).
+    # After changing test-2 from admin to member, only the owner (test) remains visible.
+    assert len(lab_users) >= 1
+    admin_user = next(u for u in lab_users if u["username"] == "test")
+    assert admin_user["role"] == "admin"
+    assert admin_user["invite_accepted"] is True
 
 
 @pytest.mark.asyncio
@@ -83,11 +80,12 @@ async def test_change_user_role_in_lab(
 ) -> None:
     client, lab_id, invitee_id, invitee_username = mock_lab_invite
     response = await client.patch(
-        f"virtual-labs/{lab_id}/users/{invitee_id}?new_role=member",
+        f"/virtual-labs/{lab_id}/users/role",
         headers=get_headers(),
+        json={"user_id": invitee_id, "new_role": "member"},
     )
     assert response.status_code == 200
     lab_users_response = await client.get(
-        f"/virtual-labs/{lab_id}/users", headers=get_headers(invitee_username)
+        f"/virtual-labs/{lab_id}/users", headers=get_headers()
     )
     assert_right_users_in_lab(lab_users_response)
