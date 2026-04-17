@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum
-from typing import Any, Dict, Optional, TypedDict
+from typing import Any, Dict, Literal, Optional, TypedDict
 from uuid import uuid4
 
 from sqlalchemy import (
@@ -39,13 +39,19 @@ class OnboardingStatusDict(TypedDict):
     dismissed: bool
 
 
+SpeciesSelectionMode = Literal["all", "focused"]
+
+
 class WorkspaceHierarchySpeciesPreferenceDict(TypedDict):
     """TypedDict for workspace hierarchy species preference stored in DB JSON"""
 
-    hierarchy_id: str  # UUID stored as string in JSON
-    species_name: str
+    hierarchy_id: Optional[str]  # UUID stored as string in JSON
+    species_name: Optional[str]
     brain_region_id: Optional[str]  # UUID stored as string in JSON
     brain_region_name: Optional[str]
+    species_selection_mode: (
+        SpeciesSelectionMode  # absent == "focused" for backward-compat
+    )
 
 
 class Base(DeclarativeBase):
