@@ -7,7 +7,11 @@ import pytest
 import pytest_asyncio
 from httpx import AsyncClient, Response
 
-from virtual_labs.tests.utils import cleanup_resources, get_headers
+from virtual_labs.tests.utils import (
+    cleanup_resources,
+    get_headers,
+    get_user_id_from_test_auth,
+)
 
 
 @pytest_asyncio.fixture
@@ -53,6 +57,9 @@ async def test_get_lab_by_id(
     mock_lab_create: tuple[AsyncClient, dict[str, str], dict[str, str]],
 ) -> None:
     client, lab, headers = mock_lab_create
+
+    user_id = get_user_id_from_test_auth(headers["Authorization"])
+
     lab_id = lab["id"]
     course = lab["course"]
     response = await client.get(f"/virtual-labs/{lab_id}", headers=headers)
@@ -64,9 +71,9 @@ async def test_get_lab_by_id(
         "reference_email": lab["reference_email"],
         "entity": lab["entity"],
         "created_at": lab["created_at"],
-        "nexus_organization_id": lab["nexus_organization_id"],
         "updated_at": lab["created_at"],
         "course": course,
+        "created_by": user_id,
     }
     actual_response = response.json()["data"]["virtual_lab"]
     assert actual_response == expected_response
