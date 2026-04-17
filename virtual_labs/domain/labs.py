@@ -33,7 +33,6 @@ class VirtualLabBase(BaseModel):
     email_verified: bool = False
     entity: str
     compute_cell: ComputeCell = ComputeCell.CELL_A
-    course: Course | None
 
 
 class VirtualLabUpdate(BaseModel):
@@ -81,6 +80,7 @@ class VirtualLab(VirtualLabBase):
     members_count: int | None = None
     projects_count: int | None = None
     created_by: UUID4
+    course: Course | None = None
 
 
 class VirtualLabWithInviteDetails(VirtualLabDetails):
