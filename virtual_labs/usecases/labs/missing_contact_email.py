@@ -13,7 +13,9 @@ async def get_missing_contact_emails(
     email_set = set(provided_emails)
 
     stmt = select(Project.contact_email).where(
-        Project.virtual_lab_id == virtual_lab_id, Project.contact_email.in_(email_set)
+        Project.virtual_lab_id == virtual_lab_id,
+        Project.contact_email.in_(email_set),
+        ~Project.deleted,
     )
 
     result = await session.scalars(stmt)
