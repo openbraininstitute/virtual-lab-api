@@ -61,6 +61,16 @@ fi
 # Additional wait to ensure realm is fully imported
 sleep 5
 
+# Disable SSL requirement on the master realm so the admin console is accessible over HTTP locally
+echo "disabling SSL requirement on master realm..."
+docker exec keycloak /opt/keycloak/bin/kcadm.sh config credentials \
+  --server http://localhost:9090 \
+  --realm master \
+  --user admin \
+  --password admin
+docker exec keycloak /opt/keycloak/bin/kcadm.sh update realms/master -s sslRequired=NONE
+echo "master realm ssl requirement disabled."
+
 make init-db
 
 echo "get access token"
