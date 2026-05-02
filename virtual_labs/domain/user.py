@@ -71,6 +71,15 @@ class UserAgentResponse(BaseModel):
     type: list[str]
 
 
+class UpdateAddress(BaseModel):
+    """Address payload for profile updates"""
+
+    street: Optional[str] = None
+    postal_code: Optional[str] = None
+    locality: Optional[str] = None
+    region: Optional[str] = None
+
+
 class Address(BaseModel):
     """User address information"""
 
@@ -101,10 +110,11 @@ class UserProfile(BaseModel):
 
 
 class UpdateUserProfileRequest(BaseModel):
-    email: Optional[EmailStr] = None
+    email: EmailStr
+    country: str
     first_name: Optional[str] = None
     last_name: Optional[str] = None
-    address: Optional[Address] = None
+    address: Optional[UpdateAddress] = None
 
 
 class UserProfileResponse(BaseModel):
