@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
 from datetime import datetime
 from enum import Enum
+from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, List, Optional, TypedDict
 
 from pydantic import (
@@ -22,6 +24,15 @@ from virtual_labs.infrastructure.db.models import SpeciesSelectionMode
 if TYPE_CHECKING:
     from virtual_labs.domain.labs import VirtualLabDetails
     from virtual_labs.domain.project import ProjectVlOut
+
+_VALID_COUNTRY_CODES: set[str] = {
+    entry["code"]
+    for entry in json.loads(
+        (Path(__file__).resolve().parent.parent / "static" / "country.json").read_text(
+            encoding="utf-8"
+        )
+    )
+}
 
 
 class ShortenedUser(BaseModel):
@@ -118,9 +129,18 @@ class UpdateUserProfileRequest(BaseModel):
 
 
 class OnboardingUpdateUserProfileRequest(BaseModel):
-    country: Optional[str] = None
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
+    email: EmailStr
+    country: str
+    first_name: str
+    last_name: str
+
+    @field_validator("country")
+    @classmethod
+    def validate_country_code(cls, v: str) -> str:
+        code = v.upper()
+        if code not in _VALID_COUNTRY_CODES:
+            raise ValueError(f"Invalid country code: {v}")
+        return code
 
 
 class UserProfileResponse(BaseModel):

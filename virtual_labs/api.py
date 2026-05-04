@@ -6,6 +6,7 @@ import sentry_sdk
 from fastapi import FastAPI, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
 from fastapi.routing import APIRouter
@@ -26,6 +27,7 @@ from virtual_labs.infrastructure.settings import settings
 from virtual_labs.routes.accounting import router as accounting_router
 from virtual_labs.routes.bookmarks import router as bookmarks_router
 from virtual_labs.routes.common import router as common_router
+from virtual_labs.routes.config import router as config_router
 from virtual_labs.routes.invites import router as invite_router
 from virtual_labs.routes.labs import router as virtual_lab_router
 from virtual_labs.routes.payments import router as payments_router
@@ -73,6 +75,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 
 def custom_openapi() -> dict[str, Any]:
@@ -182,5 +186,6 @@ base_router.include_router(subscription_router)
 base_router.include_router(user_router)
 base_router.include_router(promotions_router)
 base_router.include_router(admin_promotions_router)
+base_router.include_router(config_router)
 
 app.include_router(base_router)

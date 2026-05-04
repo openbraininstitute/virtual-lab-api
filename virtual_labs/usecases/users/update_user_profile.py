@@ -250,7 +250,8 @@ async def onboarding_update_user_profile(
 ) -> Response:
     """
     Update the profile information during onboarding.
-    Only allows updating first_name, last_name, and country.
+    Requires email, country, first_name, and last_name.
+    Stores them in both Keycloak and Stripe.
 
     Args:
         payload: The onboarding profile data to update
@@ -272,19 +273,18 @@ async def onboarding_update_user_profile(
         if not kc_user:
             raise EntityNotFound
 
-        # Build Keycloak update payload (email stays unchanged)
-        update_data: Dict[str, Any] = {"email": kc_user.get("email")}
-        if payload.first_name is not None:
-            update_data["firstName"] = payload.first_name
-        if payload.last_name is not None:
-            update_data["lastName"] = payload.last_name
+        # build Keycloak update payload with the provided email and country
+        update_data: Dict[str, Any] = {
+            "email": payload.email,
+            "firstName": payload.first_name,
+            "lastName": payload.last_name,
+        }
 
         attributes = kc_user.get("attributes", {}) or {}
         merged_attributes = {
             k: v if isinstance(v, list) else [str(v)] for k, v in attributes.items()
         }
-        if payload.country is not None:
-            merged_attributes["country"] = [payload.country]
+        merged_attributes["country"] = [payload.country]
 
         update_data["attributes"] = merged_attributes
 
@@ -302,16 +302,15 @@ async def onboarding_update_user_profile(
             user_query_repo=user_query_repo,
         )
 
-        # Sync Stripe customer name if first_name or last_name changed
-        if payload.first_name is not None or payload.last_name is not None:
-            await _sync_stripe_customer(
-                user_id=user_id,
-                email=kc_user["email"],
-                name=f"{user_profile.first_name} {user_profile.last_name}",
-                stripe_user_repo=stripe_user_repo,
-                stripe_service=stripe_service,
-                stripe_user_mutation_repo=stripe_user_mutation_repo,
-            )
+        # always sync Stripe with the provided email and current name
+        await _sync_stripe_customer(
+            user_id=user_id,
+            email=payload.email,
+            name=f"{user_profile.first_name} {user_profile.last_name}",
+            stripe_user_repo=stripe_user_repo,
+            stripe_service=stripe_service,
+            stripe_user_mutation_repo=stripe_user_mutation_repo,
+        )
 
         return VliResponse.new(
             message="User profile updated successfully",
@@ -324,6 +323,25 @@ async def onboarding_update_user_profile(
             http_status_code=HTTPStatus.NOT_FOUND,
             message="User not found",
         )
+    except KeycloakPutError as e:
+        logger.error(
+            f"Keycloak put error: {e.error_message} | {e.response_code} | {e.response_body}"
+        )
+        message = "An error occurred while updating the user profile"
+        if (
+            isinstance(e.response_body, bytes)
+            and b"User exists with same email" in e.response_body
+        ) or (
+            isinstance(e.response_body, str)
+            and "User exists with same email" in e.response_body
+        ):
+            message = "We're unable to update your profile with this email address. Please make sure the email is correct or try another one."
+
+        raise VliError(
+            error_code=VliErrorCode.DATA_CONFLICT,
+            http_status_code=HTTPStatus.CONFLICT,
+            message=message,
+        ) from e
     except KeycloakError as e:
         logger.error(f"Keycloak error: {str(e)}")
         raise VliError(
