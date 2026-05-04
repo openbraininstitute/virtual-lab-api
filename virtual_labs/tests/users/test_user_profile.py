@@ -160,9 +160,9 @@ class TestUpdateUserProfile:
         assert response.status_code == HTTPStatus.CONFLICT
         assert (
             response.json()["message"]
-            == "This email address cannot be used. Try another one or sign in if you already have an account."
+            == "We’re unable to update your profile with this email address. Please make sure the email is correct or try another one."
         )
-        # Restore original email
+        # restore original email
         await client.patch(
             "/users/profile",
             json={"email": "test@test.com", "country": "Switzerland"},
@@ -190,3 +190,99 @@ class TestUpdateUserProfile:
         }
         response = await client.patch("/users/profile", json=payload)
         assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+
+
+class TestOnboardingUpdateUserProfile:
+    """Test cases for PATCH /users/onboarding/profile endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_onboarding_update_first_and_last_name(
+        self, async_test_client: AsyncClient
+    ) -> None:
+        client = async_test_client
+        payload = {"first_name": "Onboard", "last_name": "User"}
+        response = await client.patch("/users/onboarding/profile", json=payload)
+        assert response.status_code == HTTPStatus.OK
+        profile = response.json()["data"]["profile"]
+        assert profile["first_name"] == "Onboard"
+        assert profile["last_name"] == "User"
+
+    @pytest.mark.asyncio
+    async def test_onboarding_update_country(
+        self, async_test_client: AsyncClient
+    ) -> None:
+        client = async_test_client
+        payload = {"country": "Algeria"}
+        response = await client.patch("/users/onboarding/profile", json=payload)
+        assert response.status_code == HTTPStatus.OK
+        address = response.json()["data"]["profile"]["address"]
+        assert address["country"] == "Algeria"
+
+    @pytest.mark.asyncio
+    async def test_onboarding_update_all_fields(
+        self, async_test_client: AsyncClient
+    ) -> None:
+        client = async_test_client
+        payload = {
+            "first_name": "New",
+            "last_name": "Name",
+            "country": "Switzerland",
+        }
+        response = await client.patch("/users/onboarding/profile", json=payload)
+        assert response.status_code == HTTPStatus.OK
+        profile = response.json()["data"]["profile"]
+        assert profile["first_name"] == "New"
+        assert profile["last_name"] == "Name"
+        assert profile["address"]["country"] == "Switzerland"
+
+    @pytest.mark.asyncio
+    async def test_onboarding_update_empty_payload_succeeds(
+        self, async_test_client: AsyncClient
+    ) -> None:
+        """Empty payload is valid since all fields are optional."""
+        client = async_test_client
+        response = await client.patch("/users/onboarding/profile", json={})
+        assert response.status_code == HTTPStatus.OK
+
+    @pytest.mark.asyncio
+    async def test_onboarding_does_not_change_email(
+        self, async_test_client: AsyncClient
+    ) -> None:
+        """Onboarding endpoint should preserve the existing email."""
+        client = async_test_client
+
+        # get current email
+        get_resp = await client.get("/users/profile")
+        original_email = get_resp.json()["data"]["profile"]["email"]
+
+        # update name via onboarding
+        await client.patch(
+            "/users/onboarding/profile",
+            json={"first_name": "Keep", "last_name": "Email"},
+        )
+
+        # verify email unchanged
+        get_resp = await client.get("/users/profile")
+        assert get_resp.json()["data"]["profile"]["email"] == original_email
+
+    @pytest.mark.asyncio
+    async def test_onboarding_update_without_auth_fails(
+        self, async_test_client: AsyncClient
+    ) -> None:
+        client = async_test_client
+        response = await client.patch(
+            "/users/onboarding/profile",
+            json={"first_name": "Test"},
+            headers={"Authorization": ""},
+        )
+        assert response.status_code != HTTPStatus.OK
+
+    @pytest.mark.asyncio
+    async def test_onboarding_update_only_first_name(
+        self, async_test_client: AsyncClient
+    ) -> None:
+        client = async_test_client
+        payload = {"first_name": "Solo"}
+        response = await client.patch("/users/onboarding/profile", json=payload)
+        assert response.status_code == HTTPStatus.OK
+        assert response.json()["data"]["profile"]["first_name"] == "Solo"

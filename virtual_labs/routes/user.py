@@ -15,6 +15,7 @@ from virtual_labs.domain.user import (
     OnboardingFeature,
     OnboardingStatus,
     OnboardingUpdateRequest,
+    OnboardingUpdateUserProfileRequest,
     SetRecentWorkspaceRequest,
     UpdateUserProfileRequest,
     UserGroupsResponse,
@@ -39,6 +40,7 @@ from virtual_labs.usecases.users import (
     get_user_onboarding_status,
     get_user_profile,
     get_workspace_hierarchy_species_preference,
+    onboarding_update_user_profile,
     reset_all_user_onboarding_status,
     reset_user_onboarding_status,
     set_recent_workspace,
@@ -96,6 +98,34 @@ async def update_profile_endpoint(
         Response: the updated user profile information
     """
     return await update_user_profile(
+        payload=payload,
+        auth=auth,
+        session=session,
+    )
+
+
+@router.patch(
+    "/onboarding/profile",
+    summary="Update user profile",
+    description="Update the profile information for the authenticated user",
+    response_model=VliAppResponse[UserProfileResponse],
+    response_model_exclude_none=False,
+)
+async def update_onboarding_user_profile(
+    payload: OnboardingUpdateUserProfileRequest,
+    session: AsyncSession = Depends(default_session_factory),
+    auth: Tuple[AuthUser, str] = Depends(a_verify_jwt),
+) -> Response:
+    """
+    update the profile information for the authenticated user.
+
+    Args:
+        payload: The user profile data to update
+
+    Returns:
+        Response: the updated user profile information
+    """
+    return await onboarding_update_user_profile(
         payload=payload,
         auth=auth,
         session=session,

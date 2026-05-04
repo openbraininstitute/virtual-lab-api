@@ -117,6 +117,12 @@ class UpdateUserProfileRequest(BaseModel):
     address: Optional[UpdateAddress] = None
 
 
+class OnboardingUpdateUserProfileRequest(BaseModel):
+    country: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+
+
 class UserProfileResponse(BaseModel):
     profile: UserProfile
 
