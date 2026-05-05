@@ -61,7 +61,7 @@ fi
 # Additional wait to ensure realm is fully imported
 sleep 5
 
-# Disable SSL requirement on the master realm so the admin console is accessible over HTTP locally
+# disable SSL requirement on the master realm so the admin console is accessible over HTTP locally
 echo "disabling SSL requirement on master realm..."
 docker exec keycloak /opt/keycloak/bin/kcadm.sh config credentials \
   --server http://localhost:9090 \
@@ -70,6 +70,95 @@ docker exec keycloak /opt/keycloak/bin/kcadm.sh config credentials \
   --password admin
 docker exec keycloak /opt/keycloak/bin/kcadm.sh update realms/master -s sslRequired=NONE
 echo "master realm ssl requirement disabled."
+
+# ensure email verification is disabled on the test realm to prevent
+# "Account is not fully set up" errors when tests change user emails
+docker exec keycloak /opt/keycloak/bin/kcadm.sh update realms/obp-realm -s verifyEmail=false
+
+# disable VERIFY_EMAIL and VERIFY_PROFILE required actions to prevent
+# "Account is not fully set up" errors during direct grant token requests
+# after profile updates via the admin API
+docker exec keycloak /opt/keycloak/bin/kcadm.sh update authentication/required-actions/VERIFY_EMAIL -r obp-realm -s enabled=false
+docker exec keycloak /opt/keycloak/bin/kcadm.sh update authentication/required-actions/VERIFY_PROFILE -r obp-realm -s enabled=false
+
+# Register custom user attributes in the User Profile so they are persisted
+# by the admin API. Use "ADMIN_EDIT" policy for any undeclared attributes.
+cat > /tmp/kc-user-profile.json <<'EOF'
+{
+  "unmanagedAttributePolicy": "ADMIN_EDIT",
+  "attributes": [
+    {
+      "name": "username",
+      "displayName": "${username}",
+      "permissions": { "view": ["admin", "user"], "edit": ["admin"] },
+      "validations": { "length": { "min": 3, "max": 255 }, "username-prohibited-characters": {} }
+    },
+    {
+      "name": "email",
+      "displayName": "${email}",
+      "permissions": { "view": ["admin", "user"], "edit": ["admin", "user"] },
+      "validations": { "email": {}, "length": { "max": 255 } }
+    },
+    {
+      "name": "firstName",
+      "displayName": "${firstName}",
+      "permissions": { "view": ["admin", "user"], "edit": ["admin", "user"] },
+      "validations": { "length": { "max": 255 }, "person-name-prohibited-characters": {} }
+    },
+    {
+      "name": "lastName",
+      "displayName": "${lastName}",
+      "permissions": { "view": ["admin", "user"], "edit": ["admin", "user"] },
+      "validations": { "length": { "max": 255 }, "person-name-prohibited-characters": {} }
+    },
+    {
+      "name": "country",
+      "displayName": "Country",
+      "permissions": { "view": ["admin", "user"], "edit": ["admin", "user"] },
+      "validations": {}
+    },
+    {
+      "name": "street",
+      "displayName": "Street",
+      "permissions": { "view": ["admin", "user"], "edit": ["admin", "user"] },
+      "validations": {}
+    },
+    {
+      "name": "postal_code",
+      "displayName": "Postal Code",
+      "permissions": { "view": ["admin", "user"], "edit": ["admin", "user"] },
+      "validations": {}
+    },
+    {
+      "name": "locality",
+      "displayName": "Locality",
+      "permissions": { "view": ["admin", "user"], "edit": ["admin", "user"] },
+      "validations": {}
+    },
+    {
+      "name": "region",
+      "displayName": "Region",
+      "permissions": { "view": ["admin", "user"], "edit": ["admin", "user"] },
+      "validations": {}
+    },
+    {
+      "name": "plan",
+      "displayName": "Subscription Plan",
+      "permissions": { "view": ["admin", "user"], "edit": ["admin"] },
+      "validations": {}
+    },
+    {
+      "name": "virtual_lab_id",
+      "displayName": "Virtual Lab ID",
+      "permissions": { "view": ["admin", "user"], "edit": ["admin"] },
+      "validations": {}
+    }
+  ]
+}
+EOF
+docker cp /tmp/kc-user-profile.json keycloak:/tmp/kc-user-profile.json
+docker exec keycloak /opt/keycloak/bin/kcadm.sh update realms/obp-realm/users/profile -r obp-realm -f /tmp/kc-user-profile.json
+rm -f /tmp/kc-user-profile.json
 
 make init-db
 
