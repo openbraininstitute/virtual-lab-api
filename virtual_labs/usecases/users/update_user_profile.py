@@ -104,10 +104,10 @@ async def _build_user_profile(
     return UserProfile(
         id=user_id,
         preferred_username=kc_user["preferred_username"],
-        email=kc_user["email"],
-        first_name=kc_user.get("given_name") or "",
-        last_name=kc_user.get("family_name") or "",
-        email_verified=kc_user["email_verified"],
+        email=kc_user.get("email", ""),
+        first_name=kc_user.get("given_name", ""),
+        last_name=kc_user.get("family_name", ""),
+        email_verified=kc_user.get("email_verified", True),
         address=Address(
             street=_attr("street"),
             postal_code=_attr("postal_code"),
@@ -146,12 +146,9 @@ async def update_user_profile(
         if not kc_user:
             raise EntityNotFound
 
-        # Build Keycloak update payload
-        update_data: Dict[str, Any] = {"email": payload.email}
-        if payload.first_name is not None:
-            update_data["firstName"] = payload.first_name
-        if payload.last_name is not None:
-            update_data["lastName"] = payload.last_name
+        update_data: Dict[str, Any] = {"email": payload.email, "emailVerified": True}
+        update_data["firstName"] = payload.first_name
+        update_data["lastName"] = payload.last_name
 
         attributes = kc_user.get("attributes", {}) or {}
         merged_attributes = {
@@ -185,7 +182,7 @@ async def update_user_profile(
         await _sync_stripe_customer(
             user_id=user_id,
             email=payload.email,
-            name=f"{payload.first_name or kc_user.get('given_name')} {payload.last_name or kc_user.get('family_name')}",
+            name=f"{payload.first_name} {payload.last_name}",
             stripe_user_repo=stripe_user_repo,
             stripe_service=stripe_service,
             stripe_user_mutation_repo=stripe_user_mutation_repo,
@@ -273,9 +270,9 @@ async def onboarding_update_user_profile(
         if not kc_user:
             raise EntityNotFound
 
-        # build Keycloak update payload with the provided email and country
         update_data: Dict[str, Any] = {
             "email": payload.email,
+            "emailVerified": True,
             "firstName": payload.first_name,
             "lastName": payload.last_name,
         }

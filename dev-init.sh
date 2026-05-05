@@ -1,7 +1,6 @@
 #!/bin/bash
 
 set -o errexit
-set -x
 # Keycloak details - replace these with your actual values
 KC_SERVER_URI="http://localhost:9090"
 KC_REALM_NAME="obp-realm"
@@ -63,26 +62,22 @@ sleep 5
 
 # disable SSL requirement on the master realm so the admin console is accessible over HTTP locally
 echo "disabling SSL requirement on master realm..."
+echo "🔐 Configuring Keycloak admin credentials..."
 docker exec keycloak /opt/keycloak/bin/kcadm.sh config credentials \
   --server http://localhost:9090 \
   --realm master \
   --user admin \
   --password admin
 docker exec keycloak /opt/keycloak/bin/kcadm.sh update realms/master -s sslRequired=NONE
-echo "master realm ssl requirement disabled."
+echo "✅ Master realm SSL requirement disabled"
 
-# ensure email verification is disabled on the test realm to prevent
-# "Account is not fully set up" errors when tests change user emails
+echo "🔧 Disabling email/profile verification for test realm..."
 docker exec keycloak /opt/keycloak/bin/kcadm.sh update realms/obp-realm -s verifyEmail=false
-
-# disable VERIFY_EMAIL and VERIFY_PROFILE required actions to prevent
-# "Account is not fully set up" errors during direct grant token requests
-# after profile updates via the admin API
 docker exec keycloak /opt/keycloak/bin/kcadm.sh update authentication/required-actions/VERIFY_EMAIL -r obp-realm -s enabled=false
 docker exec keycloak /opt/keycloak/bin/kcadm.sh update authentication/required-actions/VERIFY_PROFILE -r obp-realm -s enabled=false
+echo "✅ VERIFY_EMAIL and VERIFY_PROFILE disabled"
 
-# Register custom user attributes in the User Profile so they are persisted
-# by the admin API. Use "ADMIN_EDIT" policy for any undeclared attributes.
+echo "📋 Registering custom user profile attributes..."
 cat > /tmp/kc-user-profile.json <<'EOF'
 {
   "unmanagedAttributePolicy": "ADMIN_EDIT",
@@ -159,6 +154,7 @@ EOF
 docker cp /tmp/kc-user-profile.json keycloak:/tmp/kc-user-profile.json
 docker exec keycloak /opt/keycloak/bin/kcadm.sh update realms/obp-realm/users/profile -r obp-realm -f /tmp/kc-user-profile.json
 rm -f /tmp/kc-user-profile.json
+echo "✅ User profile attributes registered (country, street, postal_code, locality, region, plan, virtual_lab_id)"
 
 make init-db
 

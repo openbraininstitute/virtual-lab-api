@@ -122,15 +122,23 @@ class UserProfile(BaseModel):
 
 class UpdateUserProfileRequest(BaseModel):
     email: EmailStr
-    country: str
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
+    country: str = Field(min_length=2, max_length=2)
+    first_name: str
+    last_name: str
     address: Optional[UpdateAddress] = None
+
+    @field_validator("country")
+    @classmethod
+    def validate_country_code(cls, v: str) -> str:
+        code = v.upper()
+        if code not in _VALID_COUNTRY_CODES:
+            raise ValueError(f"Invalid ISO 3166-1 alpha-2 country code: {v}")
+        return code
 
 
 class OnboardingUpdateUserProfileRequest(BaseModel):
     email: EmailStr
-    country: str
+    country: str = Field(min_length=2, max_length=2)
     first_name: str
     last_name: str
 
@@ -139,7 +147,7 @@ class OnboardingUpdateUserProfileRequest(BaseModel):
     def validate_country_code(cls, v: str) -> str:
         code = v.upper()
         if code not in _VALID_COUNTRY_CODES:
-            raise ValueError(f"Invalid country code: {v}")
+            raise ValueError(f"Invalid ISO 3166-1 alpha-2 country code: {v}")
         return code
 
 

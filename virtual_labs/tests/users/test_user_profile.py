@@ -52,7 +52,12 @@ class TestUpdateUserProfile:
         self, async_test_client: AsyncClient
     ) -> None:
         client = async_test_client
-        payload = {"email": "test@test.com", "country": "Switzerland"}
+        payload = {
+            "email": "test@test.com",
+            "country": "CH",
+            "first_name": "Test",
+            "last_name": "User",
+        }
         response = await client.patch("/users/profile", json=payload)
         assert response.status_code == HTTPStatus.OK
         assert response.json()["data"]["profile"]["email"] == "test@test.com"
@@ -64,7 +69,7 @@ class TestUpdateUserProfile:
         client = async_test_client
         payload = {
             "email": "test@test.com",
-            "country": "Switzerland",
+            "country": "CH",
             "first_name": "Updated",
             "last_name": "User",
             "address": {
@@ -87,7 +92,9 @@ class TestUpdateUserProfile:
         client = async_test_client
         payload = {
             "email": "test@test.com",
-            "country": "France",
+            "country": "FR",
+            "first_name": "Test",
+            "last_name": "User",
             "address": {
                 "street": "10 Rue de Rivoli",
                 "postal_code": "75001",
@@ -98,7 +105,7 @@ class TestUpdateUserProfile:
         response = await client.patch("/users/profile", json=payload)
         assert response.status_code == HTTPStatus.OK
         address = response.json()["data"]["profile"]["address"]
-        assert address["country"] == "France"
+        assert address["country"] == "FR"
         assert address["street"] == "10 Rue de Rivoli"
         assert address["postal_code"] == "75001"
         assert address["locality"] == "Paris"
@@ -109,7 +116,7 @@ class TestUpdateUserProfile:
         self, async_test_client: AsyncClient
     ) -> None:
         client = async_test_client
-        payload = {"country": "Switzerland", "first_name": "Test"}
+        payload = {"country": "CH", "first_name": "Test", "last_name": "User"}
         response = await client.patch("/users/profile", json=payload)
         assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
@@ -118,7 +125,7 @@ class TestUpdateUserProfile:
         self, async_test_client: AsyncClient
     ) -> None:
         client = async_test_client
-        payload = {"email": "test@test.com", "first_name": "Test"}
+        payload = {"email": "test@test.com", "first_name": "Test", "last_name": "User"}
         response = await client.patch("/users/profile", json=payload)
         assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
@@ -127,7 +134,12 @@ class TestUpdateUserProfile:
         self, async_test_client: AsyncClient
     ) -> None:
         client = async_test_client
-        payload = {"email": "not-an-email", "country": "Switzerland"}
+        payload = {
+            "email": "not-an-email",
+            "country": "CH",
+            "first_name": "Test",
+            "last_name": "User",
+        }
         response = await client.patch("/users/profile", json=payload)
         assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
@@ -144,7 +156,12 @@ class TestUpdateUserProfile:
         self, async_test_client: AsyncClient
     ) -> None:
         client = async_test_client
-        payload = {"email": "test@test.com", "country": "Switzerland"}
+        payload = {
+            "email": "test@test.com",
+            "country": "CH",
+            "first_name": "Test",
+            "last_name": "User",
+        }
         response = await client.patch(
             "/users/profile", json=payload, headers={"Authorization": ""}
         )
@@ -155,7 +172,12 @@ class TestUpdateUserProfile:
         self, async_test_client: AsyncClient
     ) -> None:
         client = async_test_client
-        payload = {"email": "test-1@test.com", "country": "Switzerland"}
+        payload = {
+            "email": "test-1@test.com",
+            "country": "CH",
+            "first_name": "Test",
+            "last_name": "User",
+        }
         response = await client.patch("/users/profile", json=payload)
         assert response.status_code == HTTPStatus.CONFLICT
         assert (
@@ -165,7 +187,12 @@ class TestUpdateUserProfile:
         # restore original email
         await client.patch(
             "/users/profile",
-            json={"email": "test@test.com", "country": "Switzerland"},
+            json={
+                "email": "test@test.com",
+                "country": "CH",
+                "first_name": "Test",
+                "last_name": "User",
+            },
         )
 
     @pytest.mark.asyncio
@@ -173,11 +200,16 @@ class TestUpdateUserProfile:
         self, async_test_client: AsyncClient
     ) -> None:
         client = async_test_client
-        payload = {"email": "test@test.com", "country": "Germany"}
+        payload = {
+            "email": "test@test.com",
+            "country": "DE",
+            "first_name": "Test",
+            "last_name": "User",
+        }
         response = await client.patch("/users/profile", json=payload)
         assert response.status_code == HTTPStatus.OK
         address = response.json()["data"]["profile"]["address"]
-        assert address["country"] == "Germany"
+        assert address["country"] == "DE"
 
     @pytest.mark.asyncio
     async def test_update_profile_missing_country_with_address_fails(
@@ -200,7 +232,12 @@ class TestOnboardingUpdateUserProfile:
         self, async_test_client: AsyncClient
     ) -> None:
         client = async_test_client
-        payload = {"first_name": "Onboard", "last_name": "User"}
+        payload = {
+            "email": "test@test.com",
+            "country": "CH",
+            "first_name": "Onboard",
+            "last_name": "User",
+        }
         response = await client.patch("/users/onboarding/profile", json=payload)
         assert response.status_code == HTTPStatus.OK
         profile = response.json()["data"]["profile"]
@@ -212,11 +249,16 @@ class TestOnboardingUpdateUserProfile:
         self, async_test_client: AsyncClient
     ) -> None:
         client = async_test_client
-        payload = {"country": "Algeria"}
+        payload = {
+            "email": "test@test.com",
+            "country": "DZ",
+            "first_name": "Test",
+            "last_name": "User",
+        }
         response = await client.patch("/users/onboarding/profile", json=payload)
         assert response.status_code == HTTPStatus.OK
         address = response.json()["data"]["profile"]["address"]
-        assert address["country"] == "Algeria"
+        assert address["country"] == "DZ"
 
     @pytest.mark.asyncio
     async def test_onboarding_update_all_fields(
@@ -224,46 +266,47 @@ class TestOnboardingUpdateUserProfile:
     ) -> None:
         client = async_test_client
         payload = {
+            "email": "test@test.com",
+            "country": "CH",
             "first_name": "New",
             "last_name": "Name",
-            "country": "Switzerland",
         }
         response = await client.patch("/users/onboarding/profile", json=payload)
         assert response.status_code == HTTPStatus.OK
         profile = response.json()["data"]["profile"]
         assert profile["first_name"] == "New"
         assert profile["last_name"] == "Name"
-        assert profile["address"]["country"] == "Switzerland"
+        assert profile["address"]["country"] == "CH"
 
     @pytest.mark.asyncio
-    async def test_onboarding_update_empty_payload_succeeds(
+    async def test_onboarding_update_empty_payload_fails(
         self, async_test_client: AsyncClient
     ) -> None:
-        """Empty payload is valid since all fields are optional."""
+        """Empty payload should fail since all fields are required."""
         client = async_test_client
         response = await client.patch("/users/onboarding/profile", json={})
-        assert response.status_code == HTTPStatus.OK
+        assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
     @pytest.mark.asyncio
     async def test_onboarding_does_not_change_email(
         self, async_test_client: AsyncClient
     ) -> None:
-        """Onboarding endpoint should preserve the existing email."""
+        """Onboarding endpoint updates email to the provided value."""
         client = async_test_client
 
-        # get current email
-        get_resp = await client.get("/users/profile")
-        original_email = get_resp.json()["data"]["profile"]["email"]
+        # update via onboarding with same email
+        payload = {
+            "email": "test@test.com",
+            "country": "CH",
+            "first_name": "Keep",
+            "last_name": "Email",
+        }
+        response = await client.patch("/users/onboarding/profile", json=payload)
+        assert response.status_code == HTTPStatus.OK
 
-        # update name via onboarding
-        await client.patch(
-            "/users/onboarding/profile",
-            json={"first_name": "Keep", "last_name": "Email"},
-        )
-
-        # verify email unchanged
+        # verify email is what we set
         get_resp = await client.get("/users/profile")
-        assert get_resp.json()["data"]["profile"]["email"] == original_email
+        assert get_resp.json()["data"]["profile"]["email"] == "test@test.com"
 
     @pytest.mark.asyncio
     async def test_onboarding_update_without_auth_fails(
@@ -272,17 +315,22 @@ class TestOnboardingUpdateUserProfile:
         client = async_test_client
         response = await client.patch(
             "/users/onboarding/profile",
-            json={"first_name": "Test"},
+            json={
+                "email": "test@test.com",
+                "country": "CH",
+                "first_name": "Test",
+                "last_name": "User",
+            },
             headers={"Authorization": ""},
         )
         assert response.status_code != HTTPStatus.OK
 
     @pytest.mark.asyncio
-    async def test_onboarding_update_only_first_name(
+    async def test_onboarding_update_only_first_name_fails(
         self, async_test_client: AsyncClient
     ) -> None:
+        """Partial payload should fail since all fields are required."""
         client = async_test_client
         payload = {"first_name": "Solo"}
         response = await client.patch("/users/onboarding/profile", json=payload)
-        assert response.status_code == HTTPStatus.OK
-        assert response.json()["data"]["profile"]["first_name"] == "Solo"
+        assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
