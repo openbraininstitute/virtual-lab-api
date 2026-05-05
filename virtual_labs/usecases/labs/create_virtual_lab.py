@@ -1,8 +1,8 @@
-from contextlib import contextmanager
+from contextlib import asynccontextmanager
 from datetime import timezone
 from decimal import Decimal
 from http import HTTPStatus
-from typing import Iterator, Literal, TypedDict
+from typing import AsyncIterator, Literal, TypedDict
 from uuid import UUID, uuid4
 
 from loguru import logger
@@ -187,7 +187,7 @@ async def create_virtual_lab(
             )
 
     # 4. Save lab to db
-    with handle_vlab_creation_errors(groups=groups, group_repo=group_repo):
+    async with handle_vlab_creation_errors(db=db, groups=groups, group_repo=group_repo):
         lab_with_ids = repository.VirtualLabDbCreate(
             id=new_lab_id,
             owner_id=owner_id,
@@ -245,6 +245,8 @@ async def create_virtual_lab(
         if user.get("email", owner_email) is not None:
             await send_welcome_email(owner_email)
 
+        await db.commit()
+
         created_lab = domain.CreateLabOut(
             virtual_lab=lab_details,
         )
@@ -275,7 +277,9 @@ async def create_course_vlab(
     if settings.ACCOUNTING_BASE_URL is not None:
         try:
             await accounting_cases.create_virtual_lab_account(
-                virtual_lab_id=new_lab_id, name=lab.name, balance=Decimal(0)
+                virtual_lab_id=new_lab_id,
+                name=lab.name,
+                balance=Decimal(0),
             )
 
         except Exception as ex:
@@ -297,7 +301,7 @@ async def create_course_vlab(
             )
 
     # Create lab in database
-    with handle_vlab_creation_errors(groups=groups, group_repo=group_repo):
+    async with handle_vlab_creation_errors(db=db, groups=groups, group_repo=group_repo):
         lab_with_ids = repository.VirtualLabDbCreate(
             id=new_lab_id,
             owner_id=user_id,
@@ -308,6 +312,9 @@ async def create_course_vlab(
 
         db_lab = await repository.create_virtual_lab(db, lab_with_ids)
         lab_details = domain.VirtualLabDetails.model_validate(db_lab)
+
+        await db.commit()
+
         created_lab = domain.CreateLabOut(
             virtual_lab=lab_details,
         )
@@ -328,13 +335,14 @@ def _cleanup_kc_groups(
         logger.error(f"Error cleaning up KC groups: {cleanup_error}")
 
 
-@contextmanager
-def handle_vlab_creation_errors(
-    groups: GroupIds, group_repo: GroupMutationRepository
-) -> Iterator[None]:
+@asynccontextmanager
+async def handle_vlab_creation_errors(
+    db: AsyncSession, groups: GroupIds, group_repo: GroupMutationRepository
+) -> AsyncIterator[None]:
     try:
         yield
     except IntegrityError as error:
+        await db.rollback()
         _cleanup_kc_groups(groups, group_repo, "database error")
         logger.error(f"Virtual lab could not be created due to database error {error}")
         raise VliError(
@@ -343,6 +351,7 @@ def handle_vlab_creation_errors(
             http_status_code=HTTPStatus.CONFLICT,
         )
     except SQLAlchemyError as error:
+        await db.rollback()
         _cleanup_kc_groups(groups, group_repo, "database error")
         logger.error(
             f"Virtual lab could not be created due to an unknown database error {error}"
@@ -353,9 +362,11 @@ def handle_vlab_creation_errors(
             http_status_code=HTTPStatus.BAD_REQUEST,
         )
     except VliError as error:
+        await db.rollback()
         _cleanup_kc_groups(groups, group_repo, "VLI error")
         raise error
     except Exception as error:
+        await db.rollback()
         _cleanup_kc_groups(groups, group_repo, "unknown error")
         logger.error(
             f"Virtual lab could not be created due to an unknown error {error}"

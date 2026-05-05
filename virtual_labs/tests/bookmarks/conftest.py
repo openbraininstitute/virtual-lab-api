@@ -1,8 +1,11 @@
 from typing import AsyncGenerator
 from uuid import uuid4
 
+import pytest
 import pytest_asyncio
 from httpx import AsyncClient, Response
+
+pytestmark = pytest.mark.skip(reason="Bookmarks are deprecated")
 
 
 @pytest_asyncio.fixture

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
 from datetime import datetime
 from enum import Enum
+from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, List, Optional, TypedDict
 
 from pydantic import (
@@ -22,6 +24,15 @@ from virtual_labs.infrastructure.db.models import SpeciesSelectionMode
 if TYPE_CHECKING:
     from virtual_labs.domain.labs import VirtualLabDetails
     from virtual_labs.domain.project import ProjectVlOut
+
+_VALID_COUNTRY_CODES: set[str] = {
+    entry["code"]
+    for entry in json.loads(
+        (Path(__file__).resolve().parent.parent / "static" / "country.json").read_text(
+            encoding="utf-8"
+        )
+    )
+}
 
 
 class ShortenedUser(BaseModel):
@@ -71,6 +82,15 @@ class UserAgentResponse(BaseModel):
     type: list[str]
 
 
+class UpdateAddress(BaseModel):
+    """Address payload for profile updates"""
+
+    street: Optional[str] = None
+    postal_code: Optional[str] = None
+    locality: Optional[str] = None
+    region: Optional[str] = None
+
+
 class Address(BaseModel):
     """User address information"""
 
@@ -101,10 +121,34 @@ class UserProfile(BaseModel):
 
 
 class UpdateUserProfileRequest(BaseModel):
-    email: Optional[EmailStr] = None
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    address: Optional[Address] = None
+    email: EmailStr
+    country: str = Field(min_length=2, max_length=2)
+    first_name: str
+    last_name: str
+    address: Optional[UpdateAddress] = None
+
+    @field_validator("country")
+    @classmethod
+    def validate_country_code(cls, v: str) -> str:
+        code = v.upper()
+        if code not in _VALID_COUNTRY_CODES:
+            raise ValueError(f"Invalid ISO 3166-1 alpha-2 country code: {v}")
+        return code
+
+
+class OnboardingUpdateUserProfileRequest(BaseModel):
+    email: EmailStr
+    country: str = Field(min_length=2, max_length=2)
+    first_name: str
+    last_name: str
+
+    @field_validator("country")
+    @classmethod
+    def validate_country_code(cls, v: str) -> str:
+        code = v.upper()
+        if code not in _VALID_COUNTRY_CODES:
+            raise ValueError(f"Invalid ISO 3166-1 alpha-2 country code: {v}")
+        return code
 
 
 class UserProfileResponse(BaseModel):

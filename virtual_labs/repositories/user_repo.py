@@ -108,6 +108,11 @@ class UserQueryRepository:
     async def get_user_info(self, token: str) -> UserInfo:
         return cast(UserInfo, await self.Kc_auth.a_userinfo(token=token))
 
+    async def a_check_email_exists(self, email: str) -> bool:
+        """Check if an email is already registered in Keycloak (async)."""
+        users = await self.Kc.a_get_users({"email": email, "exact": "true"})
+        return isinstance(users, list) and len(users) > 0
+
 
 class UserMutationRepository:
     Kc: KeycloakAdmin

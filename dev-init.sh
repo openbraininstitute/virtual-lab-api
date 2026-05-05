@@ -1,7 +1,6 @@
 #!/bin/bash
 
 set -o errexit
-set -x
 # Keycloak details - replace these with your actual values
 KC_SERVER_URI="http://localhost:9090"
 KC_REALM_NAME="obp-realm"
@@ -60,6 +59,102 @@ fi
 
 # Additional wait to ensure realm is fully imported
 sleep 5
+
+# disable SSL requirement on the master realm so the admin console is accessible over HTTP locally
+echo "disabling SSL requirement on master realm..."
+echo "🔐 Configuring Keycloak admin credentials..."
+docker exec keycloak /opt/keycloak/bin/kcadm.sh config credentials \
+  --server http://localhost:9090 \
+  --realm master \
+  --user admin \
+  --password admin
+docker exec keycloak /opt/keycloak/bin/kcadm.sh update realms/master -s sslRequired=NONE
+echo "✅ Master realm SSL requirement disabled"
+
+echo "🔧 Disabling email/profile verification for test realm..."
+docker exec keycloak /opt/keycloak/bin/kcadm.sh update realms/obp-realm -s verifyEmail=false
+docker exec keycloak /opt/keycloak/bin/kcadm.sh update authentication/required-actions/VERIFY_EMAIL -r obp-realm -s enabled=false
+docker exec keycloak /opt/keycloak/bin/kcadm.sh update authentication/required-actions/VERIFY_PROFILE -r obp-realm -s enabled=false
+echo "✅ VERIFY_EMAIL and VERIFY_PROFILE disabled"
+
+echo "📋 Registering custom user profile attributes..."
+cat > /tmp/kc-user-profile.json <<'EOF'
+{
+  "unmanagedAttributePolicy": "ADMIN_EDIT",
+  "attributes": [
+    {
+      "name": "username",
+      "displayName": "${username}",
+      "permissions": { "view": ["admin", "user"], "edit": ["admin"] },
+      "validations": { "length": { "min": 3, "max": 255 }, "username-prohibited-characters": {} }
+    },
+    {
+      "name": "email",
+      "displayName": "${email}",
+      "permissions": { "view": ["admin", "user"], "edit": ["admin", "user"] },
+      "validations": { "email": {}, "length": { "max": 255 } }
+    },
+    {
+      "name": "firstName",
+      "displayName": "${firstName}",
+      "permissions": { "view": ["admin", "user"], "edit": ["admin", "user"] },
+      "validations": { "length": { "max": 255 }, "person-name-prohibited-characters": {} }
+    },
+    {
+      "name": "lastName",
+      "displayName": "${lastName}",
+      "permissions": { "view": ["admin", "user"], "edit": ["admin", "user"] },
+      "validations": { "length": { "max": 255 }, "person-name-prohibited-characters": {} }
+    },
+    {
+      "name": "country",
+      "displayName": "Country",
+      "permissions": { "view": ["admin", "user"], "edit": ["admin", "user"] },
+      "validations": {}
+    },
+    {
+      "name": "street",
+      "displayName": "Street",
+      "permissions": { "view": ["admin", "user"], "edit": ["admin", "user"] },
+      "validations": {}
+    },
+    {
+      "name": "postal_code",
+      "displayName": "Postal Code",
+      "permissions": { "view": ["admin", "user"], "edit": ["admin", "user"] },
+      "validations": {}
+    },
+    {
+      "name": "locality",
+      "displayName": "Locality",
+      "permissions": { "view": ["admin", "user"], "edit": ["admin", "user"] },
+      "validations": {}
+    },
+    {
+      "name": "region",
+      "displayName": "Region",
+      "permissions": { "view": ["admin", "user"], "edit": ["admin", "user"] },
+      "validations": {}
+    },
+    {
+      "name": "plan",
+      "displayName": "Subscription Plan",
+      "permissions": { "view": ["admin", "user"], "edit": ["admin"] },
+      "validations": {}
+    },
+    {
+      "name": "virtual_lab_id",
+      "displayName": "Virtual Lab ID",
+      "permissions": { "view": ["admin", "user"], "edit": ["admin"] },
+      "validations": {}
+    }
+  ]
+}
+EOF
+docker cp /tmp/kc-user-profile.json keycloak:/tmp/kc-user-profile.json
+docker exec keycloak /opt/keycloak/bin/kcadm.sh update realms/obp-realm/users/profile -r obp-realm -f /tmp/kc-user-profile.json
+rm -f /tmp/kc-user-profile.json
+echo "✅ User profile attributes registered (country, street, postal_code, locality, region, plan, virtual_lab_id)"
 
 make init-db
 

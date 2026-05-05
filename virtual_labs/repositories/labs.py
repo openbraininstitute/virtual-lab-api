@@ -118,7 +118,7 @@ async def create_virtual_lab(db: AsyncSession, lab: VirtualLabDbCreate) -> Virtu
         compute_cell=lab.compute_cell,
     )
     db.add(db_lab)
-    await db.commit()
+    await db.flush()
     await db.refresh(db_lab)
     return db_lab
 

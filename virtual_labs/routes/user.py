@@ -1,3 +1,4 @@
+from http import HTTPStatus
 from typing import Annotated, Dict, Tuple
 
 from fastapi import APIRouter, Depends, Header, Response
@@ -15,6 +16,7 @@ from virtual_labs.domain.user import (
     OnboardingFeature,
     OnboardingStatus,
     OnboardingUpdateRequest,
+    OnboardingUpdateUserProfileRequest,
     SetRecentWorkspaceRequest,
     UpdateUserProfileRequest,
     UserGroupsResponse,
@@ -36,9 +38,11 @@ from virtual_labs.infrastructure.redis.email_rate_limit import (
 from virtual_labs.usecases import email_verification as email_verification_usecases
 from virtual_labs.usecases.labs.get_user_stats import get_user_stats
 from virtual_labs.usecases.users import (
+    check_email_availability,
     get_user_onboarding_status,
     get_user_profile,
     get_workspace_hierarchy_species_preference,
+    onboarding_update_user_profile,
     reset_all_user_onboarding_status,
     reset_user_onboarding_status,
     set_recent_workspace,
@@ -100,6 +104,53 @@ async def update_profile_endpoint(
         auth=auth,
         session=session,
     )
+
+
+@router.patch(
+    "/onboarding/profile",
+    summary="Update user profile",
+    description="Update the profile information for the authenticated user",
+    response_model=VliAppResponse[UserProfileResponse],
+    response_model_exclude_none=False,
+)
+async def update_onboarding_user_profile(
+    payload: OnboardingUpdateUserProfileRequest,
+    session: AsyncSession = Depends(default_session_factory),
+    auth: Tuple[AuthUser, str] = Depends(a_verify_jwt),
+) -> Response:
+    """
+    update the profile information for the authenticated user.
+
+    Args:
+        payload: The user profile data to update
+
+    Returns:
+        Response: the updated user profile information
+    """
+    return await onboarding_update_user_profile(
+        payload=payload,
+        auth=auth,
+        session=session,
+    )
+
+
+@router.get(
+    "/profile/email/_check",
+    summary="Check email availability",
+    description="Check if an email address is available for use during onboarding. Returns 204 if available, 422 if already taken.",
+    status_code=HTTPStatus.NO_CONTENT,
+)
+async def check_email_availability_endpoint(
+    email: EmailStr,
+    auth: Tuple[AuthUser, str] = Depends(a_verify_jwt),
+) -> Response:
+    """
+    Check whether the provided email is available for the authenticated user.
+
+    Returns:
+        204 No Content if available, 422 if already taken.
+    """
+    return await check_email_availability(email=email, auth=auth)
 
 
 @router.get(
