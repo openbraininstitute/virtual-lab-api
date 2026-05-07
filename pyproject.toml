@@ -45,6 +45,7 @@ send_emails = "scripts.send_emails:run_async"
 manage-coupons = "scripts.manage_stripe_coupons:run_async"
 bulk-invite = "scripts.bulk_invite_to_project:run_async"
 migrate-tax-billing = "scripts.migrate_to_tax_billing:run"
+normalize-country = "scripts.normalize_user_country:run_async"
 
 [dependency-groups]
 dev = [
