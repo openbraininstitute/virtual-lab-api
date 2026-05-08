@@ -18,6 +18,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 load_dotenv("")
 
 _ENVS = Literal["development", "testing", "staging", "production"]
+_BILLING_TAX_BEHAVIOR = Literal["exclusive"]
+_BILLING_TAX_MISSING_COUNTRY_MODE = Literal["block", "skip"]
 
 
 def _is_valid_env(env: str | None) -> TypeGuard[_ENVS]:
@@ -79,6 +81,13 @@ class Settings(BaseSettings):
     STRIPE_SECRET_KEY: str = ""
     STRIPE_DEVICE_NAME: str = ""
     STRIPE_WEBHOOK_SECRET: str = getenv("STRIPE_WEBHOOK_SECRET", "")
+    STRIPE_API_VERSION: str = "2024-04-10"
+    STRIPE_CREDIT_TAX_CODE: str | None = None
+
+    BILLING_TAX_ENABLED: bool = True
+    BILLING_TAX_ENABLED_COUNTRIES: str = "CH"
+    BILLING_TAX_BEHAVIOR: _BILLING_TAX_BEHAVIOR = "exclusive"
+    BILLING_TAX_MISSING_COUNTRY_MODE: _BILLING_TAX_MISSING_COUNTRY_MODE = "block"
 
     ACCOUNTING_BASE_URL: str | None = None
 
@@ -142,6 +151,33 @@ class Settings(BaseSettings):
                 "ACCOUNTING_BASE_URL should be set for non-local deployments"
             )
         return value
+
+    @field_validator("STRIPE_CREDIT_TAX_CODE", mode="before")
+    @classmethod
+    def normalize_credit_tax_code(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        value = value.strip()
+        return value or None
+
+    @field_validator("BILLING_TAX_ENABLED_COUNTRIES")
+    @classmethod
+    def normalize_billing_tax_enabled_countries(cls, value: str) -> str:
+        countries = [country.strip().upper() for country in value.split(",")]
+        normalized = list(dict.fromkeys(country for country in countries if country))
+        invalid_countries = [
+            country
+            for country in normalized
+            if len(country) != 2 or not country.isalpha()
+        ]
+        if invalid_countries:
+            raise ValueError(
+                "BILLING_TAX_ENABLED_COUNTRIES must contain ISO 3166-1 alpha-2 "
+                f"country codes: {', '.join(invalid_countries)}"
+            )
+        if not normalized:
+            raise ValueError("BILLING_TAX_ENABLED_COUNTRIES cannot be empty")
+        return ",".join(normalized)
 
     @field_validator("PAID_SUBSCRIPTION_DISCOUNT")
     @classmethod

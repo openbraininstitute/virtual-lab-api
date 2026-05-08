@@ -146,20 +146,32 @@ async def generate_setup_intent(
     summary="Create a standalone payment for the authenticated user",
     description=dedent(
         """
-    This endpoint creates a standalone payment for the authenticated user.
+    This endpoint creates a standalone credit payment from a valid billing quote.
     
     It ensures the user has a Stripe customer ID, creates one if needed,
-    and then processes the payment using the provided payment method.
+    updates the Stripe customer billing address, and then processes the payment
+    using the provided payment method.
     
     The payment is recorded in the database as a standalone payment
-    (not associated with any subscription).
+    (not associated with any subscription). Credits are granted from the quote
+    subtotal so exclusive VAT does not increase purchased credits.
+
+    Create the quote first with `POST /billing/quotes`.
     
     ### Example request:
     ```json
     {
-        "amount": 5000,  // $50.00
-        "currency": "chf",
+        "quote_id": "4a8f93fa-5c2d-4f64-9968-ec907dd021aa",
+        "virtual_lab_id": "5c0dd3f5-0d47-45a1-95a8-fdccb36fdf5f",
         "payment_method_id": "pm_card_visa",
+        "billing_address": {
+            "name": "Ada Lovelace",
+            "line1": "Rue de Lausanne 1",
+            "city": "Geneva",
+            "postal_code": "1201",
+            "country": "CH"
+        },
+        "sync_billing_address_to_profile": true
     }
     ```
     """

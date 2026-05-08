@@ -60,7 +60,9 @@ class SubscriptionRepository:
         return result.scalars().first()
 
     async def get_active_subscription_by_user_id(
-        self, user_id: UUID, subscription_type: Optional[Literal["free", "paid"]] = None
+        self,
+        user_id: UUID,
+        subscription_type: Optional[Literal["free", "paid"]] = None,
     ) -> Optional[Subscription]:
         """
         get active subscription for a user (type free or paid)
@@ -102,6 +104,36 @@ class SubscriptionRepository:
         )
         result = await self.db_session.execute(stmt)
 
+        return result.scalars().first()
+
+    async def get_active_paid_subscription_locked(
+        self, user_id: UUID
+    ) -> Optional[PaidSubscription]:
+        """Same as `get_active_subscription_by_user_id(user_id, "paid")`
+        but takes a row-level lock for the duration of the surrounding
+        transaction.
+
+        Two concurrent `create_subscription` requests for the same user
+        would otherwise both pass the existence check, then both call
+        Stripe, and end up with two active paid subscriptions. With
+        `FOR UPDATE` on a SERIALIZABLE/READ COMMITTED session, the
+        second request blocks until the first commits, at which point
+        it sees the new row and can fail fast with `EntityAlreadyExists`.
+
+        Caller must already be inside `async with session.begin():`.
+        """
+        stmt = (
+            select(PaidSubscription)
+            .where(
+                and_(
+                    PaidSubscription.user_id == user_id,
+                    PaidSubscription.status == SubscriptionStatus.ACTIVE,
+                )
+            )
+            .order_by(PaidSubscription.created_at.desc())
+            .with_for_update()
+        )
+        result = await self.db_session.execute(stmt)
         return result.scalars().first()
 
     async def get_free_subscription_by_user_id(

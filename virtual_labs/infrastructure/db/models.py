@@ -26,6 +26,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
+from virtual_labs.domain.billing import BillingFlow, TaxBehavior, TaxStatus
 from virtual_labs.domain.bookmark import BookmarkCategory
 
 
@@ -514,7 +515,28 @@ class SubscriptionPayment(Base):
     card_exp_year: Mapped[int] = mapped_column(Integer, nullable=False)
 
     amount_paid: Mapped[int] = mapped_column(Integer, nullable=False)  # Amount in cents
+    amount_subtotal: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    amount_tax: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    amount_total: Mapped[int | None] = mapped_column(Integer, nullable=True)
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="usd")
+    tax_behavior: Mapped[TaxBehavior | None] = mapped_column(
+        SAEnum(TaxBehavior), nullable=True
+    )
+    tax_country: Mapped[str | None] = mapped_column(String(2), nullable=True)
+    tax_status: Mapped[TaxStatus | None] = mapped_column(
+        SAEnum(TaxStatus), nullable=True
+    )
+    billing_address_json: Mapped[Dict[str, Any] | None] = mapped_column(
+        JSON, nullable=True
+    )
+    stripe_tax_calculation_id: Mapped[str | None] = mapped_column(
+        String(255), nullable=True
+    )
+    billing_quote_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("billing_quote.id"), nullable=True, index=True
+    )
+    credit_base_amount: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    credits_purchased: Mapped[int | None] = mapped_column(Integer, nullable=True)
     status: Mapped[PaymentStatus] = mapped_column(
         SAEnum(PaymentStatus), nullable=False, index=True
     )
@@ -559,6 +581,50 @@ class SubscriptionTierEnum(str, Enum):
     FREE = "free"
     PRO = "pro"
     PREMIUM = "premium"
+
+
+class BillingQuote(Base):
+    __tablename__ = "billing_quote"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    virtual_lab_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("virtual_lab.id"), nullable=True, index=True
+    )
+    flow: Mapped[BillingFlow] = mapped_column(
+        SAEnum(BillingFlow), nullable=False, index=True
+    )
+    subscription_tier_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("subscription_tier.id"), nullable=True
+    )
+    interval: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    subtotal: Mapped[int] = mapped_column(Integer, nullable=False)
+    tax_amount: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    total: Mapped[int] = mapped_column(Integer, nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False, default="chf")
+    tax_behavior: Mapped[TaxBehavior] = mapped_column(
+        SAEnum(TaxBehavior), nullable=False
+    )
+    tax_country: Mapped[str | None] = mapped_column(String(2), nullable=True)
+    tax_status: Mapped[TaxStatus] = mapped_column(SAEnum(TaxStatus), nullable=False)
+    billing_address_json: Mapped[Dict[str, Any]] = mapped_column(JSON, nullable=False)
+    stripe_tax_calculation_id: Mapped[str | None] = mapped_column(
+        String(255), nullable=True
+    )
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=func.now(), onupdate=func.now(), nullable=False
+    )
 
 
 class SubscriptionTier(Base):

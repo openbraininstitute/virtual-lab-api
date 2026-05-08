@@ -105,6 +105,13 @@ call-non-callable = "warn"
 unused-type-ignore-comment = "ignore"
 
 
+[[tool.ty.overrides]]
+include = [
+    "virtual_labs/infrastructure/stripe/webhook.py",
+    "virtual_labs/infrastructure/stripe/extractors.py",
+    "virtual_labs/infrastructure/stripe/types.py",
+]
+
 
 [tool.ruff]
 # Exclude scripts directory from linting

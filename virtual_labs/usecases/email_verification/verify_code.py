@@ -19,7 +19,7 @@ from virtual_labs.infrastructure.settings import settings
 from virtual_labs.repositories import labs as lab_repository
 from virtual_labs.repositories.labs import update_virtual_lab_email_status
 from virtual_labs.repositories.user_repo import UserQueryRepository
-from virtual_labs.services.stripe_customer import ensure_stripe_customer
+from virtual_labs.services.stripe_customer import StripeCustomerService
 from virtual_labs.shared.utils.auth import get_user_id_from_auth
 
 
@@ -102,11 +102,11 @@ async def verify_email_code(
         )
 
         user = await user_query_repo.get_user(user_id=str(user_id))
-        await ensure_stripe_customer(
-            session=session,
+        await StripeCustomerService(session).ensure_customer_for_user(
+            user_id,
             email=email,
-            user_id=user_id,
             name=f"{user.get('firstName', '')} {user.get('lastName', '')}",
+            update_existing=True,
         )
 
         await rl.delete(code_key)

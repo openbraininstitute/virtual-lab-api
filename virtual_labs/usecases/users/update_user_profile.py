@@ -13,6 +13,7 @@ from virtual_labs.core.exceptions.generic_exceptions import (
     EntityNotFound,
 )
 from virtual_labs.core.response.api_response import VliResponse
+from virtual_labs.domain.billing import BillingAddress
 from virtual_labs.domain.user import (
     Address,
     OnboardingUpdateUserProfileRequest,
@@ -41,6 +42,7 @@ async def _sync_stripe_customer(
     stripe_user_repo: StripeUserQueryRepository,
     stripe_service: Any,
     stripe_user_mutation_repo: StripeUserMutationRepository,
+    billing_address: BillingAddress | None = None,
 ) -> None:
     """Create or update the Stripe customer with the given name and email."""
     customer = await stripe_user_repo.get_by_user_id(user_id=user_id)
@@ -50,6 +52,7 @@ async def _sync_stripe_customer(
             user_id=user_id,
             email=email,
             name=name,
+            address=billing_address,
         )
         if stripe_customer is None:
             raise EntityNotCreated("Stripe customer creation failed")
@@ -63,7 +66,29 @@ async def _sync_stripe_customer(
             customer_id=customer.stripe_customer_id,
             name=name,
             email=email,
+            address=billing_address,
         )
+
+
+def _billing_address_from_profile_payload(
+    payload: UpdateUserProfileRequest,
+) -> BillingAddress | None:
+    if payload.address is None:
+        return None
+    if not (
+        payload.address.street
+        and payload.address.locality
+        and payload.address.postal_code
+    ):
+        return None
+    return BillingAddress(
+        name=f"{payload.first_name} {payload.last_name}",
+        line1=payload.address.street,
+        city=payload.address.locality,
+        state=payload.address.region,
+        postal_code=payload.address.postal_code,
+        country=payload.country,
+    )
 
 
 async def _apply_kc_update(
@@ -186,6 +211,9 @@ async def update_user_profile(
             stripe_user_repo=stripe_user_repo,
             stripe_service=stripe_service,
             stripe_user_mutation_repo=stripe_user_mutation_repo,
+            billing_address=_billing_address_from_profile_payload(payload)
+            if payload.sync_billing_address
+            else None,
         )
 
         user_profile = await _build_user_profile(
