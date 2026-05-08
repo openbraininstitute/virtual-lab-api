@@ -29,7 +29,7 @@ from virtual_labs.repositories.user_repo import (
     UserMutationRepository,
     UserQueryRepository,
 )
-from virtual_labs.services.stripe_customer import ensure_stripe_customer
+from virtual_labs.services.stripe_customer import StripeCustomerService
 from virtual_labs.shared.utils.auth import (
     get_user_email_from_auth,
     get_user_id_from_auth,
@@ -235,11 +235,11 @@ async def create_virtual_lab(
         )
 
         user = await user_query_repo.get_user(user_id=str(owner_id))
-        await ensure_stripe_customer(
-            session=db,
-            user_id=owner_id,
+        await StripeCustomerService(db).ensure_customer_for_user(
+            owner_id,
             email=user.get("email", owner_email),
             name=f"{user.get('firstName', '')} {user.get('lastName', '')}",
+            update_existing=True,
         )
 
         if user.get("email", owner_email) is not None:

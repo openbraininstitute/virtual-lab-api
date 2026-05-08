@@ -67,6 +67,15 @@ markers = [
 exclude = "scripts/*"
 plugins = ["pydantic.mypy"]
 
+[[tool.mypy.overrides]]
+module = [
+    "virtual_labs.infrastructure.stripe.webhook",
+    "virtual_labs.infrastructure.stripe.extractors",
+    "virtual_labs.infrastructure.stripe.types",
+]
+disallow_untyped_defs = true
+warn_return_any = true
+
 
 
 [tool.ruff]

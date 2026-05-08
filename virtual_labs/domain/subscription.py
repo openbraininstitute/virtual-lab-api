@@ -5,6 +5,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from virtual_labs.domain.billing import BillingAddress
 from virtual_labs.infrastructure.db.models import (
     Subscription,
     SubscriptionStatus,
@@ -18,7 +19,13 @@ class StandalonePaymentResponse(BaseModel):
     """
 
     amount: float = Field(..., description="Amount paid in dollars")
+    amount_subtotal: int = Field(..., description="Amount excluding tax in cents")
+    amount_tax: int = Field(..., description="Tax amount in cents")
+    amount_total: int = Field(..., description="Total including tax in cents")
     currency: str = Field(..., description="Currency code (e.g., 'usd')")
+    tax_country: Optional[str] = Field(None, description="Tax country")
+    tax_behavior: Optional[str] = Field(None, description="Tax behavior")
+    tax_status: Optional[str] = Field(None, description="Tax status")
     status: str = Field(..., description="Payment status")
     receipt_url: Optional[str] = Field(None, description="URL to payment receipt")
     card_last4: str = Field(..., description="Last 4 digits of the card")
@@ -134,6 +141,11 @@ class CreateSubscriptionRequest(BaseModel):
     payment_method_id: str = Field(
         ..., description="stripe payment method id to use for billing"
     )
+    quote_id: Optional[UUID] = Field(None, description="billing quote id")
+    billing_address: BillingAddress = Field(..., description="billing address")
+    sync_billing_address_to_profile: bool = Field(
+        default=True, description="whether to save billing address to user profile"
+    )
     metadata: Optional[Dict[str, str]] = Field(
         default_factory=lambda: {},
         description="additional metadata for the subscription",
@@ -194,7 +206,14 @@ class SubscriptionPaymentItem(BaseModel):
 
     id: UUID = Field(..., description="Payment ID")
     amount_paid: int = Field(..., description="Amount paid in cents")
+    amount_subtotal: Optional[int] = Field(None, description="Amount excluding tax")
+    amount_tax: Optional[int] = Field(None, description="Tax amount")
+    amount_total: Optional[int] = Field(None, description="Total including tax")
     currency: str = Field(..., description="Currency code (e.g., 'usd')")
+    tax_country: Optional[str] = Field(None, description="Tax country")
+    tax_behavior: Optional[str] = Field(None, description="Tax behavior")
+    tax_status: Optional[str] = Field(None, description="Tax status")
+    credits_purchased: Optional[int] = Field(None, description="Credits purchased")
     status: str = Field(..., description="Payment status")
     payment_date: datetime = Field(..., description="Date of payment")
     card_brand: str = Field(..., description="Card brand used for payment")
