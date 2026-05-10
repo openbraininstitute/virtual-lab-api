@@ -1,9 +1,5 @@
 [
   {
-    "name": "Afghanistan",
-    "code": "AF"
-  },
-  {
     "name": "Åland Islands",
     "code": "AX"
   },
@@ -416,10 +412,6 @@
     "code": "ID"
   },
   {
-    "name": "Iran, Islamic Republic of",
-    "code": "IR"
-  },
-  {
     "name": "Iraq",
     "code": "IQ"
   },
@@ -726,10 +718,6 @@
   {
     "name": "Romania",
     "code": "RO"
-  },
-  {
-    "name": "Russian Federation",
-    "code": "RU"
   },
   {
     "name": "Rwanda",

@@ -70,7 +70,10 @@ lint-check:
 	poetry run ruff check
 
 style-check:
-	poetry run pre-commit run --all-files --config ./.pre-commit-config-ci.yaml
+	@echo "=== Lint Check ==="
+	poetry run ruff check .
+	@echo "=== Format Check ==="
+	poetry run ruff format --check --diff .
 
 type-check:
 	poetry run mypy . --strict --exclude 'alembic/'
