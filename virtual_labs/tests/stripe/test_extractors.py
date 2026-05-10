@@ -634,6 +634,32 @@ def test_get_card_details_returns_none_when_payment_method_is_id_string() -> Non
     assert extractors.get_card_details(pi) is None
 
 
+def test_get_card_details_falls_back_to_last_payment_error_for_failed_intent() -> None:
+    """Failed PaymentIntents (Radar block, declined card, etc.) null out
+    `payment_method` and stash the attempted PM under
+    `last_payment_error.payment_method`. Card details must still be
+    readable so the failure-path webhook can record them."""
+    payload = _payment_intent_payload(payment_method=None)
+    payload["last_payment_error"] = {
+        "code": "card_declined",
+        "payment_method": {
+            "id": "pm_failed",
+            "object": "payment_method",
+            "type": "card",
+            "card": {
+                "brand": "visa",
+                "last4": "4242",
+                "exp_month": 1,
+                "exp_year": 2028,
+            },
+        },
+    }
+    pi = _to_obj(payload)
+    assert extractors.get_card_details(pi) == CardDetails(
+        brand="visa", last4="4242", exp_month=1, exp_year=2028
+    )
+
+
 def test_get_card_details_returns_none_when_no_card_block() -> None:
     pi = _to_obj(
         _payment_intent_payload(
