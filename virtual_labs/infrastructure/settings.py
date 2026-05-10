@@ -59,9 +59,9 @@ class Settings(BaseSettings):
     KC_CLIENT_ID: str = "obpapp"
     KC_CLIENT_SECRET: str = "obp-secret"
     KC_REALM_NAME: str = "obp-realm"
-    DEPLOYMENT_NAMESPACE: str = "https://openbrainplatform.org"
+    DEPLOYMENT_NAMESPACE: str = "https://openbraininstitute.org"
     LANDING_NAMESPACE: str = "https://openbraininstitute.org"
-    VLAB_ADMIN_PATH: str = "/app/virtual-lab/account/subscription"
+    VLAB_ADMIN_PATH: str = "/app/virtual-lab/sync"
 
     MAIL_USERNAME: str = "dummyusername"
     MAIL_PASSWORD: SecretStr = SecretStr("dummypassword")
