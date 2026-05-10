@@ -19,10 +19,10 @@ import stripe
 
 from virtual_labs.domain.billing import TaxBehavior, TaxStatus
 from virtual_labs.infrastructure.db.models import PaymentStatus
-from virtual_labs.infrastructure.stripe._access import (
+from virtual_labs.infrastructure.stripe.access import (
     expandable_id as _id_from_expandable,
 )
-from virtual_labs.infrastructure.stripe._access import (
+from virtual_labs.infrastructure.stripe.access import (
     field_value as _field,
 )
 from virtual_labs.infrastructure.stripe.types import (
@@ -49,7 +49,7 @@ SUBSCRIPTION_DELETED_EVENTS: frozenset[str] = frozenset(
     }
 )
 
-# Union of all subscription events the dispatcher cares about.
+# union of all subscription events the dispatcher cares about.
 SUBSCRIPTION_UPDATE_EVENTS: frozenset[str] = (
     SUBSCRIPTION_UPSERT_EVENTS | SUBSCRIPTION_DELETED_EVENTS
 )
@@ -78,7 +78,7 @@ def resource_id_from_event(event: stripe.Event) -> str | None:
     """Return the id of the resource the event refers to.
 
     Bridge for the v1 → v2 events migration:
-      - v1 (today): the resource is inlined as `event.data.object`; we read
+      - v1 (current): the resource is inlined as `event.data.object`; we read
         its `id`.
       - v2 (later): thin events carry only `event.related_object: {id, url,
         type}`; this function will pivot to that field. Every handler
@@ -150,7 +150,7 @@ def extract_subscription_pricing(
 ) -> SubscriptionPricing | None:
     """Extract pricing fields from the first subscription item.
 
-    Returns `None` when the subscription has no items — callers should treat
+    returns `None` when the subscription has no items — callers should treat
     that as "leave pricing fields untouched on the local model" to match the
     legacy behavior.
     """
@@ -208,7 +208,7 @@ def get_billing_cycle_anchor(sub: stripe.Subscription) -> datetime | None:
 def _invoice_subscription_details(invoice: stripe.Invoice) -> object | None:
     """Locate the `subscription_details` block on an Invoice.
 
-    Stripe's Billing model (api_version 2024-04-10+) moved this from the
+    stripe's Billing model (api_version 2024-04-10+) moved this from the
     invoice root to `invoice.parent.subscription_details`. We try the new
     shape first, then fall back to the legacy top-level field for older
     accounts. Returns whichever is populated; `None` when the invoice
@@ -258,7 +258,7 @@ def get_subscription_id_from_invoice(invoice: stripe.Invoice) -> str | None:
 def get_payment_intent_id_from_invoice(invoice: stripe.Invoice) -> str | None:
     """Read the payment intent id off an Invoice.
 
-    Falls back to `invoice.confirmation_secret.payment_intent` when the
+    falls back to `invoice.confirmation_secret.payment_intent` when the
     legacy top-level `payment_intent` field is absent (Billing model).
     """
     legacy = _id_from_expandable(_field(invoice, "payment_intent"))
@@ -417,9 +417,26 @@ def _stripe_object_to_str_dict(obj: object) -> dict[str, str]:
 
 # PaymentIntent
 def get_card_details(pi: stripe.PaymentIntent) -> CardDetails | None:
+    """Read the card used for a PaymentIntent, success or failure.
+
+    on a successful PI the live payment method is on
+    ``pi.payment_method``, on a PI that was rejected before capture
+    (Radar block, declined card, abandoned 3DS, etc.) Stripe nulls
+    out ``pi.payment_method`` and stashes the attempted PM under
+    ``pi.last_payment_error.payment_method``. we probe both so the
+    failure-path webhook still records the card the user tried
+    """
     pm = _field(pi, "payment_method")
     if pm is None or isinstance(pm, str):
-        return None
+        last_error = _field(pi, "last_payment_error")
+        if last_error is not None:
+            fallback_pm = _field(last_error, "payment_method")
+            if fallback_pm is not None and not isinstance(fallback_pm, str):
+                pm = fallback_pm
+            else:
+                return None
+        else:
+            return None
     card = _field(pm, "card")
     if card is None:
         return None
@@ -473,7 +490,7 @@ def get_payment_intent_amounts(
     )
 
 
-# Status / enum conversion
+# status/enum conversion
 def payment_status_from_event_type(event_type: str) -> PaymentStatus:
     if "succeeded" in event_type or "paid" in event_type:
         return PaymentStatus.SUCCEEDED

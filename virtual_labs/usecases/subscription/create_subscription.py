@@ -27,6 +27,7 @@ best-effort; the eventual-consistency boundary is the webhook.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from http import HTTPStatus
 from uuid import UUID
 
@@ -35,21 +36,18 @@ from fastapi import Response
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dataclasses import dataclass
-
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.exceptions.generic_exceptions import (
     EntityAlreadyExists,
     EntityNotCreated,
 )
 from virtual_labs.core.response.api_response import VliResponse
-from virtual_labs.domain.billing import BillingAddress, BillingFlow
+from virtual_labs.domain.billing import BillingAddress, BillingFlow, TaxStatus
 from virtual_labs.domain.subscription import (
     CreateSubscriptionRequest,
     IntervalType,
     SubscriptionDetails,
 )
-from virtual_labs.domain.billing import TaxStatus
 from virtual_labs.infrastructure.db.models import (
     PaidSubscription,
     SubscriptionTierEnum,
@@ -198,6 +196,12 @@ async def create_subscription(
             error_code=VliErrorCode.ENTITY_NOT_FOUND,
             http_status_code=HTTPStatus.BAD_REQUEST,
             message=str(exc),
+        )
+    except stripe._error.CardError as ex:
+        raise VliError(
+            error_code=VliErrorCode.PAYMENT_ERROR,
+            http_status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            message=ex.user_message,
         )
     except VliError:
         raise

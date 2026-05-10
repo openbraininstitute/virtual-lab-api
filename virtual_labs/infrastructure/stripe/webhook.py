@@ -45,7 +45,7 @@ from virtual_labs.utils.subscription_type_resolver import resolve_tier
 # TTL for webhook idempotency keys (3 days covers Stripe's retry window)
 _WEBHOOK_IDEMPOTENCY_TTL_SECONDS: int = 259_200
 
-# Stripe expand params shared by every subscription / payment-intent retrieval
+# stripe expand params shared by every subscription / payment-intent retrieval
 _SUBSCRIPTION_EXPAND: list[str] = [
     "default_payment_method",
     "latest_invoice",
@@ -104,9 +104,7 @@ class StripeWebhook:
             },
         }
 
-    # ------------------------------------------------------------------
     # Entry point
-    # ------------------------------------------------------------------
 
     async def handle_webhook_event(
         self,
@@ -803,9 +801,7 @@ class StripeWebhook:
             )
         )
 
-    # ------------------------------------------------------------------
     # Standalone payment events
-    # ------------------------------------------------------------------
 
     async def _handle_standalone_payment_event(
         self,
@@ -939,7 +935,7 @@ class StripeWebhook:
         db_session: AsyncSession,
         deferred: PostCommitActions,
     ) -> SubscriptionPayment | None:
-        # Phase 1: idempotency on the payment intent
+        # idempotency on the payment intent
         payment, already_succeeded = await self._find_or_create_standalone_payment(
             db_session,
             event_obj,
@@ -966,19 +962,20 @@ class StripeWebhook:
             payment, amounts, metadata, db_session
         )
 
+        payment.payment_date = datetime.now()
+
         # success-only credit conversion + accounting top-up
         if payment.status == PaymentStatus.SUCCEEDED:
-            payment.payment_date = datetime.now()
             credits = await self.credit_converter.currency_to_credits(
                 amounts.subtotal, payment.currency
             )
             payment.credits_purchased = int(credits)
-            # Commit the tax calculation as a Stripe Tax Transaction so the
+            # commit the tax calculation as a Stripe Tax Transaction so the
             # tax shows up in the dashboard. Subscriptions get this for free
             # via `automatic_tax`; standalone PaymentIntents must commit
-            # explicitly. 
+            # explicitly.
             # Deferred so it runs only after the local DB
-            # transaction commits — keeps Stripe and our DB in sync.
+            # transaction commits, keeps Stripe and our DB in sync
             calculation_id = payment.stripe_tax_calculation_id
             if calculation_id:
                 deferred.add(
@@ -1014,7 +1011,7 @@ class StripeWebhook:
         db_session.add(payment)
         return payment
 
-    # Standalone payment helpers
+    # standalone payment helpers
     async def _find_or_create_standalone_payment(
         self,
         db_session: AsyncSession,
@@ -1065,12 +1062,25 @@ class StripeWebhook:
             payment.stripe_charge_id = charge.charge_id
             payment.receipt_url = charge.receipt_url
 
+        # `card_*` columns are NOT NULL on `subscription_payment`. A
+        # PaymentIntent that fails before the card is captured (Radar
+        # block, declined card, abandoned 3DS, etc.) may carry no PM
+        # info on the PI itself; `get_card_details` already falls back
+        # to `last_payment_error.payment_method`, but if even that is
+        # missing we still need to satisfy the schema. Default to the
+        # same placeholders `get_card_details` uses when card fields
+        # are present but empty.
         card = helpers.get_card_details(payment_intent)
-        if card is not None:
-            payment.card_brand = card.brand
-            payment.card_last4 = card.last4
-            payment.card_exp_month = card.exp_month
-            payment.card_exp_year = card.exp_year
+        if card is None:
+            payment.card_brand = payment.card_brand or "unknown"
+            payment.card_last4 = payment.card_last4 or "0000"
+            payment.card_exp_month = payment.card_exp_month or 1
+            payment.card_exp_year = payment.card_exp_year or 2000
+            return
+        payment.card_brand = card.brand
+        payment.card_last4 = card.last4
+        payment.card_exp_month = card.exp_month
+        payment.card_exp_year = card.exp_year
 
     async def _apply_standalone_amounts_and_tax(
         self,
@@ -1086,7 +1096,7 @@ class StripeWebhook:
         payment.tax_behavior = helpers.tax_behavior_from_metadata(metadata)
         payment.tax_country = metadata.get("tax_country") or None
         payment.tax_status = helpers.tax_status_from_metadata(metadata)
-        # Stripe's Payment Intents + Tax integration stores the calculation
+        # stripe's Payment Intents + Tax integration stores the calculation
         # id under `metadata.tax_calculation` on the PaymentIntent itself
         # read it straight from the event payload rather than relying on the
         # caller-supplied `stripe_tax_calculation_id` mirror.
