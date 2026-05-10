@@ -21,7 +21,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
-from virtual_labs.infrastructure.stripe._access import field_value, first_item
+from virtual_labs.infrastructure.stripe.access import field_value, first_item
 
 
 def get_subscription_period_datetimes(

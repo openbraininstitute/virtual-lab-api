@@ -125,7 +125,7 @@ async def create_standalone_payment(
             subscription_id=subscription_id,
             quote=quote,
         )
-
+        print("@@payment_intent@@", payment_intent)
         await deferred.run()
 
         # synchronous response from the typed Stripe objects.
@@ -164,7 +164,14 @@ async def create_standalone_payment(
         )
     except VliError:
         raise
-    except Exception:
+    except stripe._error.CardError as ex:
+        raise VliError(
+            error_code=VliErrorCode.PAYMENT_ERROR,
+            http_status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            message=ex.user_message,
+        )
+    except Exception as ex:
+        print("@@@ex", ex)
         logger.exception("Unexpected error creating standalone payment")
         raise VliError(
             error_code=VliErrorCode.INTERNAL_SERVER_ERROR,

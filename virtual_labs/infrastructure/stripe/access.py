@@ -18,7 +18,7 @@ from typing import Any
 def field_value(source: Any, key: str) -> Any:
     """Read `source[key]` (Mapping) or `source.key` (object) safely.
 
-    Returns `None` for `source=None` or a missing key/attribute. Tolerates
+    returns `None` for `source=None` or a missing key/attribute. Tolerates
     StripeObject (dict subclass), plain dicts, dataclasses, and `SimpleNamespace`.
     """
     if source is None:
