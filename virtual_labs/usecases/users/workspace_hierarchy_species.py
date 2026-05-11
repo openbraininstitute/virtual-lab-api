@@ -10,11 +10,11 @@ from http import HTTPStatus
 from typing import Tuple
 from uuid import UUID
 
+from fastapi.responses import Response
 from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
-from starlette.responses import Response
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.response.api_response import VliResponse
