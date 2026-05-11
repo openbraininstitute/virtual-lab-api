@@ -62,6 +62,10 @@ from virtual_labs.services.billing import (
     is_tax_enabled_for_country,
     save_billing_address_to_user_profile,
 )
+from virtual_labs.services.payment_guard import (
+    CountryMismatchBlocked,
+    ensure_ch_country_match,
+)
 from virtual_labs.services.stripe_customer import (
     StripeCustomerCreationError,
     StripeCustomerService,
@@ -117,6 +121,15 @@ async def create_standalone_payment(
             stripe_service, customer_id, user, payload, tax_enabled
         )
 
+        # server-side replacement for the Stripe Radar CH-mismatch rule
+        # runs before any chargeable Stripe call so a block never
+        # results in a charge.
+        await ensure_ch_country_match(
+            stripe_service,
+            payment_method_id=payload.payment_method_id,
+            billing_country=payload.billing_address.country,
+        )
+
         payment_intent = await _create_stripe_payment_intent(
             stripe_service,
             customer_id=customer_id,
@@ -142,7 +155,6 @@ async def create_standalone_payment(
             message="User is not an admin of the virtual lab",
         )
     except EntityNotFound as exc:
-        # Internal-controlled message — safe to surface.
         raise VliError(
             error_code=VliErrorCode.ENTITY_NOT_FOUND,
             http_status_code=HTTPStatus.NOT_FOUND,
@@ -162,12 +174,22 @@ async def create_standalone_payment(
             http_status_code=HTTPStatus.BAD_REQUEST,
             message=str(exc),
         )
+    except CountryMismatchBlocked as exc:
+        raise VliError(
+            error_code=VliErrorCode.PAYMENT_ERROR,
+            http_status_code=HTTPStatus.PAYMENT_REQUIRED,
+            message=(
+                "Payment could not be completed with the provided payment information. "
+                "Please review your billing details and try again."
+            ),
+            details=str(exc),
+        )
     except VliError:
         raise
     except stripe._error.CardError as ex:
         raise VliError(
             error_code=VliErrorCode.PAYMENT_ERROR,
-            http_status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            http_status_code=HTTPStatus.PAYMENT_REQUIRED,
             message=ex.user_message,
         )
     except Exception:
