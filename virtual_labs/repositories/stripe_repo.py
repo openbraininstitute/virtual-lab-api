@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Dict, List, Optional, cast
+from typing import TYPE_CHECKING, Dict, List, Literal, Optional, cast, overload
 from uuid import UUID
 
 import stripe
@@ -18,61 +18,85 @@ if TYPE_CHECKING:
     from virtual_labs.domain.billing import BillingAddress
 
 
-def _billing_address_to_customer_create(
-    address: "BillingAddress",
-) -> CustomerService.CreateParamsAddress:
-    result = CustomerService.CreateParamsAddress()
-    if address.line1:
-        result["line1"] = address.line1
-    if address.line2:
-        result["line2"] = address.line2
-    if address.city:
-        result["city"] = address.city
-    if address.state:
-        result["state"] = address.state
-    if address.postal_code:
-        result["postal_code"] = address.postal_code
-    if address.country:
-        result["country"] = address.country
-    return result
+_AddressTarget = Literal["customer_create", "customer_update", "tax_calculation"]
+
+_AddressResult = (
+    CustomerService.CreateParamsAddress
+    | CustomerService.UpdateParamsAddress
+    | CalculationService.CreateParamsCustomerDetailsAddress
+)
 
 
-def _billing_address_to_customer_update(
-    address: "BillingAddress",
-) -> CustomerService.UpdateParamsAddress:
-    result = CustomerService.UpdateParamsAddress()
-    if address.line1:
-        result["line1"] = address.line1
-    if address.line2:
-        result["line2"] = address.line2
-    if address.city:
-        result["city"] = address.city
-    if address.state:
-        result["state"] = address.state
-    if address.postal_code:
-        result["postal_code"] = address.postal_code
-    if address.country:
-        result["country"] = address.country
-    return result
+@overload
+def _build_stripe_address(
+    address: "BillingAddress", target: Literal["customer_create"]
+) -> CustomerService.CreateParamsAddress: ...
 
 
-def _billing_address_to_tax_calculation(
-    address: "BillingAddress",
-) -> CalculationService.CreateParamsCustomerDetailsAddress:
-    result = CalculationService.CreateParamsCustomerDetailsAddress(
-        country=address.country or "",
-    )
-    if address.line1:
-        result["line1"] = address.line1
-    if address.line2:
-        result["line2"] = address.line2
-    if address.city:
-        result["city"] = address.city
-    if address.state:
-        result["state"] = address.state
-    if address.postal_code:
-        result["postal_code"] = address.postal_code
-    return result
+@overload
+def _build_stripe_address(
+    address: "BillingAddress", target: Literal["customer_update"]
+) -> CustomerService.UpdateParamsAddress: ...
+
+
+@overload
+def _build_stripe_address(
+    address: "BillingAddress", target: Literal["tax_calculation"]
+) -> CalculationService.CreateParamsCustomerDetailsAddress: ...
+
+
+def _build_stripe_address(
+    address: "BillingAddress", target: _AddressTarget
+) -> _AddressResult:
+    """Convert a BillingAddress into the Stripe-typed dict for the given context.
+
+    Uses @overload so each call site gets the exact return type it expects.
+    """
+    if target == "tax_calculation":
+        result_tax = CalculationService.CreateParamsCustomerDetailsAddress(
+            country=address.country or "",
+        )
+        if address.line1:
+            result_tax["line1"] = address.line1
+        if address.line2:
+            result_tax["line2"] = address.line2
+        if address.city:
+            result_tax["city"] = address.city
+        if address.state:
+            result_tax["state"] = address.state
+        if address.postal_code:
+            result_tax["postal_code"] = address.postal_code
+        return result_tax
+    elif target == "customer_create":
+        result_create = CustomerService.CreateParamsAddress()
+        if address.line1:
+            result_create["line1"] = address.line1
+        if address.line2:
+            result_create["line2"] = address.line2
+        if address.city:
+            result_create["city"] = address.city
+        if address.state:
+            result_create["state"] = address.state
+        if address.postal_code:
+            result_create["postal_code"] = address.postal_code
+        if address.country:
+            result_create["country"] = address.country
+        return result_create
+    else:
+        result_update = CustomerService.UpdateParamsAddress()
+        if address.line1:
+            result_update["line1"] = address.line1
+        if address.line2:
+            result_update["line2"] = address.line2
+        if address.city:
+            result_update["city"] = address.city
+        if address.state:
+            result_update["state"] = address.state
+        if address.postal_code:
+            result_update["postal_code"] = address.postal_code
+        if address.country:
+            result_update["country"] = address.country
+        return result_update
 
 
 class StripeRepository:
@@ -407,7 +431,9 @@ class StripeRepository:
                 },
             )
             if address is not None:
-                customer_data["address"] = _billing_address_to_customer_create(address)
+                customer_data["address"] = _build_stripe_address(
+                    address, "customer_create"
+                )
             if validate_tax_location:
                 customer_data["tax"] = {"validate_location": "immediately"}
                 customer_data["expand"] = ["tax"]
@@ -529,7 +555,9 @@ class StripeRepository:
                 update_params["name"] = name
 
             if address is not None:
-                update_params["address"] = _billing_address_to_customer_update(address)
+                update_params["address"] = _build_stripe_address(
+                    address, "customer_update"
+                )
 
             if validate_tax_location:
                 update_params["tax"] = {"validate_location": "immediately"}
@@ -568,7 +596,7 @@ class StripeRepository:
             params={
                 "currency": currency,
                 "customer_details": {
-                    "address": _billing_address_to_tax_calculation(address),
+                    "address": _build_stripe_address(address, "tax_calculation"),
                     "address_source": "billing",
                 },
                 "line_items": [
