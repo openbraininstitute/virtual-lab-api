@@ -68,6 +68,10 @@ from virtual_labs.services.billing import (
     is_tax_enabled_for_country,
     save_billing_address_to_user_profile,
 )
+from virtual_labs.services.payment_guard import (
+    CountryMismatchBlocked,
+    ensure_ch_country_match,
+)
 from virtual_labs.services.stripe_customer import (
     StripeCustomerCreationError,
     StripeCustomerService,
@@ -117,6 +121,16 @@ async def create_subscription(
         await _sync_customer_billing_address(
             stripe_service, customer_id, user, payload, tax_enabled
         )
+
+        # server-side replacement for the Stripe Radar CH-mismatch rule
+        # runs before the chargeable Stripe call so a block never
+        # creates a subscription.
+        await ensure_ch_country_match(
+            stripe_service,
+            payment_method_id=payload.payment_method_id,
+            billing_country=payload.billing_address.country,
+        )
+
         stripe_subscription = await _create_stripe_subscription(
             stripe_service,
             customer_id=customer_id,
@@ -189,18 +203,27 @@ async def create_subscription(
             message="Failed to create subscription with payment provider",
         )
     except ValueError as exc:
-        # Validation-style errors raised by quote / tier resolution.
-        # `str(exc)` is safe here because we control these messages.
+        # validation-style errors raised by quote/tier resolution.
         logger.warning(f"Subscription validation failed: {exc}")
         raise VliError(
             error_code=VliErrorCode.ENTITY_NOT_FOUND,
             http_status_code=HTTPStatus.BAD_REQUEST,
             message=str(exc),
         )
+    except CountryMismatchBlocked as exc:
+        raise VliError(
+            error_code=VliErrorCode.PAYMENT_ERROR,
+            http_status_code=HTTPStatus.PAYMENT_REQUIRED,
+            message=(
+                "Payment could not be completed with the provided payment information. "
+                "Please review your billing details and try again."
+            ),
+            details=str(exc),
+        )
     except stripe._error.CardError as ex:
         raise VliError(
             error_code=VliErrorCode.PAYMENT_ERROR,
-            http_status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            http_status_code=HTTPStatus.PAYMENT_REQUIRED,
             message=ex.user_message,
         )
     except VliError:

@@ -89,6 +89,13 @@ class Settings(BaseSettings):
     BILLING_TAX_BEHAVIOR: _BILLING_TAX_BEHAVIOR = "exclusive"
     BILLING_TAX_MISSING_COUNTRY_MODE: _BILLING_TAX_MISSING_COUNTRY_MODE = "block"
 
+    # Replaces the Stripe Radar rule that blocks payments when CH
+    # appears on exactly one of (card issuer country, payload billing
+    # country).
+    # Future: coordinate disabling the Radar rule with this flag to
+    # avoid a short double-block window.
+    BILLING_BLOCK_CH_COUNTRY_MISMATCH: bool = True
+
     ACCOUNTING_BASE_URL: str | None = None
 
     SENTRY_DSN: str | None = None
