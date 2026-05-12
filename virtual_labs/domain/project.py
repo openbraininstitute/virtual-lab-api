@@ -10,6 +10,7 @@ from pydantic import (
 )
 
 from virtual_labs.core.types import UserRoleEnum
+from virtual_labs.domain.labs import VirtualLabDetails
 from virtual_labs.domain.user import UserWithInviteStatus, Workspace
 
 
@@ -62,6 +63,24 @@ class ProjectVlOut(Project):
     virtual_lab_id: UUID4
     user_count: int = 0
     admins: List[str] | None
+
+
+class ProjectDetailOut(Project):
+    """Single-project response with opt-in expansions.
+
+    Always contains the base `Project` fields plus `virtual_lab_id`.
+    The `admin` and `virtual_lab` fields are populated only when the
+    caller passes `expand=admin` / `expand=virtual_lab`. When omitted
+    the fields are set to `None`; the route serializes with
+    `exclude_none=True` so the wire payload contains exactly what was
+    requested.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    virtual_lab_id: UUID4
+    admin: List[str] | None = None
+    virtual_lab: VirtualLabDetails | None = None
 
 
 class ProjectStats(BaseModel):

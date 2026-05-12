@@ -30,7 +30,6 @@ class VirtualLabBase(BaseModel):
     name: str = Field(max_length=250)
     description: str
     reference_email: EmailStr | None = None
-    email_verified: bool = False
     entity: str
     compute_cell: ComputeCell = ComputeCell.CELL_A
 
@@ -64,7 +63,6 @@ class VirtualLabDetails(VirtualLabBase):
     id: UUID4
     created_at: datetime
     updated_at: datetime | None = None
-    members_count: int | None = None
     projects_count: int | None = None
     course: Course | None = None
 
@@ -77,7 +75,6 @@ class VirtualLab(VirtualLabBase):
     id: UUID4
     created_at: datetime
     updated_at: datetime | None = None
-    members_count: int | None = None
     projects_count: int | None = None
     created_by: UUID4
     course: Course | None = None
