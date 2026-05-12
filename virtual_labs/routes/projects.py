@@ -17,14 +17,23 @@ from virtual_labs.core.authorization.verify_vlab_or_project_read import (
     verify_vlab_or_project_read,
 )
 from virtual_labs.core.exceptions.api_error import VliError
+from virtual_labs.core.gate import virtuallab_access
+from virtual_labs.core.gate.project import workspace_access
+from virtual_labs.core.gate.vlab import virtuallab_admin
 from virtual_labs.core.types import UserGroup, UserRoleEnum, VliAppResponse
-from virtual_labs.domain.common import PageParams, PaginatedResultsResponse
+from virtual_labs.domain.common import (
+    PageParams,
+    PaginatedResponse,
+    PaginatedResultsResponse,
+)
 from virtual_labs.domain.invite import InvitePayload
 from virtual_labs.domain.labs import InvitationResponse, ProjectVirtualLabMapping
 from virtual_labs.domain.project import (
     AddUserToProjectIn,
+    Project,
     ProjectCreationBody,
     ProjectDeletionOut,
+    ProjectDetailOut,
     ProjectExistenceOut,
     ProjectOut,
     ProjectPerVLCountOut,
@@ -42,6 +51,7 @@ from virtual_labs.domain.project import (
 )
 from virtual_labs.infrastructure.db.config import default_session_factory
 from virtual_labs.infrastructure.kc.auth import verify_jwt
+from virtual_labs.infrastructure.kc.grant import AuthUserGrants, parse_auth_grants
 from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.infrastructure.transport.httpx import httpx_factory
 from virtual_labs.shared.groups import ENTITYCORE_SERVICE_ADMIN_GROUP
@@ -79,7 +89,7 @@ async def retrieve_all_projects(
     response_model=VliAppResponse[ProjectWithVLOut],
 )
 async def search_projects(
-    q: str = Query(max_length=50, description="query string"),
+    q: str = Query(min_length=1, max_length=50, description="query string"),
     session: AsyncSession = Depends(default_session_factory),
     auth: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> Response | VliError:
@@ -206,12 +216,12 @@ async def retrieve_projects_per_vl_count(
     ),
     response_model=VliAppResponse[ProjectOut],
 )
-@verify_vlab_write
 async def create_new_project(
     virtual_lab_id: UUID4,
     payload: ProjectCreationBody,
     session: AsyncSession = Depends(default_session_factory),
     auth: Tuple[AuthUser, str] = Depends(verify_jwt),
+    _: AuthUserGrants = Depends(virtuallab_admin),
 ) -> Response | VliError:
     return await project_cases.create_new_project_use_case(
         session,
@@ -224,24 +234,29 @@ async def create_new_project(
 @router.get(
     "/{virtual_lab_id}/projects",
     operation_id="get_all_user_projects_per_vl",
-    summary="Retrieve all projects per virtual lab for the authenticated user (only allowed projects)",
-    response_model=VliAppResponse[PaginatedResultsResponse[ProjectVlOut]],
+    summary="List the projects in a virtual lab the requester can access",
+    response_model=VliAppResponse[PaginatedResponse[Project]],
 )
 async def retrieve_projects(
     virtual_lab_id: UUID4,
+    search: str | None = Query(
+        None,
+        min_length=1,
+        max_length=200,
+        description="Case-insensitive substring search over project name and description.",
+    ),
     page: int = Query(1, ge=1),
-    size: int = Query(20, ge=0),
+    size: int = Query(20, ge=1, le=100),
     session: AsyncSession = Depends(default_session_factory),
-    auth: Tuple[AuthUser, str] = Depends(verify_jwt),
-) -> Response | VliError:
-    return await project_cases.retrieve_all_user_projects_per_vl_use_case(
+    auth: Tuple[AuthUserGrants, str] = Depends(parse_auth_grants),
+    _: AuthUserGrants = Depends(virtuallab_access),
+) -> Response:
+    return await project_cases.list_vlab_projects_use_case(
         session,
         virtual_lab_id=virtual_lab_id,
         auth=auth,
-        pagination=PageParams(
-            page=page,
-            size=size,
-        ),
+        search=search,
+        pagination=PageParams(page=page, size=size),
     )
 
 
@@ -273,20 +288,28 @@ async def update_project_data(
 @router.get(
     "/{virtual_lab_id}/projects/{project_id}",
     operation_id="get_project_by_id",
-    summary="Retrieve single project detail per virtual lab",
-    response_model=VliAppResponse[ProjectVlOut],
+    summary="Retrieve a single project, optionally expanding admin/virtual_lab",
+    response_model=VliAppResponse[ProjectDetailOut],
 )
-@verify_vlab_or_project_read
 async def retrieve_project(
     virtual_lab_id: UUID4,
     project_id: UUID4,
+    expand: List[str] | None = Query(
+        None,
+        description=(
+            "Fields to expand. Pass once per value, e.g. "
+            "`?expand=admin&expand=virtual_lab`. Allowed: `admin`, `virtual_lab`."
+        ),
+    ),
     session: AsyncSession = Depends(default_session_factory),
-    auth: Tuple[AuthUser, str] = Depends(verify_jwt),
-) -> Response | VliError:
-    return await project_cases.retrieve_single_project_use_case(
+    auth: Tuple[AuthUserGrants, str] = Depends(parse_auth_grants),
+    _: AuthUserGrants = Depends(workspace_access),
+) -> Response:
+    return await project_cases.get_project_detail_use_case(
         session,
-        virtual_lab_id,
-        project_id,
+        virtual_lab_id=virtual_lab_id,
+        project_id=project_id,
+        expand=expand,
         auth=auth,
     )
 

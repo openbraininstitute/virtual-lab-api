@@ -24,17 +24,11 @@ async def search_projects_by_name_use_case(
 
     user_id = get_user_id_from_auth(auth)
 
-    if not query_term:
-        raise VliError(
-            error_code=VliErrorCode.INVALID_PARAMETER,
-            http_status_code=status.BAD_REQUEST,
-            message="No search query provided",
-        )
     try:
         groups = gqr.retrieve_user_groups(user_id=str(user_id))
         group_ids = [g.id for g in groups]
         projects_vl_tuple = await pr.search(
-            query_term=query_term,
+            query_term=query_term or "",
             groups_ids=group_ids,
         )
 
