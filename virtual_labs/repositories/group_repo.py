@@ -7,12 +7,15 @@ from pydantic import UUID4
 from virtual_labs.core.exceptions.generic_exceptions import UserNotInList
 from virtual_labs.core.exceptions.identity_error import IdentityError
 from virtual_labs.core.types import UserRoleEnum
-from virtual_labs.domain.project import ProjectCreationBody
 from virtual_labs.infrastructure.kc.config import kc_realm
 from virtual_labs.infrastructure.kc.models import (
     CreatedGroup,
     GroupRepresentation,
     UserRepresentation,
+)
+from virtual_labs.shared.group_namespace import (
+    make_project_group_name,
+    make_virtual_lab_group_name,
 )
 
 
@@ -77,12 +80,11 @@ class GroupMutationRepository:
         vlab/vl-app-id/role
         """
         try:
-            group_name = "vlab/{}/{}".format(vl_id, role.value)
+            group_name = make_virtual_lab_group_name(vl_id, role)
             group_id = self.Kc.create_group({"name": group_name})
 
             return {"id": group_id, "name": group_name}
 
-        # TODO: Add custom Keycloak error class to catch KeyClak errors from keycloak dependencies that are not type safe.
         except Exception as error:
             logger.error(
                 f"Error when creating {role} group for lab {vl_name} with id {vl_id}: ({error})"
@@ -98,19 +100,45 @@ class GroupMutationRepository:
         virtual_lab_id: UUID4,
         project_id: UUID4,
         role: UserRoleEnum,
-        payload: ProjectCreationBody,
     ) -> CreatedGroup | None:
         """
         NOTE: you can not set the ID even in the docs says that is Optional
         project group must be following this format
         proj/virtual_lab_id/project_id/role
         """
-        group_name = "proj/{}/{}/{}".format(virtual_lab_id, project_id, role.value)
+        group_name = make_project_group_name(virtual_lab_id, project_id, role)
         group_id = self.Kc.create_group(
             {"name": group_name},
         )
 
         return {"id": group_id, "name": group_name}
+
+    async def a_create_virtual_lab_group(
+        self,
+        *,
+        vl_id: UUID4,
+        vl_name: str,
+        role: UserRoleEnum,
+    ) -> CreatedGroup:
+        """
+        NOTE: you can not set the ID even in the docs says that is Optional
+        virtual lab group must be following this format
+        vlab/vl-app-id/role
+        """
+        try:
+            group_name = make_virtual_lab_group_name(vl_id, role)
+            group_id = await self.Kc.a_create_group({"name": group_name})
+
+            return {"id": group_id, "name": group_name}
+
+        except Exception as error:
+            logger.error(
+                f"Error when creating {role} group for lab {vl_name} with id {vl_id}: ({error})"
+            )
+            raise IdentityError(
+                message=f"Error when creating {role} group for lab {vl_name} with id {vl_id}: ({error})",
+                detail=str(error),
+            )
 
     async def a_create_project_group(
         self,
@@ -118,14 +146,13 @@ class GroupMutationRepository:
         virtual_lab_id: UUID4,
         project_id: UUID4,
         role: UserRoleEnum,
-        payload: ProjectCreationBody,
     ) -> CreatedGroup | None:
         """
         NOTE: you can not set the ID even in the docs says that is Optional
         project group must be following this format
         proj/virtual_lab_id/project_id/role
         """
-        group_name = "proj/{}/{}/{}".format(virtual_lab_id, project_id, role.value)
+        group_name = make_project_group_name(virtual_lab_id, project_id, role)
         group_id = await self.Kc.a_create_group(
             {"name": group_name},
         )
@@ -135,5 +162,5 @@ class GroupMutationRepository:
     def delete_group(self, *, group_id: str) -> Any | Dict[str, str]:
         return self.Kc.delete_group(group_id=group_id)
 
-    def a_delete_group(self, *, group_id: str) -> Any | Dict[str, str]:
-        return self.Kc.a_delete_group(group_id=group_id)
+    async def a_delete_group(self, *, group_id: str) -> Any | Dict[str, str]:
+        return await self.Kc.a_delete_group(group_id=group_id)
