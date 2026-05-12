@@ -113,6 +113,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
       - "172.17.0.1:host-gateway"
+  
   redis:
     image: "redis:7.2.3"
     command: redis-server /usr/local/etc/redis/redis.conf
