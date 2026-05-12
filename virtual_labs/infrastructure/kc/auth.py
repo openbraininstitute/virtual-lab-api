@@ -23,15 +23,6 @@ auth_header: HTTPBearer | OAuth2AuthorizationCodeBearer = HTTPBearer(auto_error=
 KC_SUBJECT: str = f"service-account-{settings.KC_CLIENT_ID}"
 
 
-def get_public_key() -> str:
-    """
-    get the public key to decode the token
-    """
-    return (
-        f"-----BEGIN PUBLIC KEY-----\n{kc_auth.public_key()}\n-----END PUBLIC KEY-----"
-    )
-
-
 def verify_jwt(
     header: HTTPAuthorizationCredentials = Depends(auth_header),
 ) -> Tuple[AuthUser, str]:
