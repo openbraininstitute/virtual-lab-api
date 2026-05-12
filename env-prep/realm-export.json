@@ -1092,13 +1092,13 @@
         "roles",
         "profile",
         "email",
-        "address"
+        "address",
+        "groups"
       ],
       "optionalClientScopes": [
         "phone",
         "offline_access",
-        "microprofile-jwt",
-        "groups"
+        "microprofile-jwt"
       ],
       "authorizationSettings": {
         "allowRemoteResourceManagement": true,
