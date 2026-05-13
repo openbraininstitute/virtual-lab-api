@@ -15,8 +15,8 @@ import pytest
 import stripe
 from stripe import convert_to_stripe_object
 
-from virtual_labs.infrastructure.stripe.webhook import StripeWebhook
 from virtual_labs.infrastructure.stripe.types import PostCommitActions
+from virtual_labs.infrastructure.stripe.webhook import StripeWebhook
 
 
 def _make_webhook(redis: AsyncMock | MagicMock | None = None) -> StripeWebhook:
@@ -324,9 +324,7 @@ async def test_empty_post_commit_actions_is_a_noop() -> None:
     await actions.run()  # must not raise
 
 
-# ---------------------------------------------------------------------------
 # Idempotency claim
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
