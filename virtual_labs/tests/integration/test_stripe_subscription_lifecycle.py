@@ -19,7 +19,7 @@ without billing setup keep a green test run.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from http import HTTPStatus
 from typing import Any, AsyncGenerator, Dict, Tuple
 from uuid import UUID
@@ -106,6 +106,18 @@ CH_ADDRESS: Dict[str, str] = {
     "city": "Geneva",
     "postal_code": "1201",
     "country": "CH",
+}
+
+# Non-CH billing address used to exercise the path that does NOT touch
+# the CH country-mismatch guard (CH-flagged paths require card_country
+# == billing_country == CH).
+US_ADDRESS: Dict[str, str] = {
+    "name": "Ada Lovelace",
+    "line1": "1 Market St",
+    "city": "San Francisco",
+    "state": "CA",
+    "postal_code": "94105",
+    "country": "US",
 }
 
 WEBHOOK_TIMEOUT_S = 45  # plenty of slack for stripe listen forwarding.
@@ -217,9 +229,12 @@ async def _create_payment_method(card_pm: str = "pm_card_visa") -> str:
     matching test token. The local subscription/standalone-payment code
     paths attach this PM to the user's customer themselves.
     """
+    # `tok_ch` is Stripe's Swiss-issued test token; the standalone aliases
+    # below are US-issued.
     token_map = {
         "pm_card_visa": "tok_visa",
         "pm_card_chargeDeclined": "tok_chargeDeclined",
+        "pm_card_ch": "tok_ch",
     }
     token = token_map.get(card_pm)
     if token is None:
@@ -239,11 +254,13 @@ async def _create_billing_quote(
     credits: int | None = None,
     tier_id: UUID | None = None,
     interval: str | None = None,
+    billing_address: Dict[str, str] | None = None,
+    currency: str = "chf",
 ) -> Dict[str, Any]:
     body: Dict[str, Any] = {
         "flow": flow,
-        "currency": "chf",
-        "billing_address": CH_ADDRESS,
+        "currency": currency,
+        "billing_address": billing_address or CH_ADDRESS,
     }
     if virtual_lab_id is not None:
         body["virtual_lab_id"] = str(virtual_lab_id)
@@ -417,8 +434,11 @@ async def test_subscription_full_lifecycle_happy_path(
     assert active.json()["data"]["subscription"]["type"] == "free"
 
     # 2. Set up: tier, payment method, quote.
+    #    Use a Swiss-issued card (`pm_card_ch`) so it matches the CH billing
+    #    address; mismatched (card_country, billing_country) pairs are
+    #    blocked by `ensure_ch_country_match`.
     tier_id = await _get_pro_tier_id()
-    payment_method_id = await _create_payment_method("pm_card_visa")
+    payment_method_id = await _create_payment_method("pm_card_ch")
     sub_quote = await _create_billing_quote(
         real_http_client,
         user="test",
@@ -460,7 +480,7 @@ async def test_subscription_full_lifecycle_happy_path(
         virtual_lab_id=lab_id,
         credits=200,
     )
-    topup_pm = await _create_payment_method("pm_card_visa")
+    topup_pm = await _create_payment_method("pm_card_ch")
     topup_resp = await real_http_client.post(
         "/payments/standalone",
         json={
@@ -509,6 +529,9 @@ async def test_create_subscription_rejects_declined_card(
     owner_id = UUID(owner_id_str)
     headers = get_headers("test")
 
+    # `tok_chargeDeclined` is a US-issued declined-card token. Pair it with
+    # a US billing address so the CH country-mismatch guard does not
+    # short-circuit the decline path we're trying to exercise.
     tier_id = await _get_pro_tier_id()
     declined_pm = await _create_payment_method("pm_card_chargeDeclined")
     sub_quote = await _create_billing_quote(
@@ -517,6 +540,8 @@ async def test_create_subscription_rejects_declined_card(
         flow="subscription",
         tier_id=tier_id,
         interval="month",
+        billing_address=US_ADDRESS,
+        currency="usd",
     )
 
     response = await real_http_client.post(
@@ -526,21 +551,19 @@ async def test_create_subscription_rejects_declined_card(
             "interval": "month",
             "payment_method_id": declined_pm,
             "quote_id": sub_quote["quote_id"],
-            "billing_address": CH_ADDRESS,
+            "billing_address": US_ADDRESS,
             "sync_billing_address_to_profile": False,
         },
         headers=headers,
     )
     await _track_subscription_for_cleanup(owner_id, stripe_cleanup)
-    # Stripe raises CardError on charge with `pm_card_chargeDeclined` and the
-    # production handler maps any unclassified Stripe failure to a 500. We
-    # accept either 500 or 502 to stay tolerant of future error-mapping
-    # tightening (CardError -> 502 BAD_GATEWAY would also be reasonable).
-    assert response.status_code in (
-        HTTPStatus.INTERNAL_SERVER_ERROR,
-        HTTPStatus.BAD_GATEWAY,
-    ), response.text
-    assert (await _paid_sub_for_user(owner_id)) is None
+    # Stripe raises `CardError` on charge with `pm_card_chargeDeclined`;
+    # the production handler maps that to 402 PAYMENT_REQUIRED with the
+    # user-facing decline message surfaced as `message`.
+    assert response.status_code == HTTPStatus.PAYMENT_REQUIRED, response.text
+    body = response.json()
+    assert body.get("error_code") == "PAYMENT_ERROR"
+    assert "declined" in (body.get("message") or "").lower()
 
 
 async def test_create_subscription_rejects_duplicate_active_subscription(
@@ -554,7 +577,7 @@ async def test_create_subscription_rejects_duplicate_active_subscription(
     headers = get_headers("test")
 
     tier_id = await _get_pro_tier_id()
-    pm1 = await _create_payment_method("pm_card_visa")
+    pm1 = await _create_payment_method("pm_card_ch")
     quote1 = await _create_billing_quote(
         real_http_client,
         user="test",
@@ -578,7 +601,7 @@ async def test_create_subscription_rejects_duplicate_active_subscription(
     assert first.status_code == HTTPStatus.OK, first.text
     assert await _wait_paid_active(owner_id)
 
-    pm2 = await _create_payment_method("pm_card_visa")
+    pm2 = await _create_payment_method("pm_card_ch")
     quote2 = await _create_billing_quote(
         real_http_client,
         user="test",
@@ -621,7 +644,7 @@ async def test_create_subscription_rejects_expired_quote(
         await session.execute(
             update(BillingQuote)
             .where(BillingQuote.id == UUID(quote["quote_id"]))
-            .values(expires_at=datetime.utcnow() - timedelta(minutes=1))
+            .values(expires_at=datetime.now(timezone.utc) - timedelta(minutes=1))
         )
         await session.commit()
 
@@ -676,9 +699,10 @@ async def test_standalone_payment_rejects_non_admin(
     intruder_headers = get_headers("test-1")
 
     # An active subscription is required by `_require_active_subscription_id`,
-    # so spin one up for the owner first.
+    # so spin one up for the owner first. CH card + CH billing satisfies the
+    # country-match guard.
     tier_id = await _get_pro_tier_id()
-    pm = await _create_payment_method("pm_card_visa")
+    pm = await _create_payment_method("pm_card_ch")
     sub_quote = await _create_billing_quote(
         real_http_client,
         user="test",
@@ -714,7 +738,7 @@ async def test_standalone_payment_rejects_non_admin(
         virtual_lab_id=lab_id,
         credits=200,
     )
-    intruder_pm = await _create_payment_method("pm_card_visa")
+    intruder_pm = await _create_payment_method("pm_card_ch")
     response = await real_http_client.post(
         "/payments/standalone",
         json={
@@ -755,7 +779,7 @@ async def test_cancel_subscription_idempotent_already_canceled(
     headers = get_headers("test")
 
     tier_id = await _get_pro_tier_id()
-    pm = await _create_payment_method("pm_card_visa")
+    pm = await _create_payment_method("pm_card_ch")
     quote = await _create_billing_quote(
         real_http_client,
         user="test",
@@ -794,3 +818,118 @@ async def test_cancel_subscription_idempotent_already_canceled(
         headers=headers,
     )
     assert second_cancel.status_code == HTTPStatus.BAD_REQUEST, second_cancel.text
+
+
+# ---------------------------------------------------------------------------
+# CH country-mismatch guard (server-side replacement for the Stripe
+# Radar rule). Mirrors the policy: block when CH appears on exactly one
+# of (card issuer country, billing country).
+# ---------------------------------------------------------------------------
+
+
+async def test_create_subscription_non_ch_billing_matching_card_succeeds(
+    real_http_client: AsyncClient,
+    reset_stripe_for_test: None,
+    created_lab: Tuple[str, Dict[str, Any], str],
+    stripe_cleanup: set[str],
+) -> None:
+    """Non-CH billing + non-CH card: guard is a no-op, subscription
+    flow runs the same as the CH happy path."""
+    _, _, owner_id_str = created_lab
+    owner_id = UUID(owner_id_str)
+    headers = get_headers("test")
+
+    tier_id = await _get_pro_tier_id()
+    payment_method_id = await _create_payment_method("pm_card_visa")
+    # Tax is only enabled for CH by default; a US-billed subscription is
+    # legal without a quote, so we skip the quote here on purpose.
+    response = await real_http_client.post(
+        "/subscriptions",
+        json={
+            "tier_id": str(tier_id),
+            "interval": "month",
+            "payment_method_id": payment_method_id,
+            "billing_address": US_ADDRESS,
+            "sync_billing_address_to_profile": False,
+        },
+        headers=headers,
+    )
+    await _track_subscription_for_cleanup(owner_id, stripe_cleanup)
+    assert response.status_code == HTTPStatus.OK, response.text
+    assert await _wait_paid_active(owner_id)
+
+
+async def test_create_subscription_blocks_ch_billing_with_non_ch_card(
+    real_http_client: AsyncClient,
+    reset_stripe_for_test: None,
+    created_lab: Tuple[str, Dict[str, Any], str],
+    stripe_cleanup: set[str],
+) -> None:
+    """CH billing + US-issued card: guard rejects before any charge."""
+    _, _, owner_id_str = created_lab
+    owner_id = UUID(owner_id_str)
+    headers = get_headers("test")
+
+    tier_id = await _get_pro_tier_id()
+    payment_method_id = await _create_payment_method("pm_card_visa")
+    sub_quote = await _create_billing_quote(
+        real_http_client,
+        user="test",
+        flow="subscription",
+        tier_id=tier_id,
+        interval="month",
+    )
+    response = await real_http_client.post(
+        "/subscriptions",
+        json={
+            "tier_id": str(tier_id),
+            "interval": "month",
+            "payment_method_id": payment_method_id,
+            "quote_id": sub_quote["quote_id"],
+            "billing_address": CH_ADDRESS,
+            "sync_billing_address_to_profile": False,
+        },
+        headers=headers,
+    )
+    await _track_subscription_for_cleanup(owner_id, stripe_cleanup)
+    # 402 with the CH-mismatch detail is sufficient evidence the guard
+    # fired before any Stripe charge. We deliberately do not assert
+    # "no paid subscription row" here because a prior test's
+    # `customer.subscription.created` webhook can race the next test
+    # setup and recreate the row asynchronously.
+    assert response.status_code == HTTPStatus.PAYMENT_REQUIRED, response.text
+    body = response.json()
+    assert body.get("error_code") == "PAYMENT_ERROR"
+    assert "CH country mismatch" in (body.get("details") or "")
+
+
+async def test_create_subscription_blocks_non_ch_billing_with_ch_card(
+    real_http_client: AsyncClient,
+    reset_stripe_for_test: None,
+    created_lab: Tuple[str, Dict[str, Any], str],
+    stripe_cleanup: set[str],
+) -> None:
+    """Non-CH billing + CH-issued card: guard rejects in the symmetric
+    direction. Quote is optional because tax is not enabled for US."""
+    _, _, owner_id_str = created_lab
+    owner_id = UUID(owner_id_str)
+    headers = get_headers("test")
+
+    tier_id = await _get_pro_tier_id()
+    payment_method_id = await _create_payment_method("pm_card_ch")
+    response = await real_http_client.post(
+        "/subscriptions",
+        json={
+            "tier_id": str(tier_id),
+            "interval": "month",
+            "payment_method_id": payment_method_id,
+            "billing_address": US_ADDRESS,
+            "sync_billing_address_to_profile": False,
+        },
+        headers=headers,
+    )
+    await _track_subscription_for_cleanup(owner_id, stripe_cleanup)
+    # See note on the sibling test above: webhook timing makes the
+    # "no paid subscription row" check flaky, the 402 is the load-
+    # bearing assertion here.
+    assert response.status_code == HTTPStatus.PAYMENT_REQUIRED, response.text

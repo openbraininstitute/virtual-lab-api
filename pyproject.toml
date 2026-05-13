@@ -98,19 +98,7 @@ exclude = ["scripts", "alembic"]
 python-version = "3.12"
 
 [tool.ty.rules]
-# Downgrade existing type issues to warnings to avoid blocking CI.
-# These should be fixed in a follow-up PR.
-invalid-argument-type = "warn"
-call-non-callable = "warn"
 unused-type-ignore-comment = "ignore"
-
-
-[[tool.ty.overrides]]
-include = [
-    "virtual_labs/infrastructure/stripe/webhook.py",
-    "virtual_labs/infrastructure/stripe/extractors.py",
-    "virtual_labs/infrastructure/stripe/types.py",
-]
 
 
 [tool.ruff]

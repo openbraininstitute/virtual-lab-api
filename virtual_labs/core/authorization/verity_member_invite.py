@@ -101,7 +101,7 @@ def verity_member_invite(f: Callable[..., Any]) -> Callable[..., Any]:
                 error_code=VliErrorCode.INTERNAL_SERVER_ERROR,
                 http_status_code=error.response_code or status.BAD_REQUEST,
                 message="Checking for authorization failed",
-                details=error.__str__,
+                details=str(error),
             )
         except Exception as error:
             logger.exception(f"Error while checking authorization {error}")

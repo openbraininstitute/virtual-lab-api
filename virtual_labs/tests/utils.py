@@ -2,7 +2,7 @@ import asyncio
 import time
 import typing
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from http import HTTPStatus
 from typing import AsyncGenerator, Awaitable, cast
 from uuid import UUID, uuid4
@@ -23,6 +23,7 @@ from virtual_labs.infrastructure.db.models import (
     Project,
     ProjectInvite,
     ProjectStar,
+    PromotionCodeUsage,
     Subscription,
     SubscriptionPayment,
     SubscriptionStatus,
@@ -262,6 +263,16 @@ async def cleanup_resources(
             )
         )
 
+        # promotion_code_usage carries a FK on virtual_lab without ON DELETE
+        # CASCADE, so the DELETE on virtual_lab below would otherwise fail
+        # with a foreign key violation on labs that ever redeemed a
+        # promotion code.
+        await session.execute(
+            statement=delete(PromotionCodeUsage).where(
+                PromotionCodeUsage.virtual_lab_id == lab_id
+            )
+        )
+
         lab_data = (
             await session.execute(
                 statement=delete(VirtualLab)
@@ -367,7 +378,7 @@ async def create_free_subscription_for_user(user_id: UUID) -> None:
     async with session_context_factory() as session:
         tier_id = await _resolve_tier_id(session, SubscriptionTierEnum.FREE)
         # Create a free subscription for the user
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         subscription = FreeSubscription(
             id=uuid4(),
             user_id=user_id,

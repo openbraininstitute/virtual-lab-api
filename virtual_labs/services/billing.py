@@ -190,11 +190,7 @@ class BillingQuoteService:
                 if payload.flow == BillingFlow.STANDALONE
                 else None,
             )
-            tax_calculation_dict = (
-                tax_calculation.to_dict_recursive()
-                if hasattr(tax_calculation, "to_dict_recursive")
-                else dict(tax_calculation)
-            )
+            tax_calculation_dict = dict(tax_calculation)
             tax_amount = _extract_tax_amount(tax_calculation_dict, subtotal)
             total = int(tax_calculation_dict.get("amount_total", subtotal + tax_amount))
             tax_status = TaxStatus.CALCULATED

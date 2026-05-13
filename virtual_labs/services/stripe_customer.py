@@ -101,19 +101,12 @@ class StripeCustomerService:
                 )
             return existing_customer_id, False
 
-        # Deterministic idempotency key: a retry of this exact
-        # ensure operation returns the *same* Stripe customer.
-        # Without this, a network blip between Stripe success and
-        # local commit would mint a second customer on the second
-        # attempt.
-        idempotency_key = f"customer:user:{user_id}"
         customer = await self.stripe.create_customer(
             user_id=user_id,
             email=email,
             name=name,
             address=address,
             validate_tax_location=validate_tax_location,
-            idempotency_key=idempotency_key,
         )
         if customer is None:
             # `create_customer` swallows non-tax errors and returns

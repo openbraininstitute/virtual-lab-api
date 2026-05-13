@@ -1215,7 +1215,10 @@ def _wrap(
         try:
             await fn(*args, **kwargs)
         except Exception as exc:
-            label = log_label or f"Post-commit action {fn.__name__} failed"
+            label = (
+                log_label
+                or f"Post-commit action {getattr(fn, '__name__', '<callable>')} failed"
+            )
             logger.warning(f"{label}: {exc}")
 
     return runner

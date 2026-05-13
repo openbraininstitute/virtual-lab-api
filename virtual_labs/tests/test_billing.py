@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from typing import Any, cast
 from uuid import uuid4
 
 import pytest
@@ -89,8 +90,8 @@ def test_tax_can_be_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_tax_settings_normalize_enabled_countries() -> None:
-    app_settings = Settings(
-        _env_file=None,  # type: ignore[call-arg]
+    app_settings = cast(Any, Settings)(
+        _env_file=None,
         DEPLOYMENT_ENV="development",
         BILLING_TAX_ENABLED_COUNTRIES=" ch, CH , de ",
     )
@@ -100,16 +101,16 @@ def test_tax_settings_normalize_enabled_countries() -> None:
 
 def test_tax_settings_reject_invalid_country_codes() -> None:
     with pytest.raises(ValidationError, match="ISO 3166-1 alpha-2"):
-        Settings(
-            _env_file=None,  # type: ignore[call-arg]
+        cast(Any, Settings)(
+            _env_file=None,
             DEPLOYMENT_ENV="development",
             BILLING_TAX_ENABLED_COUNTRIES="CHE",
         )
 
 
 def test_blank_credit_tax_code_is_disabled() -> None:
-    app_settings = Settings(
-        _env_file=None,  # type: ignore[call-arg]
+    app_settings = cast(Any, Settings)(
+        _env_file=None,
         DEPLOYMENT_ENV="development",
         STRIPE_CREDIT_TAX_CODE=" ",
     )

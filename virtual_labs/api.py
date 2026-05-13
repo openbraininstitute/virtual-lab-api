@@ -67,7 +67,7 @@ app = FastAPI(
     docs_url=f"{settings.BASE_PATH}/docs",
 )
 
-app.add_middleware(SentryAsgiMiddleware)
+app.add_middleware(SentryAsgiMiddleware)  # ty: ignore[invalid-argument-type]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,

@@ -189,7 +189,7 @@ def has_subscription_items(sub: stripe.Subscription) -> bool:
 def _ts_to_datetime(ts: object) -> datetime | None:
     if ts is None:
         return None
-    return datetime.fromtimestamp(float(ts))  # type: ignore[arg-type]
+    return datetime.fromtimestamp(float(ts))  # type: ignore[arg-type]  # ty: ignore[invalid-argument-type]
 
 
 def get_canceled_at(sub: stripe.Subscription) -> datetime | None:
@@ -409,7 +409,7 @@ def _stripe_object_to_str_dict(obj: object) -> dict[str, str]:
     Address-shaped objects (which have no nested StripeObject children).
     """
     if isinstance(obj, dict):
-        raw: dict[str, Any] = dict(obj)
+        raw: dict[str, Any] = cast(dict[str, Any], obj)
     else:
         raw = {}
     return {str(k): v for k, v in raw.items() if v is not None}
