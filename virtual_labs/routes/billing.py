@@ -5,6 +5,9 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from virtual_labs.core.authorization.verify_vlab_write import (
+    authorize_user_for_vlab_write,
+)
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.core.types import VliAppResponse
@@ -27,6 +30,31 @@ from virtual_labs.shared.utils.auth import get_user_id_from_auth
 router = APIRouter(prefix="/billing", tags=["Billing"])
 
 
+async def authorize_quote_virtual_lab_write(
+    *,
+    payload: CreateBillingQuoteRequest,
+    session: AsyncSession,
+    auth: Tuple[AuthUser, str],
+) -> None:
+    forbidden = VliError(
+        error_code=VliErrorCode.NOT_ALLOWED_OP,
+        http_status_code=HTTPStatus.FORBIDDEN,
+        message="The supplied authentication is not authorized for this action",
+    )
+    try:
+        is_authorized = await authorize_user_for_vlab_write(
+            user_id=str(get_user_id_from_auth(auth)),
+            virtual_lab_id=payload.virtual_lab_id,
+            session=session,
+        )
+    except VliError:
+        raise
+    except Exception:
+        raise forbidden
+    if not is_authorized:
+        raise forbidden
+
+
 @router.post(
     "/quotes",
     operation_id="create_billing_quote",
@@ -38,12 +66,19 @@ async def create_billing_quote(
     session: AsyncSession = Depends(default_session_factory),
     auth: Tuple[AuthUser, str] = Depends(a_verify_jwt),
 ) -> Response:
+    await authorize_quote_virtual_lab_write(
+        payload=payload,
+        session=session,
+        auth=auth,
+    )
     try:
         quote = await BillingQuoteService(session).create_quote(
             payload=payload,
             user_id=get_user_id_from_auth(auth),
         )
-    except ValueError as exc:
+    except VliError:
+        raise
+    except Exception as exc:
         raise VliError(
             error_code=VliErrorCode.INVALID_REQUEST,
             http_status_code=HTTPStatus.BAD_REQUEST,

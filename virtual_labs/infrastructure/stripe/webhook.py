@@ -554,7 +554,7 @@ class StripeWebhook:
         amounts = helpers.get_invoice_amounts(
             invoice, default_currency=DEFAULT_CURRENCY
         )
-        self._apply_invoice_amounts(payment, amounts)
+        self._apply_invoice_amounts(payment, amounts, invoice)
         await self._apply_invoice_tax_and_billing(payment, metadata, db_session)
 
         # Phase 5: customer address — fetched invoice first, then customer fetch
@@ -678,13 +678,17 @@ class StripeWebhook:
 
     @staticmethod
     def _apply_invoice_amounts(
-        payment: SubscriptionPayment, amounts: InvoiceAmounts
+        payment: SubscriptionPayment,
+        amounts: InvoiceAmounts,
+        invoice: stripe.Invoice,
     ) -> None:
         payment.amount_paid = amounts.amount_paid
         payment.amount_subtotal = amounts.subtotal
         payment.amount_tax = amounts.tax
         payment.amount_total = amounts.total
-        payment.tax_behavior = TaxBehavior(settings.BILLING_TAX_BEHAVIOR)
+        payment.tax_behavior = helpers.tax_behavior_from_invoice(
+            invoice
+        ) or TaxBehavior(settings.BILLING_TAX_BEHAVIOR)
         payment.tax_status = (
             TaxStatus.CALCULATED if amounts.tax else TaxStatus.NOT_APPLICABLE
         )
