@@ -16,6 +16,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -100,20 +101,11 @@ async def _provision(
 
 
 async def _ensure_stripe_customer_id(*, user_id: UUID4, email: str, name: str) -> str:
-    """Resolve the user's Stripe customer id without any DB activity.
-
-    The deterministic idempotency key (`customer:user:{user_id}`)
-    makes Stripe return the existing customer if one already exists,
-    so this is safe to invoke unconditionally — no preliminary local
-    lookup needed. Keeping the call DB-free is what lets the use
-    case open a single, explicit `async with db.begin():` later
-    without fighting an auto-begun transaction.
-    """
+    """Resolve the user's Stripe customer id without any DB activity."""
     customer = await get_stripe_repository().create_customer(
         user_id=user_id,
         email=email,
         name=name,
-        idempotency_key=f"customer:user:{user_id}",
     )
     if customer is None:
         raise StripeCustomerCreationError(user_id)
@@ -123,13 +115,7 @@ async def _ensure_stripe_customer_id(*, user_id: UUID4, email: str, name: str) -
 async def _stage_stripe_user_if_missing(
     session: AsyncSession, *, user_id: UUID4, stripe_customer_id: str
 ) -> None:
-    """Insert the local `stripe_user` row inside the caller's txn.
-
-    Idempotent: a retry that already has the row left from a prior
-    failed attempt is a no-op. The Stripe HTTP side is idempotent by
-    construction (deterministic key), so the local row is the only
-    state we need to converge.
-    """
+    """Insert the local `stripe_user` row inside the caller's txn."""
     existing = await session.scalar(
         select(models.StripeUser).where(models.StripeUser.user_id == user_id)
     )
@@ -163,12 +149,7 @@ def _map_db_error(err: Exception) -> VliError:
 async def _make_kc_groups_compensation(
     group_repo: GroupMutationRepository, groups: GroupIds
 ) -> Callable[[], Awaitable[None]]:
-    """Build a saga undo that deletes both Keycloak groups.
-
-    `async def` so callers stay aligned with the rest of the
-    KC-touching surface. Call sites should `await` this and push the
-    returned callable onto the `CompensationStack`.
-    """
+    """Build a saga undo that deletes both Keycloak groups."""
 
     async def _undo() -> None:
         for created in (groups["admin_group"], groups["member_group"]):
@@ -183,11 +164,13 @@ async def _make_kc_groups_compensation(
 async def _create_keycloak_groups(lab_id: UUID4, lab_name: str) -> GroupIds:
     kc = GroupMutationRepository()
     try:
-        admin_group = kc.create_virtual_lab_group(
-            vl_id=lab_id, vl_name=lab_name, role=UserRoleEnum.admin
-        )
-        member_group = kc.create_virtual_lab_group(
-            vl_id=lab_id, vl_name=lab_name, role=UserRoleEnum.member
+        admin_group, member_group = await asyncio.gather(
+            kc.a_create_virtual_lab_group(
+                vl_id=lab_id, vl_name=lab_name, role=UserRoleEnum.admin
+            ),
+            kc.a_create_virtual_lab_group(
+                vl_id=lab_id, vl_name=lab_name, role=UserRoleEnum.member
+            ),
         )
         assert admin_group is not None
         assert member_group is not None
@@ -256,7 +239,7 @@ async def _insert_virtual_lab(
         member_group_id=member_group_id,
         name=payload.name,
         description=payload.description,
-        reference_email=owner_email,
+        reference_email=payload.reference_email or owner_email,
         entity=payload.entity,
         compute_cell=payload.compute_cell,
     )
@@ -316,7 +299,7 @@ async def create_virtual_lab(
         try:
             groups = await _create_keycloak_groups(new_lab_id, lab.name)
             comp.push(await _make_kc_groups_compensation(group_repo, groups))
-            user_repo.attach_user_to_group(
+            await user_repo.a_attach_user_to_group(
                 user_id=owner_id, group_id=groups["admin_group"]["id"]
             )
         except ValueError as error:

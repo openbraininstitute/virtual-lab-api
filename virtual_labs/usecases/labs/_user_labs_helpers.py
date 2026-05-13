@@ -1,6 +1,6 @@
 """Shared building blocks for the user-vlab endpoints.
 
-`get_my_virtual_lab`, `list_tenant_virtual_labs`, and
+`get_my_virtual_lab`, `list_vlabs_by_id`, and
 `list_pending_virtual_labs` all need the same two primitives:
 
   * an enrichment step that turns a raw `VirtualLab` row into a

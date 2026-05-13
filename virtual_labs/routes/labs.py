@@ -37,7 +37,7 @@ from virtual_labs.shared.groups import VLAB_SERVICE_ADMIN_GROUP
 from virtual_labs.shared.utils.auth import get_user_id_from_auth
 from virtual_labs.usecases import labs as usecases
 from virtual_labs.usecases.labs.check_virtual_lab_name_exists import LabExists
-from virtual_labs.usecases.labs.list_tenant_virtual_labs import (
+from virtual_labs.usecases.labs.list_virtual_labs import (
     OrderBy,
     OrderDirection,
     Scope,
@@ -51,7 +51,7 @@ router = APIRouter(prefix="/virtual-labs", tags=["Virtual Labs Endpoints"])
     response_model=LabResponse[PaginatedResponse[VirtualLabDetails]],
     summary="List the virtual labs the requester is a member of",
 )
-async def list_tenant_virtual_labs(
+async def list_virtual_labs(
     scope: Scope = Query(
         default=Scope.ALL,
         description=(
@@ -88,7 +88,7 @@ async def list_tenant_virtual_labs(
 ) -> LabResponse[PaginatedResponse[VirtualLabDetails]]:
     return LabResponse[PaginatedResponse[VirtualLabDetails]](
         message="Tenant virtual labs",
-        data=await usecases.list_tenant_virtual_labs_use_case(
+        data=await usecases.list_virtual_labs_use_case(
             session=db,
             auth=auth,
             scope=scope,

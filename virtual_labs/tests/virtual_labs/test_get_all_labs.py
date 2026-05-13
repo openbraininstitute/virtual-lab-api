@@ -50,11 +50,13 @@ async def multiple_mock_labs(
 async def test_get_my_virtual_lab(
     multiple_mock_labs: tuple[AsyncClient, list[tuple[Any, str]]],
 ) -> None:
-    """`GET /virtual-labs/me` returns the requester's owned lab."""
+    """`GET /virtual-labs/self` returns the requester's owned lab."""
     client, labs_with_users = multiple_mock_labs
 
     for expected_lab, owner_user in labs_with_users:
-        response = await client.get("/virtual-labs/me", headers=get_headers(owner_user))
+        response = await client.get(
+            "/virtual-labs/self", headers=get_headers(owner_user)
+        )
         assert response.status_code == 200
 
         body = response.json()["data"]
@@ -63,7 +65,7 @@ async def test_get_my_virtual_lab(
 
 
 @pytest.mark.asyncio
-async def test_list_tenant_virtual_labs_default(
+async def test_list_virtual_labs_default(
     multiple_mock_labs: tuple[AsyncClient, list[tuple[Any, str]]],
 ) -> None:
     """Default scope (``all``) surfaces the requester's owned lab.
@@ -85,7 +87,7 @@ async def test_list_tenant_virtual_labs_default(
 
 
 @pytest.mark.asyncio
-async def test_list_tenant_virtual_labs_scope_self(
+async def test_list_virtual_labs_scope_self(
     multiple_mock_labs: tuple[AsyncClient, list[tuple[Any, str]]],
 ) -> None:
     """``scope=self`` keeps only labs the requester owns."""
@@ -109,7 +111,7 @@ async def test_list_tenant_virtual_labs_scope_self(
 
 
 @pytest.mark.asyncio
-async def test_list_tenant_virtual_labs_scope_external(
+async def test_list_virtual_labs_scope_external(
     multiple_mock_labs: tuple[AsyncClient, list[tuple[Any, str]]],
 ) -> None:
     """``scope=external`` excludes the requester's owned lab."""
@@ -127,7 +129,7 @@ async def test_list_tenant_virtual_labs_scope_external(
 
 
 @pytest.mark.asyncio
-async def test_list_tenant_pagination_envelope(
+async def test_list_virtual_labs_pagination_envelope(
     multiple_mock_labs: tuple[AsyncClient, list[tuple[Any, str]]],
 ) -> None:
     """The shared `PaginatedResponse` envelope is well-formed."""
@@ -149,7 +151,7 @@ async def test_list_tenant_pagination_envelope(
 
 
 @pytest.mark.asyncio
-async def test_list_tenant_invalid_scope(
+async def test_list_virtual_labs_invalid_scope(
     multiple_mock_labs: tuple[AsyncClient, list[tuple[Any, str]]],
 ) -> None:
     """Bad enum values for ``scope`` yield 422 (handled by FastAPI)."""

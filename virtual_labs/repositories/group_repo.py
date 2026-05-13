@@ -49,6 +49,10 @@ class GroupQueryRepository:
         group = self.Kc.get_group_by_path(name)
         return GroupRepresentation(**group)
 
+    async def a_retrieve_group_by_name(self, name: str) -> GroupRepresentation:
+        group = await self.Kc.a_get_group_by_path(name)
+        return GroupRepresentation(**group)
+
     def retrieve_group_by_id(self, group_id: str) -> GroupRepresentation:
         group = self.Kc.get_group(group_id=group_id)
         return GroupRepresentation(**group)

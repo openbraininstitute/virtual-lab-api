@@ -1,4 +1,4 @@
-from typing import Any, AsyncGenerator, cast
+from typing import AsyncGenerator
 from uuid import uuid4
 
 import pytest
@@ -35,64 +35,6 @@ async def mock_lab_create(
             await cleanup_resources(client=client, lab_id=lab_id)
         except Exception:
             pass
-
-
-@pytest_asyncio.fixture
-async def mock_lab_create_with_users(
-    async_test_client: AsyncClient,
-) -> AsyncGenerator[tuple[dict[str, Any], Response, AsyncClient, dict[str, str]], None]:
-    client = async_test_client
-    body = {
-        "name": f"Test Lab {uuid4()}",
-        "description": "Test",
-        "reference_email": "user@test.org",
-        "entity": "EPFL, Switzerland",
-    }
-    headers = get_headers()
-    response = await client.post(
-        "/virtual-labs",
-        json=body,
-        headers=headers,
-    )
-
-    yield body, response, client, headers
-
-    if response.status_code == 200:
-        try:
-            lab_id = response.json()["data"]["virtual_lab"]["id"]
-            await cleanup_resources(client=client, lab_id=lab_id)
-        except Exception:
-            pass
-
-
-def assert_users_in_lab(response: Response) -> None:
-    users = cast(list[dict[str, Any]], response.json()["data"]["users"])
-    actual_users = [
-        {
-            "username": user.get("username"),
-            "invite_accepted": user.get("invite_accepted"),
-            "role": user.get("role"),
-        }
-        for user in users
-    ]
-    expected_users = [
-        {
-            "username": "test",
-            "invite_accepted": True,
-            "role": "admin",
-        },
-        {
-            "username": "test-1",
-            "invite_accepted": False,
-            "role": "admin",
-        },
-        {
-            "username": "test-2",
-            "invite_accepted": False,
-            "role": "member",
-        },
-    ]
-    assert actual_users == expected_users
 
 
 @pytest.mark.asyncio

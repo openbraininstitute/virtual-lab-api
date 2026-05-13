@@ -166,7 +166,7 @@ async def _resolve_candidate_ids(
     return candidate_ids
 
 
-async def list_tenant_virtual_labs_use_case(
+async def list_virtual_labs_use_case(
     *,
     session: AsyncSession,
     auth: tuple[AuthUserGrants, str],
