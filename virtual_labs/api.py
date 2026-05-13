@@ -25,6 +25,7 @@ from virtual_labs.infrastructure.db.config import session_pool
 from virtual_labs.infrastructure.redis import get_redis
 from virtual_labs.infrastructure.settings import settings
 from virtual_labs.routes.accounting import router as accounting_router
+from virtual_labs.routes.billing import router as billing_router
 from virtual_labs.routes.bookmarks import router as bookmarks_router
 from virtual_labs.routes.common import router as common_router
 from virtual_labs.routes.config import router as config_router
@@ -66,7 +67,7 @@ app = FastAPI(
     docs_url=f"{settings.BASE_PATH}/docs",
 )
 
-app.add_middleware(SentryAsgiMiddleware)
+app.add_middleware(SentryAsgiMiddleware)  # ty: ignore[invalid-argument-type]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
@@ -181,6 +182,7 @@ base_router.include_router(invite_router)
 base_router.include_router(payments_router)
 base_router.include_router(bookmarks_router)
 base_router.include_router(accounting_router)
+base_router.include_router(billing_router)
 
 base_router.include_router(subscription_router)
 base_router.include_router(user_router)

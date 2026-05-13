@@ -35,7 +35,14 @@ async def get_user_profile(
         if not kc_user:
             raise EntityNotFound
 
-        address_data = kc_user.get("address", {})
+        kc_admin_user = await user_repo.get_user(user_id=str(user_id))
+        attributes = kc_admin_user.get("attributes", {}) if kc_admin_user else {}
+
+        def _attr(key: str) -> str:
+            value = attributes.get(key, "")
+            if isinstance(value, list):
+                return value[0] if value else ""
+            return str(value) if value else ""
 
         user_profile = UserProfile(
             id=user_id,
@@ -45,11 +52,11 @@ async def get_user_profile(
             last_name=kc_user.get("family_name", ""),
             email_verified=kc_user.get("email_verified", False),
             address=Address(
-                street=address_data.get("street_address", ""),
-                postal_code=address_data.get("postal_code", ""),
-                locality=address_data.get("locality", ""),
-                region=address_data.get("region", ""),
-                country=address_data.get("country", ""),
+                street=_attr("street"),
+                postal_code=_attr("postal_code"),
+                locality=_attr("locality"),
+                region=_attr("region"),
+                country=_attr("country"),
             ),
         )
 

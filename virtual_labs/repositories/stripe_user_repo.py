@@ -65,6 +65,23 @@ class StripeUserMutationRepository:
     def __init__(self, db_session: AsyncSession) -> None:
         self.db_session = db_session
 
+    async def stage(self, user_id: UUID, stripe_customer_id: str) -> StripeUser:
+        """Add a StripeUser to the session and flush; do NOT commit.
+
+        Use this when the caller already owns an open transaction
+        (e.g. `async with session.begin():`) and wants the row to
+        rise or fall together with the surrounding work. The caller's
+        outer commit/rollback is the boundary; this method never
+        swallows DB errors so the transaction propagates correctly.
+        """
+        stripe_user = StripeUser(
+            user_id=user_id,
+            stripe_customer_id=stripe_customer_id,
+        )
+        self.db_session.add(stripe_user)
+        await self.db_session.flush()
+        return stripe_user
+
     async def create(
         self, user_id: UUID, stripe_customer_id: str
     ) -> Optional[StripeUser]:
@@ -80,7 +97,8 @@ class StripeUserMutationRepository:
         """
         try:
             stripe_user = StripeUser(
-                user_id=user_id, stripe_customer_id=stripe_customer_id
+                user_id=user_id,
+                stripe_customer_id=stripe_customer_id,
             )
             self.db_session.add(stripe_user)
             await self.db_session.commit()

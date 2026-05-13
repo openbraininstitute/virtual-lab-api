@@ -2,7 +2,7 @@ import asyncio
 import time
 import typing
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from http import HTTPStatus
 from typing import AsyncGenerator, Awaitable, cast
 from uuid import UUID, uuid4
@@ -23,9 +23,12 @@ from virtual_labs.infrastructure.db.models import (
     Project,
     ProjectInvite,
     ProjectStar,
+    PromotionCodeUsage,
     Subscription,
     SubscriptionPayment,
     SubscriptionStatus,
+    SubscriptionTier,
+    SubscriptionTierEnum,
     SubscriptionType,
     UserPreference,
     VirtualLab,
@@ -260,6 +263,16 @@ async def cleanup_resources(
             )
         )
 
+        # promotion_code_usage carries a FK on virtual_lab without ON DELETE
+        # CASCADE, so the DELETE on virtual_lab below would otherwise fail
+        # with a foreign key violation on labs that ever redeemed a
+        # promotion code.
+        await session.execute(
+            statement=delete(PromotionCodeUsage).where(
+                PromotionCodeUsage.virtual_lab_id == lab_id
+            )
+        )
+
         lab_data = (
             await session.execute(
                 statement=delete(VirtualLab)
@@ -315,17 +328,32 @@ async def wait_until(
     return False
 
 
+async def _resolve_tier_id(session: AsyncSession, kind: SubscriptionTierEnum) -> UUID:
+    """Look up the seeded tier_id by enum kind."""
+    tier_id = (
+        await session.execute(
+            select(SubscriptionTier.id).where(SubscriptionTier.tier == kind)
+        )
+    ).scalar_one_or_none()
+    if tier_id is None:
+        raise RuntimeError(
+            f"SubscriptionTier '{kind.value}' is not seeded; run `make tiers` first."
+        )
+    return UUID(str(tier_id))
+
+
 async def create_paid_subscription_for_user(user_id: UUID) -> None:
     """
     create a paid subscription for a user to enable inviting others.
     """
     async with session_context_factory() as session:
+        tier_id = await _resolve_tier_id(session, SubscriptionTierEnum.PRO)
         # Create a paid subscription for the user
         now = datetime.now()
         subscription = PaidSubscription(
             id=uuid4(),
             user_id=user_id,
-            tier_id="00000000-0000-0000-0000-000000000002",
+            tier_id=tier_id,
             stripe_subscription_id="sub_xxxx",
             customer_id="cus_xxxx",
             stripe_price_id="price_xxxx",
@@ -348,12 +376,13 @@ async def create_free_subscription_for_user(user_id: UUID) -> None:
     create a free subscription for a user.
     """
     async with session_context_factory() as session:
+        tier_id = await _resolve_tier_id(session, SubscriptionTierEnum.FREE)
         # Create a free subscription for the user
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         subscription = FreeSubscription(
             id=uuid4(),
             user_id=user_id,
-            tier_id="00000000-0000-0000-0000-000000000001",
+            tier_id=tier_id,
             status=SubscriptionStatus.ACTIVE,
             current_period_start=now,
             current_period_end=now + timedelta(days=30),

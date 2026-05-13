@@ -1,5 +1,13 @@
-from http import HTTPStatus as status
-from typing import Tuple, cast
+"""Create a Stripe SetupIntent for adding payment methods.
+
+Single side effect: ensure a Stripe customer exists for the user
+(via `StripeCustomerService`, transaction-aware) and create a
+SetupIntent against it
+"""
+
+from __future__ import annotations
+
+from http import HTTPStatus
 
 import stripe
 from fastapi.responses import Response
@@ -8,16 +16,13 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
-from virtual_labs.core.exceptions.generic_exceptions import (
-    EntityNotCreated,
-    EntityNotFound,
-)
+from virtual_labs.core.exceptions.generic_exceptions import EntityNotCreated
 from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.infrastructure.stripe.config import stripe_client
-from virtual_labs.repositories.stripe_user_repo import (
-    StripeUserMutationRepository,
-    StripeUserQueryRepository,
+from virtual_labs.services.stripe_customer import (
+    StripeCustomerCreationError,
+    StripeCustomerService,
 )
 from virtual_labs.shared.utils.auth import get_user_id_from_auth, get_user_metadata
 
@@ -25,61 +30,33 @@ from virtual_labs.shared.utils.auth import get_user_id_from_auth, get_user_metad
 async def generate_setup_intent(
     session: AsyncSession,
     *,
-    auth: Tuple[AuthUser, str],
+    auth: tuple[AuthUser, str],
 ) -> Response:
-    """
-    Generate a Stripe setup intent for adding payment methods.
-
-    This function:
-    1. Checks if the user has a Stripe customer ID
-    2. Creates a Stripe customer if one doesn't exist
-    3. Creates a setup intent for the customer
-
-    Args:
-        session: Database session
-        auth: Authentication tuple containing user info and token
-
-    Returns:
-        Response: A response containing the setup intent details
-    """
+    """Return a fresh `client_secret` the frontend can use to attach
+    a card to the user's Stripe customer."""
     try:
         user_id = get_user_id_from_auth(auth)
-        user_metadata = get_user_metadata(auth_user=auth[0])
+        user = get_user_metadata(auth_user=auth[0])
 
-        stripe_user_repo = StripeUserQueryRepository(db_session=session)
-        mutation_repo = StripeUserMutationRepository(db_session=session)
-
-        stripe_user = await stripe_user_repo.get_by_user_id(user_id)
-
-        if not stripe_user:
-            customer = await stripe_client.customers.create_async(
-                {
-                    "email": user_metadata["email"],
-                    "name": user_metadata["full_name"],
-                }
+        async with session.begin():
+            customer_id, _ = await StripeCustomerService(
+                session
+            ).ensure_customer_for_user(
+                user_id,
+                email=user["email"],
+                name=user["full_name"],
             )
 
-            stripe_user = await mutation_repo.create(user_id, customer.id)
-
-            if not stripe_user:
-                raise EntityNotCreated
-
-            customer_id = customer.id
-        else:
-            customer_id = cast(str, stripe_user.stripe_customer_id)
-
-        if customer_id:
-            setup_intent = await stripe_client.setup_intents.create_async(
-                {
-                    "customer": customer_id,
-                    "payment_method_types": ["card"],
-                    "metadata": {
-                        **user_metadata,
-                    },
-                }
-            )
-        else:
-            raise EntityNotFound
+        setup_intent = await stripe_client.setup_intents.create_async(
+            params={
+                "customer": customer_id,
+                "payment_method_types": ["card"],
+                "metadata": {
+                    "user_id": str(user_id),
+                    "email": user.get("email", ""),
+                },
+            },
+        )
 
         return VliResponse.new(
             message="Setup intent generated successfully",
@@ -89,39 +66,34 @@ async def generate_setup_intent(
                 "customer_id": customer_id,
             },
         )
-    except EntityNotFound:
+
+    except (StripeCustomerCreationError, EntityNotCreated):
+        logger.exception("Failed to ensure Stripe customer for setup intent")
         raise VliError(
-            error_code=VliErrorCode.ENTITY_NOT_FOUND,
-            http_status_code=status.INTERNAL_SERVER_ERROR,
-            message="Customer id is required",
+            error_code=VliErrorCode.ENTITY_NOT_CREATED,
+            http_status_code=HTTPStatus.BAD_GATEWAY,
+            message="Failed to set up payment with payment provider",
         )
-    except EntityNotCreated:
+    except SQLAlchemyError:
+        logger.exception("Database error while generating setup intent")
         raise VliError(
             error_code=VliErrorCode.DATABASE_ERROR,
-            http_status_code=status.INTERNAL_SERVER_ERROR,
-            message="Failed to save Stripe customer details",
-        )
-    except SQLAlchemyError as ex:
-        logger.error(f"Database error: {ex}")
-        raise VliError(
-            error_code=VliErrorCode.DATABASE_ERROR,
-            http_status_code=status.BAD_REQUEST,
+            http_status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
             message="Database operation failed",
-            details=str(ex),
         )
-    except stripe.StripeError as ex:
-        logger.error(f"Error during creating stripe setup intent: {ex}")
+    except stripe.StripeError:
+        logger.exception("Stripe error while generating setup intent")
         raise VliError(
-            message="Creating stripe intent failed",
             error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
-            http_status_code=status.BAD_GATEWAY,
-            details=str(ex),
+            http_status_code=HTTPStatus.BAD_GATEWAY,
+            message="Failed to create Stripe setup intent",
         )
-    except Exception as ex:
-        logger.error(f"Error during generating setup intent: {ex}")
+    except VliError:
+        raise
+    except Exception:
+        logger.exception("Unexpected error generating setup intent")
         raise VliError(
             error_code=VliErrorCode.SERVER_ERROR,
-            http_status_code=status.INTERNAL_SERVER_ERROR,
-            message="Error during generating setup intent",
-            details=str(ex),
+            http_status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            message="Failed to generate setup intent",
         )

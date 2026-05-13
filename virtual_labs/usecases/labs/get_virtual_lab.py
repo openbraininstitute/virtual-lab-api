@@ -1,4 +1,5 @@
 from http import HTTPStatus
+from uuid import UUID
 
 from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
@@ -30,7 +31,7 @@ async def get_virtual_lab(
                     is_initialized=db_lab.is_course_initialized,
                 ),
             ),
-            admins=[UUID4(a.id) for a in admins],
+            admins=[UUID(a.id) for a in admins],
         )
     except SQLAlchemyError as error:
         raise VliError(

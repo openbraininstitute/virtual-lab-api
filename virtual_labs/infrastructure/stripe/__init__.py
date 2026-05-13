@@ -1,9 +1,11 @@
 from fastapi import Depends
+from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
 )
 
 from virtual_labs.infrastructure.db.config import default_session_factory
+from virtual_labs.infrastructure.redis import get_redis
 from virtual_labs.infrastructure.stripe.webhook import StripeWebhook
 from virtual_labs.repositories.stripe_repo import StripeRepository
 from virtual_labs.repositories.stripe_user_repo import StripeUserQueryRepository
@@ -43,7 +45,7 @@ def get_stripe_user_repository(
     )
 
 
-def get_stripe_webhook_service(
+async def get_stripe_webhook_service(
     stripe_repository: StripeRepository = Depends(get_stripe_repository),
     subscription_repository: SubscriptionRepository = Depends(
         get_subscription_repository
@@ -52,6 +54,7 @@ def get_stripe_webhook_service(
         get_stripe_user_repository
     ),
     credit_converter: CreditConverter = Depends(get_credit_converter),
+    redis: Redis = Depends(get_redis),
 ) -> StripeWebhook:
     """
     dependency for getting the Stripe webhook service.
@@ -62,4 +65,5 @@ def get_stripe_webhook_service(
         subscription_repository=subscription_repository,
         stripe_user_repository=stripe_user_repository,
         credit_converter=credit_converter,
+        redis=redis,
     )

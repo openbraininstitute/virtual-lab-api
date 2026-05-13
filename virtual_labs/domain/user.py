@@ -143,6 +143,7 @@ class UpdateUserProfileRequest(BaseModel):
     first_name: str
     last_name: str
     address: Optional[UpdateAddress] = None
+    sync_billing_address: bool = False
 
     @field_validator("first_name")
     @classmethod
