@@ -111,7 +111,7 @@ def verify_vlab_or_project_read(f: Callable[..., Any]) -> Callable[..., Any]:
                 error_code=VliErrorCode.INTERNAL_SERVER_ERROR,
                 http_status_code=error.response_code or status.BAD_REQUEST,
                 message="Checking for authorization failed",
-                details=error.__str__,
+                details=str(error),
             )
         except Exception as error:
             logger.exception("Unknown error when checking for authorization", error)
@@ -204,7 +204,7 @@ async def verify_vlab_or_project_read_dep(
             error_code=VliErrorCode.INTERNAL_SERVER_ERROR,
             http_status_code=error.response_code or status.BAD_REQUEST,
             message="Checking for authorization failed",
-            details=error.__str__,
+            details=str(error),
         )
     except Exception as error:
         logger.exception("Unknown error when checking for authorization", error)

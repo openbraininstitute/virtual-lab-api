@@ -44,7 +44,7 @@ class CreateBillingQuoteRequest(BaseModel):
     flow: BillingFlow
     billing_address: BillingAddress
     currency: str = Field("chf", min_length=3, max_length=3)
-    virtual_lab_id: Optional[UUID] = None
+    virtual_lab_id: UUID
     credits: Optional[int] = Field(default=None, gt=0)
     tier_id: Optional[UUID] = None
     interval: Optional[str] = None

@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import asyncio
 from http import HTTPStatus
-from typing import Literal
+from typing import Literal, TypeGuard
 
 from fastapi.responses import Response
 from loguru import logger
@@ -33,6 +33,10 @@ ExpandField = Literal["admin", "virtual_lab"]
 _VALID_EXPANDS: frozenset[ExpandField] = frozenset(("admin", "virtual_lab"))
 
 
+def _is_expand_field(value: str) -> TypeGuard[ExpandField]:
+    return value in _VALID_EXPANDS
+
+
 def _normalize_expand(expand: list[str] | None) -> set[ExpandField]:
     """Validate and deduplicate expand keys.
 
@@ -44,10 +48,8 @@ def _normalize_expand(expand: list[str] | None) -> set[ExpandField]:
     valid: set[ExpandField] = set()
     unknown: list[str] = []
     for raw in expand:
-        if raw in _VALID_EXPANDS:
-            # Manual narrowing: mypy doesn't propagate the membership
-            # check on a frozenset into the Literal type.
-            valid.add(raw)  # type: ignore[arg-type]
+        if _is_expand_field(raw):
+            valid.add(raw)
         else:
             unknown.append(raw)
     if unknown:

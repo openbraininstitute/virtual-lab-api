@@ -76,10 +76,6 @@
     "code": "BB"
   },
   {
-    "name": "Belarus",
-    "code": "BY"
-  },
-  {
     "name": "Belgium",
     "code": "BE"
   },
@@ -218,10 +214,6 @@
   {
     "name": "Croatia",
     "code": "HR"
-  },
-  {
-    "name": "Cuba",
-    "code": "CU"
   },
   {
     "name": "Curaçao",
@@ -460,10 +452,6 @@
     "code": "KI"
   },
   {
-    "name": "Korea, Democratic People's Republic of",
-    "code": "KP"
-  },
-  {
     "name": "Korea, Republic of",
     "code": "KR"
   },
@@ -598,10 +586,6 @@
   {
     "name": "Mozambique",
     "code": "MZ"
-  },
-  {
-    "name": "Myanmar",
-    "code": "MM"
   },
   {
     "name": "Namibia",
@@ -852,10 +836,6 @@
     "code": "CH"
   },
   {
-    "name": "Syrian Arab Republic",
-    "code": "SY"
-  },
-  {
     "name": "Taiwan, Province of China",
     "code": "TW"
   },
@@ -916,10 +896,6 @@
     "code": "UG"
   },
   {
-    "name": "Ukraine",
-    "code": "UA"
-  },
-  {
     "name": "United Arab Emirates",
     "code": "AE"
   },
@@ -946,10 +922,6 @@
   {
     "name": "Vanuatu",
     "code": "VU"
-  },
-  {
-    "name": "Venezuela, Bolivarian Republic of",
-    "code": "VE"
   },
   {
     "name": "Viet Nam",

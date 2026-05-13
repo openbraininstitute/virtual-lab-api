@@ -22,7 +22,8 @@ class InviteQueryRepository:
 
     async def get_pending_users_for_lab(self, lab_id: UUID4) -> list[VirtualLabInvite]:
         query = select(VirtualLabInvite).filter(
-            VirtualLabInvite.virtual_lab_id == lab_id, ~VirtualLabInvite.accepted
+            VirtualLabInvite.virtual_lab_id == lab_id,
+            VirtualLabInvite.accepted.is_(False),
         )
         invites = (await self.session.execute(query)).scalars().all()
         return list(invites)
@@ -33,7 +34,9 @@ class InviteQueryRepository:
         query = select(ProjectInvite).filter(
             and_(
                 ProjectInvite.project_id == project_id,
-                or_(ProjectInvite.accepted.is_(None), ~ProjectInvite.accepted),
+                or_(
+                    ProjectInvite.accepted.is_(None), ProjectInvite.accepted.is_(False)
+                ),
             )
         )
         invites = (await self.session.execute(query)).scalars().all()
@@ -118,7 +121,12 @@ class InviteQueryRepository:
             .select_from(ProjectInvite)
             .where(
                 (ProjectInvite.user_email == email)
-                & (or_(ProjectInvite.accepted.is_(None), ~ProjectInvite.accepted))
+                & (
+                    or_(
+                        ProjectInvite.accepted.is_(None),
+                        ProjectInvite.accepted.is_(False),
+                    )
+                )
             )
         )
         result = await self.session.execute(project_stmt)

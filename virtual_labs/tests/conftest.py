@@ -1,6 +1,5 @@
-import asyncio
 from contextlib import asynccontextmanager
-from typing import Any, AsyncGenerator
+from typing import AsyncGenerator
 from uuid import uuid4
 
 import pytest_asyncio
@@ -35,14 +34,6 @@ async def async_test_client() -> AsyncGenerator[AsyncClient, None]:
 
 
 async_test_session = pytest_asyncio.fixture(default_session_factory)
-
-
-@pytest_asyncio.fixture(scope="session", autouse=True)
-def event_loop(request: Any) -> Any:
-    """Create an instance of the default event loop for each test case."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
 
 
 @pytest_asyncio.fixture

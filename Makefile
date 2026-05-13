@@ -1,100 +1,80 @@
-.PHONY: init
+.PHONY: help install upgrade-deps check-deps pip-audit dev init init-ci destroy destroy-ci build format lint type-check check-all test init-db check-db-schema migration tiers style-check
 
 SHELL := /bin/bash
 
 SERVICE_NAME=virtual-lab-manager
 
-define HELPTEXT
-	Usage: make COMMAND
-	commands for managing the project
-	
-	Commands:
-		dev			Run development api server.
-		init		Run project with .env.local file (for local development)
-		init-ci		Run project without env file (for CI/CD environments)
-		kill		Kill project containers (with .env.local)
-		kill-ci		Kill project containers (without env file)
-		build		Build docker image
-		format          Check formatting of files and fixes any formatting issues
-		format-check    Only check formatting of files but do not modify them to fix formatting issues 
-		lint            Fix linting issues in files, if any
-		lint-check      Check linting issues in files but do not modify them to fix linting issues
-		style-check     Run formatting, and linting
-		type-check      Run static type checks
-		check-all       Run format, lint, style-check and type-check
-		test            Run tests
-		init-db         Create & seed db tables
-		check-db-schema Checks if db schema change requires a migration. Note: Not all changes can be checked here.
-
-endef
-export HELPTEXT
-
 define load_env
-	# all the variables in the included file must be prefixed with export
 	$(eval ENV_FILE := .env.$(1))
 	@echo "Loading env from $(ENV_FILE)"
 	$(eval include $(ENV_FILE))
 endef
 
-help:
-	@echo "$$HELPTEXT"
+help:  ## Show this help
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-23s\033[0m %s\n", $$1, $$2}'
 
-dev:
-	poetry run uvicorn virtual_labs.api:app --reload
+install:  ## Install all dependencies
+	uv sync
 
-init:
+upgrade-deps:  ## Upgrade all dependencies to latest compatible versions
+	uv lock --upgrade
+	uv sync
+
+check-deps:  ## Check lock file is up to date
+	uv lock --check
+
+audit:  ## Run package auditing
+	uv run --with pip-audit pip-audit -l
+
+dev:  ## Run development api server
+	uv run uvicorn virtual_labs.api:app --reload
+
+init:  ## Run project with .env.local file (for local development)
 	./dev-init.sh --env-file ./.env.local
 
-init-ci:
+init-ci:  ## Run project without env file (for CI/CD environments)
 	./dev-init.sh
 
-kill: 
+destroy:  ## Destroy project containers (with .env.local)
 	docker compose --env-file ./.env.local -f docker-compose.yml -p vlm-project down --remove-orphans --volumes
 
-kill-ci:
+destroy-ci:  ## Destroy project containers (without env file)
 	docker compose -f docker-compose.ci.yml -p vlm-project down --remove-orphans --volumes
 
-build:
-	docker build -t $(SERVICE_NAME) . --platform=linux/amd64
+build:  ## Build the Docker image
+	docker build --progress=plain -t $(SERVICE_NAME) . --platform=linux/amd64
 
-format:
-	poetry run ruff format
+format:  ## Run formatters and auto-fix linting issues
+	uv run ruff format
+	uv run ruff check --fix
 
-format-check:
-	poetry run ruff format --check
+lint:  ## Run linters (check only, no modifications)
+	uv run ruff format --check
+	uv run ruff check
 
-lint:
-	poetry run ruff check --fix
+style-check:  ## Run pre-commit style checks
+	uv run pre-commit run --all-files --config ./.pre-commit-config-ci.yaml
 
-lint-check:
-	poetry run ruff check
+type-check:  ## Run static type checks
+	uv run ty check
 
-style-check:
-	@echo "=== Lint Check ==="
-	poetry run ruff check .
-	@echo "=== Format Check ==="
-	poetry run ruff format --check --diff .
+check-all: format lint style-check type-check  ## Run format, lint, style-check and type-check
 
-type-check:
-	poetry run mypy . --strict --exclude 'alembic/'
+test:  ## Run tests
+	uv run populate-tiers --test
+	uv run pytest
 
-check-all: format lint style-check type-check
+init-db:  ## Create & seed db tables
+	uv run alembic upgrade head
 
-test:
-	poetry run populate-tiers --test
-	poetry run pytest 
-
-init-db:
-	poetry run alembic upgrade head
-
-check-db-schema:
-	poetry run alembic check
+check-db-schema:  ## Check if db schema change requires a migration
+	uv run alembic check
 
 migration: MESSAGE ?= vlm migration
 migration:  ## Create or update the alembic migration
 	@$(call load_env,local)
-	poetry run alembic upgrade head
-	poetry run alembic revision --autogenerate -m "$(MESSAGE)"
+	uv run alembic upgrade head
+	uv run alembic revision --autogenerate -m "$(MESSAGE)"
 
-tiers:
-	poetry run populate-tiers
+tiers:  ## Populate subscription tiers
+	uv run populate-tiers

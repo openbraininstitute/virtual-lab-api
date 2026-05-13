@@ -189,7 +189,7 @@ def has_subscription_items(sub: stripe.Subscription) -> bool:
 def _ts_to_datetime(ts: object) -> datetime | None:
     if ts is None:
         return None
-    return datetime.fromtimestamp(float(ts))  # type: ignore[arg-type]
+    return datetime.fromtimestamp(float(ts))  # type: ignore[arg-type]  # ty: ignore[invalid-argument-type]
 
 
 def get_canceled_at(sub: stripe.Subscription) -> datetime | None:
@@ -409,7 +409,7 @@ def _stripe_object_to_str_dict(obj: object) -> dict[str, str]:
     Address-shaped objects (which have no nested StripeObject children).
     """
     if isinstance(obj, dict):
-        raw: dict[str, Any] = dict(obj)
+        raw: dict[str, Any] = cast(dict[str, Any], obj)
     else:
         raw = {}
     return {str(k): v for k, v in raw.items() if v is not None}
@@ -504,6 +504,43 @@ def tax_behavior_from_metadata(metadata: dict[str, str]) -> TaxBehavior | None:
     if not raw:
         return None
     return TaxBehavior(raw)
+
+
+def tax_behavior_from_invoice(invoice: stripe.Invoice) -> TaxBehavior | None:
+    """Read the tax behavior Stripe actually used for this invoice.
+
+    Checks (in order):
+      1. `invoice.total_taxes[].tax_behavior` (current API)
+      2. `invoice.lines.data[].taxes[].tax_behavior`
+      3. first line item's `price.tax_behavior` (ignoring `unspecified`)
+    Returns None when nothing usable is reported.
+    """
+
+    def _coerce(raw: object) -> TaxBehavior | None:
+        if not raw or raw == "unspecified":
+            return None
+        try:
+            return TaxBehavior(raw)
+        except ValueError:
+            return None
+
+    for item in _field(invoice, "total_taxes") or []:
+        result = _coerce(_field(item, "tax_behavior"))
+        if result is not None:
+            return result
+
+    lines = _field(invoice, "lines")
+    data = _field(lines, "data") if lines is not None else None
+    for line in data or []:
+        for tax in _field(line, "taxes") or []:
+            result = _coerce(_field(tax, "tax_behavior"))
+            if result is not None:
+                return result
+
+    price = get_first_invoice_line_price(invoice)
+    if price is not None:
+        return _coerce(_field(price, "tax_behavior"))
+    return None
 
 
 def tax_status_from_metadata(metadata: dict[str, str]) -> TaxStatus | None:

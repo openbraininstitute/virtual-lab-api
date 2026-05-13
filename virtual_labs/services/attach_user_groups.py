@@ -195,7 +195,7 @@ async def manage_user_groups(
                         AddUserProjectDetails(
                             id=user_id_str,
                             email=user_in.email,
-                            role=requested_role.value,
+                            role=requested_role,
                         )
                     )
                     admin_ids.discard(user_id_str)
@@ -226,7 +226,7 @@ async def manage_user_groups(
                         AddUserProjectDetails(
                             id=user_id_str,
                             email=user_in.email,
-                            role=requested_role.value,
+                            role=requested_role,
                         )
                     )
                     member_ids.discard(user_id_str)
@@ -247,7 +247,7 @@ async def manage_user_groups(
                         AddUserProjectDetails(
                             id=user_id_str,
                             email=user_in.email,
-                            role=requested_role.value,
+                            role=requested_role,
                         )
                     )
                     admin_ids.add(user_id_str)
@@ -262,7 +262,7 @@ async def manage_user_groups(
                         AddUserProjectDetails(
                             id=user_id_str,
                             email=user_in.email,
-                            role=requested_role.value,
+                            role=requested_role,
                         )
                     )
                     member_ids.add(user_id_str)

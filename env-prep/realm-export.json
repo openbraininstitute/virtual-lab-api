@@ -1098,7 +1098,8 @@
       "optionalClientScopes": [
         "phone",
         "offline_access",
-        "microprofile-jwt"
+        "microprofile-jwt",
+        "groups"
       ],
       "authorizationSettings": {
         "allowRemoteResourceManagement": true,

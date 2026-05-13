@@ -6,6 +6,7 @@ import sentry_sdk
 from fastapi import FastAPI, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
@@ -13,7 +14,6 @@ from fastapi.routing import APIRouter
 from loguru import logger
 from redis.asyncio import Redis
 from sentry_sdk.integrations.asgi import SentryAsgiMiddleware
-from starlette.middleware.cors import CORSMiddleware
 
 from virtual_labs.core.exceptions.api_error import (
     VliError,
@@ -67,7 +67,7 @@ app = FastAPI(
     docs_url=f"{settings.BASE_PATH}/docs",
 )
 
-app.add_middleware(SentryAsgiMiddleware)
+app.add_middleware(SentryAsgiMiddleware)  # ty: ignore[invalid-argument-type]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,

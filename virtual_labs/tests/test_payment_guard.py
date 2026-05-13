@@ -9,11 +9,12 @@ The guard replaces a Stripe Radar rule:
 from __future__ import annotations
 
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
 from virtual_labs.infrastructure.settings import settings
+from virtual_labs.repositories.stripe_repo import StripeRepository
 from virtual_labs.services.payment_guard import (
     CountryMismatchBlocked,
     ensure_ch_country_match,
@@ -58,7 +59,7 @@ async def test_allows_when_either_both_or_neither_are_ch(
     repo = _FakeStripeRepo(card_country)
     # No exception means allow.
     await ensure_ch_country_match(
-        repo,  # type: ignore[arg-type]
+        cast(StripeRepository, repo),
         payment_method_id="pm_test",
         billing_country=billing_country,
     )
@@ -83,7 +84,7 @@ async def test_blocks_when_exactly_one_side_is_ch(
     repo = _FakeStripeRepo(card_country)
     with pytest.raises(CountryMismatchBlocked) as exc_info:
         await ensure_ch_country_match(
-            repo,  # type: ignore[arg-type]
+            cast(StripeRepository, repo),
             payment_method_id="pm_test",
             billing_country=billing_country,
         )
@@ -97,7 +98,7 @@ async def test_flag_disabled_is_noop(monkeypatch: pytest.MonkeyPatch) -> None:
     # Would otherwise be a hard block; flag-off means allow.
     repo = _FakeStripeRepo("CH")
     await ensure_ch_country_match(
-        repo,  # type: ignore[arg-type]
+        cast(StripeRepository, repo),
         payment_method_id="pm_test",
         billing_country="FR",
     )

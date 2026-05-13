@@ -6,10 +6,8 @@ The Stripe Radar enforced the CH country-mismatch policy:
        AND NOT (card_country='CH' AND billing_address_country='CH')
     THEN block
 
-Owning the rule in code makes it testable, observable, and versioned
-with the rest of the billing logic. The flag
-`BILLING_BLOCK_CH_COUNTRY_MISMATCH` lets ops cut over from Radar to
-the API check (and roll back) without a redeploy.
+The flag `BILLING_BLOCK_CH_COUNTRY_MISMATCH` lets ops cut over from Radar to
+the API check
 """
 
 from __future__ import annotations
@@ -41,12 +39,9 @@ async def ensure_ch_country_match(
     payload billing country).
 
     `billing_country` is the country from the request payload
-    (`payload.billing_address.country`) — what the user typed on the
+    (`payload.billing_address.country`), what the user typed on the
     frontend, not the PaymentMethod's `billing_details` (which can be
     set client-side to anything).
-
-    No-op when the feature flag is off, so ops can flip between Radar
-    and the API check without code changes.
     """
     if not settings.BILLING_BLOCK_CH_COUNTRY_MISMATCH:
         return

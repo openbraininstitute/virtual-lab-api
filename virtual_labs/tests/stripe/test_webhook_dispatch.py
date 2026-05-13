@@ -15,8 +15,8 @@ import pytest
 import stripe
 from stripe import convert_to_stripe_object
 
-from virtual_labs.infrastructure.stripe.webhook import StripeWebhook
 from virtual_labs.infrastructure.stripe.types import PostCommitActions
+from virtual_labs.infrastructure.stripe.webhook import StripeWebhook
 
 
 def _make_webhook(redis: AsyncMock | MagicMock | None = None) -> StripeWebhook:
@@ -63,7 +63,7 @@ async def test_subscription_events_route_to_subscription_handler(
     webhook._handlers.update(
         {e: invoice_handler for e in StripeWebhook.payment_update_events}
     )
-    webhook._handle_standalone_payment_event = standalone_handler  # type: ignore[method-assign]
+    setattr(webhook, "_handle_standalone_payment_event", standalone_handler)
 
     result = await webhook.handle_webhook_event(event, MagicMock())
 
@@ -123,7 +123,7 @@ async def test_standalone_events_with_metadata_route_to_standalone_handler(
     )
 
     standalone_handler = AsyncMock(return_value={"status": "success"})
-    webhook._handle_standalone_payment_event = standalone_handler  # type: ignore[method-assign]
+    setattr(webhook, "_handle_standalone_payment_event", standalone_handler)
 
     result = await webhook.handle_webhook_event(event, MagicMock())
 
@@ -148,7 +148,7 @@ async def test_standalone_event_types_without_metadata_are_ignored(
     )
 
     standalone_handler = AsyncMock()
-    webhook._handle_standalone_payment_event = standalone_handler  # type: ignore[method-assign]
+    setattr(webhook, "_handle_standalone_payment_event", standalone_handler)
     # No registered handlers for these event types
     webhook._handlers = {}
 
@@ -324,9 +324,7 @@ async def test_empty_post_commit_actions_is_a_noop() -> None:
     await actions.run()  # must not raise
 
 
-# ---------------------------------------------------------------------------
 # Idempotency claim
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio

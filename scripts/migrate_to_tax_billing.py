@@ -68,7 +68,6 @@ from virtual_labs.infrastructure.db.models import (
     SubscriptionTier,
 )
 
-
 # ---------------------------------------------------------------------------
 # Constants & globals
 # ---------------------------------------------------------------------------
@@ -148,11 +147,11 @@ def _safe(val: Optional[str], max_len: int = 0) -> str:
     return val
 
 
-def _confirm_phase(name: str, dry_run: bool) -> Literal["yes", "skip", "abort"]:
+async def _confirm_phase(name: str, dry_run: bool) -> Literal["yes", "skip", "abort"]:
     suffix = "[DRY-RUN]" if dry_run else "[WILL WRITE]"
     return cast(
         Literal["yes", "skip", "abort"],
-        inquirer.select(
+        await inquirer.select(
             message=f"{suffix} Proceed with {name}?",
             choices=[
                 {"name": "yes — execute this phase", "value": "yes"},
@@ -160,7 +159,7 @@ def _confirm_phase(name: str, dry_run: bool) -> Literal["yes", "skip", "abort"]:
                 {"name": "abort — stop the migration here", "value": "abort"},
             ],
             default="yes",
-        ).execute(),
+        ).execute_async(),
     )
 
 
@@ -227,10 +226,8 @@ async def phase0_preflight(cfg: RunConfig) -> None:
     # Stripe reachability
     try:
         client = _stripe(cfg.stripe_api_key)
-        account = client.accounts.retrieve()
-        logger.info(
-            f"✅ Stripe reachable; acct={account.id} livemode={not account.charges_enabled or False}"
-        )
+        balance = client.balance.retrieve()
+        logger.info(f"✅ Stripe reachable; livemode={balance.livemode}")
     except stripe.AuthenticationError:
         logger.error("❌ Stripe auth failed. Check STRIPE_SECRET_KEY.")
         raise SystemExit(2)
@@ -239,6 +236,7 @@ async def phase0_preflight(cfg: RunConfig) -> None:
         raise SystemExit(2)
 
     # DB reachability
+    print("@@@cfg.database_url", cfg.database_url)
     engine = _db_engine(cfg.database_url)
     try:
         async with engine.connect() as conn:
@@ -412,7 +410,7 @@ async def phase2_product_tax_code(cfg: RunConfig, state: MigrationState) -> None
     logger.info(
         f"Plan: set product {product.id}.tax_code = {cfg.tax_code} (was: {product.tax_code or 'none'})"
     )
-    decision = _confirm_phase("Phase 2", cfg.dry_run)
+    decision = await _confirm_phase("Phase 2", cfg.dry_run)
     if decision != "yes":
         return
 
@@ -481,7 +479,7 @@ async def phase3_prices(cfg: RunConfig, state: MigrationState) -> None:
         )
     console.print(plan_table)
 
-    decision = _confirm_phase("Phase 3", cfg.dry_run)
+    decision = await _confirm_phase("Phase 3", cfg.dry_run)
     if decision != "yes":
         return
 
@@ -603,7 +601,7 @@ async def phase4_customer_addresses(cfg: RunConfig, state: MigrationState) -> No
 
     console.print(plan_table)
 
-    decision = _confirm_phase("Phase 4", cfg.dry_run)
+    decision = await _confirm_phase("Phase 4", cfg.dry_run)
     if decision != "yes":
         state.customers_no_address = no_address
         _dump_csv("migration-customers-no-address", no_address)
@@ -748,7 +746,7 @@ async def phase5_active_subscriptions(cfg: RunConfig, state: MigrationState) -> 
 
     console.print(plan_table)
 
-    decision = _confirm_phase("Phase 5", cfg.dry_run)
+    decision = await _confirm_phase("Phase 5", cfg.dry_run)
     if decision != "yes":
         return
 
@@ -806,7 +804,7 @@ async def phase6_db_reconciliation(cfg: RunConfig, state: MigrationState) -> Non
         logger.info("No price clones recorded; nothing to reconcile.")
         return
 
-    decision = _confirm_phase("Phase 6", cfg.dry_run)
+    decision = await _confirm_phase("Phase 6", cfg.dry_run)
     if decision != "yes":
         return
 
@@ -967,7 +965,9 @@ async def _amain(cfg: RunConfig) -> int:
                     "Press Ctrl-C to stop, or continue to Phase 1.",
                     style="green",
                 )
-                if not inquirer.confirm(message="Continue?", default=True).execute():
+                if not await inquirer.confirm(
+                    message="Continue?", default=True
+                ).execute_async():
                     return 0
         return 0
     except KeyboardInterrupt:

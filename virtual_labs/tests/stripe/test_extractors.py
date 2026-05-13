@@ -30,9 +30,7 @@ def _to_obj(payload: dict[str, Any]) -> Any:
     return convert_to_stripe_object(payload)
 
 
-# ---------------------------------------------------------------------------
 # Event-level
-# ---------------------------------------------------------------------------
 
 
 def test_event_type_and_id_use_direct_typed_access() -> None:
@@ -79,9 +77,7 @@ def test_is_standalone_event_false_when_metadata_missing() -> None:
     assert extractors.is_standalone_event(event) is False
 
 
-# ---------------------------------------------------------------------------
 # Generic helpers
-# ---------------------------------------------------------------------------
 
 
 def test_get_metadata_returns_empty_dict_for_missing() -> None:
@@ -109,9 +105,7 @@ def test_get_customer_id_returns_none_when_missing() -> None:
     assert extractors.get_customer_id(sub) is None
 
 
-# ---------------------------------------------------------------------------
 # Subscription
-# ---------------------------------------------------------------------------
 
 
 def _subscription_payload(
@@ -255,9 +249,7 @@ def test_cancel_at_period_end_uses_direct_typed_access() -> None:
     assert sub.cancel_at_period_end is True
 
 
-# ---------------------------------------------------------------------------
 # Invoice
-# ---------------------------------------------------------------------------
 
 
 def _invoice_payload(
@@ -275,16 +267,7 @@ def _invoice_payload(
     invoice_pdf: str | None = None,
     api_shape: str = "legacy",
 ) -> dict[str, Any]:
-    """Build an invoice payload in either API shape.
-
-    `api_shape` controls where subscription-related fields land:
-      - "legacy" (default): top-level `subscription`, `payment_intent`,
-        `subscription_details` — preserved for backward-compat coverage
-        of older Stripe accounts.
-      - "billing_2024_04_10": Billing model layout — fields nest under
-        `parent.subscription_details` and `confirmation_secret`. Match
-        the shape production receives on API 2024-04-10+.
-    """
+    """Build an invoice payload in either API shape."""
     if api_shape not in ("legacy", "billing_2024_04_10"):
         raise ValueError(f"unknown api_shape: {api_shape}")
 
@@ -577,9 +560,7 @@ def test_get_product_and_price_id_from_invoice_first_line() -> None:
     assert extractors.get_price_id_from_invoice(inv) == "price_x"
 
 
-# ---------------------------------------------------------------------------
 # PaymentIntent
-# ---------------------------------------------------------------------------
 
 
 def _payment_intent_payload(
@@ -717,9 +698,7 @@ def test_get_payment_intent_amounts_falls_back_to_amount_when_metadata_missing()
     )
 
 
-# ---------------------------------------------------------------------------
 # Status conversion
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -754,9 +733,7 @@ def test_tax_status_from_metadata_present_and_absent() -> None:
     ) == TaxStatus("calculated")
 
 
-# ---------------------------------------------------------------------------
 # Smoke test: extractors are stable across runs (deterministic)
-# ---------------------------------------------------------------------------
 
 
 def test_event_obj_is_typed_subscription_at_runtime() -> None:

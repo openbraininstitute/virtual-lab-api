@@ -21,6 +21,23 @@ from pydantic import (
 from virtual_labs.core.types import UserGroup, UserRoleEnum
 from virtual_labs.infrastructure.db.models import SpeciesSelectionMode
 
+# Allowed punctuation in person names (mirrors Keycloak's personNameRegex).
+_PERSON_NAME_ALLOWED_CHARS = frozenset(" .'-")
+
+
+def _validate_person_name(v: str, field_name: str) -> str:
+    """Validate a person name: Unicode letters, spaces, hyphens, apostrophes, and dots only."""
+    stripped = v.strip()
+    if not stripped:
+        raise ValueError(f"{field_name} must not be blank")
+    for ch in stripped:
+        if not (ch.isalpha() or ch.isdigit() or ch in _PERSON_NAME_ALLOWED_CHARS):
+            raise ValueError(
+                f"{field_name} may only contain letters, numbers, spaces, hyphens, apostrophes, and dots"
+            )
+    return stripped
+
+
 if TYPE_CHECKING:
     from virtual_labs.domain.labs import VirtualLabDetails
     from virtual_labs.domain.project import ProjectVlOut
@@ -128,6 +145,16 @@ class UpdateUserProfileRequest(BaseModel):
     address: Optional[UpdateAddress] = None
     sync_billing_address: bool = False
 
+    @field_validator("first_name")
+    @classmethod
+    def validate_first_name(cls, v: str) -> str:
+        return _validate_person_name(v, "first_name")
+
+    @field_validator("last_name")
+    @classmethod
+    def validate_last_name(cls, v: str) -> str:
+        return _validate_person_name(v, "last_name")
+
     @field_validator("country")
     @classmethod
     def validate_country_code(cls, v: str) -> str:
@@ -142,6 +169,16 @@ class OnboardingUpdateUserProfileRequest(BaseModel):
     country: str = Field(min_length=2, max_length=2)
     first_name: str
     last_name: str
+
+    @field_validator("first_name")
+    @classmethod
+    def validate_first_name(cls, v: str) -> str:
+        return _validate_person_name(v, "first_name")
+
+    @field_validator("last_name")
+    @classmethod
+    def validate_last_name(cls, v: str) -> str:
+        return _validate_person_name(v, "last_name")
 
     @field_validator("country")
     @classmethod
