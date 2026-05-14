@@ -11,24 +11,24 @@ from virtual_labs.core.authorization import (
     verity_member_invite,
 )
 from virtual_labs.core.types import UserGroup, UserRoleEnum, VliAppResponse
-from virtual_labs.domain.common import PageParams, PaginatedResponse
+from virtual_labs.domain.common import ListResponse, PaginationRequest
 from virtual_labs.domain.invite import InvitePayload
 from virtual_labs.domain.labs import (
-    CreateLabOut,
     InvitationResponse,
     LabResponse,
     SearchLabResponse,
     VirtualLabComputeCellUpdate,
     VirtualLabCreate,
+    VirtualLabDetailExpand,
     VirtualLabDetails,
     VirtualLabOut,
     VirtualLabStats,
     VirtualLabUpdate,
     VirtualLabUser,
     VirtualLabUsers,
+    VirtualLabWithAdmins,
     VirtualLabWithInviteDetails,
 )
-from virtual_labs.domain.labs import VirtualLabResponse as IVirtualLabResponse
 from virtual_labs.infrastructure.db.config import default_session_factory
 from virtual_labs.infrastructure.kc.auth import a_verify_jwt, verify_jwt
 from virtual_labs.infrastructure.kc.grant import AuthUserGrants, parse_auth_grants
@@ -37,67 +37,30 @@ from virtual_labs.shared.groups import VLAB_SERVICE_ADMIN_GROUP
 from virtual_labs.shared.utils.auth import get_user_id_from_auth
 from virtual_labs.usecases import labs as usecases
 from virtual_labs.usecases.labs.check_virtual_lab_name_exists import LabExists
-from virtual_labs.usecases.labs.list_virtual_labs import (
-    OrderBy,
-    OrderDirection,
-    Scope,
-)
+from virtual_labs.usecases.labs.list_virtual_labs import ListVirtualLabsQuery
 
 router = APIRouter(prefix="/virtual-labs", tags=["Virtual Labs Endpoints"])
 
 
 @router.get(
     "",
-    response_model=LabResponse[PaginatedResponse[VirtualLabDetails]],
+    response_model=ListResponse[VirtualLabDetails],
     summary="List the virtual labs the requester is a member of",
 )
 async def list_virtual_labs(
-    scope: Scope = Query(
-        default=Scope.ALL,
-        description=(
-            "Ownership filter. `all` returns every accessible lab; "
-            "`self` returns only labs the requester owns; "
-            "`external` returns accessible labs the requester does "
-            "not own."
-        ),
-    ),
-    admin_access_only: bool = Query(
-        default=False,
-        description="When `true`, restrict to labs the requester is admin of.",
-    ),
-    order_by: OrderBy = Query(
-        default=OrderBy.UPDATE_DATE,
-        description=(
-            "Primary ordering dimension. `creation_date` / `update_date` "
-            "sort by timestamp; `scope` groups self-owned vs external "
-            "labs (self first when `order_direction=asc`)."
-        ),
-    ),
-    order_direction: OrderDirection = Query(
-        default=OrderDirection.DESC,
-        description="Sort direction for `order_by`.",
-    ),
-    query: str | None = Query(
-        default=None,
-        description="Case-insensitive substring search over lab names.",
-    ),
-    page: int = Query(1, ge=1),
-    size: int = Query(10, ge=1, le=100),
+    params: Annotated[ListVirtualLabsQuery, Query()],
     db: AsyncSession = Depends(default_session_factory),
     auth: tuple[AuthUserGrants, str] = Depends(parse_auth_grants),
-) -> LabResponse[PaginatedResponse[VirtualLabDetails]]:
-    return LabResponse[PaginatedResponse[VirtualLabDetails]](
-        message="Tenant virtual labs",
-        data=await usecases.list_virtual_labs_use_case(
-            session=db,
-            auth=auth,
-            scope=scope,
-            admin_access_only=admin_access_only,
-            order_by=order_by,
-            order_direction=order_direction,
-            query=query,
-            pagination=PageParams(page=page, size=size),
-        ),
+) -> ListResponse[VirtualLabDetails]:
+    return await usecases.list_virtual_labs_use_case(
+        session=db,
+        auth=auth,
+        scope=params.scope,
+        admin_access_only=params.admin_access_only,
+        order_by=params.order_by,
+        order_direction=params.order_direction,
+        query=params.query,
+        pagination=params,
     )
 
 
@@ -118,22 +81,18 @@ async def get_my_virtual_lab(
 
 @router.get(
     "/requests",
-    response_model=LabResponse[PaginatedResponse[VirtualLabWithInviteDetails]],
+    response_model=ListResponse[VirtualLabWithInviteDetails],
     summary="List pending virtual-lab invitations for the requester",
 )
 async def list_pending_virtual_labs(
-    page: int = Query(1, ge=1),
-    size: int = Query(10, ge=1, le=100),
+    pagination: Annotated[PaginationRequest, Query()],
     db: AsyncSession = Depends(default_session_factory),
     auth: tuple[AuthUserGrants, str] = Depends(parse_auth_grants),
-) -> LabResponse[PaginatedResponse[VirtualLabWithInviteDetails]]:
-    return LabResponse[PaginatedResponse[VirtualLabWithInviteDetails]](
-        message="Pending virtual-lab invitations",
-        data=await usecases.list_pending_virtual_labs_use_case(
-            session=db,
-            auth=auth,
-            pagination=PageParams(page=page, size=size),
-        ),
+) -> ListResponse[VirtualLabWithInviteDetails]:
+    return await usecases.list_pending_virtual_labs_use_case(
+        session=db,
+        auth=auth,
+        pagination=pagination,
     )
 
 
@@ -170,21 +129,21 @@ async def search_virtual_lab_by_name(
 
 @router.get(
     "/{virtual_lab_id}",
-    response_model=LabResponse[IVirtualLabResponse],
+    response_model=VirtualLabWithAdmins,
+    response_model_exclude_none=True,
     summary="Get non deleted virtual lab by id",
 )
 @verify_vlab_read
 async def get_virtual_lab(
     virtual_lab_id: UUID4,
+    expand: Annotated[list[VirtualLabDetailExpand] | None, Query()] = None,
     session: AsyncSession = Depends(default_session_factory),
     auth: tuple[AuthUser, str] = Depends(verify_jwt),
-) -> LabResponse[IVirtualLabResponse]:
-    lab_response = await usecases.get_virtual_lab(
-        session, virtual_lab_id, user_id=get_user_id_from_auth(auth)
-    )
-    return LabResponse[IVirtualLabResponse](
-        message=f"Virtual lab {virtual_lab_id}",
-        data=lab_response,
+) -> VirtualLabWithAdmins:
+    return await usecases.get_virtual_lab(
+        session,
+        virtual_lab_id,
+        expand=expand,
     )
 
 
@@ -219,18 +178,25 @@ async def get_virtual_lab_users(
     )
 
 
-@router.post("", response_model=LabResponse[CreateLabOut])
+@router.post("", response_model=VirtualLabDetails)
 async def create_virtual_lab(
     lab: VirtualLabCreate,
     session: AsyncSession = Depends(default_session_factory),
-    auth: tuple[AuthUser, str] = Depends(verify_jwt),
-) -> LabResponse[CreateLabOut]:
-    result = (
-        await usecases.create_virtual_lab(session, lab, auth)
+    auth: tuple[AuthUserGrants, str] = Depends(parse_auth_grants),
+) -> VirtualLabDetails:
+    return (
+        await usecases.create_virtual_lab(
+            session,
+            lab,
+            auth,
+        )
         if not lab.course
-        else await usecases.create_course_vlab(session, lab, auth)
+        else await usecases.create_course_vlab(
+            session,
+            lab,
+            auth,
+        )
     )
-    return LabResponse[CreateLabOut](message="Newly created virtual lab", data=result)
 
 
 @router.patch("/{virtual_lab_id}", response_model=LabResponse[VirtualLabOut])

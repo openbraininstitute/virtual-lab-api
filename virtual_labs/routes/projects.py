@@ -22,8 +22,8 @@ from virtual_labs.core.gate.project import workspace_access
 from virtual_labs.core.gate.vlab import virtuallab_admin
 from virtual_labs.core.types import UserGroup, UserRoleEnum, VliAppResponse
 from virtual_labs.domain.common import (
+    ListResponse,
     PageParams,
-    PaginatedResponse,
     PaginatedResultsResponse,
 )
 from virtual_labs.domain.invite import InvitePayload
@@ -31,11 +31,13 @@ from virtual_labs.domain.labs import InvitationResponse, ProjectVirtualLabMappin
 from virtual_labs.domain.project import (
     AddUserToProjectIn,
     Project,
+    ProjectCreateExpand,
+    ProjectCreateOut,
     ProjectCreationBody,
     ProjectDeletionOut,
+    ProjectDetailExpand,
     ProjectDetailOut,
     ProjectExistenceOut,
-    ProjectOut,
     ProjectPerVLCountOut,
     ProjectStats,
     ProjectsWithWorkspaceResponse,
@@ -57,6 +59,7 @@ from virtual_labs.infrastructure.transport.httpx import httpx_factory
 from virtual_labs.shared.groups import ENTITYCORE_SERVICE_ADMIN_GROUP
 from virtual_labs.shared.utils.auth import get_user_id_from_auth
 from virtual_labs.usecases import project as project_cases
+from virtual_labs.usecases.project.list_vlab_projects import ListVlabProjectsQuery
 
 router = APIRouter(
     prefix="/virtual-labs",
@@ -214,20 +217,23 @@ async def retrieve_projects_per_vl_count(
         to create a new project for a specific virtual lab
         """
     ),
-    response_model=VliAppResponse[ProjectOut],
+    response_model=ProjectCreateOut,
+    response_model_exclude_none=True,
 )
 async def create_new_project(
     virtual_lab_id: UUID4,
     payload: ProjectCreationBody,
+    expand: Annotated[list[ProjectCreateExpand] | None, Query()] = None,
     session: AsyncSession = Depends(default_session_factory),
     auth: Tuple[AuthUser, str] = Depends(verify_jwt),
     _: AuthUserGrants = Depends(virtuallab_admin),
-) -> Response | VliError:
+) -> ProjectCreateOut:
     return await project_cases.create_new_project_use_case(
         session,
         virtual_lab_id=virtual_lab_id,
         payload=payload,
         auth=auth,
+        expand=expand,
     )
 
 
@@ -235,28 +241,23 @@ async def create_new_project(
     "/{virtual_lab_id}/projects",
     operation_id="get_all_user_projects_per_vl",
     summary="List the projects in a virtual lab the requester can access",
-    response_model=VliAppResponse[PaginatedResponse[Project]],
+    response_model=ListResponse[Project],
 )
 async def retrieve_projects(
     virtual_lab_id: UUID4,
-    search: str | None = Query(
-        None,
-        min_length=1,
-        max_length=200,
-        description="Case-insensitive substring search over project name and description.",
-    ),
-    page: int = Query(1, ge=1),
-    size: int = Query(20, ge=1, le=100),
+    params: Annotated[ListVlabProjectsQuery, Query()],
     session: AsyncSession = Depends(default_session_factory),
     auth: Tuple[AuthUserGrants, str] = Depends(parse_auth_grants),
     _: AuthUserGrants = Depends(virtuallab_access),
-) -> Response:
+) -> ListResponse[Project]:
     return await project_cases.list_vlab_projects_use_case(
         session,
         virtual_lab_id=virtual_lab_id,
         auth=auth,
-        search=search,
-        pagination=PageParams(page=page, size=size),
+        order_by=params.order_by,
+        order_direction=params.order_direction,
+        query=params.query,
+        pagination=params,
     )
 
 
@@ -289,28 +290,29 @@ async def update_project_data(
     "/{virtual_lab_id}/projects/{project_id}",
     operation_id="get_project_by_id",
     summary="Retrieve a single project, optionally expanding admin/virtual_lab",
-    response_model=VliAppResponse[ProjectDetailOut],
+    response_model=ProjectDetailOut,
+    response_model_exclude_none=True,
 )
 async def retrieve_project(
     virtual_lab_id: UUID4,
     project_id: UUID4,
-    expand: List[str] | None = Query(
-        None,
-        description=(
-            "Fields to expand. Pass once per value, e.g. "
-            "`?expand=admin&expand=virtual_lab`. Allowed: `admin`, `virtual_lab`."
+    expand: Annotated[
+        list[ProjectDetailExpand] | None,
+        Query(
+            description=(
+                "Fields to expand. Pass once per value, e.g. "
+                "`?expand=admin&expand=virtual_lab`. Allowed: `admin`, `virtual_lab`."
+            ),
         ),
-    ),
+    ] = None,
     session: AsyncSession = Depends(default_session_factory),
-    auth: Tuple[AuthUserGrants, str] = Depends(parse_auth_grants),
     _: AuthUserGrants = Depends(workspace_access),
-) -> Response:
+) -> ProjectDetailOut:
     return await project_cases.get_project_detail_use_case(
         session,
         virtual_lab_id=virtual_lab_id,
         project_id=project_id,
         expand=expand,
-        auth=auth,
     )
 
 

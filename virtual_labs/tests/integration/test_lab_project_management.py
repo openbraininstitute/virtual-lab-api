@@ -168,7 +168,7 @@ async def created_project(
         f"Failed to create project: {project_response.text}"
     )
 
-    project_id = project_response.json()["data"]["project"]["id"]
+    project_id = project_response.json()["id"]
     async with session_context_factory() as session:
         project_data = await session.get(Project, UUID(project_id))
 
@@ -209,13 +209,11 @@ class TestVirtualLabCreation:
         )
 
         assert response.status_code == HTTPStatus.OK
-        response_data = response.json()["data"]
-        created_lab_data = response_data["virtual_lab"]
+        created_lab_data = response.json()
         lab_id = created_lab_data["id"]
 
         try:
             # Assert response structure (basic check)
-            assert "virtual_lab" in response_data
             assert created_lab_data["name"] == lab_name
 
             # Assert DB record
@@ -777,7 +775,7 @@ class TestAttachUsersToProject:
             headers=get_headers(owner_username),
         )
         assert lab_response.status_code == HTTPStatus.OK
-        lab_id = lab_response.json()["data"]["virtual_lab"]["id"]
+        lab_id = lab_response.json()["id"]
 
         gqr = GroupQueryRepository()
 
@@ -802,8 +800,8 @@ class TestAttachUsersToProject:
         )
 
         assert project_response.status_code == HTTPStatus.OK
-        project_data = project_response.json()["data"]
-        created_project_id = project_data["project"]["id"]
+        project_data = project_response.json()
+        created_project_id = project_data["id"]
 
         # get project data to check project admin group
         async with session_context_factory() as session:

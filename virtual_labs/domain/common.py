@@ -1,9 +1,52 @@
+from enum import Enum
 from typing import Generic, List, TypeVar
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 from typing_extensions import Annotated
 
 from virtual_labs.domain.labs import VirtualLabDetails, VirtualLabWithInviteDetails
+from virtual_labs.infrastructure.settings import settings
+
+M = TypeVar("M", bound=BaseModel)
+
+
+class WorkspaceOrderBy(str, Enum):
+    CREATED_AT = "created_at"
+    UPDATED_AT = "updated_at"
+    NAME = "name"
+    OWNER = "owner"
+
+
+class OrderDirection(str, Enum):
+    ASC = "asc"
+    DESC = "desc"
+
+
+class PaginationRequest(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    page: Annotated[int, Field(ge=1)] = 1
+    page_size: Annotated[int, Field(ge=1, le=settings.PAGINATION_MAX_PAGE_SIZE)] = (
+        settings.PAGINATION_DEFAULT_PAGE_SIZE
+    )
+
+    @computed_field
+    @property
+    def offset(self) -> int:
+        return (self.page - 1) * self.page_size
+
+
+class PaginationResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    page: int
+    page_size: int
+    total_items: int
+
+
+class ListResponse(BaseModel, Generic[M]):
+    data: list[M]
+    pagination: PaginationResponse
 
 
 class PageParams(BaseModel):

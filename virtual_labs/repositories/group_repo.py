@@ -7,7 +7,7 @@ from pydantic import UUID4
 from virtual_labs.core.exceptions.generic_exceptions import UserNotInList
 from virtual_labs.core.exceptions.identity_error import IdentityError
 from virtual_labs.core.types import UserRoleEnum
-from virtual_labs.infrastructure.kc.config import kc_realm
+from virtual_labs.infrastructure.kc.config import KeycloakRealm
 from virtual_labs.infrastructure.kc.models import (
     CreatedGroup,
     GroupRepresentation,
@@ -23,7 +23,7 @@ class GroupQueryRepository:
     Kc: KeycloakAdmin
 
     def __init__(self) -> None:
-        self.Kc = kc_realm
+        self.Kc = KeycloakRealm
 
     def retrieve_group_users(self, group_id: str) -> List[UserRepresentation]:
         members = self.Kc.get_group_members(group_id=group_id)
@@ -69,7 +69,7 @@ class GroupMutationRepository:
     Kc: KeycloakAdmin
 
     def __init__(self) -> None:
-        self.Kc = kc_realm
+        self.Kc = KeycloakRealm
 
     def create_virtual_lab_group(
         self,

@@ -1,10 +1,10 @@
 from datetime import datetime
-from enum import Enum
+from enum import Enum, StrEnum, auto
 from typing import Generic, TypeVar
 
 from pydantic import UUID4, BaseModel, ConfigDict, EmailStr, Field, JsonValue
 
-from virtual_labs.domain.user import UserWithInviteStatus
+from virtual_labs.domain.user import ShortenedUser, UserWithInviteStatus
 
 T = TypeVar("T")
 
@@ -30,6 +30,7 @@ class VirtualLabBase(BaseModel):
     name: str = Field(max_length=250)
     description: str
     reference_email: EmailStr | None = None
+    email_verified: bool = False
     entity: str
     compute_cell: ComputeCell = ComputeCell.CELL_A
 
@@ -77,6 +78,7 @@ class VirtualLab(VirtualLabBase):
     updated_at: datetime | None = None
     projects_count: int | None = None
     created_by: UUID4
+    email_verified: bool
     course: Course | None = None
 
 
@@ -115,6 +117,16 @@ class VirtualLabOut(BaseModel):
 class VirtualLabResponse(BaseModel):
     virtual_lab: VirtualLab
     admins: list[UUID4] | None = None
+
+
+class VirtualLabWithAdmins(VirtualLab):
+    admins: list[UUID4] | None = None
+    owner: ShortenedUser | None = None
+
+
+class VirtualLabDetailExpand(StrEnum):
+    admins = auto()
+    owner = auto()
 
 
 class VirtualLabCreate(VirtualLabBase):

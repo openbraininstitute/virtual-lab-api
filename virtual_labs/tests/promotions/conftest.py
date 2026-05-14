@@ -157,7 +157,7 @@ async def mock_virtual_lab(
     """
     response = await create_mock_lab(async_test_client)
     assert response.status_code == 200
-    lab_data: Dict[str, Any] = response.json()["data"]["virtual_lab"]
+    lab_data: Dict[str, Any] = response.json()
     lab_id: str = lab_data["id"]
 
     try:
@@ -367,7 +367,7 @@ class VirtualLabManager:
         """Create a virtual lab and track it for cleanup."""
         response = await create_mock_lab(self.client, username)
         assert response.status_code == 200
-        lab_data: Dict[str, Any] = response.json()["data"]["virtual_lab"]
+        lab_data: Dict[str, Any] = response.json()
         self.lab_ids.append(lab_data["id"])
         return lab_data
 

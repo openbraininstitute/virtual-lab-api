@@ -28,7 +28,7 @@ class VirtualLabGate:
             user: AuthUserGrants = Depends(vlab_admin),
         ): ...
 
-    Prefer the module-level `vlab_admin` / `vlab_access` singletons
+    Prefer the module-level `virtuallab_admin` / `virtuallab_access` singletons
     over constructing a new instance on every route.
     """
 

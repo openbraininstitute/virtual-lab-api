@@ -40,7 +40,7 @@ async def mock_user_with_lab_and_project(
         headers=headers,
     )
     assert vl_response.status_code == 200
-    virtual_lab_id = vl_response.json()["data"]["virtual_lab"]["id"]
+    virtual_lab_id = vl_response.json()["id"]
 
     project_response = await client.post(
         f"/virtual-labs/{virtual_lab_id}/projects",
@@ -51,7 +51,7 @@ async def mock_user_with_lab_and_project(
         headers=headers,
     )
     assert project_response.status_code == 200
-    project_id = project_response.json()["data"]["project"]["id"]
+    project_id = project_response.json()["id"]
 
     yield vl_response, virtual_lab_id, {"project_id": project_id, "headers": headers}
 
@@ -80,7 +80,7 @@ async def mock_user_with_multiple_projects(
         headers=headers,
     )
     assert vl_response.status_code == 200
-    virtual_lab_id = vl_response.json()["data"]["virtual_lab"]["id"]
+    virtual_lab_id = vl_response.json()["id"]
 
     projects = {}
     for i in range(3):
@@ -93,7 +93,7 @@ async def mock_user_with_multiple_projects(
             headers=headers,
         )
         assert project_response.status_code == 200
-        project_id = project_response.json()["data"]["project"]["id"]
+        project_id = project_response.json()["id"]
         projects[f"project_{i}"] = project_id
 
     yield virtual_lab_id, projects, headers

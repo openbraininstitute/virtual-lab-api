@@ -1,4 +1,5 @@
 from datetime import datetime
+from enum import StrEnum, auto
 from typing import Annotated, List, Optional
 
 from pydantic import (
@@ -79,7 +80,22 @@ class ProjectDetailOut(Project):
     model_config = ConfigDict(from_attributes=True)
 
     virtual_lab_id: UUID4
-    admin: List[str] | None = None
+    admins: List[str] | None = None
+    virtual_lab: VirtualLabDetails | None = None
+
+
+class ProjectDetailExpand(StrEnum):
+    admins = auto()
+    virtual_lab = auto()
+
+
+class ProjectCreateExpand(StrEnum):
+    balance = auto()
+    virtual_lab = auto()
+
+
+class ProjectCreateOut(ProjectVlOut):
+    balance_added: bool | None = None
     virtual_lab: VirtualLabDetails | None = None
 
 
@@ -240,4 +256,4 @@ class ProjectUserOperationsResponse(BaseModel):
 
 
 class ProjectCreationBody(ProjectBody):
-    include_members: Optional[List[AddUserToProjectIn]] = None
+    pass

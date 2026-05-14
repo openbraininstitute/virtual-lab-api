@@ -13,53 +13,19 @@ from __future__ import annotations
 
 import asyncio
 from http import HTTPStatus
-from typing import Literal, TypeGuard
 
-from fastapi.responses import Response
 from loguru import logger
 from pydantic import UUID4
+from sqlalchemy import select
 from sqlalchemy.exc import MultipleResultsFound, NoResultFound, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
-from virtual_labs.core.response.api_response import VliResponse
 from virtual_labs.domain.labs import VirtualLabDetails
-from virtual_labs.domain.project import ProjectDetailOut
-from virtual_labs.infrastructure.kc.grant import AuthUserGrants
-from virtual_labs.repositories.group_repo import GroupQueryRepository
-from virtual_labs.repositories.project_repo import ProjectQueryRepository
-
-ExpandField = Literal["admin", "virtual_lab"]
-_VALID_EXPANDS: frozenset[ExpandField] = frozenset(("admin", "virtual_lab"))
-
-
-def _is_expand_field(value: str) -> TypeGuard[ExpandField]:
-    return value in _VALID_EXPANDS
-
-
-def _normalize_expand(expand: list[str] | None) -> set[ExpandField]:
-    """Validate and deduplicate expand keys.
-
-    Unknown values raise `VliError(INVALID_REQUEST)` so clients get a
-    clear error rather than a silently-ignored typo.
-    """
-    if not expand:
-        return set()
-    valid: set[ExpandField] = set()
-    unknown: list[str] = []
-    for raw in expand:
-        if _is_expand_field(raw):
-            valid.add(raw)
-        else:
-            unknown.append(raw)
-    if unknown:
-        raise VliError(
-            error_code=VliErrorCode.INVALID_REQUEST,
-            http_status_code=HTTPStatus.BAD_REQUEST,
-            message="Unknown expand value",
-            details=f"Unknown: {unknown}; allowed: {sorted(_VALID_EXPANDS)}",
-        )
-    return valid
+from virtual_labs.domain.project import ProjectDetailExpand, ProjectDetailOut
+from virtual_labs.infrastructure.db.models import Project, VirtualLab
+from virtual_labs.infrastructure.kc.config import KeycloakRealm
+from virtual_labs.infrastructure.kc.models import UserRepresentation
 
 
 async def get_project_detail_use_case(
@@ -67,17 +33,22 @@ async def get_project_detail_use_case(
     *,
     virtual_lab_id: UUID4,
     project_id: UUID4,
-    expand: list[str] | None,
-    auth: tuple[AuthUserGrants, str],
-) -> Response:
-    requested = _normalize_expand(expand)
-
-    project_repo = ProjectQueryRepository(session)
+    expand: list[ProjectDetailExpand] | None,
+) -> ProjectDetailOut:
+    requested = set(expand or [])
 
     try:
-        project, virtual_lab = await project_repo.retrieve_one_project_strict(
-            virtual_lab_id, project_id
-        )
+        project, virtual_lab = (
+            await session.execute(
+                select(Project, VirtualLab)
+                .join(VirtualLab)
+                .where(
+                    Project.deleted.is_(False),
+                    Project.id == project_id,
+                    Project.virtual_lab_id == virtual_lab_id,
+                )
+            )
+        ).one()
     except NoResultFound:
         raise VliError(
             error_code=VliErrorCode.ENTITY_NOT_FOUND,
@@ -98,11 +69,9 @@ async def get_project_detail_use_case(
         )
 
     admin_task: asyncio.Future[list[str]] | None = None
-    if "admin" in requested:
+    if ProjectDetailExpand.admins in requested:
         admin_task = asyncio.ensure_future(
-            GroupQueryRepository().a_retrieve_group_user_ids(
-                group_id=str(project.admin_group_id)
-            )
+            _retrieve_group_user_ids(str(project.admin_group_id))
         )
 
     try:
@@ -115,13 +84,15 @@ async def get_project_detail_use_case(
             message="Failed to load project admins",
         )
 
-    detail = ProjectDetailOut.model_validate(project)
+    found_project = ProjectDetailOut.model_validate(project)
     if admin_ids is not None:
-        detail.admin = admin_ids
-    if "virtual_lab" in requested and virtual_lab is not None:
-        detail.virtual_lab = VirtualLabDetails.model_validate(virtual_lab)
+        found_project.admins = admin_ids
+    if ProjectDetailExpand.virtual_lab in requested and virtual_lab is not None:
+        found_project.virtual_lab = VirtualLabDetails.model_validate(virtual_lab)
 
-    return VliResponse.new(
-        message="Project found successfully",
-        data=detail.model_dump(exclude_none=True),
-    )
+    return found_project
+
+
+async def _retrieve_group_user_ids(group_id: str) -> list[str]:
+    members = await KeycloakRealm.a_get_group_members(group_id=group_id)
+    return [UserRepresentation(**member).id for member in members]

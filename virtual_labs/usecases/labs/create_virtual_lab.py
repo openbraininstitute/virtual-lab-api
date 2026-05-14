@@ -1,6 +1,6 @@
 """Create a virtual lab.
 
-1. External provisioning with a `CompensationStack` so any later
+1. External provisioning with a `SagaCompensator` so any later
    failure tears down what was created (Keycloak groups, accounting
    account/discount). Resource UUIDs are pre-allocated and act as
    idempotency seeds so a client retry recovers instead of
@@ -37,22 +37,15 @@ from virtual_labs.core.types import UserRoleEnum
 from virtual_labs.domain import labs as domain
 from virtual_labs.infrastructure.db import models
 from virtual_labs.infrastructure.email.send_welcome_email import send_welcome_email
-from virtual_labs.infrastructure.kc.models import AuthUser, CreatedGroup
+from virtual_labs.infrastructure.kc.config import KeycloakRealm
+from virtual_labs.infrastructure.kc.grant import AuthUserGrants
+from virtual_labs.infrastructure.kc.models import CreatedGroup
 from virtual_labs.infrastructure.settings import settings
 from virtual_labs.infrastructure.stripe import get_stripe_repository
 from virtual_labs.infrastructure.stripe.types import PostCommitActions
-from virtual_labs.repositories import labs as labs_repository
-from virtual_labs.repositories.group_repo import GroupMutationRepository
-from virtual_labs.repositories.user_repo import (
-    UserMutationRepository,
-    UserQueryRepository,
-)
 from virtual_labs.services.stripe_customer import StripeCustomerCreationError
-from virtual_labs.shared.saga import CompensationStack
-from virtual_labs.shared.utils.auth import (
-    get_user_email_from_auth,
-    get_user_id_from_auth,
-)
+from virtual_labs.shared.group_namespace import make_virtual_lab_group_name
+from virtual_labs.shared.saga import SagaCompensator
 from virtual_labs.usecases import accounting as accounting_cases
 
 GroupRole = Literal["admin_group", "member_group"]
@@ -68,7 +61,7 @@ def _welcome_bonus_credits() -> Decimal:
 
 @asynccontextmanager
 async def _provision(
-    comp: CompensationStack,
+    comp: SagaCompensator,
     *,
     name: str,
     message: str,
@@ -126,6 +119,37 @@ async def _stage_stripe_user_if_missing(
         await session.flush()
 
 
+async def _update_user_custom_properties(
+    user_id: UUID4,
+    properties: list[tuple[str, str | None, Literal["multiple", "unique"]]],
+) -> None:
+    user = await KeycloakRealm.a_get_user(user_id=user_id)
+    update_data: dict[str, object] = {
+        "email": user.get("email"),
+        "firstName": user.get("firstName"),
+        "lastName": user.get("lastName"),
+    }
+    attributes = user.get("attributes", {})
+    merged_attributes = {
+        key: value if isinstance(value, list) else [str(value)]
+        for key, value in attributes.items()
+    }
+
+    for field, value, value_type in properties:
+        str_value = str(value) if value is not None else ""
+        if value_type == "multiple":
+            merged_attributes.setdefault(field, []).append(str_value)
+        else:
+            merged_attributes[field] = [str_value]
+
+    update_data["attributes"] = merged_attributes
+
+    await KeycloakRealm.a_update_user(
+        user_id=user_id,
+        payload=update_data,
+    )
+
+
 def _map_db_error(err: Exception) -> VliError:
     if isinstance(err, IntegrityError):
         return VliError(
@@ -147,14 +171,14 @@ def _map_db_error(err: Exception) -> VliError:
 
 
 async def _make_kc_groups_compensation(
-    group_repo: GroupMutationRepository, groups: GroupIds
+    groups: GroupIds,
 ) -> Callable[[], Awaitable[None]]:
     """Build a saga undo that deletes both Keycloak groups."""
 
     async def _undo() -> None:
         for created in (groups["admin_group"], groups["member_group"]):
             try:
-                await group_repo.a_delete_group(group_id=created["id"])
+                await KeycloakRealm.a_delete_group(group_id=created["id"])
             except Exception as exc:  # noqa: BLE001
                 logger.error(f"Failed to delete KC group {created['id']}: {exc}")
 
@@ -162,19 +186,23 @@ async def _make_kc_groups_compensation(
 
 
 async def _create_keycloak_groups(lab_id: UUID4, lab_name: str) -> GroupIds:
-    kc = GroupMutationRepository()
     try:
+        admin_group_name = make_virtual_lab_group_name(lab_id, UserRoleEnum.admin)
+        member_group_name = make_virtual_lab_group_name(lab_id, UserRoleEnum.member)
         admin_group, member_group = await asyncio.gather(
-            kc.a_create_virtual_lab_group(
-                vl_id=lab_id, vl_name=lab_name, role=UserRoleEnum.admin
+            KeycloakRealm.a_create_group(
+                {"name": admin_group_name},
             ),
-            kc.a_create_virtual_lab_group(
-                vl_id=lab_id, vl_name=lab_name, role=UserRoleEnum.member
+            KeycloakRealm.a_create_group(
+                {"name": member_group_name},
             ),
         )
         assert admin_group is not None
         assert member_group is not None
-        return {"admin_group": admin_group, "member_group": member_group}
+        return {
+            "admin_group": {"id": admin_group, "name": admin_group_name},
+            "member_group": {"id": member_group, "name": member_group_name},
+        }
     except IdentityError:
         raise
     except Exception as error:
@@ -204,9 +232,8 @@ async def _insert_free_subscription(
                 models.SubscriptionTier.tier == models.SubscriptionTierEnum.FREE
             )
         )
-    ).scalar_one_or_none()
-    if tier is None:
-        raise ValueError("Free subscription tier not found")
+    ).scalar_one()
+
     session.add(
         models.FreeSubscription(
             user_id=user_id,
@@ -249,13 +276,18 @@ async def _insert_virtual_lab(
     return db_lab
 
 
-async def _ensure_user_has_no_virtual_lab(
+async def _ensure_virtual_lab_uniqueness(
     session: AsyncSession, *, owner_id: UUID4
 ) -> None:
     """Enforce the single-vlab-per-user invariant."""
     if owner_id == settings.MULTIPLE_VLABS_ALLOWED_USER_ID:
         return
-    existing = await labs_repository.get_user_virtual_lab(db=session, owner_id=owner_id)
+    existing = await session.scalar(
+        select(models.VirtualLab).where(
+            models.VirtualLab.owner_id == owner_id,
+            ~models.VirtualLab.deleted,
+        )
+    )
     if existing is not None:
         raise VliError(
             message="User already has a virtual lab",
@@ -267,19 +299,15 @@ async def _ensure_user_has_no_virtual_lab(
 async def create_virtual_lab(
     db: AsyncSession,
     lab: domain.VirtualLabCreate,
-    auth: tuple[AuthUser, str],
-) -> domain.CreateLabOut:
-    group_repo = GroupMutationRepository()
-    user_repo = UserMutationRepository()
-    user_query_repo = UserQueryRepository()
-
-    owner_id = get_user_id_from_auth(auth)
-    owner_email = get_user_email_from_auth(auth)
-    new_lab_id: UUID4 = uuid4()
+    auth: tuple[AuthUserGrants, str],
+) -> domain.VirtualLabDetails:
+    owner_id = auth[0].id
+    owner_email = auth[0].email
+    draft_virtual_lab_id: UUID4 = uuid4()
 
     # preflight: Keycloak userinfo (no DB activity).
     try:
-        kc_user = await user_query_repo.get_user(user_id=str(owner_id))
+        kc_user = await KeycloakRealm.a_get_user(user_id=str(owner_id))
     except Exception as error:
         logger.error(f"Preflight reads failed for vlab creation: {error}")
         raise VliError(
@@ -291,15 +319,17 @@ async def create_virtual_lab(
     # external provisioning. Each step is wrapped by the
     # `_provision` context manager which compensates the saga and
     # maps unexpected errors to a typed `VliError`
-    comp = CompensationStack()
+    comp = SagaCompensator()
 
     async with _provision(
-        comp, name="keycloak groups", message="Keycloak group setup failed"
+        comp,
+        name="keycloak groups",
+        message="Keycloak group setup failed",
     ):
         try:
-            groups = await _create_keycloak_groups(new_lab_id, lab.name)
-            comp.push(await _make_kc_groups_compensation(group_repo, groups))
-            await user_repo.a_attach_user_to_group(
+            groups = await _create_keycloak_groups(draft_virtual_lab_id, lab.name)
+            comp.push(await _make_kc_groups_compensation(groups))
+            await KeycloakRealm.a_group_user_add(
                 user_id=owner_id, group_id=groups["admin_group"]["id"]
             )
         except ValueError as error:
@@ -322,14 +352,16 @@ async def create_virtual_lab(
             message="Virtual lab account creation failed",
         ):
             await accounting_cases.create_virtual_lab_account(
-                virtual_lab_id=new_lab_id,
+                virtual_lab_id=draft_virtual_lab_id,
                 name=lab.name,
                 balance=_welcome_bonus_credits(),
             )
-            comp.push(_log_orphan_accounting_account(new_lab_id))
+            comp.push(_log_orphan_accounting_account(draft_virtual_lab_id))
 
     async with _provision(
-        comp, name="stripe customer", message="Payment-provider setup failed"
+        comp,
+        name="stripe customer",
+        message="Payment-provider setup failed",
     ):
         stripe_customer_id = await _ensure_stripe_customer_id(
             user_id=owner_id,
@@ -338,17 +370,17 @@ async def create_virtual_lab(
         )
 
     deferred = PostCommitActions()
-    lab_details: domain.VirtualLabDetails
+    virtual_lab_draft: domain.VirtualLabDetails
 
     try:
         async with db.begin():
-            await _ensure_user_has_no_virtual_lab(db, owner_id=owner_id)
+            await _ensure_virtual_lab_uniqueness(db, owner_id=owner_id)
             await _stage_stripe_user_if_missing(
                 db, user_id=owner_id, stripe_customer_id=stripe_customer_id
             )
             db_lab = await _insert_virtual_lab(
                 db,
-                new_lab_id=new_lab_id,
+                new_lab_id=draft_virtual_lab_id,
                 owner_id=owner_id,
                 owner_email=owner_email,
                 admin_group_id=groups["admin_group"]["id"],
@@ -356,12 +388,12 @@ async def create_virtual_lab(
                 payload=lab,
             )
             # Snapshot before commit so we never touch the ORM object
-            lab_details = domain.VirtualLabDetails.model_validate(db_lab)
+            virtual_lab_draft = domain.VirtualLabDetails.model_validate(db_lab)
 
             await _insert_free_subscription(
                 db,
                 user_id=owner_id,
-                virtual_lab_id=new_lab_id,
+                virtual_lab_id=draft_virtual_lab_id,
                 status=models.SubscriptionStatus.ACTIVE,
             )
     except (IntegrityError, SQLAlchemyError) as err:
@@ -377,14 +409,14 @@ async def create_virtual_lab(
         raise _map_db_error(err)
 
     # post-commit side effects
-    plan_value: models.SubscriptionTierEnum = models.SubscriptionTierEnum.FREE
+    tier_mode = models.SubscriptionTierEnum.FREE.value
 
     async def _update_kc_props() -> None:
-        await user_repo.update_user_custom_properties(
+        await _update_user_custom_properties(
             user_id=owner_id,
             properties=[
-                ("plan", plan_value, "multiple"),
-                ("virtual_lab_id", str(lab_details.id), "multiple"),
+                ("plan", tier_mode, "multiple"),
+                ("virtual_lab_id", str(virtual_lab_draft.id), "multiple"),
             ],
         )
 
@@ -399,22 +431,20 @@ async def create_virtual_lab(
 
     await deferred.run()
 
-    return domain.CreateLabOut(virtual_lab=lab_details)
+    return virtual_lab_draft
 
 
 async def create_course_vlab(
     db: AsyncSession,
     lab: domain.VirtualLabCreate,
-    auth: tuple[AuthUser, str],
-) -> domain.CreateLabOut:
-    group_repo = GroupMutationRepository()
-    user_repo = UserMutationRepository()
-    user_id = get_user_id_from_auth(auth)
-    user_email = get_user_email_from_auth(auth)
-    new_lab_id: UUID4 = uuid4()
+    auth: tuple[AuthUserGrants, str],
+) -> domain.VirtualLabDetails:
+    user_id = auth[0].id
+    user_email = auth[0].email
+    draft_course_id: UUID4 = uuid4()
 
     # external provisioning. No DB activity
-    comp = CompensationStack()
+    comp = SagaCompensator()
 
     async with _provision(
         comp,
@@ -422,10 +452,11 @@ async def create_course_vlab(
         message="Keycloak group setup failed",
     ):
         try:
-            groups = await _create_keycloak_groups(new_lab_id, lab.name)
-            comp.push(await _make_kc_groups_compensation(group_repo, groups))
-            user_repo.attach_user_to_group(
-                user_id=user_id, group_id=groups["admin_group"]["id"]
+            groups = await _create_keycloak_groups(draft_course_id, lab.name)
+            comp.push(await _make_kc_groups_compensation(groups))
+            await KeycloakRealm.a_group_user_add(
+                user_id=user_id,
+                group_id=groups["admin_group"]["id"],
             )
         except IdentityError:
             raise VliError(
@@ -441,17 +472,17 @@ async def create_course_vlab(
             message="Virtual lab account creation failed",
         ):
             await accounting_cases.create_virtual_lab_account(
-                virtual_lab_id=new_lab_id,
+                virtual_lab_id=draft_course_id,
                 name=lab.name,
                 balance=Decimal(0),
             )
-            comp.push(_log_orphan_accounting_account(new_lab_id))
+            comp.push(_log_orphan_accounting_account(draft_course_id))
 
     try:
         async with db.begin():
             db_lab = await _insert_virtual_lab(
                 db,
-                new_lab_id=new_lab_id,
+                new_lab_id=draft_course_id,
                 owner_id=user_id,
                 owner_email=user_email,
                 admin_group_id=groups["admin_group"]["id"],
@@ -468,7 +499,7 @@ async def create_course_vlab(
         logger.exception(f"Unexpected failure while creating course vlab: {err}")
         raise _map_db_error(err)
 
-    return domain.CreateLabOut(virtual_lab=lab_details)
+    return lab_details
 
 
 def _log_orphan_accounting_account(

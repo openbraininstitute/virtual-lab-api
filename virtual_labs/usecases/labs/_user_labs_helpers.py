@@ -23,39 +23,61 @@ from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import ColumnElement
 
-from virtual_labs.domain.common import PageParams
+from virtual_labs.domain.common import PaginationRequest
 from virtual_labs.domain.labs import Course, VirtualLabDetails
-from virtual_labs.infrastructure.db.models import VirtualLab
-from virtual_labs.repositories.project_repo import ProjectQueryRepository
+from virtual_labs.infrastructure.db.models import Project, VirtualLab
 
 
 async def enrich_vlab(
-    vlab: VirtualLab, pqr: ProjectQueryRepository
+    vlab: VirtualLab, projects_count: int | None = None
 ) -> VirtualLabDetails:
     """Compose a `VirtualLabDetails` for one row.
 
     Only the projects count needs an extra fetch (one cheap DB
     aggregate). No Keycloak round-trip.
     """
-    projects = await pqr.retrieve_projects_per_lab_count(
-        virtual_lab_id=UUID(str(vlab.id))
+    return VirtualLabDetails.model_validate(vlab).model_copy(
+        update={
+            "projects_count": projects_count,
+            "course": Course(
+                template_project_id=vlab.course_template_project_id,
+                is_initialized=vlab.is_course_initialized,
+            ),
+        },
     )
-    return VirtualLabDetails(
-        **{c.name: getattr(vlab, c.name) for c in vlab.__table__.columns},
-        projects_count=projects,
-        course=Course(
-            template_project_id=vlab.course_template_project_id,
-            is_initialized=vlab.is_course_initialized,
-        ),
-    )
+
+
+async def _project_counts_by_vlab(
+    session: AsyncSession, vlab_ids: list[UUID]
+) -> dict[UUID, int]:
+    if not vlab_ids:
+        return {}
+
+    rows = (
+        await session.execute(
+            select(Project.virtual_lab_id, func.count(Project.id))
+            .where(
+                and_(
+                    Project.virtual_lab_id.in_(vlab_ids),
+                    Project.deleted.is_(False),
+                )
+            )
+            .group_by(Project.virtual_lab_id)
+        )
+    ).all()
+    return {UUID(str(virtual_lab_id)): count for virtual_lab_id, count in rows}
 
 
 async def enrich_many(
-    vlabs: list[VirtualLab], pqr: ProjectQueryRepository
+    vlabs: list[VirtualLab], session: AsyncSession
 ) -> list[VirtualLabDetails]:
-    """Fan out enrichment over a page — one DB aggregate per row, all
-    in flight concurrently."""
-    return list(await asyncio.gather(*(enrich_vlab(v, pqr) for v in vlabs)))
+    """Compose enriched domain payloads for one page."""
+    counts = await _project_counts_by_vlab(session, [UUID(str(v.id)) for v in vlabs])
+    return list(
+        await asyncio.gather(
+            *(enrich_vlab(v, counts.get(UUID(str(v.id)), 0)) for v in vlabs)
+        )
+    )
 
 
 _DEFAULT_ORDER: tuple[ColumnElement[Any], ...] = (
@@ -69,7 +91,7 @@ async def list_vlabs_by_id(
     *,
     vlab_ids: set[UUID],
     query: str | None,
-    pagination: PageParams,
+    pagination: PaginationRequest,
     extra_conditions: list[ColumnElement[bool]] | None = None,
     order_by: tuple[ColumnElement[Any], ...] | None = None,
 ) -> tuple[list[VirtualLab], int]:
@@ -88,7 +110,7 @@ async def list_vlabs_by_id(
         return [], 0
 
     conditions: list[ColumnElement[bool]] = [
-        ~VirtualLab.deleted,
+        VirtualLab.deleted.is_(False),
         VirtualLab.id.in_(vlab_ids),
     ]
     if query:
@@ -112,8 +134,8 @@ async def list_vlabs_by_id(
     rows = (
         await session.scalars(
             base.order_by(*order_clauses)
-            .offset((pagination.page - 1) * pagination.size)
-            .limit(pagination.size)
+            .offset(pagination.offset)
+            .limit(pagination.page_size)
         )
     ).all()
 

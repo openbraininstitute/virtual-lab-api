@@ -31,7 +31,7 @@ async def mock_lab_create(
 
     if response.status_code == 200:
         try:
-            lab_id = response.json()["data"]["virtual_lab"]["id"]
+            lab_id = response.json()["id"]
             await cleanup_resources(client=client, lab_id=lab_id)
         except Exception:
             pass
@@ -44,11 +44,10 @@ async def test_virtual_lab_created(
     response, headers = mock_lab_create
     # Test that the virtual lab was created
     assert response.status_code == 200
-    data = response.json()["data"]
-    lab_id = data["virtual_lab"]["id"]
+    data = response.json()
+    lab_id = data["id"]
 
-    # CreateLabOut only has virtual_lab, no invite fields
-    assert data["virtual_lab"] is not None
+    assert data is not None
 
     group_repo = GroupQueryRepository()
     group_id = f"vlab/{lab_id}/admin"

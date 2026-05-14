@@ -15,7 +15,7 @@ async def mock_create_project(
 ) -> AsyncGenerator[tuple[str, str, dict[str, str], AsyncClient], None]:
     client = async_test_client
     vl_response, headers = mock_lab_create
-    virtual_lab_id = vl_response.json()["data"]["virtual_lab"]["id"]
+    virtual_lab_id = vl_response.json()["id"]
 
     payload = {
         "name": f"Test Project {uuid4()}",
@@ -26,6 +26,6 @@ async def mock_create_project(
         json=payload,
     )
 
-    project = response.json()["data"]["project"]
+    project = response.json()
     assert project["name"] == payload["name"]
     yield virtual_lab_id, project["id"], headers, client

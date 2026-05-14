@@ -19,7 +19,11 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
-from virtual_labs.domain.common import PageParams, PaginatedResponse
+from virtual_labs.domain.common import (
+    ListResponse,
+    PaginationRequest,
+    PaginationResponse,
+)
 from virtual_labs.domain.labs import VirtualLabDetails, VirtualLabWithInviteDetails
 from virtual_labs.infrastructure.db.models import VirtualLab, VirtualLabInvite
 from virtual_labs.infrastructure.kc.grant import AuthUserGrants
@@ -30,8 +34,8 @@ async def list_pending_virtual_labs_use_case(
     *,
     session: AsyncSession,
     auth: tuple[AuthUserGrants, str],
-    pagination: PageParams,
-) -> PaginatedResponse[VirtualLabWithInviteDetails]:
+    pagination: PaginationRequest,
+) -> ListResponse[VirtualLabWithInviteDetails]:
     email = get_user_email_from_auth(auth)
 
     conditions = and_(
@@ -59,8 +63,8 @@ async def list_pending_virtual_labs_use_case(
         rows = (
             await session.execute(
                 base.order_by(VirtualLabInvite.id.desc())
-                .offset((pagination.page - 1) * pagination.size)
-                .limit(pagination.size)
+                .offset(pagination.offset)
+                .limit(pagination.page_size)
             )
         ).all()
     except SQLAlchemyError as exc:
@@ -79,9 +83,11 @@ async def list_pending_virtual_labs_use_case(
         for lab, invite_id in rows
     ]
 
-    return PaginatedResponse.build(
-        items=items,
-        total=total,
-        page=pagination.page,
-        size=pagination.size,
+    return ListResponse[VirtualLabWithInviteDetails](
+        data=items,
+        pagination=PaginationResponse(
+            page=pagination.page,
+            page_size=pagination.page_size,
+            total_items=total,
+        ),
     )

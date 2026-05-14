@@ -609,11 +609,11 @@ async def phase4_customer_addresses(cfg: RunConfig, state: MigrationState) -> No
 
     if cfg.address_policy == "attempt_keycloak_sync" and candidates:
         # Lazy import — Keycloak is heavy and the import has side effects.
-        from virtual_labs.infrastructure.kc.config import kc_realm
+        from virtual_labs.infrastructure.kc.config import KeycloakRealm
 
         for su, customer in candidates:
             try:
-                kc_user = await kc_realm.a_get_user(str(su.user_id))
+                kc_user = await KeycloakRealm.a_get_user(str(su.user_id))
             except Exception as e:
                 logger.warning(f"   kc lookup failed for {su.user_id}: {e}")
                 no_address.append(

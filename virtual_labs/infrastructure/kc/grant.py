@@ -278,6 +278,11 @@ class AuthUserGrants(AuthUser):
         where `name = given_name + " " + family_name`)."""
         return self.name or self.username
 
+    @cached_property
+    def email(self) -> str:
+        """The Keycloak `email` claim."""
+        return self.email
+
     def in_group(self, group_path: str) -> bool:
         """Raw Keycloak group-path membership check.
 

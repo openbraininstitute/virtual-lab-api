@@ -14,10 +14,8 @@ the result set, and a fourth axis controls ordering:
     ``auth.grants.virtual_labs.admin``.
   * **search** — case-insensitive substring match on ``name``.
   * **ordering** — ``order_by`` selects the dimension
-    (``creation_date`` / ``update_date`` / ``scope``), ``order_direction``
-    selects the direction. ``scope`` orders by self-owned vs external,
-    which is useful for tabs that want self-owned labs at the top
-    without imposing a separate query.
+    (``created_at`` / ``updated_at`` / ``name`` / ``owner``),
+    ``order_direction`` selects the direction.
 
 The two ``scope`` parameters share a name on purpose — they live on
 the same conceptual axis (ownership). One filters, the other sorts.
@@ -25,32 +23,37 @@ the same conceptual axis (ownership). One filters, the other sorts.
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 from http import HTTPStatus
 from typing import Any
 from uuid import UUID
 
 from loguru import logger
-from sqlalchemy import case
+from pydantic import Field
+from sqlalchemy import case, func, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import ColumnElement
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
-from virtual_labs.domain.common import PageParams, PaginatedResponse
+from virtual_labs.domain.common import (
+    ListResponse,
+    OrderDirection,
+    PaginationRequest,
+    PaginationResponse,
+    WorkspaceOrderBy,
+)
 from virtual_labs.domain.labs import VirtualLabDetails
 from virtual_labs.infrastructure.db.models import VirtualLab
+from virtual_labs.infrastructure.kc.config import KeycloakRealm
 from virtual_labs.infrastructure.kc.grant import AuthUserGrants, Grants
-from virtual_labs.repositories import labs as labs_repository
-from virtual_labs.repositories.group_repo import GroupQueryRepository
-from virtual_labs.repositories.project_repo import ProjectQueryRepository
 from virtual_labs.usecases.labs._user_labs_helpers import (
     enrich_many,
     list_vlabs_by_id,
 )
 
 
-class Scope(str, Enum):
+class Scope(StrEnum):
     """Ownership filter for the listing.
 
     * ``ALL`` — every accessible lab (default).
@@ -63,25 +66,22 @@ class Scope(str, Enum):
     EXTERNAL = "external"
 
 
-class OrderBy(str, Enum):
-    CREATION_DATE = "creation_date"
-    UPDATE_DATE = "update_date"
-    SCOPE = "scope"
-
-
-class OrderDirection(str, Enum):
-    ASC = "asc"
-    DESC = "desc"
+class ListVirtualLabsQuery(PaginationRequest):
+    scope: Scope = Scope.ALL
+    admin_access_only: bool = False
+    order_by: WorkspaceOrderBy = WorkspaceOrderBy.UPDATED_AT
+    order_direction: OrderDirection = OrderDirection.DESC
+    query: str | None = Field(default=None, min_length=1, max_length=200)
 
 
 def _build_order_clauses(
-    order_by: OrderBy,
+    order_by: WorkspaceOrderBy,
     direction: OrderDirection,
     user_id: object,
 ) -> tuple[ColumnElement[Any], ...]:
     """Translate the ordering enums into SQLAlchemy clauses.
 
-    For ``SCOPE`` we sort on a synthetic 0/1 column (0 = self-owned,
+    For ``OWNER`` we sort on a synthetic 0/1 column (0 = self-owned,
     1 = external) so ``ASC`` puts the user's own labs first. The
     timestamp orderings cascade into ``created_at`` as a secondary
     key to avoid swapping rows with identical updated/created
@@ -89,17 +89,20 @@ def _build_order_clauses(
     """
     asc = direction is OrderDirection.ASC
 
-    if order_by is OrderBy.SCOPE:
-        scope_expr = case((VirtualLab.owner_id == user_id, 0), else_=1)
-        primary = scope_expr.asc() if asc else scope_expr.desc()
-        # Within each scope bucket, keep the recency feel.
+    if order_by is WorkspaceOrderBy.OWNER:
+        owner_expr = case((VirtualLab.owner_id == user_id, 0), else_=1)
+        primary = owner_expr.asc() if asc else owner_expr.desc()
         return primary, VirtualLab.updated_at.desc(), VirtualLab.created_at.desc()
 
-    if order_by is OrderBy.CREATION_DATE:
+    if order_by is WorkspaceOrderBy.CREATED_AT:
         col = VirtualLab.created_at
         return (col.asc() if asc else col.desc(),)
 
-    # UPDATE_DATE (default)
+    if order_by is WorkspaceOrderBy.NAME:
+        col = func.lower(VirtualLab.name)
+        return (col.asc() if asc else col.desc(), VirtualLab.updated_at.desc())
+
+    # UPDATED_AT (default)
     col = VirtualLab.updated_at
     return (col.asc() if asc else col.desc(), VirtualLab.created_at.desc())
 
@@ -147,10 +150,10 @@ async def _resolve_candidate_ids(
     if not user.groups:
         # JWT lacks the groups claim entirely — go to KC.
         try:
-            kc_groups = await GroupQueryRepository().a_retrieve_user_groups(
-                user_id=str(user.id)
+            kc_groups = await KeycloakRealm.a_get_user_groups(user_id=str(user.id))
+            candidate_ids |= _vlab_set(
+                Grants.from_groups(str(g["path"]) for g in kc_groups)
             )
-            candidate_ids |= _vlab_set(Grants.from_groups(g.path for g in kc_groups))
         except Exception as exc:  # noqa: BLE001
             logger.warning(
                 f"KC user-groups fallback failed for {user.id}: {exc}; "
@@ -159,7 +162,12 @@ async def _resolve_candidate_ids(
 
     # Owned lab is always a member of the user's scope (except
     # `EXTERNAL`, which `_scope_condition` later filters out).
-    owned = await labs_repository.get_user_virtual_lab(db=session, owner_id=user.id)
+    owned = await session.scalar(
+        select(VirtualLab).where(
+            VirtualLab.owner_id == user.id,
+            VirtualLab.deleted.is_(False),
+        )
+    )
     if owned is not None:
         candidate_ids.add(UUID(str(owned.id)))
 
@@ -172,11 +180,11 @@ async def list_virtual_labs_use_case(
     auth: tuple[AuthUserGrants, str],
     scope: Scope,
     admin_access_only: bool,
-    order_by: OrderBy,
+    order_by: WorkspaceOrderBy,
     order_direction: OrderDirection,
     query: str | None,
-    pagination: PageParams,
-) -> PaginatedResponse[VirtualLabDetails]:
+    pagination: PaginationRequest,
+) -> ListResponse[VirtualLabDetails]:
     user, _token = auth
 
     candidate_ids = await _resolve_candidate_ids(
@@ -211,10 +219,12 @@ async def list_virtual_labs_use_case(
             message="Failed to list virtual labs",
         )
 
-    items = await enrich_many(rows, ProjectQueryRepository(session=session))
-    return PaginatedResponse.build(
-        items=items,
-        total=total,
-        page=pagination.page,
-        size=pagination.size,
+    items = await enrich_many(rows, session)
+    return ListResponse[VirtualLabDetails](
+        data=items,
+        pagination=PaginationResponse(
+            page=pagination.page,
+            page_size=len(items),
+            total_items=total,
+        ),
     )

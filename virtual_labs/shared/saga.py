@@ -1,6 +1,6 @@
 """In-process saga primitive for orchestrating compensable side effects.
 
-`CompensationStack` is a per-request stack of async undo callbacks. As a
+`SagaCompensator` is a per-request stack of async undo callbacks. As a
 usecase creates external resources (Keycloak groups, accounting accounts,
 etc.) it `push`es the corresponding teardown. On failure the caller invokes
 `compensate()` which runs every recorded undo in LIFO order, swallowing
@@ -17,16 +17,16 @@ from collections.abc import Awaitable, Callable
 
 from loguru import logger
 
-CompensationAction = Callable[[], Awaitable[None]]
+SagaCompensatorAction = Callable[[], Awaitable[None]]
 
 
-class CompensationStack:
+class SagaCompensator:
     __slots__ = ("_actions",)
 
     def __init__(self) -> None:
-        self._actions: list[CompensationAction] = []
+        self._actions: list[SagaCompensatorAction] = []
 
-    def push(self, action: CompensationAction) -> None:
+    def push(self, action: SagaCompensatorAction) -> None:
         self._actions.append(action)
 
     def __len__(self) -> int:

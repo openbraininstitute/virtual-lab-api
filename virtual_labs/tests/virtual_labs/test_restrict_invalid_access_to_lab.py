@@ -30,7 +30,7 @@ async def mock_lab_create(
         headers=headers,
     )
     assert response.status_code == 200
-    lab_id = response.json()["data"]["virtual_lab"]["id"]
+    lab_id = response.json()["id"]
 
     yield client, lab_id, headers
 

@@ -36,9 +36,9 @@ async def multiple_mock_labs(
     lab3 = await create_mock_lab(async_test_client, "test-2")
 
     all_labs = [
-        (lab1.json()["data"]["virtual_lab"], "test"),
+        (lab1.json(), "test"),
         (lab2_data, "test-1"),
-        (lab3.json()["data"]["virtual_lab"], "test-2"),
+        (lab3.json(), "test-2"),
     ]
     yield async_test_client, all_labs
 
@@ -80,7 +80,7 @@ async def test_list_virtual_labs_default(
         response = await client.get("/virtual-labs", headers=get_headers(owner_user))
         assert response.status_code == 200
 
-        payload = response.json()["data"]
+        payload = response.json()
         assert "data" in payload and "pagination" in payload
         ids = {item["id"] for item in payload["data"]}
         assert expected_lab["id"] in ids
@@ -99,7 +99,7 @@ async def test_list_virtual_labs_scope_self(
         )
         assert response.status_code == 200
 
-        payload = response.json()["data"]
+        payload = response.json()
         ids = {item["id"] for item in payload["data"]}
         assert expected_lab["id"] in ids
         # `scope=self` must never surface a lab owned by someone else.
@@ -123,7 +123,7 @@ async def test_list_virtual_labs_scope_external(
         )
         assert response.status_code == 200
 
-        payload = response.json()["data"]
+        payload = response.json()
         ids = {item["id"] for item in payload["data"]}
         assert expected_lab["id"] not in ids
 
@@ -132,22 +132,20 @@ async def test_list_virtual_labs_scope_external(
 async def test_list_virtual_labs_pagination_envelope(
     multiple_mock_labs: tuple[AsyncClient, list[tuple[Any, str]]],
 ) -> None:
-    """The shared `PaginatedResponse` envelope is well-formed."""
+    """The shared `ListResponse` envelope is well-formed."""
     client, labs_with_users = multiple_mock_labs
     _, owner_user = labs_with_users[0]
 
     response = await client.get(
-        "/virtual-labs?page=1&size=10", headers=get_headers(owner_user)
+        "/virtual-labs?page=1&page_size=10", headers=get_headers(owner_user)
     )
     assert response.status_code == 200
 
-    payload = response.json()["data"]
+    payload = response.json()
     pagination = payload["pagination"]
     assert pagination["page"] == 1
-    assert pagination["size"] == 10
-    assert pagination["page_size"] == len(payload["data"])
-    assert pagination["total"] >= pagination["page_size"]
-    assert pagination["has_previous"] is False
+    assert pagination["page_size"] == 10
+    assert pagination["total_items"] >= len(payload["data"])
 
 
 @pytest.mark.asyncio
@@ -162,3 +160,35 @@ async def test_list_virtual_labs_invalid_scope(
         "/virtual-labs?scope=bogus", headers=get_headers(owner_user)
     )
     assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_list_virtual_labs_invalid_order_by(
+    multiple_mock_labs: tuple[AsyncClient, list[tuple[Any, str]]],
+) -> None:
+    client, labs_with_users = multiple_mock_labs
+    _, owner_user = labs_with_users[0]
+
+    response = await client.get(
+        "/virtual-labs?order_by=bogus", headers=get_headers(owner_user)
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_list_virtual_labs_query_filter(
+    multiple_mock_labs: tuple[AsyncClient, list[tuple[Any, str]]],
+) -> None:
+    client, labs_with_users = multiple_mock_labs
+    expected_lab, owner_user = labs_with_users[0]
+
+    response = await client.get(
+        "/virtual-labs",
+        params={"query": expected_lab["name"], "order_by": "name"},
+        headers=get_headers(owner_user),
+    )
+    assert response.status_code == 200
+
+    payload = response.json()
+    ids = {item["id"] for item in payload["data"]}
+    assert expected_lab["id"] in ids
