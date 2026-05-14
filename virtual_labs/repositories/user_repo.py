@@ -98,9 +98,6 @@ class UserQueryRepository:
         current_groups = [group.id for group in self.retrieve_user_groups(user_id)]
         return group_id in current_groups
 
-    def get_all_users_count(self) -> int:
-        return len(self.Kc.get_users())
-
     async def get_group_user_count(self, group_id: str) -> int:
         members = await self.Kc.a_get_group_members(group_id=group_id)
         return len(members)

@@ -26,8 +26,6 @@ from virtual_labs.infrastructure.redis import get_redis
 from virtual_labs.infrastructure.settings import settings
 from virtual_labs.routes.accounting import router as accounting_router
 from virtual_labs.routes.billing import router as billing_router
-from virtual_labs.routes.bookmarks import router as bookmarks_router
-from virtual_labs.routes.common import router as common_router
 from virtual_labs.routes.config import router as config_router
 from virtual_labs.routes.invites import router as invite_router
 from virtual_labs.routes.labs import router as virtual_lab_router
@@ -107,12 +105,6 @@ def custom_openapi() -> dict[str, Any]:
             if not path_item:
                 openapi_schema["paths"].pop(path_key)
 
-    # mark all bookmark endpoints as deprecated in all environments
-    for path_key, path_item in openapi_schema.get("paths", {}).items():
-        if "/bookmarks" in path_key:
-            for method_detail in path_item.values():
-                method_detail["deprecated"] = True
-
     app.openapi_schema = openapi_schema
     return app.openapi_schema
 
@@ -175,12 +167,10 @@ def health() -> str:
     return "OK"
 
 
-base_router.include_router(common_router)
 base_router.include_router(project_router)
 base_router.include_router(virtual_lab_router)
 base_router.include_router(invite_router)
 base_router.include_router(payments_router)
-base_router.include_router(bookmarks_router)
 base_router.include_router(accounting_router)
 base_router.include_router(billing_router)
 

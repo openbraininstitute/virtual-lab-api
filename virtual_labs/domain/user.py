@@ -79,12 +79,6 @@ class ShortenedUser(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class AllUsersCount(BaseModel):
-    total: int = Field(
-        description="Count of all users in BBP keycloak (including the ones that may not have not explicitly signed into OBP or have any virtual labs)"
-    )
-
-
 class UserWithInviteStatus(ShortenedUser):
     invite_accepted: bool
     role: UserRoleEnum
