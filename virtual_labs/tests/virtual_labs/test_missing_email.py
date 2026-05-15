@@ -86,25 +86,3 @@ async def test_missing_emails_none_exist(
     )
     assert response.status_code == 200
     assert sorted(response.json()) == ["a@test.org", "b@test.org"]
-
-
-@pytest.mark.asyncio
-async def test_missing_emails_ignores_deleted_project(
-    async_test_client: AsyncClient,
-    mock_lab_with_project: tuple[str, str, dict[str, str]],
-) -> None:
-    lab_id, project_id, headers = mock_lab_with_project
-
-    delete_resp = await async_test_client.delete(
-        f"/virtual-labs/{lab_id}/projects/{project_id}",
-        headers=headers,
-    )
-    assert delete_resp.status_code == 200
-
-    response = await async_test_client.post(
-        f"/virtual-labs/{lab_id}/missing-student-emails",
-        json={"emails": ["existing@test.org"]},
-        headers=headers,
-    )
-    assert response.status_code == 200
-    assert response.json() == ["existing@test.org"]

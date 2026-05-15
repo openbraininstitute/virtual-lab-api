@@ -1,9 +1,8 @@
-from datetime import datetime
 from typing import List, Tuple, cast
 from uuid import UUID
 
 from pydantic import UUID4
-from sqlalchemy import Row, delete, func, or_, select, update
+from sqlalchemy import Row, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import noload
 from sqlalchemy.sql import and_
@@ -15,9 +14,7 @@ from virtual_labs.domain.project import (
     ProjectUpdateBody,
 )
 from virtual_labs.infrastructure.db.models import (
-    Bookmark,
     Project,
-    ProjectInvite,
     ProjectStar,
     VirtualLab,
 )
@@ -28,53 +25,6 @@ class ProjectQueryRepository:
 
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
-
-    async def retrieve_project_stats(
-        self,
-        project_id: UUID,
-    ) -> dict[str, int]:
-        """Get statistics for a project using a single optimized query."""
-        from sqlalchemy import distinct, func, select
-
-        # Filter Project first
-        base_query = (
-            select(Project).where(
-                Project.id == project_id,
-                ~Project.deleted,
-            )
-        ).subquery()
-
-        stats_query = (
-            select(
-                base_query.c.id,
-                func.count(distinct(ProjectStar.id)).label("total_stars"),
-                func.count(distinct(Bookmark.id)).label("total_bookmarks"),
-                func.count(distinct(ProjectInvite.id))
-                .filter(~ProjectInvite.accepted)
-                .label("total_pending_invites"),
-            )
-            .select_from(base_query)
-            .outerjoin(ProjectStar, base_query.c.id == ProjectStar.project_id)
-            .outerjoin(Bookmark, base_query.c.id == Bookmark.project_id)
-            .outerjoin(ProjectInvite, base_query.c.id == ProjectInvite.project_id)
-            .group_by(base_query.c.id)
-        )
-
-        result = await self.session.execute(stats_query)
-        stats = result.first()
-
-        if not stats:
-            return {
-                "total_stars": 0,
-                "total_bookmarks": 0,
-                "total_pending_invites": 0,
-            }
-
-        return {
-            "total_stars": stats.total_stars,
-            "total_bookmarks": stats.total_bookmarks,
-            "total_pending_invites": stats.total_pending_invites,
-        }
 
     async def retrieve_virtual_lab_projects(
         self, virtual_lab_id: UUID
@@ -219,22 +169,6 @@ class ProjectQueryRepository:
             result,
         )
 
-    async def retrieve_project_star(
-        self, *, project_id: UUID4, user_id: UUID4
-    ) -> ProjectStar | None:
-        result = await self.session.scalar(
-            select(ProjectStar).filter(
-                and_(
-                    ProjectStar.project_id == project_id,
-                    ProjectStar.user_id == user_id,
-                )
-            )
-        )
-        return cast(
-            ProjectStar,
-            result,
-        )
-
     async def retrieve_starred_projects_per_user(
         self, user_id: UUID4, pagination: PageParams
     ) -> PaginatedDbResult[List[Row[Tuple[ProjectStar, Project]]]]:
@@ -264,15 +198,6 @@ class ProjectQueryRepository:
             count=count or 0,
             rows=[row for row in result],
         )
-
-    async def retrieve_project_users_count(self, virtual_lab_id: UUID4) -> int | None:
-        result = await self.session.execute(
-            select(func.count(Project.id)).where(  # Use select for flexibility
-                Project.virtual_lab_id == virtual_lab_id
-            )
-        )
-
-        return result.scalar()
 
     async def retrieve_projects_per_lab_count(
         self, virtual_lab_id: UUID4
@@ -419,92 +344,6 @@ class ProjectMutationRepository:
         await self.session.commit()
         await self.session.refresh(project)
         return project
-
-    async def un_delete_project(
-        self, *, virtual_lab_id: UUID4, project_id: UUID4
-    ) -> Row[Tuple[UUID, str, str, bool, datetime | None]]:
-        stmt = (
-            update(Project)
-            .where(
-                and_(Project.id == project_id, Project.virtual_lab_id == virtual_lab_id)
-            )
-            .values(deleted=False, deleted_at=None)
-            .returning(
-                Project.id,
-                Project.admin_group_id,
-                Project.member_group_id,
-                Project.deleted,
-                Project.deleted_at,
-            )
-        )
-        result = await self.session.execute(statement=stmt)
-        await self.session.commit()
-        return result.one()
-
-    async def delete_project(
-        self, virtual_lab_id: UUID4, project_id: UUID4, user_id: UUID4
-    ) -> Row[Tuple[UUID, bool, datetime | None]]:
-        stmt = (
-            update(Project)
-            .where(
-                and_(Project.id == project_id, Project.virtual_lab_id == virtual_lab_id)
-            )
-            .values(deleted=True, deleted_at=func.now(), deleted_by=user_id)
-            .returning(
-                Project.id,
-                Project.deleted,
-                Project.deleted_at,
-            )
-        )
-        result = await self.session.execute(statement=stmt)
-        await self.session.commit()
-        return result.one()
-
-    async def delete_project_strict(
-        self, virtual_lab_id: UUID4, project_id: UUID4
-    ) -> Row[Tuple[UUID, str, str, bool, datetime | None]]:
-        stmt = (
-            delete(Project)
-            .where(
-                and_(Project.id == project_id, Project.virtual_lab_id == virtual_lab_id)
-            )
-            .returning(
-                Project.id,
-                Project.admin_group_id,
-                Project.member_group_id,
-                Project.deleted,
-                Project.deleted_at,
-            )
-        )
-        result = await self.session.execute(statement=stmt)
-        await self.session.commit()
-        return result.one()
-
-    async def star_project(self, user_id: UUID4, project_id: UUID4) -> ProjectStar:
-        project = ProjectStar(
-            project_id=project_id,
-            user_id=user_id,
-        )
-        self.session.add(project)
-        await self.session.commit()
-        await self.session.refresh(project)
-        return project
-
-    async def unstar_project(
-        self, *, project_id: UUID4, user_id: UUID4
-    ) -> Row[Tuple[UUID, datetime]]:
-        stmt = (
-            delete(ProjectStar)
-            .where(
-                and_(
-                    ProjectStar.project_id == project_id, ProjectStar.user_id == user_id
-                )
-            )
-            .returning(ProjectStar.project_id, ProjectStar.updated_at)
-        )
-        result = await self.session.execute(statement=stmt)
-        await self.session.commit()
-        return result.one()
 
     async def update_project_data(
         self,

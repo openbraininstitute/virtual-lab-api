@@ -10,7 +10,7 @@ from pydantic import (
 )
 
 from virtual_labs.core.types import UserRoleEnum
-from virtual_labs.domain.user import UserWithInviteStatus, Workspace
+from virtual_labs.domain.user import Workspace
 
 
 class VirtualLabModel(BaseModel):
@@ -64,19 +64,6 @@ class ProjectVlOut(Project):
     admins: List[str] | None
 
 
-class ProjectStats(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    project_id: UUID4
-    total_stars: int
-    total_bookmarks: int
-    total_pending_invites: int
-    total_members: int
-
-    admin_users: list[UUID4]
-    member_users: list[UUID4]
-
-
 class ProjectExistenceOut(BaseModel):
     exist: bool
 
@@ -111,12 +98,6 @@ class ProjectsWithWorkspaceResponse(BaseModel):
     page_size: int
     total: int
     recent_workspace: Optional[Workspace] = None
-
-
-class ProjectDeletionOut(BaseModel):
-    project_id: UUID4
-    deleted: bool
-    deleted_at: datetime
 
 
 class ProjectCountOut(BaseModel):
@@ -155,21 +136,6 @@ class ProjectStar(BaseModel):
 
     id: UUID4
     user_id: UUID4
-
-
-class ProjectUsersOut(BaseModel):
-    users: List[UserWithInviteStatus]
-    total: int
-
-
-class ProjectUsersCountOut(BaseModel):
-    project_id: UUID4
-    total: int
-
-
-class ProjectPerVLCountOut(BaseModel):
-    virtual_lab_id: UUID4
-    total: int
 
 
 class ProjectInviteIn(BaseModel):

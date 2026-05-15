@@ -159,9 +159,8 @@ async def cleanup_resources(
 ) -> None:
     """Performs cleanup of following resources for lab_id:
     1. Delete all payments and subscriptions linked to this virtual lab
-    2. Deprecates underlying nexus org/project by calling the DELETE endpoints
-    3. Deletes lab/project row along with lab_invite, project_invite, project_star, bookmarks, rows from the DB
-    4. Deletes admin and member groups from keycloak
+    2. Deletes lab/project row along with lab_invite, project_invite, project_star, bookmarks, rows from the DB
+    3. Deletes admin and member groups from keycloak
     """
     # 1. Delete payments and subscriptions
     async with session_context_factory() as session:
@@ -196,17 +195,6 @@ async def cleanup_resources(
         stmt = select(Project.id).filter(Project.virtual_lab_id == UUID(lab_id))
         all = (await session.execute(statement=stmt)).scalars().all()
         project_ids = [str(project_id) for project_id in all]
-    # 2. Call DELETE endpoints (which will deprecate nexus resources)
-    for project_id in project_ids:
-        try:
-            project_delete_response = await client.delete(
-                f"/virtual-labs/{lab_id}/projects/{project_id}",
-                headers=get_headers(user if user else "test"),
-            )
-        except Exception:
-            assert (
-                project_delete_response.status_code == HTTPStatus.BAD_REQUEST
-            )  # TODO: The response code for deleting already deleted lab and project should be the same.
     try:
         lab_delete_response = await client.delete(
             f"/virtual-labs/{lab_id}", headers=get_headers(user if user else "test")
