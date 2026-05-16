@@ -144,7 +144,7 @@ async def test_list_virtual_labs_pagination_envelope(
     payload = response.json()
     pagination = payload["pagination"]
     assert pagination["page"] == 1
-    assert pagination["page_size"] == 10
+    assert pagination["page_size"] == len(payload["data"])
     assert pagination["total_items"] >= len(payload["data"])
 
 

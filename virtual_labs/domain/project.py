@@ -95,7 +95,6 @@ class ProjectCreateExpand(StrEnum):
 
 
 class ProjectCreateOut(ProjectVlOut):
-    balance_added: bool | None = None
     virtual_lab: VirtualLabDetails | None = None
 
 

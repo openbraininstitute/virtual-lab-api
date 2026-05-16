@@ -89,7 +89,8 @@ class BudgetInterface:
                 f"HTTP Error when assigning project budget. Error {error}. Accounting Response: {error.response.json()}"
             )
             raise AccountingError(
-                message=f"Could not assign project budget. Accounting Response: {error.response.json()}",
+                message=error.response.json().get("message")
+                or "Could not assign project budget. Accounting Response",
                 type=AccountingErrorValue.ASSIGN_PROJECT_BUDGET_ERROR,
                 http_status_code=HTTPStatus(error.response.status_code),
             )
@@ -124,7 +125,8 @@ class BudgetInterface:
                 f"HTTP Error when reversing project budget. Error {error}. Accounting Response: {error.response.json()}"
             )
             raise AccountingError(
-                message=f"Could not reverse project budget. Accounting Response: {error.response.json()}",
+                message=error.response.json().get("message")
+                or "Could not reverse project budget",
                 type=AccountingErrorValue.REVERSE_PROJECT_BUDGET_ERROR,
                 http_status_code=HTTPStatus(error.response.status_code),
             )

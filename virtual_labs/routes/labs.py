@@ -10,6 +10,10 @@ from virtual_labs.core.authorization import (
     verify_vlab_write,
     verity_member_invite,
 )
+from virtual_labs.core.ledger.modules.virtual_lab import (
+    COURSE_LAB_POLICY,
+    REGULAR_LAB_POLICY,
+)
 from virtual_labs.core.types import UserGroup, UserRoleEnum, VliAppResponse
 from virtual_labs.domain.common import ListResponse, PaginationRequest
 from virtual_labs.domain.invite import InvitePayload
@@ -184,19 +188,8 @@ async def create_virtual_lab(
     session: AsyncSession = Depends(default_session_factory),
     auth: tuple[AuthUserGrants, str] = Depends(parse_auth_grants),
 ) -> VirtualLabDetails:
-    return (
-        await usecases.create_virtual_lab(
-            session,
-            lab,
-            auth,
-        )
-        if not lab.course
-        else await usecases.create_course_vlab(
-            session,
-            lab,
-            auth,
-        )
-    )
+    policy = COURSE_LAB_POLICY if lab.course else REGULAR_LAB_POLICY
+    return await usecases.create_virtual_lab(session, lab, auth, policy=policy)
 
 
 @router.patch("/{virtual_lab_id}", response_model=LabResponse[VirtualLabOut])

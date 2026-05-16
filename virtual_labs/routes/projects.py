@@ -225,11 +225,11 @@ async def create_new_project(
     payload: ProjectCreationBody,
     expand: Annotated[list[ProjectCreateExpand] | None, Query()] = None,
     session: AsyncSession = Depends(default_session_factory),
-    auth: Tuple[AuthUser, str] = Depends(verify_jwt),
+    auth: tuple[AuthUserGrants, str] = Depends(parse_auth_grants),
     _: AuthUserGrants = Depends(virtuallab_admin),
 ) -> ProjectCreateOut:
     return await project_cases.create_new_project_use_case(
-        session,
+        session=session,
         virtual_lab_id=virtual_lab_id,
         payload=payload,
         auth=auth,

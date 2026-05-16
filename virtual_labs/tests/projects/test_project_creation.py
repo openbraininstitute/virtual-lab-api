@@ -87,7 +87,6 @@ async def test_vlm_project_creation_expands_balance_and_virtual_lab(
     assert response.status_code == 200
     data = response.json()
     assert data["virtual_lab_id"] == virtual_lab_id
-    assert data["balance_added"] in {True, False}
     assert data["virtual_lab"]["id"] == virtual_lab_id
 
 

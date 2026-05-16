@@ -1,17 +1,4 @@
-"""Create a new project inside an existing virtual lab.
-
-1. Parallel preflight reads (vlab fetch + ownership/name checks).
-2. External provisioning under a `SagaCompensator` — Keycloak
-   admin/member groups + user attachments + (optionally) accounting
-   project account. The pre-allocated `project_id` is the
-   idempotency seed.
-3. A single DB transaction (`async with session.begin():`) for the
-   local project row, so a crash mid-write leaves no partial state
-   while Keycloak leaks are torn down by the saga.
-4. Post-commit best-effort work — first-project credit transfer —
-   via `PostCommitActions`.
-
-"""
+"""Create a new project inside an existing virtual lab."""
 
 from __future__ import annotations
 
@@ -28,6 +15,7 @@ from sqlalchemy.exc import IntegrityError, NoResultFound, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
+from virtual_labs.core.ledger import Ledger
 from virtual_labs.core.types import UserRoleEnum
 from virtual_labs.domain.labs import VirtualLabDetails
 from virtual_labs.domain.project import (
@@ -40,15 +28,13 @@ from virtual_labs.domain.project import (
 )
 from virtual_labs.infrastructure.db.models import Project, VirtualLab
 from virtual_labs.infrastructure.kc.config import KeycloakRealm
+from virtual_labs.infrastructure.kc.grant import AuthUserGrants
 from virtual_labs.infrastructure.kc.models import (
-    AuthUser,
     CreatedGroup,
     UserRepresentation,
 )
 from virtual_labs.infrastructure.settings import settings
 from virtual_labs.shared.group_namespace import make_project_group_name
-from virtual_labs.shared.saga import SagaCompensator
-from virtual_labs.shared.utils.auth import get_user_id_from_auth
 from virtual_labs.usecases import accounting as accounting_cases
 
 
@@ -59,7 +45,7 @@ async def _make_kc_group_compensation(
 
     `async def` to match the surrounding KC-touching surface. Call
     sites `await` this and push the returned callable onto the
-    `SagaCompensator`.
+    `Ledger`.
     """
 
     async def _undo() -> None:
@@ -88,51 +74,23 @@ async def _retrieve_group_user_ids(group_id: str) -> list[str]:
     return [UserRepresentation(**member).id for member in members]
 
 
-async def create_new_project_use_case(
+async def ensure_unique_name_within_virtual_lab(
     session: AsyncSession,
     *,
     virtual_lab_id: UUID4,
-    payload: ProjectCreationBody,
-    auth: tuple[AuthUser, str],
-    expand: list[ProjectCreateExpand] | None = None,
-) -> ProjectCreateOut:
-    project_id: UUID4 = uuid4()
-    user_id = get_user_id_from_auth(auth)
-    requested = set(expand or [])
-
+    project_name: str,
+) -> None:
     try:
-        virtual_lab = (
-            await session.scalars(
-                select(VirtualLab).where(
-                    VirtualLab.id == virtual_lab_id,
-                    VirtualLab.deleted.is_(False),
-                )
-            )
-        ).one()
-        owned_count = (
-            await session.scalar(
-                select(func.count(Project.id)).where(
-                    Project.deleted.is_(False),
-                    Project.owner_id == user_id,
-                )
-            )
-        ) or 0
         name_clash = (
             await session.scalar(
                 select(func.count(Project.id)).where(
                     Project.virtual_lab_id == virtual_lab_id,
-                    func.lower(Project.name) == func.lower(payload.name),
+                    func.lower(Project.name) == func.lower(project_name),
                 )
             )
         ) or 0
-    except NoResultFound:
-        raise VliError(
-            error_code=VliErrorCode.ENTITY_NOT_FOUND,
-            http_status_code=status.BAD_REQUEST,
-            message="Virtual lab not found",
-        )
     except Exception as ex:
-        logger.error(f"Project creation preflight failed: {ex}")
+        logger.error(f"Project name uniqueness check failed: {ex}")
         raise VliError(
             error_code=VliErrorCode.SERVER_ERROR,
             http_status_code=status.INTERNAL_SERVER_ERROR,
@@ -146,6 +104,59 @@ async def create_new_project_use_case(
             message="Another project with the same name already exists",
         )
 
+
+async def ensure_virtual_lab_exists(
+    session: AsyncSession,
+    *,
+    virtual_lab_id: UUID4,
+) -> VirtualLab:
+    try:
+        return (
+            await session.scalars(
+                select(VirtualLab).where(
+                    VirtualLab.id == virtual_lab_id,
+                    VirtualLab.deleted.is_(False),
+                )
+            )
+        ).one()
+    except NoResultFound:
+        raise VliError(
+            error_code=VliErrorCode.ENTITY_NOT_FOUND,
+            http_status_code=status.BAD_REQUEST,
+            message="Virtual lab not found",
+        )
+    except Exception as ex:
+        logger.error(f"Virtual lab lookup failed: {ex}")
+        raise VliError(
+            error_code=VliErrorCode.SERVER_ERROR,
+            http_status_code=status.INTERNAL_SERVER_ERROR,
+            message="Could not load virtual lab context",
+        )
+
+
+async def ensure_allow_creation_by_count_restriction(
+    session: AsyncSession,
+    *,
+    virtual_lab: VirtualLab,
+    user_id: UUID,
+) -> int:
+    try:
+        owned_count = (
+            await session.scalar(
+                select(func.count(Project.id)).where(
+                    Project.deleted.is_(False),
+                    Project.owner_id == user_id,
+                )
+            )
+        ) or 0
+    except Exception as ex:
+        logger.error(f"Project count restriction check failed: {ex}")
+        raise VliError(
+            error_code=VliErrorCode.SERVER_ERROR,
+            http_status_code=status.INTERNAL_SERVER_ERROR,
+            message="Could not load virtual lab context",
+        )
+
     if (
         not virtual_lab.course_template_project_id
         and owned_count >= settings.MAX_PROJECTS_NUMBER
@@ -156,9 +167,17 @@ async def create_new_project_use_case(
             message=f"You have reached the maximum limit of {settings.MAX_PROJECTS_NUMBER} projects",
         )
 
-    # external provisioning (KC + accounting)
-    comp = SagaCompensator()
+    return owned_count
 
+
+async def ensure_group_creation(
+    *,
+    virtual_lab: VirtualLab,
+    virtual_lab_id: UUID4,
+    project_id: UUID4,
+    user_id: UUID,
+    comp: Ledger,
+) -> tuple[CreatedGroup, CreatedGroup, list[str]]:
     try:
         admin_group_name = make_project_group_name(
             virtual_lab_id, project_id, UserRoleEnum.admin
@@ -181,21 +200,19 @@ async def create_new_project_use_case(
         assert member_group_id is not None
         admin_group: CreatedGroup = {"id": admin_group_id, "name": admin_group_name}
         member_group: CreatedGroup = {"id": member_group_id, "name": member_group_name}
-        # Register teardowns immediately after the resources exist
         comp.push(await _make_kc_group_compensation(admin_group))
         comp.push(await _make_kc_group_compensation(member_group))
 
-        # Attach the requesting user, then any vlab admins, to the
-        # new project's admin group
-        # Run member-side attach concurrently with admin attaches when applicable
+        # The requester owns the new project, so they must be a project admin.
+        # Additional memberships are batched below and executed together.
         attach_tasks: list[Awaitable[object]] = [
             KeycloakRealm.a_group_user_add(
                 user_id=user_id,
                 group_id=admin_group["id"],
             )
         ]
-        # Attach the requester to the member group if they're not already a
-        # vlab admin
+        # Non-vlab-admin requesters also need virtual-lab member access so the
+        # project remains visible through the parent virtual lab membership.
         if vlab_admin_users and str(user_id) not in vlab_admin_users:
             attach_tasks.append(
                 KeycloakRealm.a_group_user_add(
@@ -205,8 +222,9 @@ async def create_new_project_use_case(
                     ),
                 )
             )
-        # Attach vlab admins to the project admin group,
-        # but skip if the requester is also a vlab admin
+        # Every existing virtual-lab admin inherits admin access to the project.
+        # Skip the requester if they are already a vlab admin; they were added
+        # as the project owner in the first attachment task.
         for admin_uid in vlab_admin_users or []:
             if str(admin_uid) == str(user_id):
                 continue
@@ -217,6 +235,7 @@ async def create_new_project_use_case(
                 )
             )
         await asyncio.gather(*attach_tasks)
+        return admin_group, member_group, vlab_admin_users
     except AssertionError:
         await comp.compensate(reason="missing group_id from KC")
         raise VliError(
@@ -241,35 +260,48 @@ async def create_new_project_use_case(
             message="KC Group creation/attaching failed",
         )
 
-    if settings.ACCOUNTING_BASE_URL is not None:
-        try:
-            await accounting_cases.create_project_account(
-                virtual_lab_id=virtual_lab_id,
-                project_id=project_id,
-                name=payload.name,
-            )
-            comp.push(_log_orphan_project_account(virtual_lab_id, project_id))
-        except Exception as ex:
-            logger.error(f"Accounting project account failed: {ex}")
-            await comp.compensate(reason="accounting failure")
-            raise VliError(
-                error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
-                http_status_code=status.BAD_GATEWAY,
-                message="Project account creation failed",
-            )
 
-    expanded_virtual_lab = (
-        VirtualLabDetails.model_validate(virtual_lab)
-        if ProjectCreateExpand.virtual_lab in requested
-        else None
-    )
+async def ensure_accounting_initialization(
+    *,
+    virtual_lab_id: UUID4,
+    project_id: UUID4,
+    project_name: str,
+    comp: Ledger,
+) -> None:
+    if settings.ACCOUNTING_BASE_URL is None:
+        return
 
-    # DB transaction — close any txn auto-begun by upstream deps or
-    # the Phase A preflight reads before starting our explicit one.
+    try:
+        await accounting_cases.create_project_account(
+            virtual_lab_id=virtual_lab_id,
+            project_id=project_id,
+            name=project_name,
+        )
+        comp.push(_log_orphan_project_account(virtual_lab_id, project_id))
+    except Exception as ex:
+        logger.error(f"Accounting project account failed: {ex}")
+        await comp.compensate(reason="accounting failure")
+        raise VliError(
+            error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
+            http_status_code=status.BAD_GATEWAY,
+            message="Project account creation failed",
+        )
+
+
+async def create_project_record(
+    session: AsyncSession,
+    *,
+    project_id: UUID4,
+    virtual_lab_id: UUID4,
+    payload: ProjectCreationBody,
+    admin_group: CreatedGroup,
+    member_group: CreatedGroup,
+    user_id: UUID,
+    comp: Ledger,
+) -> dict[str, object]:
     if session.in_transaction():
         await session.commit()
 
-    project_row_snapshot: dict[str, object]
     try:
         async with session.begin():
             project = Project(
@@ -284,8 +316,7 @@ async def create_new_project_use_case(
             )
             session.add(project)
             await session.flush()
-            # Snapshot before commit; ORM attrs become stale on commit
-            project_row_snapshot = {
+            return {
                 **ProjectSchema.model_validate(project).model_dump(),
                 "virtual_lab_id": virtual_lab_id,
             }
@@ -313,42 +344,117 @@ async def create_new_project_use_case(
             message="Error during creating a new project",
         )
 
-    # first-project credit transfer
-    # The admin set we already have is sufficient, every vlab admin
-    # was just attached to this project's admin group, plus the
-    # requesting user. No extra KC round-trip needed.
-    project_admins = list({*(vlab_admin_users or []), str(user_id)})
 
-    balance_added = False
-    if owned_count == 0 and settings.ACCOUNTING_BASE_URL is not None:
-        try:
-            balance_response = await accounting_cases.get_virtual_lab_balance(
-                virtual_lab_id=virtual_lab_id, include_projects=False
-            )
-            current_balance = float(balance_response.data.balance)
-            if current_balance > 0:
-                await accounting_cases.assign_project_budget(
-                    virtual_lab_id=virtual_lab_id,
-                    project_id=project_id,
-                    amount=current_balance,
-                )
-                balance_added = True
-                logger.info(
-                    f"Transferred {current_balance} credits to project {project_id}"
-                )
-        except Exception as ex:  # noqa: BLE001
-            logger.error(
-                f"Failed to transfer credits to first project {project_id}: {ex}"
-            )
+async def seed_initial_project_budget(
+    *,
+    virtual_lab_id: UUID4,
+    project_id: UUID4,
+    owned_count: int,
+) -> bool:
+    """Best-effort first-project budget transfer.
+
+    This runs after the local project row has committed. Keep the
+    signature primitive-only so SQLAlchemy cannot lazy-load expired ORM
+    attributes after commit, which would fail under asyncpg with
+    `MissingGreenlet`.
+    """
+
+    if owned_count != 0 or settings.ACCOUNTING_BASE_URL is None:
+        return False
+
+    try:
+        balance_response = await accounting_cases.get_virtual_lab_balance(
+            virtual_lab_id=virtual_lab_id, include_projects=False
+        )
+        current_balance = float(balance_response.data.balance)
+        if current_balance <= 0:
+            return False
+
+        await accounting_cases.assign_project_budget(
+            virtual_lab_id=virtual_lab_id,
+            project_id=project_id,
+            amount=current_balance,
+        )
+        logger.info(f"Transferred {current_balance} credits to project {project_id}")
+        return True
+    except Exception as ex:  # noqa: BLE001
+        logger.error(f"Failed to transfer credits to first project {project_id}: {ex}")
+        return False
+
+
+async def create_new_project_use_case(
+    session: AsyncSession,
+    *,
+    virtual_lab_id: UUID4,
+    payload: ProjectCreationBody,
+    auth: tuple[AuthUserGrants, str],
+    expand: list[ProjectCreateExpand] | None = None,
+) -> ProjectCreateOut:
+    user_id = auth[0].id
+    requested = set(expand or [])
+    project_draft_id: UUID4 = uuid4()
+
+    await ensure_unique_name_within_virtual_lab(
+        session,
+        virtual_lab_id=virtual_lab_id,
+        project_name=payload.name,
+    )
+    virtual_lab = await ensure_virtual_lab_exists(
+        session,
+        virtual_lab_id=virtual_lab_id,
+    )
+    expanded_virtual_lab = (
+        VirtualLabDetails.model_validate(virtual_lab)
+        if ProjectCreateExpand.virtual_lab in requested
+        else None
+    )
+    owned_count = await ensure_allow_creation_by_count_restriction(
+        session,
+        virtual_lab=virtual_lab,
+        user_id=user_id,
+    )
+
+    comp = Ledger()
+
+    admin_group, member_group, vlab_admin_users = await ensure_group_creation(
+        virtual_lab=virtual_lab,
+        virtual_lab_id=virtual_lab_id,
+        project_id=project_draft_id,
+        user_id=user_id,
+        comp=comp,
+    )
+
+    await ensure_accounting_initialization(
+        virtual_lab_id=virtual_lab_id,
+        project_id=project_draft_id,
+        project_name=payload.name,
+        comp=comp,
+    )
+
+    project_row_snapshot = await create_project_record(
+        session,
+        project_id=project_draft_id,
+        virtual_lab_id=virtual_lab_id,
+        payload=payload,
+        admin_group=admin_group,
+        member_group=member_group,
+        user_id=user_id,
+        comp=comp,
+    )
+
+    await seed_initial_project_budget(
+        virtual_lab_id=virtual_lab_id,
+        project_id=project_draft_id,
+        owned_count=owned_count,
+    )
+
+    project_admins = list({*(vlab_admin_users or []), str(user_id)})
 
     project_out = ProjectCreateOut.model_validate(
         {
             **project_row_snapshot,
             "user_count": len(project_admins),
             "admins": project_admins,
-            "balance_added": balance_added
-            if ProjectCreateExpand.balance in requested
-            else None,
             "virtual_lab": expanded_virtual_lab,
         }
     )

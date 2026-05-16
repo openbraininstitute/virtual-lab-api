@@ -1,3 +1,4 @@
+from http import HTTPStatus as status
 from typing import Tuple
 
 from fastapi import APIRouter, Depends
@@ -10,6 +11,8 @@ from virtual_labs.core.authorization import (
     verify_vlab_read,
     verify_vlab_write,
 )
+from virtual_labs.core.exceptions.accounting_error import AccountingError
+from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.external.accounting.models import (
     BudgetAssignRequest,
     BudgetAssignResponse,
@@ -124,9 +127,22 @@ async def assign_project_budget(
     session: AsyncSession = Depends(default_session_factory),
     auth: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> BudgetAssignResponse:
-    return await accounting_cases.assign_project_budget(
-        virtual_lab_id, project_id, budget_assign_request.amount
-    )
+    try:
+        return await accounting_cases.assign_project_budget(
+            virtual_lab_id, project_id, budget_assign_request.amount
+        )
+    except AccountingError as ex:
+        raise VliError(
+            error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
+            message=ex.message or "Could not complete budget assignment",
+            http_status_code=ex.http_status_code or status.INTERNAL_SERVER_ERROR,
+        )
+    except Exception as ex:
+        raise VliError(
+            error_code=VliErrorCode.SERVER_ERROR,
+            message=str(ex) or "An unexpected error occurred during budget assignment",
+            http_status_code=status.INTERNAL_SERVER_ERROR,
+        )
 
 
 @router.post(
@@ -143,6 +159,19 @@ async def reverse_project_budget(
     session: AsyncSession = Depends(default_session_factory),
     auth: Tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> BudgetReverseResponse:
-    return await accounting_cases.reverse_project_budget(
-        virtual_lab_id, project_id, budget_reverse_request.amount
-    )
+    try:
+        return await accounting_cases.reverse_project_budget(
+            virtual_lab_id, project_id, budget_reverse_request.amount
+        )
+    except AccountingError as ex:
+        raise VliError(
+            error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
+            message=ex.message or "Could not complete budget reversal",
+            http_status_code=ex.http_status_code or status.INTERNAL_SERVER_ERROR,
+        )
+    except Exception as ex:
+        raise VliError(
+            error_code=VliErrorCode.SERVER_ERROR,
+            message=str(ex) or "An unexpected error occurred during budget reversal",
+            http_status_code=status.INTERNAL_SERVER_ERROR,
+        )

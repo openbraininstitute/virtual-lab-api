@@ -56,7 +56,9 @@ class ShortenedUser(BaseModel):
     id: UUID4 | None
     username: str
     email: EmailStr
-    createdTimestamp: Annotated[datetime, Field(alias="created_at", default="")]
+    createdTimestamp: Annotated[
+        Optional[datetime], Field(alias="created_at", default=None)
+    ]
     first_name: Annotated[
         Optional[str], Field(validation_alias=AliasChoices("firstName"), default="")
     ]
@@ -66,7 +68,9 @@ class ShortenedUser(BaseModel):
 
     @field_validator("createdTimestamp", mode="before")
     @classmethod
-    def convert_timestamp(cls, v: int) -> Any:
+    def convert_timestamp(cls, v: Any) -> Any:
+        if v is None or v == "":
+            return None
         if isinstance(v, int):
             return datetime.fromtimestamp(v / 1000)
         return v
