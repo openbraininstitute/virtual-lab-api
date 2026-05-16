@@ -275,9 +275,7 @@ class TestVirtualLabCreation:
         assert response.status_code == HTTPStatus.CONFLICT
         error_data = response.json()
         assert error_data["error_code"] == "ENTITY_ALREADY_EXISTS"
-        assert (
-            "Another virtual lab with same name already exists" in error_data["message"]
-        )
+        assert "A virtual lab with this name already exists" in error_data["message"]
 
     async def test_create_virtual_lab_owner_already_has_lab(
         self,
@@ -303,7 +301,10 @@ class TestVirtualLabCreation:
         assert response.status_code == HTTPStatus.FORBIDDEN
         error_data = response.json()
         assert error_data["error_code"] == "FORBIDDEN_OPERATION"
-        assert "User already has a virtual lab" in error_data["message"]
+        assert (
+            "The user already owns a virtual lab and cannot create another."
+            in error_data["message"]
+        )
 
     async def test_create_virtual_lab_unverified_email(
         self, async_test_client: AsyncClient, test_user_ids: Dict[str, str]
