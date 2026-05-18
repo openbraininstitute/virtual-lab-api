@@ -6,7 +6,7 @@ from loguru import logger
 from pydantic import UUID4
 
 from virtual_labs.core.exceptions.identity_error import IdentityError
-from virtual_labs.infrastructure.kc.config import kc_auth, kc_realm
+from virtual_labs.infrastructure.kc.config import KeycloakRealm, kc_auth
 from virtual_labs.infrastructure.kc.models import (
     GroupRepresentation,
     UserInfo,
@@ -18,7 +18,7 @@ class UserQueryRepository:
     Kc: KeycloakAdmin
 
     def __init__(self) -> None:
-        self.Kc = kc_realm
+        self.Kc = KeycloakRealm
         self.Kc_auth = kc_auth
 
     async def get_user(self, user_id: str) -> Dict[str, Any]:
@@ -118,7 +118,7 @@ class UserMutationRepository:
     Kc: KeycloakAdmin
 
     def __init__(self) -> None:
-        self.Kc = kc_realm
+        self.Kc = KeycloakRealm
         self.Kc_auth = kc_auth
 
     def attach_user_to_group(

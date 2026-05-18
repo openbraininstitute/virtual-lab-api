@@ -8,7 +8,7 @@ from virtual_labs.infrastructure.settings import settings
     change realm_name depends on the user token for further ops
 """
 
-kc_realm = KeycloakAdmin(
+KeycloakRealm = KeycloakAdmin(
     server_url=settings.KC_SERVER_URI,
     client_id=settings.KC_CLIENT_ID,
     client_secret_key=settings.KC_CLIENT_SECRET,

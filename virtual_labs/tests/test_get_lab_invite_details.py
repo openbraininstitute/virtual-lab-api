@@ -21,7 +21,7 @@ async def mock_lab_invite(
     async_test_client: AsyncClient,
 ) -> AsyncGenerator[tuple[AsyncClient, str, str, str], None]:
     lab_response = await create_mock_lab(async_test_client)
-    lab_id = lab_response.json()["data"]["virtual_lab"]["id"]
+    lab_id = lab_response.json()["id"]
     headers = get_headers("test")
 
     user_id = await get_user_id_from_test_auth(

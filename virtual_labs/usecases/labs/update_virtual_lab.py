@@ -43,10 +43,6 @@ async def update_virtual_lab(
         return domain.VirtualLabOut(
             virtual_lab=domain.VirtualLabDetails.model_validate(lab_dict)
         )
-
-        return domain.VirtualLabOut(
-            virtual_lab=domain.VirtualLabDetails.model_validate(db_lab)
-        )
     except IntegrityError as error:
         logger.error(
             "Virtual lab {} update could not be processed because it violates db constraints {}".format(

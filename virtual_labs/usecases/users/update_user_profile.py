@@ -177,7 +177,9 @@ async def update_user_profile(
 
         attributes = kc_user.get("attributes", {}) or {}
         merged_attributes = {
-            k: v if isinstance(v, list) else [str(v)] for k, v in attributes.items()
+            k: v if isinstance(v, list) else [str(v)]
+            for k, v in attributes.items()
+            if v is not None and v != [] and v != ""
         }
         merged_attributes["country"] = [payload.country]
 
@@ -307,7 +309,9 @@ async def onboarding_update_user_profile(
 
         attributes = kc_user.get("attributes", {}) or {}
         merged_attributes = {
-            k: v if isinstance(v, list) else [str(v)] for k, v in attributes.items()
+            k: v if isinstance(v, list) else [str(v)]
+            for k, v in attributes.items()
+            if v is not None and v != [] and v != ""
         }
         merged_attributes["country"] = [payload.country]
 

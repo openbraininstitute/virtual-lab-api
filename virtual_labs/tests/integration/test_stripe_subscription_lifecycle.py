@@ -443,6 +443,7 @@ async def test_subscription_full_lifecycle_happy_path(
         real_http_client,
         user="test",
         flow="subscription",
+        virtual_lab_id=lab_id,
         tier_id=tier_id,
         interval="month",
     )
@@ -532,12 +533,14 @@ async def test_create_subscription_rejects_declined_card(
     # `tok_chargeDeclined` is a US-issued declined-card token. Pair it with
     # a US billing address so the CH country-mismatch guard does not
     # short-circuit the decline path we're trying to exercise.
+    lab_id = UUID(created_lab[0])
     tier_id = await _get_pro_tier_id()
     declined_pm = await _create_payment_method("pm_card_chargeDeclined")
     sub_quote = await _create_billing_quote(
         real_http_client,
         user="test",
         flow="subscription",
+        virtual_lab_id=lab_id,
         tier_id=tier_id,
         interval="month",
         billing_address=US_ADDRESS,
@@ -576,12 +579,14 @@ async def test_create_subscription_rejects_duplicate_active_subscription(
     owner_id = UUID(owner_id_str)
     headers = get_headers("test")
 
+    lab_id = UUID(created_lab[0])
     tier_id = await _get_pro_tier_id()
     pm1 = await _create_payment_method("pm_card_ch")
     quote1 = await _create_billing_quote(
         real_http_client,
         user="test",
         flow="subscription",
+        virtual_lab_id=lab_id,
         tier_id=tier_id,
         interval="month",
     )
@@ -606,6 +611,7 @@ async def test_create_subscription_rejects_duplicate_active_subscription(
         real_http_client,
         user="test",
         flow="subscription",
+        virtual_lab_id=lab_id,
         tier_id=tier_id,
         interval="month",
     )
@@ -630,12 +636,14 @@ async def test_create_subscription_rejects_expired_quote(
     created_lab: Tuple[str, Dict[str, Any], str],
 ) -> None:
     headers = get_headers("test")
+    lab_id = UUID(created_lab[0])
     tier_id = await _get_pro_tier_id()
     payment_method_id = await _create_payment_method("pm_card_visa")
     quote = await _create_billing_quote(
         real_http_client,
         user="test",
         flow="subscription",
+        virtual_lab_id=lab_id,
         tier_id=tier_id,
         interval="month",
     )
@@ -707,6 +715,7 @@ async def test_standalone_payment_rejects_non_admin(
         real_http_client,
         user="test",
         flow="subscription",
+        virtual_lab_id=lab_id,
         tier_id=tier_id,
         interval="month",
     )
@@ -778,12 +787,14 @@ async def test_cancel_subscription_idempotent_already_canceled(
     owner_id = UUID(owner_id_str)
     headers = get_headers("test")
 
+    lab_id = UUID(created_lab[0])
     tier_id = await _get_pro_tier_id()
     pm = await _create_payment_method("pm_card_ch")
     quote = await _create_billing_quote(
         real_http_client,
         user="test",
         flow="subscription",
+        virtual_lab_id=lab_id,
         tier_id=tier_id,
         interval="month",
     )
@@ -870,12 +881,14 @@ async def test_create_subscription_blocks_ch_billing_with_non_ch_card(
     owner_id = UUID(owner_id_str)
     headers = get_headers("test")
 
+    lab_id = UUID(created_lab[0])
     tier_id = await _get_pro_tier_id()
     payment_method_id = await _create_payment_method("pm_card_visa")
     sub_quote = await _create_billing_quote(
         real_http_client,
         user="test",
         flow="subscription",
+        virtual_lab_id=lab_id,
         tier_id=tier_id,
         interval="month",
     )

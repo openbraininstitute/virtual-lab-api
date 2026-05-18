@@ -13,8 +13,8 @@ async def test_vlm_update_project_data(
     client = async_test_client
     response, headers, _ = mock_create_project
 
-    project_id = response.json()["data"]["project"]["id"]
-    virtual_lab_id = response.json()["data"]["virtual_lab_id"]
+    project_id = response.json()["id"]
+    virtual_lab_id = response.json()["virtual_lab_id"]
 
     new_name = "Test Project updated name"
     new_description = "Test Project updated description"
@@ -39,8 +39,8 @@ async def test_vlm_update_project_data_empty_should_fail(
     client = async_test_client
     response, headers, _ = mock_create_project
 
-    project_id = response.json()["data"]["project"]["id"]
-    virtual_lab_id = response.json()["data"]["virtual_lab_id"]
+    project_id = response.json()["id"]
+    virtual_lab_id = response.json()["virtual_lab_id"]
 
     new_name = ""
     new_description = ""
@@ -62,8 +62,8 @@ async def test_vlm_update_project_data_spaced_should_stripped(
     client = async_test_client
     response, headers, _ = mock_create_project
 
-    project_id = response.json()["data"]["project"]["id"]
-    virtual_lab_id = response.json()["data"]["virtual_lab_id"]
+    project_id = response.json()["id"]
+    virtual_lab_id = response.json()["virtual_lab_id"]
 
     new_name = " new_spaced_name "
     new_description = " new_spaced_description "
@@ -89,8 +89,8 @@ async def test_vlm_update_project_name_only(
     client = async_test_client
     response, headers, _ = mock_create_project
 
-    project_id = response.json()["data"]["project"]["id"]
-    virtual_lab_id = response.json()["data"]["virtual_lab_id"]
+    project_id = response.json()["id"]
+    virtual_lab_id = response.json()["virtual_lab_id"]
 
     new_name = "Test Project updated name"
 
@@ -134,9 +134,9 @@ async def test_vlm_update_project_description_only(
     client = async_test_client
     response, headers, _ = mock_create_project
 
-    project_id = response.json()["data"]["project"]["id"]
-    project_name = response.json()["data"]["project"]["name"]
-    virtual_lab_id = response.json()["data"]["virtual_lab_id"]
+    project_id = response.json()["id"]
+    project_name = response.json()["name"]
+    virtual_lab_id = response.json()["virtual_lab_id"]
 
     new_description = "Test Project updated description"
 

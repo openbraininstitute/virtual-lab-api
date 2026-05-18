@@ -6,78 +6,97 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.authorization import (
     verify_service_admin,
-    verify_uniq_virtual_lab,
-    verify_user_authenticated,
     verify_vlab_read,
     verify_vlab_write,
     verity_member_invite,
 )
-from virtual_labs.core.types import LabTypeEnum, UserGroup, UserRoleEnum, VliAppResponse
-from virtual_labs.domain.common import VirtualLabResponse
+from virtual_labs.core.ledger.modules.virtual_lab import (
+    COURSE_LAB_POLICY,
+    REGULAR_LAB_POLICY,
+)
+from virtual_labs.core.types import UserGroup, UserRoleEnum, VliAppResponse
+from virtual_labs.domain.common import ListResponse, PaginationRequest
 from virtual_labs.domain.invite import InvitePayload
 from virtual_labs.domain.labs import (
-    CreateLabOut,
     InvitationResponse,
     LabResponse,
     SearchLabResponse,
     VirtualLabComputeCellUpdate,
     VirtualLabCreate,
+    VirtualLabDetailExpand,
+    VirtualLabDetails,
     VirtualLabOut,
     VirtualLabStats,
     VirtualLabUpdate,
     VirtualLabUser,
     VirtualLabUsers,
+    VirtualLabWithAdmins,
+    VirtualLabWithInviteDetails,
 )
-from virtual_labs.domain.labs import VirtualLabResponse as IVirtualLabResponse
 from virtual_labs.infrastructure.db.config import default_session_factory
 from virtual_labs.infrastructure.kc.auth import a_verify_jwt, verify_jwt
+from virtual_labs.infrastructure.kc.grant import AuthUserGrants, parse_auth_grants
 from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.shared.groups import VLAB_SERVICE_ADMIN_GROUP
 from virtual_labs.shared.utils.auth import get_user_id_from_auth
 from virtual_labs.usecases import labs as usecases
 from virtual_labs.usecases.labs.check_virtual_lab_name_exists import LabExists
+from virtual_labs.usecases.labs.list_virtual_labs import ListVirtualLabsQuery
 
 router = APIRouter(prefix="/virtual-labs", tags=["Virtual Labs Endpoints"])
 
 
-@router.get("", response_model=LabResponse[VirtualLabResponse])
-@verify_user_authenticated
-async def get_paginated_virtual_labs_for_user(
-    include: List[LabTypeEnum] = Query(
-        default=[
-            LabTypeEnum.MY_LAB,
-            LabTypeEnum.MEMBERSHIP_LABS,
-            LabTypeEnum.PENDING_LABS,
-        ],
-        description="List of lab types to include in the response",
-    ),
-    query: str | None = Query(
-        default=None,
-        description="Search query to filter virtual labs by name",
-    ),
-    page: int = Query(
-        1,
-        ge=1,
-        description="Page number for pagination",
-    ),
-    size: int = Query(
-        10,
-        ge=0,
-        description="Number of items per page",
-    ),
+@router.get(
+    "",
+    response_model=ListResponse[VirtualLabDetails],
+    summary="List the virtual labs the requester is a member of",
+)
+async def list_virtual_labs(
+    params: Annotated[ListVirtualLabsQuery, Query()],
     db: AsyncSession = Depends(default_session_factory),
-    auth: tuple[AuthUser, str] = Depends(a_verify_jwt),
-) -> LabResponse[VirtualLabResponse]:
-    return LabResponse(
-        message="List of user virtual lab and pending labs from invites",
-        data=await usecases.list_user_virtual_labs(
-            include=include,
-            page=page,
-            size=size,
-            query=query,
-            session=db,
-            auth=auth,
-        ),
+    auth: tuple[AuthUserGrants, str] = Depends(parse_auth_grants),
+) -> ListResponse[VirtualLabDetails]:
+    return await usecases.list_virtual_labs_use_case(
+        session=db,
+        auth=auth,
+        scope=params.scope,
+        admin_access_only=params.admin_access_only,
+        order_by=params.order_by,
+        order_direction=params.order_direction,
+        query=params.query,
+        pagination=params,
+    )
+
+
+@router.get(
+    "/self",
+    response_model=LabResponse[VirtualLabDetails | None],
+    summary="Get the requester's owned virtual lab",
+)
+async def get_my_virtual_lab(
+    db: AsyncSession = Depends(default_session_factory),
+    auth: tuple[AuthUserGrants, str] = Depends(parse_auth_grants),
+) -> LabResponse[VirtualLabDetails | None]:
+    return LabResponse[VirtualLabDetails | None](
+        message="Your virtual lab",
+        data=await usecases.get_my_virtual_lab_use_case(session=db, auth=auth),
+    )
+
+
+@router.get(
+    "/requests",
+    response_model=ListResponse[VirtualLabWithInviteDetails],
+    summary="List pending virtual-lab invitations for the requester",
+)
+async def list_pending_virtual_labs(
+    pagination: Annotated[PaginationRequest, Query()],
+    db: AsyncSession = Depends(default_session_factory),
+    auth: tuple[AuthUserGrants, str] = Depends(parse_auth_grants),
+) -> ListResponse[VirtualLabWithInviteDetails]:
+    return await usecases.list_pending_virtual_labs_use_case(
+        session=db,
+        auth=auth,
+        pagination=pagination,
     )
 
 
@@ -114,21 +133,21 @@ async def search_virtual_lab_by_name(
 
 @router.get(
     "/{virtual_lab_id}",
-    response_model=LabResponse[IVirtualLabResponse],
+    response_model=VirtualLabWithAdmins,
+    response_model_exclude_none=True,
     summary="Get non deleted virtual lab by id",
 )
 @verify_vlab_read
 async def get_virtual_lab(
     virtual_lab_id: UUID4,
+    expand: Annotated[list[VirtualLabDetailExpand] | None, Query()] = None,
     session: AsyncSession = Depends(default_session_factory),
     auth: tuple[AuthUser, str] = Depends(verify_jwt),
-) -> LabResponse[IVirtualLabResponse]:
-    lab_response = await usecases.get_virtual_lab(
-        session, virtual_lab_id, user_id=get_user_id_from_auth(auth)
-    )
-    return LabResponse[IVirtualLabResponse](
-        message=f"Virtual lab {virtual_lab_id}",
-        data=lab_response,
+) -> VirtualLabWithAdmins:
+    return await usecases.get_virtual_lab(
+        session,
+        virtual_lab_id,
+        expand=expand,
     )
 
 
@@ -163,19 +182,14 @@ async def get_virtual_lab_users(
     )
 
 
-@router.post("", response_model=LabResponse[CreateLabOut])
+@router.post("", response_model=VirtualLabDetails)
 async def create_virtual_lab(
     lab: VirtualLabCreate,
     session: AsyncSession = Depends(default_session_factory),
-    auth: tuple[AuthUser, str] = Depends(verify_jwt),
-    _: None = Depends(verify_uniq_virtual_lab),
-) -> LabResponse[CreateLabOut]:
-    result = (
-        await usecases.create_virtual_lab(session, lab, auth)
-        if not lab.course
-        else await usecases.create_course_vlab(session, lab, auth)
-    )
-    return LabResponse[CreateLabOut](message="Newly created virtual lab", data=result)
+    auth: tuple[AuthUserGrants, str] = Depends(parse_auth_grants),
+) -> VirtualLabDetails:
+    policy = COURSE_LAB_POLICY if lab.course else REGULAR_LAB_POLICY
+    return await usecases.create_virtual_lab(session, lab, auth, policy=policy)
 
 
 @router.patch("/{virtual_lab_id}", response_model=LabResponse[VirtualLabOut])

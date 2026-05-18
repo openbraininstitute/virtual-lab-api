@@ -25,7 +25,7 @@ async def mock_lab_with_project(
         },
         headers=headers,
     )
-    lab_id = lab_response.json()["data"]["virtual_lab"]["id"]
+    lab_id = lab_response.json()["id"]
 
     project_response = await client.post(
         f"/virtual-labs/{lab_id}/projects",
@@ -38,7 +38,7 @@ async def mock_lab_with_project(
     )
     assert project_response.status_code == 200
 
-    yield lab_id, project_response.json()["data"]["project"]["id"], headers
+    yield lab_id, project_response.json()["id"], headers
 
     await cleanup_resources(client=client, lab_id=lab_id)
 

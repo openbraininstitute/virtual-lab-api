@@ -5,7 +5,7 @@ import pytest
 import pytest_asyncio
 from httpx import AsyncClient
 
-from virtual_labs.infrastructure.kc.config import kc_realm
+from virtual_labs.infrastructure.kc.config import KeycloakRealm
 from virtual_labs.tests.utils import (
     cleanup_resources,
     create_mock_lab,
@@ -20,7 +20,7 @@ def test_user_ids() -> Dict[str, str]:
     for i in range(8):  # test, test-1, test-2, test-3, test-4
         username = f"test-{i}" if i > 0 else "test"
         try:
-            user = kc_realm.get_users({"username": username})
+            user = KeycloakRealm.get_users({"username": username})
             if user:
                 ids[username] = user[0]["id"]
             else:
@@ -51,7 +51,7 @@ async def created_lab(
             f"Failed to create lab for user '{owner_username}'. Status: {response.status_code}. Response: {response.text}"
         )
 
-    lab_data = response.json()["data"]["virtual_lab"]
+    lab_data = response.json()
     lab_id = lab_data["id"]
 
     yield (
