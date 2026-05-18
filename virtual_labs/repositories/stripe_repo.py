@@ -8,6 +8,7 @@ from stripe import (
     CustomerService,
     PaymentIntentService,
     SignatureVerificationError,
+    SubscriptionService,
 )
 from stripe.tax import CalculationService
 
@@ -344,31 +345,36 @@ class StripeRepository:
                 create_kwargs["options"] = stripe.RequestOptions(
                     idempotency_key=idempotency_key
                 )
+            params = SubscriptionService.CreateParams(
+                customer=customer_id,
+                default_payment_method=payment_method_id,
+                payment_behavior="error_if_incomplete",
+                items=[
+                    {
+                        "price": price_id,
+                    }
+                ],
+                collection_method="charge_automatically",
+                metadata=metadata or {},
+                automatic_tax={"enabled": automatic_tax_enabled},
+                payment_settings={"save_default_payment_method": "on_subscription"},
+                discounts=[
+                    {
+                        "coupon": discount_id,
+                    }
+                ]
+                if discount_id
+                else "",
+                description="Creating subscription",
+                invoice_settings=SubscriptionService.CreateParamsInvoiceSettings(
+                    issuer=SubscriptionService.CreateParamsInvoiceSettingsIssuer(
+                        type="self"
+                    )
+                ),
+            )
+
             subscription = await self.stripe.subscriptions.create_async(
-                params={
-                    "customer": customer_id,
-                    "default_payment_method": payment_method_id,
-                    "payment_behavior": "error_if_incomplete",  # NOTE: this important to not create stale subscription
-                    "items": [
-                        {
-                            "price": price_id,
-                        }
-                    ],
-                    "collection_method": "charge_automatically",  # NOTE: this is to charge the user at creation time
-                    "metadata": metadata or {},
-                    "automatic_tax": {"enabled": automatic_tax_enabled},
-                    "payment_settings": {
-                        "save_default_payment_method": "on_subscription"
-                    },
-                    "discounts": [
-                        {
-                            "coupon": discount_id,
-                        }
-                    ]
-                    if discount_id
-                    else "",
-                    "description": "Creating subscription",
-                },
+                params=params,
                 **create_kwargs,
             )
             return subscription
