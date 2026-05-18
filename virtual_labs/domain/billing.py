@@ -93,3 +93,17 @@ class CreditConversionResponse(BaseModel):
     currency: str
     amount: int
     rate: Decimal
+    discount_pct: int = 0
+    base_rate: Optional[Decimal] = None
+
+
+class CreditPackageRateItem(BaseModel):
+    min_credits: int
+    max_credits: Optional[int] = None
+    rate: Decimal
+    discount_pct: int
+
+
+class CreditPackageRatesResponse(BaseModel):
+    currency: str
+    rates: list[CreditPackageRateItem]
