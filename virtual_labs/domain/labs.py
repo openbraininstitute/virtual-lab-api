@@ -2,7 +2,7 @@ from datetime import datetime
 from enum import Enum, StrEnum, auto
 from typing import Generic, TypeVar
 
-from pydantic import UUID4, BaseModel, ConfigDict, EmailStr, Field, JsonValue
+from pydantic import UUID4, BaseModel, ConfigDict, EmailStr, Field
 
 from virtual_labs.domain.user import ShortenedUser, UserWithInviteStatus
 
@@ -47,15 +47,6 @@ class VirtualLabComputeCellUpdate(BaseModel):
     """Model for updating compute_cell - only accessible by service admins"""
 
     compute_cell: ComputeCell
-
-
-class PlanDomain(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
-    name: str
-    price: float
-    features: JsonValue
 
 
 class VirtualLabDetails(VirtualLabBase):
@@ -139,10 +130,6 @@ class CreateLabOut(BaseModel):
 
 class SearchLabResponse(BaseModel):
     virtual_labs: list[VirtualLabDetails]
-
-
-class AllPlans(BaseModel):
-    all_plans: list[PlanDomain]
 
 
 class InvitationResponse(BaseModel):
