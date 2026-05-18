@@ -1,86 +1,120 @@
+"""Tests for the volume-based credit converter."""
+
 from decimal import Decimal
+from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
 
-from virtual_labs.services.credit_converter import (
-    DEFAULT_EXCHANGE_RATES,
-    CreditConverter,
-)
+from virtual_labs.services.credit_converter import CreditConverter
+
+
+def _make_tier(
+    *,
+    currency: str = "chf",
+    min_credits: int = 1,
+    max_credits: int | None = None,
+    rate: Decimal = Decimal("0.10"),
+    discount_pct: int = 0,
+) -> SimpleNamespace:
+    return SimpleNamespace(
+        currency=currency,
+        min_credits=min_credits,
+        max_credits=max_credits,
+        rate=rate,
+        discount_pct=discount_pct,
+    )
 
 
 @pytest.fixture
-def mock_exchange_rate_repo() -> AsyncMock:
+def mock_repo() -> AsyncMock:
+    """Mock CreditPackageRateRepository with CHF volume tiers."""
     repo = AsyncMock()
-    repo.get_all_rates = AsyncMock(
-        return_value={
-            "chf": Decimal("0.05"),
-            "usd": Decimal("0.055"),
-            "eur": Decimal("0.048"),
-        }
+    # Default: return the 1-499 tier
+    repo.get_rate_for_credits = AsyncMock(
+        return_value=_make_tier(rate=Decimal("0.10"), discount_pct=0)
     )
+    repo.get_base_rate = AsyncMock(return_value=Decimal("0.10"))
+    repo.get_all_active_rates = AsyncMock(return_value=[])
     return repo
 
 
 @pytest.mark.asyncio
-async def test_currency_to_credits(mock_exchange_rate_repo: AsyncMock) -> None:
-    converter = CreditConverter(exchange_rate_repo=mock_exchange_rate_repo)
+async def test_flat_rate_conversion(mock_repo: AsyncMock) -> None:
+    """Single tier (flat pricing): 100 credits × 0.10 × 100 = 1000 cents."""
+    converter = CreditConverter(package_rate_repo=mock_repo)
 
-    # Test CHF conversion
+    amount = await converter.credits_to_currency(100, "chf")
+    assert amount == Decimal("1000")
+
+
+@pytest.mark.asyncio
+async def test_volume_discount_conversion(mock_repo: AsyncMock) -> None:
+    """Volume tier: 2000 credits × 0.09 × 100 = 18000 cents."""
+    mock_repo.get_rate_for_credits = AsyncMock(
+        return_value=_make_tier(rate=Decimal("0.09"), discount_pct=10)
+    )
+    converter = CreditConverter(package_rate_repo=mock_repo)
+
+    result = await converter.convert_credits(2000, "chf")
+
+    assert result.amount == 18000
+    assert result.rate == Decimal("0.09")
+    assert result.discount_pct == 10
+    assert result.base_rate == Decimal("0.10")
+
+
+@pytest.mark.asyncio
+async def test_large_volume_discount(mock_repo: AsyncMock) -> None:
+    """50000+ tier: 60000 credits × 0.07 × 100 = 420000 cents."""
+    mock_repo.get_rate_for_credits = AsyncMock(
+        return_value=_make_tier(rate=Decimal("0.07"), discount_pct=30, max_credits=None)
+    )
+    converter = CreditConverter(package_rate_repo=mock_repo)
+
+    result = await converter.convert_credits(60000, "chf")
+
+    assert result.amount == 420000
+    assert result.rate == Decimal("0.07")
+    assert result.discount_pct == 30
+
+
+@pytest.mark.asyncio
+async def test_unsupported_currency_raises(mock_repo: AsyncMock) -> None:
+    """No tier found → ValueError."""
+    mock_repo.get_rate_for_credits = AsyncMock(return_value=None)
+    converter = CreditConverter(package_rate_repo=mock_repo)
+
+    with pytest.raises(ValueError, match="No pricing tier found"):
+        await converter.credits_to_currency(100, "jpy")
+
+
+@pytest.mark.asyncio
+async def test_currency_to_credits_uses_base_rate(mock_repo: AsyncMock) -> None:
+    """Reverse calculation uses base rate (display only)."""
+    mock_repo.get_base_rate = AsyncMock(return_value=Decimal("0.10"))
+    converter = CreditConverter(package_rate_repo=mock_repo)
+
+    # 1000 cents / 0.10 / 100 = 100 credits
     credits = await converter.currency_to_credits(1000, "chf")
-    assert credits == Decimal("200")  # 10 chf / 0.05 chf/credit = 200 credits
-
-    # Test USD conversion
-    credits = await converter.currency_to_credits(1100, "usd")
-    assert credits == Decimal("200")  # 11 usd / 0.055 usd/credit = 200 credits
+    assert credits == Decimal("100")
 
 
 @pytest.mark.asyncio
-async def test_credits_to_currency(mock_exchange_rate_repo: AsyncMock) -> None:
-    converter = CreditConverter(exchange_rate_repo=mock_exchange_rate_repo)
+async def test_get_exchange_rate_returns_base(mock_repo: AsyncMock) -> None:
+    """get_exchange_rate returns the base tier rate."""
+    mock_repo.get_base_rate = AsyncMock(return_value=Decimal("0.10"))
+    converter = CreditConverter(package_rate_repo=mock_repo)
 
-    # Test CHF conversion
-    amount = await converter.credits_to_currency(200, "chf")
-    assert amount == Decimal("1000")  # 200 credits * 0.05 chf/credit = 10 chf
-
-    # Test USD conversion
-    amount = await converter.credits_to_currency(200, "usd")
-    assert amount == Decimal("1100")  # 200 credits * 0.055 usd/credit = 11 usd
-
-
-@pytest.mark.asyncio
-async def test_unsupported_currency(mock_exchange_rate_repo: AsyncMock) -> None:
-    converter = CreditConverter(exchange_rate_repo=mock_exchange_rate_repo)
-
-    with pytest.raises(ValueError, match="Unsupported currency: jpy"):
-        await converter.currency_to_credits(100, "jpy")
-
-
-@pytest.mark.asyncio
-async def test_refresh_rates(mock_exchange_rate_repo: AsyncMock) -> None:
-    converter = CreditConverter(exchange_rate_repo=mock_exchange_rate_repo)
-
-    # Initial load
-    await converter.get_exchange_rate("chf")
-    assert mock_exchange_rate_repo.get_all_rates.call_count == 1
-
-    # Should use cached rates
-    await converter.get_exchange_rate("usd")
-    assert mock_exchange_rate_repo.get_all_rates.call_count == 1
-
-    # Force refresh
-    await converter.refresh_rates()
-    assert mock_exchange_rate_repo.get_all_rates.call_count == 2
-
-
-@pytest.mark.asyncio
-async def test_fallback_to_defaults() -> None:
-    # Repository returns empty rates
-    repo = AsyncMock()
-    repo.get_all_rates = AsyncMock(return_value={})
-
-    converter = CreditConverter(exchange_rate_repo=repo)
-
-    # Should fall back to defaults
     rate = await converter.get_exchange_rate("chf")
-    assert rate == DEFAULT_EXCHANGE_RATES["chf"]
+    assert rate == Decimal("0.10")
+
+
+@pytest.mark.asyncio
+async def test_get_exchange_rate_unsupported_currency(mock_repo: AsyncMock) -> None:
+    """No base rate → ValueError."""
+    mock_repo.get_base_rate = AsyncMock(return_value=None)
+    converter = CreditConverter(package_rate_repo=mock_repo)
+
+    with pytest.raises(ValueError, match="Unsupported currency"):
+        await converter.get_exchange_rate("xyz")
