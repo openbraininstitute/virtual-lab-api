@@ -616,6 +616,10 @@ class BillingQuote(Base):
     stripe_tax_calculation_id: Mapped[str | None] = mapped_column(
         String(255), nullable=True
     )
+    discount_pct: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    credit_package_rate_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("credit_package_rate.id"), nullable=True
+    )
     expires_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
     )
@@ -707,14 +711,47 @@ class StripeUser(Base):
     )
 
 
-class CreditExchangeRate(Base):
-    __tablename__ = "credit_exchange_rate"
+class CreditPackageRate(Base):
+    """Volume-based credit pricing.
 
-    currency: Mapped[str] = mapped_column(String, primary_key=True, index=True)
+    Each row defines the unit price for a credit quantity band.
+    A single catch-all row (min_credits=1, max_credits=NULL) reproduces
+    flat pricing. Multiple rows with non-overlapping ranges provide
+    volume discounts.
+    """
+
+    __tablename__ = "credit_package_rate"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        server_default=func.gen_random_uuid(),
+    )
+    currency: Mapped[str] = mapped_column(String(3), nullable=False)
+    min_credits: Mapped[int] = mapped_column(Integer, nullable=False)
+    max_credits: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     rate: Mapped[Decimal] = mapped_column(
         Numeric(precision=10, scale=6), nullable=False
     )
-    description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    discount_pct: Mapped[int] = mapped_column(
+        Integer, server_default="0", nullable=False
+    )
+    active: Mapped[bool] = mapped_column(Boolean, server_default="true", nullable=False)
+    activated_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=True
+    )
+    deactivated_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
 
 
 class UserPreference(Base):

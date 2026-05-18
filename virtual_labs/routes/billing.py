@@ -1,7 +1,7 @@
 from http import HTTPStatus
 from typing import Tuple
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,12 +16,14 @@ from virtual_labs.domain.billing import (
     CreateBillingQuoteRequest,
     CreditConversionRequest,
     CreditConversionResponse,
+    CreditPackageRateItem,
+    CreditPackageRatesResponse,
 )
 from virtual_labs.infrastructure.db.config import default_session_factory
 from virtual_labs.infrastructure.kc.auth import a_verify_jwt
 from virtual_labs.infrastructure.kc.models import AuthUser
-from virtual_labs.repositories.credit_exchange_rate_repo import (
-    CreditExchangeRateQueryRepository,
+from virtual_labs.repositories.credit_package_rate_repo import (
+    CreditPackageRateRepository,
 )
 from virtual_labs.services.billing import BillingQuoteService, quote_to_response
 from virtual_labs.services.credit_converter import CreditConverter
@@ -93,7 +95,7 @@ async def create_billing_quote(
 @router.post(
     "/credit-conversions",
     operation_id="convert_billing_credits",
-    summary="Convert credits to a currency subtotal",
+    summary="Convert credits to a currency subtotal with volume pricing",
     response_model=VliAppResponse[CreditConversionResponse],
 )
 async def convert_billing_credits(
@@ -103,13 +105,12 @@ async def convert_billing_credits(
 ) -> Response:
     try:
         converter = CreditConverter(
-            exchange_rate_repo=CreditExchangeRateQueryRepository(session=session)
+            package_rate_repo=CreditPackageRateRepository(session=session)
         )
-        amount = await converter.credits_to_currency(
+        result = await converter.convert_credits(
             payload.credits,
             payload.currency,
         )
-        rate = await converter.get_exchange_rate(payload.currency)
     except ValueError as exc:
         raise VliError(
             error_code=VliErrorCode.INVALID_REQUEST,
@@ -122,7 +123,47 @@ async def convert_billing_credits(
         data=CreditConversionResponse(
             credits=payload.credits,
             currency=payload.currency,
-            amount=int(amount),
-            rate=rate,
+            amount=result.amount,
+            rate=result.rate,
+            discount_pct=result.discount_pct,
+            base_rate=result.base_rate,
+        ).model_dump(),
+    )
+
+
+@router.get(
+    "/credit-package-rates",
+    operation_id="list_credit_package_rates",
+    summary="List all active credit package rates for a currency",
+    response_model=VliAppResponse[CreditPackageRatesResponse],
+)
+async def list_credit_package_rates(
+    currency: str = Query(default="chf", min_length=3, max_length=3),
+    session: AsyncSession = Depends(default_session_factory),
+    _auth: Tuple[AuthUser, str] = Depends(a_verify_jwt),
+) -> Response:
+    repo = CreditPackageRateRepository(session=session)
+    tiers = await repo.get_all_active_rates(currency.lower())
+
+    if not tiers:
+        raise VliError(
+            error_code=VliErrorCode.INVALID_REQUEST,
+            http_status_code=HTTPStatus.BAD_REQUEST,
+            message=f"No pricing rates configured for currency: {currency}",
+        )
+
+    return VliResponse.new(
+        message="Credit package rates retrieved",
+        data=CreditPackageRatesResponse(
+            currency=currency.lower(),
+            rates=[
+                CreditPackageRateItem(
+                    min_credits=tier.min_credits,
+                    max_credits=tier.max_credits,
+                    rate=tier.rate,
+                    discount_pct=tier.discount_pct,
+                )
+                for tier in tiers
+            ],
         ).model_dump(),
     )
