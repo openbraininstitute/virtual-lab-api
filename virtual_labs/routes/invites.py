@@ -2,7 +2,7 @@ from typing import Annotated, Tuple
 
 from fastapi import APIRouter, Depends, Header, Query, Request
 from fastapi.responses import JSONResponse, Response
-from pydantic import ValidationError
+from pydantic import UUID4
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError
@@ -10,7 +10,6 @@ from virtual_labs.core.types import VliAppResponse
 from virtual_labs.domain.invite import (
     InvitationResponse,
     InviteOut,
-    WebhookHeaders,
     WebhookPayload,
 )
 from virtual_labs.infrastructure.db.config import default_session_factory
@@ -68,36 +67,22 @@ async def handle_invite(
 )
 async def webhook_handler(
     request: Request,
+    payload: WebhookPayload,
     x_webhook_signature: Annotated[str, Header()],
-    x_virtual_lab_id: Annotated[str, Header()],
-    x_project_id: Annotated[str, Header()],
-    x_user_id: Annotated[str, Header()],
+    x_virtual_lab_id: Annotated[UUID4, Header()],
+    x_project_id: Annotated[UUID4, Header()],
+    x_user_id: Annotated[UUID4, Header()],
     session: AsyncSession = Depends(default_session_factory),
 ) -> JSONResponse:
-    try:
-        headers = WebhookHeaders(
-            x_webhook_signature=x_webhook_signature,
-            x_virtual_lab_id=x_virtual_lab_id,  # type: ignore[arg-type]  # ty: ignore[invalid-argument-type]
-            x_project_id=x_project_id,  # type: ignore[arg-type]  # ty: ignore[invalid-argument-type]
-            x_user_id=x_user_id,  # type: ignore[arg-type]  # ty: ignore[invalid-argument-type]
-        )
-    except ValidationError as e:
-        return JSONResponse(status_code=422, content={"detail": e.errors()})
-
     body = await request.body()
-
-    try:
-        payload = WebhookPayload.model_validate_json(body)
-    except ValidationError as e:
-        return JSONResponse(status_code=422, content={"detail": e.errors()})
 
     result = await invite_cases.handle_invite_webhook(
         session,
-        signature=headers.x_webhook_signature,
+        signature=x_webhook_signature,
         body=body,
-        virtual_lab_id=str(headers.x_virtual_lab_id),
-        project_id=str(headers.x_project_id),
-        inviter_id=str(headers.x_user_id),
+        virtual_lab_id=str(x_virtual_lab_id),
+        project_id=str(x_project_id),
+        inviter_id=str(x_user_id),
         invitee_email=payload.email,
         invitee_name=payload.name,
     )

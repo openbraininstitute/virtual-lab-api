@@ -29,13 +29,6 @@ class InviteOut(BaseModel):
     accepted: Literal["accepted", "already_accepted"] | None
 
 
-class WebhookHeaders(BaseModel):
-    x_webhook_signature: str
-    x_virtual_lab_id: UUID4
-    x_project_id: UUID4
-    x_user_id: UUID4
-
-
 class WebhookPayload(BaseModel):
     name: str
     email: EmailStr

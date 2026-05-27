@@ -9,7 +9,6 @@ from virtual_labs.infrastructure.settings import settings
 from virtual_labs.tests.utils import (
     cleanup_resources,
     create_mock_lab_with_project,
-    create_paid_subscription_for_user,
     get_headers,
     get_user_id_from_test_auth,
 )
@@ -37,7 +36,6 @@ async def lab_and_project(
     user_id = await get_user_id_from_test_auth(
         auth_header=headers.get("Authorization", "")
     )
-    await create_paid_subscription_for_user(user_id)
 
     lab, project_id = await create_mock_lab_with_project(async_test_client)
     lab_id = lab["id"]
