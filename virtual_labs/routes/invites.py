@@ -68,18 +68,18 @@ async def handle_invite(
 )
 async def webhook_handler(
     request: Request,
+    x_webhook_signature: Annotated[str, Header()],
+    x_virtual_lab_id: Annotated[str, Header()],
+    x_project_id: Annotated[str, Header()],
+    x_user_id: Annotated[str, Header()],
     session: AsyncSession = Depends(default_session_factory),
-    x_webhook_signature: Annotated[str, Header()] = ...,
-    x_virtual_lab_id: Annotated[str, Header()] = ...,
-    x_project_id: Annotated[str, Header()] = ...,
-    x_user_id: Annotated[str, Header()] = ...,
 ) -> JSONResponse:
     try:
         headers = WebhookHeaders(
             x_webhook_signature=x_webhook_signature,
-            x_virtual_lab_id=x_virtual_lab_id,
-            x_project_id=x_project_id,
-            x_user_id=x_user_id,
+            x_virtual_lab_id=x_virtual_lab_id,  # type: ignore[arg-type]  # ty: ignore[invalid-argument-type]
+            x_project_id=x_project_id,  # type: ignore[arg-type]  # ty: ignore[invalid-argument-type]
+            x_user_id=x_user_id,  # type: ignore[arg-type]  # ty: ignore[invalid-argument-type]
         )
     except ValidationError as e:
         return JSONResponse(status_code=422, content={"detail": e.errors()})
