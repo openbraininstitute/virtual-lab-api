@@ -75,6 +75,7 @@ class Settings(BaseSettings):
     VALIDATE_CERTS: bool = False
 
     INVITE_JWT_SECRET: str = "TEST_JWT_SECRET"
+    INVITE_WEBHOOK_SECRET: str = ""
     INVITE_EXPIRES_IN_DAYS: int = 7
     INVITE_LINK_BASE: str = "http://localhost:3000"
 
