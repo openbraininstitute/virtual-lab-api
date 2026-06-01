@@ -58,6 +58,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from sqlalchemy import select, update
+from tqdm import tqdm
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -512,6 +513,16 @@ async def phase3_prices(cfg: RunConfig, state: MigrationState) -> None:
             logger.info(f"[DRY-RUN] prices.update({p.id}, active=false)")
         else:
             new_price = client.prices.create(params=params)
+            # If the old price is the product's default_price, we must
+            # reassign default_price before archiving it.
+            product = client.products.retrieve(cfg.product_id)
+            if getattr(product, "default_price", None) == p.id:
+                client.products.update(
+                    cfg.product_id, params={"default_price": new_price.id}
+                )
+                logger.info(
+                    f"   ↳ moved default_price {p.id} → {new_price.id}"
+                )
             client.prices.update(p.id, params={"active": False})
             new_id = new_price.id
             logger.info(f"✅ cloned {p.id} → {new_id}; old marked inactive")
@@ -562,11 +573,11 @@ async def phase4_customer_addresses(cfg: RunConfig, state: MigrationState) -> No
     no_address: list[dict[str, Any]] = []
     candidates: list[tuple[StripeUser, stripe.Customer]] = []
 
-    for row in su_rows:
+    for row in tqdm(su_rows, desc="Auditing customer addresses", unit="cust"):
         if not row.stripe_customer_id:
             continue
         try:
-            customer = client.customers.retrieve(row.stripe_customer_id)
+            customer = await client.customers.retrieve_async(row.stripe_customer_id)
         except stripe.InvalidRequestError:
             plan_table.add_row(
                 row.stripe_customer_id, str(row.user_id), "—", "stripe-missing"
@@ -611,7 +622,7 @@ async def phase4_customer_addresses(cfg: RunConfig, state: MigrationState) -> No
         # Lazy import — Keycloak is heavy and the import has side effects.
         from virtual_labs.infrastructure.kc.config import KeycloakRealm
 
-        for su, customer in candidates:
+        for su, customer in tqdm(candidates, desc="Syncing from Keycloak", unit="cust"):
             try:
                 kc_user = await KeycloakRealm.a_get_user(str(su.user_id))
             except Exception as e:
@@ -660,7 +671,7 @@ async def phase4_customer_addresses(cfg: RunConfig, state: MigrationState) -> No
                     f"[DRY-RUN] customers.update({customer.id}, address={address})"
                 )
             else:
-                client.customers.update(customer.id, params={"address": address})
+                await client.customers.update_async(customer.id, params={"address": address})
                 logger.info(f"✅ updated {customer.id} address={address}")
             state.customer_actions.append(
                 {
