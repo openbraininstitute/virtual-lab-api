@@ -56,9 +56,13 @@ async def get_project_detail_use_case(
             message="No project found",
         )
     except MultipleResultsFound:
+        logger.error(
+            f"Data integrity error: multiple projects for vlab {virtual_lab_id} "
+            f"project {project_id}"
+        )
         raise VliError(
-            error_code=VliErrorCode.MULTIPLE_ENTITIES_FOUND,
-            http_status_code=HTTPStatus.BAD_REQUEST,
+            error_code=VliErrorCode.SERVER_ERROR,
+            http_status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
             message="Multiple projects found",
         )
     except SQLAlchemyError:

@@ -15,7 +15,7 @@ from sqlalchemy.exc import IntegrityError, NoResultFound, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
-from virtual_labs.core.ledger import Ledger
+from virtual_labs.core.ledger import Ledger, ledger_container
 from virtual_labs.core.types import UserRoleEnum
 from virtual_labs.domain.labs import VirtualLabDetails
 from virtual_labs.domain.project import (
@@ -172,12 +172,18 @@ async def ensure_allow_creation_by_count_restriction(
 
 async def ensure_group_creation(
     *,
-    virtual_lab: VirtualLab,
+    vlab_admin_group_id: str,
+    vlab_member_group_id: str,
     virtual_lab_id: UUID4,
     project_id: UUID4,
     user_id: UUID,
     comp: Ledger,
 ) -> tuple[CreatedGroup, CreatedGroup, list[str]]:
+    # NB: the parent vlab's group ids are passed in as primitives, not read
+    # off a `VirtualLab` ORM instance. The caller rolls back its read-only
+    # transaction before invoking us, which expires ORM attributes — touching
+    # one here would trigger a lazy DB refresh outside the async greenlet and
+    # raise `greenlet_spawn has not been called`.
     try:
         admin_group_name = make_project_group_name(
             virtual_lab_id, project_id, UserRoleEnum.admin
@@ -193,7 +199,7 @@ async def ensure_group_creation(
                 {"name": member_group_name},
             ),
             _retrieve_group_user_ids(
-                group_id=str(virtual_lab.admin_group_id),
+                group_id=vlab_admin_group_id,
             ),
         )
         assert admin_group_id is not None
@@ -217,14 +223,12 @@ async def ensure_group_creation(
             attach_tasks.append(
                 KeycloakRealm.a_group_user_add(
                     user_id=user_id,
-                    group_id=str(
-                        virtual_lab.member_group_id,
-                    ),
+                    group_id=vlab_member_group_id,
                 )
             )
-        # Every existing virtual-lab admin inherits admin access to the project.
-        # Skip the requester if they are already a vlab admin; they were added
-        # as the project owner in the first attachment task.
+        # every existing virtual-lab admin inherits admin access to the project
+        # skip the requester if they are already a vlab admin; they were added
+        # as the project owner in the first attachment task
         for admin_uid in vlab_admin_users or []:
             if str(admin_uid) == str(user_id):
                 continue
@@ -236,15 +240,16 @@ async def ensure_group_creation(
             )
         await asyncio.gather(*attach_tasks)
         return admin_group, member_group, vlab_admin_users
+    # compensation is driven by the enclosing `ledger_container` scope: any
+    # undo already pushed onto `comp` is unwound automatically when these
+    # errors propagate. We only classify the failure into a `VliError`
     except AssertionError:
-        await comp.compensate(reason="missing group_id from KC")
         raise VliError(
             error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
             http_status_code=status.BAD_REQUEST,
             message="Admin/Member group_id failed to be generated",
         )
     except KeycloakError as ex:
-        await comp.compensate(reason="keycloak error")
         logger.error(f"Keycloak error during project group setup: {ex}")
         raise VliError(
             error_code=ex.response_code or VliErrorCode.EXTERNAL_SERVICE_ERROR,
@@ -252,7 +257,6 @@ async def ensure_group_creation(
             message="KC Group creation/attaching failed",
         )
     except Exception as ex:
-        await comp.compensate(reason="unknown KC error")
         logger.error(f"Error during creating/attaching to group in KC: {ex}")
         raise VliError(
             error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
@@ -279,8 +283,9 @@ async def ensure_accounting_initialization(
         )
         comp.push(_log_orphan_project_account(virtual_lab_id, project_id))
     except Exception as ex:
+        # Unwinding is handled by the enclosing `ledger_container`; just
+        # classify the failure.
         logger.error(f"Accounting project account failed: {ex}")
-        await comp.compensate(reason="accounting failure")
         raise VliError(
             error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
             http_status_code=status.BAD_GATEWAY,
@@ -297,11 +302,7 @@ async def create_project_record(
     admin_group: CreatedGroup,
     member_group: CreatedGroup,
     user_id: UUID,
-    comp: Ledger,
 ) -> dict[str, object]:
-    if session.in_transaction():
-        await session.commit()
-
     try:
         async with session.begin():
             project = Project(
@@ -321,14 +322,12 @@ async def create_project_record(
                 "virtual_lab_id": virtual_lab_id,
             }
     except IntegrityError:
-        await comp.compensate(reason="project name conflict")
         raise VliError(
             error_code=VliErrorCode.ENTITY_ALREADY_EXISTS,
             http_status_code=status.BAD_REQUEST,
             message="Project already exists",
         )
     except SQLAlchemyError as ex:
-        await comp.compensate(reason="database error")
         logger.exception(f"Database error creating new project: {ex}")
         raise VliError(
             error_code=VliErrorCode.DATABASE_ERROR,
@@ -336,7 +335,6 @@ async def create_project_record(
             message="Project creation failed",
         )
     except Exception as ex:
-        await comp.compensate(reason="unknown DB error")
         logger.exception(f"Unexpected error creating project: {ex}")
         raise VliError(
             error_code=VliErrorCode.SERVER_ERROR,
@@ -414,34 +412,45 @@ async def create_new_project_use_case(
         user_id=user_id,
     )
 
-    comp = Ledger()
+    vlab_admin_group_id = str(virtual_lab.admin_group_id)
+    vlab_member_group_id = str(virtual_lab.member_group_id)
 
-    admin_group, member_group, vlab_admin_users = await ensure_group_creation(
-        virtual_lab=virtual_lab,
-        virtual_lab_id=virtual_lab_id,
-        project_id=project_draft_id,
-        user_id=user_id,
-        comp=comp,
-    )
+    # release the read-only transaction held by the pre-checks above before
+    # opening the write transaction inside `create_project_record`, we roll
+    # back (never commit) so none of the caller's earlier work is flushed
+    await session.rollback()
 
-    await ensure_accounting_initialization(
-        virtual_lab_id=virtual_lab_id,
-        project_id=project_draft_id,
-        project_name=payload.name,
-        comp=comp,
-    )
+    # external provisioning + persistence run under a ledger scope: if any
+    # step raises, every undo recorded so far is unwound in LIFO order
+    # automatically, so a future error path can't forget to compensate
+    async with ledger_container() as comp:
+        admin_group, member_group, vlab_admin_users = await ensure_group_creation(
+            vlab_admin_group_id=vlab_admin_group_id,
+            vlab_member_group_id=vlab_member_group_id,
+            virtual_lab_id=virtual_lab_id,
+            project_id=project_draft_id,
+            user_id=user_id,
+            comp=comp,
+        )
 
-    project_row_snapshot = await create_project_record(
-        session,
-        project_id=project_draft_id,
-        virtual_lab_id=virtual_lab_id,
-        payload=payload,
-        admin_group=admin_group,
-        member_group=member_group,
-        user_id=user_id,
-        comp=comp,
-    )
+        await ensure_accounting_initialization(
+            virtual_lab_id=virtual_lab_id,
+            project_id=project_draft_id,
+            project_name=payload.name,
+            comp=comp,
+        )
 
+        project_row_snapshot = await create_project_record(
+            session,
+            project_id=project_draft_id,
+            virtual_lab_id=virtual_lab_id,
+            payload=payload,
+            admin_group=admin_group,
+            member_group=member_group,
+            user_id=user_id,
+        )
+
+    # post-commit
     await seed_initial_project_budget(
         virtual_lab_id=virtual_lab_id,
         project_id=project_draft_id,

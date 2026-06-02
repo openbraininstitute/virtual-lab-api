@@ -278,10 +278,12 @@ class AuthUserGrants(AuthUser):
         where `name = given_name + " " + family_name`)."""
         return self.name or self.username
 
-    @cached_property
-    def email(self) -> str:
-        """The Keycloak `email` claim."""
-        return self.email
+    # NB: no `email` override here — `email` is a real Pydantic field on
+    # `AuthUser`, stored in the instance `__dict__`. Since `cached_property`
+    # is a non-data descriptor, the field value always wins on attribute
+    # lookup, so a `cached_property def email` would be dead code (and
+    # `return self.email` inside it would be infinite recursion if it ever
+    # fired). Read `self.email` directly.
 
     def in_group(self, group_path: str) -> bool:
         """Raw Keycloak group-path membership check.

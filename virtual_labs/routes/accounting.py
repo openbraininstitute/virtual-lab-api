@@ -2,6 +2,7 @@ from http import HTTPStatus as status
 from typing import Tuple
 
 from fastapi import APIRouter, Depends
+from loguru import logger
 from pydantic import UUID4
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -138,9 +139,12 @@ async def assign_project_budget(
             http_status_code=ex.http_status_code or status.INTERNAL_SERVER_ERROR,
         )
     except Exception as ex:
+        # never use raw exception text to clients, it can leak few things from accounting
+        # return a sanitized message.
+        logger.exception(f"Unexpected error during budget assignment: {ex}")
         raise VliError(
             error_code=VliErrorCode.SERVER_ERROR,
-            message=str(ex) or "An unexpected error occurred during budget assignment",
+            message="An unexpected error occurred during budget assignment",
             http_status_code=status.INTERNAL_SERVER_ERROR,
         )
 
@@ -170,8 +174,11 @@ async def reverse_project_budget(
             http_status_code=ex.http_status_code or status.INTERNAL_SERVER_ERROR,
         )
     except Exception as ex:
+        # never use raw exception text to clients, it can leak few things from accounting
+        # return a sanitized message.
+        logger.exception(f"Unexpected error during budget reversal: {ex}")
         raise VliError(
             error_code=VliErrorCode.SERVER_ERROR,
-            message=str(ex) or "An unexpected error occurred during budget reversal",
+            message="An unexpected error occurred during budget reversal",
             http_status_code=status.INTERNAL_SERVER_ERROR,
         )

@@ -87,7 +87,7 @@ async def list_pending_virtual_labs_use_case(
         data=items,
         pagination=PaginationResponse(
             page=pagination.page,
-            page_size=pagination.page_size,
+            page_size=len(items),
             total_items=total,
         ),
     )

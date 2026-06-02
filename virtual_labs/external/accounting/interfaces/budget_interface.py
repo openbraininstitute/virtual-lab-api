@@ -1,6 +1,6 @@
 from http import HTTPStatus
 
-from httpx import AsyncClient
+from httpx import AsyncClient, Response
 from httpx._exceptions import HTTPStatusError
 from loguru import logger
 from pydantic import UUID4
@@ -16,6 +16,21 @@ from virtual_labs.external.accounting.models import (
     BudgetTopUpResponse,
 )
 from virtual_labs.infrastructure.settings import settings
+
+
+def _response_message(response: Response) -> str | None:
+    """extraction of an upstream error ``message``.
+
+    the accounting service usually returns a json object with a
+    ``message`` key, but error responses can be a list, a scalar, or
+    non-json entirely, guard every step so we
+    never raise *inside* an exception handler and lose the original error
+    """
+    try:
+        body = response.json()
+    except Exception:
+        return None
+    return body.get("message") if isinstance(body, dict) else None
 
 
 class BudgetInterface:
@@ -50,11 +65,13 @@ class BudgetInterface:
             response.raise_for_status()
             return BudgetTopUpResponse.model_validate(response.json())
         except HTTPStatusError as error:
+            upstream = _response_message(error.response)
             logger.error(
-                f"HTTP Error when topping up virtual lab account. Error {error}. Accounting Response: {error.response.json()}"
+                f"HTTP Error when topping up virtual lab account. Error {error}. "
+                f"Accounting message: {upstream}"
             )
             raise AccountingError(
-                message=f"Could not top up virtual lab account. Accounting Response: {error.response.json()}",
+                message=upstream or "Could not top up virtual lab account",
                 type=AccountingErrorValue.TOP_UP_VIRTUAL_LAB_ACCOUNT_ERROR,
                 http_status_code=HTTPStatus(error.response.status_code),
             )
@@ -85,12 +102,13 @@ class BudgetInterface:
             response.raise_for_status()
             return BudgetAssignResponse.model_validate(response.json())
         except HTTPStatusError as error:
+            upstream = _response_message(error.response)
             logger.error(
-                f"HTTP Error when assigning project budget. Error {error}. Accounting Response: {error.response.json()}"
+                f"HTTP Error when assigning project budget. Error {error}. "
+                f"Accounting message: {upstream}"
             )
             raise AccountingError(
-                message=error.response.json().get("message")
-                or "Could not assign project budget. Accounting Response",
+                message=upstream or "Could not assign project budget",
                 type=AccountingErrorValue.ASSIGN_PROJECT_BUDGET_ERROR,
                 http_status_code=HTTPStatus(error.response.status_code),
             )
@@ -121,12 +139,13 @@ class BudgetInterface:
             response.raise_for_status()
             return BudgetReverseResponse.model_validate(response.json())
         except HTTPStatusError as error:
+            upstream = _response_message(error.response)
             logger.error(
-                f"HTTP Error when reversing project budget. Error {error}. Accounting Response: {error.response.json()}"
+                f"HTTP Error when reversing project budget. Error {error}. "
+                f"Accounting message: {upstream}"
             )
             raise AccountingError(
-                message=error.response.json().get("message")
-                or "Could not reverse project budget",
+                message=upstream or "Could not reverse project budget",
                 type=AccountingErrorValue.REVERSE_PROJECT_BUDGET_ERROR,
                 http_status_code=HTTPStatus(error.response.status_code),
             )
@@ -159,11 +178,13 @@ class BudgetInterface:
             response.raise_for_status()
             return BudgetMoveResponse.model_validate(response.json())
         except HTTPStatusError as error:
+            upstream = _response_message(error.response)
             logger.error(
-                f"HTTP Error when moving project budget. Error {error}. Accounting Response: {error.response.json()}"
+                f"HTTP Error when moving project budget. Error {error}. "
+                f"Accounting message: {upstream}"
             )
             raise AccountingError(
-                message=f"Could not move project budget. Accounting Response: {error.response.json()}",
+                message=upstream or "Could not move project budget",
                 type=AccountingErrorValue.MOVE_PROJECT_BUDGET_ERROR,
                 http_status_code=HTTPStatus(error.response.status_code),
             )
