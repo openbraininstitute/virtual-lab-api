@@ -32,13 +32,13 @@ jobs:
       - name: Poetry audit
         id: poetry-audit
         run: |-
-          pip install poetry-audit-plugin
-          poetry audit > audit.txt
+          pip install "safety==3.7.0" poetry-audit-plugin
+          poetry audit > audit.txt 2>&1 || true
           cat audit.txt
         continue-on-error: true
       - name: Comment with audit result
         uses: marocchino/sticky-pull-request-comment@v2
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && hashFiles('audit.txt') != ''
         with:
           recreate: true
           path: audit.txt

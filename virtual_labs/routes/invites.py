@@ -1,12 +1,17 @@
-from typing import Tuple
+from typing import Annotated, Tuple
 
-from fastapi import APIRouter, Depends, Query
-from fastapi.responses import Response
+from fastapi import APIRouter, Depends, Header, Query, Request
+from fastapi.responses import JSONResponse, Response
+from pydantic import UUID4
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError
 from virtual_labs.core.types import VliAppResponse
-from virtual_labs.domain.invite import InvitationResponse, InviteOut
+from virtual_labs.domain.invite import (
+    InvitationResponse,
+    InviteOut,
+    WebhookPayload,
+)
 from virtual_labs.infrastructure.db.config import default_session_factory
 from virtual_labs.infrastructure.kc.auth import verify_jwt
 from virtual_labs.infrastructure.kc.models import AuthUser
@@ -52,3 +57,33 @@ async def handle_invite(
         invite_token=token,
         auth=auth,
     )
+
+
+@router.post(
+    "/webhook",
+    operation_id="invites_webhook_handler",
+    summary="Handle incoming webhook to invite a user to a project",
+    description="This is tied to the google form invite setup",
+)
+async def webhook_handler(
+    request: Request,
+    payload: WebhookPayload,
+    x_webhook_signature: Annotated[str, Header()],
+    x_virtual_lab_id: Annotated[UUID4, Header()],
+    x_project_id: Annotated[UUID4, Header()],
+    x_user_id: Annotated[UUID4, Header()],
+    session: AsyncSession = Depends(default_session_factory),
+) -> JSONResponse:
+    body = await request.body()
+
+    result = await invite_cases.handle_invite_webhook(
+        session,
+        signature=x_webhook_signature,
+        body=body,
+        virtual_lab_id=str(x_virtual_lab_id),
+        project_id=str(x_project_id),
+        inviter_id=str(x_user_id),
+        invitee_email=payload.email,
+        invitee_name=payload.name,
+    )
+    return JSONResponse(status_code=200, content=result)

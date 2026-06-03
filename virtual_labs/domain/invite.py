@@ -27,3 +27,8 @@ class InviteOut(BaseModel):
     virtual_lab_id: UUID4
     origin: InviteOrigin
     accepted: Literal["accepted", "already_accepted"] | None
+
+
+class WebhookPayload(BaseModel):
+    name: str
+    email: EmailStr
