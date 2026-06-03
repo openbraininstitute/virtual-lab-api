@@ -1,197 +1,308 @@
 # Virtual Labs API
 
-This is the repository for the REST api that is used to manage virtual labs and their projects, primarily by the [core-web-app](https://github.com/BlueBrain/core-web-app). 
+REST API used to manage virtual labs and their projects
 
-# Dependencies
+The service is an async FastAPI application backed by PostgreSQL (async SQLAlchemy + Alembic), Redis, Keycloak (OIDC), Stripe (billing & subscriptions), Mailpit (local SMTP). It is packaged and run with [`uv`](https://docs.astral.sh/uv/) and orchestrated locally via Docker Compose.
 
-Make sure you have the following dependencies installed:
+---
 
-- [python](https://www.python.org/downloads/) (version 3.12)
-- [poetry](https://python-poetry.org/docs/#installation) (version >=1.5.1)
-- [docker](https://docs.docker.com/engine/install/) - Add the docker group to your user to enable running docker without `sudo`. This can be done by running `sudo usermod -a -G <your username>`
-- [jq](https://jqlang.github.io/jq/download/)
-- Stripe API key (`STRIPE_SECRET_KEY` test key and `STRIPE_DEVICE_NAME=dev` in `./.env.local`)
+## Table of contents
 
-# Configuration
+- [Stack & requirements](#stack--requirements)
+- [Repository layout](#repository-layout)
+- [Quick start](#quick-start)
+- [Environment configuration](#environment-configuration)
+- [Common Make targets](#common-make-targets)
+- [Authentication & test users](#authentication--test-users)
+- [Keycloak admin UI](#keycloak-admin-ui)
+- [Database & migrations](#database--migrations)
+- [Testing](#testing)
+- [Billing / Stripe testing](#billing--stripe-testing)
+- [Operational scripts](#operational-scripts)
+- [Code quality](#code-quality)
+- [IDE setup](#ide-setup)
+- [Contributing](#contributing)
+- [Funding & acknowledgment](#funding--acknowledgment)
 
-**Running in Macos (M4):**
-For users running the virtual-lab-api on macOS with the M4 chip, the docker-compose configuration requires specific updates to ensure compatibility with the architecture and resource management. Please apply the following changes:
+---
 
-**Delta service:**
-Add the following property to ensure the service runs using the correct architecture:
+## Stack & requirements
+
+| Tool | Version | Notes |
+| ---- | ------- | ----- |
+| Python | `>=3.12,<4` | Project targets 3.12 (also tested against 3.13/3.14) |
+| [`uv`](https://docs.astral.sh/uv/getting-started/installation/) | latest | Package + virtualenv manager (replaces Poetry) |
+| Docker + Docker Compose | latest | Brings up Postgres, Redis, Keycloak (+ its DB), Mailpit, and a Stripe CLI listener |
+| [`jq`](https://jqlang.github.io/jq/download/) | any | Used by helper scripts |
+| Stripe CLI | optional | For local webhook / Setup Intent testing |
+
+Key runtime dependencies (see [pyproject.toml](pyproject.toml) for the full list): `fastapi[all]`, `uvicorn`, `sqlalchemy[asyncio]`, `asyncpg`, `alembic`, `pydantic` v2, `pydantic-settings`, `python-keycloak`, `pyjwt`, `stripe`, `fastapi-mail`, `redis`, `loguru`, `sentry-sdk[fastapi]`, `obp-accounting-sdk`.
+
+> Make sure your user is in the `docker` group so Docker commands don't require `sudo`:
+> ```bash
+> sudo usermod -aG docker "$USER"
+> ```
+
+---
+
+## Repository layout
+
 ```
-platform: linux/amd64
+virtual_labs/
+├── api.py              # FastAPI app factory, middleware, exception handlers, router wiring
+├── routes/             # HTTP layer — one module per domain (labs, projects, billing, …)
+├── usecases/           # Application use-cases orchestrating services + repositories
+├── services/           # Domain services (Stripe, Keycloak, email, accounting, …)
+├── repositories/       # Async SQLAlchemy data access
+├── domain/             # Pydantic schemas / domain models (request/response DTOs)
+├── infrastructure/     # DB session pool, Redis client, settings, transport, kc, email
+├── core/               # Cross-cutting primitives: exceptions, response schemas, auth
+├── external/           # Adapters for third-party systems
+├── shared/             # Shared utilities
+├── static/             # Static assets (email templates, etc.)
+├── utils/              # Generic helpers
+└── tests/              # Pytest suite (async, integration markers)
+alembic/                # Alembic env + versioned migrations
+scripts/                # One-off and operational scripts (subscription tiers, bulk invite, …)
+env-prep/               # Keycloak realm export + seed data used by dev-init.sh
 ```
 
-**Elasticsearch service:**
-Include the following environment variables to configure memory usage and disable SVE (Scalable Vector Extensions):
+The router wiring lives in [virtual_labs/api.py](virtual_labs/api.py). All routers are mounted under `settings.BASE_PATH`, and OpenAPI docs are exposed at `{BASE_PATH}/docs`.
+
+---
+
+## Quick start
+
+```bash
+# 1. Install uv (one-time): https://docs.astral.sh/uv/getting-started/installation/
+
+# 2. Install Python deps into a managed virtualenv
+make install            # equivalent to: uv sync
+
+# 3. Create your local env file (see Environment configuration below)
+#    Use the committed `.env.development` as a starting point:
+cp .env.development .env.local
+
+# 4. Bring up infra + app
+make init
+
+# 5. Initialize / migrate the database
+make init-db
+
+# 6. Run the API in reload mode against the running stack (optional)
+make dev
 ```
-ES_JAVA_OPTS: "-Xms512m -Xmx512m -XX:UseSVE=0"
-CLI_JAVA_OPTS: "-XX:UseSVE=0"
+
+The API will be available at `http://127.0.0.1:8000` and the interactive docs at `http://127.0.0.1:8000/docs`.
+
+---
+
+## Environment configuration
+
+The service reads configuration from `.env.local` (loaded by `dev-init.sh` and `make init`). The repo ships [.env.development](.env.development) with the non-secret defaults that match `docker-compose.yml` — use it as a starting template and fill in your own Stripe / Sentry / Keycloak secrets locally.
+
+The authoritative list of supported settings (with defaults and types) lives in [virtual_labs/infrastructure/settings.py](virtual_labs/infrastructure/settings.py). Common groups:
+
+- **App**: `APP_NAME`, `APP_DEBUG`, `DEPLOYMENT_ENV`, `BASE_PATH`, `CORS_ORIGINS`, `CORS_ORIGIN_REGEX`
+- **Database**: async SQLAlchemy URI (`postgresql+asyncpg://…`)
+- **Keycloak**: `KC_SERVER_URI`, `KC_REALM_NAME`, `KC_CLIENT_ID`, `KC_CLIENT_SECRET`
+- **Redis**: host / port / credentials
+- **Stripe**: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_DEVICE_NAME`, `STRIPE_API_VERSION`, tax-billing flags (`BILLING_TAX_ENABLED`, `BILLING_TAX_ENABLED_COUNTRIES`, `BILLING_TAX_BEHAVIOR`, `BILLING_TAX_MISSING_COUNTRY_MODE`)
+- **Sentry**: `SENTRY_DSN`, `SENTRY_TRACES_SAMPLE_RATE`, `SENTRY_PROFILES_SAMPLE_RATE`
+
+---
+
+## Common Make targets
+
+Run `make help` (or simply `make`) to print this list in your terminal — every target's description below comes straight from the inline `## …` annotations in the [Makefile](Makefile), so it always reflects the truth.
+
+```console
+$ make help
+help                    Show this help
+install                 Install all dependencies
+upgrade-deps            Upgrade all dependencies to latest compatible versions
+check-deps              Check lock file is up to date
+audit                   Run package auditing
+dev                     Run development api server
+init                    Run project with .env.local file (for local development)
+init-ci                 Run project without env file (for CI/CD environments)
+destroy                 Destroy project containers (with .env.local)
+destroy-ci              Destroy project containers (without env file)
+build                   Build the Docker image
+format                  Run formatters and auto-fix linting issues
+lint                    Run linters (check only, no modifications)
+style-check             Run pre-commit style checks
+type-check              Run static type checks
+check-all               Run format, lint, style-check and type-check
+test                    Run tests
+init-db                 Create & seed db tables
+check-db-schema         Check if db schema change requires a migration
+migration               Create or update the alembic migration
+tiers                   Populate subscription tiers
 ```
-   
-# Development
 
-1. Install the dependencies
+A few of the most common targets in context:
 
-   ```bash
-   poetry install
-   ```
-2. Start dev environment
+- **First-time setup:** `make install && make init && make init-db`
+- **Day-to-day:** `make dev` (reload server), `make test`, `make check-all` before pushing
+- **Migrations:** `make migration MESSAGE="…"` to autogenerate, `make init-db` to apply
+- **Reset the stack:** `make destroy` (drops containers + volumes)
 
-   ```bash
-   make init
-   ```
-   If you are using a machine with Apple ships (as M4), use this command instead:
-   ```
-   make init amd
-   ```
-3. Run db migrations (this also initializes the database)
+---
 
-   ```
-   make init-db
-   ```
+## Authentication & test users
 
-This should start the server on port 8000 (http://127.0.0.1:8000)
-The docs will be available at http://127.0.0.1:8000/docs#/
+The dev stack ships with a Keycloak realm (`obp-realm`) populated by [env-prep/realm-export.json](env-prep/realm-export.json).
 
+`make init` automatically copies the token for user `test` (the user allowed to create virtual labs) to your clipboard.
 
-# Retrieving tokens for test users
-
-The token for user `test` (only user right now that can create virtual labs) is already copied to your clipboard when you run `make init`.
-Tokens for user `test`, `test-1`, or `test-2` can also be retrieved using the script `get_user_token.sh`.
-It echoes the token to the stdout as well as copies it to your clipboard.
+You can also fetch a token at any time:
 
 ```bash
 ./get_user_token.sh
-# Now you will be prompted to enter a username. Valid usernames are `test`, `test-1`, or `test-2`. Example:
-Enter username (test, test-1 or test-2)
--rtest-1
-Access token:
-<access_token>
+# Prompts for username — valid values: test, test-1, test-2
 ```
 
-# Accessing local (or test) keycloak UI
+The token is both printed to stdout and copied to your clipboard.
 
-Add keycloak as host for address 127.0.0.1 in /etc/host file
+---
+
+## Keycloak admin UI
+
+The Keycloak container is exposed on host port `9090` with `--hostname-admin=http://localhost:9090`, so the admin console is reachable out of the box at:
+
+- URL: `http://localhost:9090`
+- Username / password: `admin` / `admin` (see [docker-compose.yml](docker-compose.yml))
+- Realm used by the API: `obp-realm` (seeded from [env-prep/realm-export.json](env-prep/realm-export.json))
+
+---
+
+## Database & migrations
+
+Migrations live in [alembic/versions](alembic/versions). Alembic config is in [alembic.ini](alembic.ini).
+
+**Generate a new migration** (autogenerated from model changes):
 
 ```bash
-echo "127.0.0.1 keycloak" | sudo tee -a /etc/hosts # This adds a line "127.0.0.1 keycloak" to /etc/hosts 
+make migration MESSAGE="add foo column to virtual_labs"
+# or directly:
+uv run alembic revision --autogenerate -m "add foo column"
 ```
 
-Now navigating to http://localhost:9090 or http://keycloak:9090 should load the keycloak web interface
+> Always review autogenerated migrations. Alembic cannot detect every schema change — see the [autogenerate caveats](https://alembic.sqlalchemy.org/en/latest/autogenerate.html#what-does-autogenerate-detect-and-what-does-it-not-detect).
 
-# Generating db migrations
+**Apply migrations:**
 
-The version numbers are stored in alembic/versions. Alembic can be used to autogenerate migration scripts based on schema changes like so:
-
-```
-poetry run alembic revision --autogenerate -m '<A descriptive message>'
-```
-
-Note that these migration scripts *should* be reviewed carefully. Also, not all schema changes can be autogerated. Details about which schema changes need scripts to be written manually are [here](https://alembic.sqlalchemy.org/en/latest/autogenerate.html#what-does-autogenerate-detect-and-what-does-it-not-detect).
-
-Migration can be run like so:
-
-```
-poetry run alembic upgrade head
+```bash
+make init-db
+# or:
+uv run alembic upgrade head
 ```
 
-To check if migration is needed (same as above, alembic cannot check all schema changes):
+**Check whether a migration is required:**
 
-```
+```bash
 make check-db-schema
 ```
 
-# Testing
+---
 
-Tests can be run using the following command:
+## Testing
 
-```
+Run the full suite (also populates test subscription tiers first):
+
+```bash
 make test
 ```
 
-## Testing Subscription Flow
+Run a subset directly:
 
-A comprehensive test script is available to test the complete subscription and payment flow:
+```bash
+uv run pytest virtual_labs/tests/path/to/test_file.py -k some_test -x
+```
 
-1. Creating a virtual lab (which creates a Stripe customer)
-2. Testing topup balance functionality
-3. Adding multiple payment methods
-4. Creating a subscription (selecting a plan, paying for it)
-5. Paying for subscription periods
-6. Testing subscription auto-renewal
-7. Canceling a subscription
+Integration tests are marked with `@pytest.mark.integration` (see `pyproject.toml`).
 
-To run the subscription test:
+---
 
-1. Set up your environment:
-   ```bash
-   # Copy the example .env file
-   cp scripts/.env.subscription_test.example scripts/.env
-   
-   # Get an authentication token
-   python scripts/get_test_token.py
-   
-   # Edit the .env file to add your Stripe test keys
-   nano scripts/.env
-   ```
+## Billing / Stripe testing
 
-2. Run the test script:
-   ```bash
-   python scripts/test_subscription_flow.py
-   ```
+The `STRIPE_SECRET_KEY` test key and `STRIPE_DEVICE_NAME=dev` must be present in `.env.local`. Swiss VAT / tax-billing knobs are documented in [SUBSCRIPTION.md](SUBSCRIPTION.md) and the `BILLING_TAX_*` settings.
 
-For more details, see the [subscription test documentation](scripts/README_subscription_test.md).
+### Setup Intents (attaching payment methods)
 
-## Test Billing endpoints
+Attaching a payment method is normally a frontend flow (`stripe.confirmSetup()`). To test from the backend manually:
 
-The following section explains how to test attaching a payment method to a customer using Stripe's Setup Intents. This operation primarily involves frontend interactions to verify and confirm the Setup Intent. Therefore, it's crucial to conduct this part of the API testing manually.
-
-#### Prerequisites:
-
-1. **Stripe CLI:** Installation of Stripe CLI is recommended for facilitating local testing and event simulation. It can be downloaded from the [Stripe CLI documentation page](https://stripe.com/docs/stripe-cli).
-
-#### Steps to Test:
-
-1. **Create a Setup Intent:** Initially, create a Setup Intent to prepare for attaching a payment method to a customer by using `/virtual-labs/{virtual_lab_id}/billing/setup-intent` endpoint.
-2. **Confirm the Setup Intent:** Manually pass the Setup Intent ID to the `confirm` method to simulate the user confirming their payment details (in the frontend this op is using `stripe.setupConfirm()`). This action triggers Stripe to attach the specified test payment method to the Setup Intent.
-
-Alternatively, if you prefer not to use Stripe CLI, you can execute a POST request directly to Stripe's API to perform these actions. However, using Stripe CLI provides a more integrated and straightforward testing workflow.
-
-For further details on working with Setup Intents and managing payment methods, refer to the [Stripe API documentation on Setup Intents](https://stripe.com/docs/api/setup_intents).
+1. Create a Setup Intent via `POST /virtual-labs/{virtual_lab_id}/billing/setup-intent`.
+2. Confirm it through the Stripe CLI:
 
 ```sh
 stripe setup_intents confirm seti_1PFtBwFjhkSGAqrAUHCvTAAA \
   --payment-method=pm_card_visa
 ```
-# IDE Setup
 
-## VS Code
+References: [Stripe Setup Intents](https://stripe.com/docs/api/setup_intents) · [Stripe CLI](https://stripe.com/docs/stripe-cli).
 
-1. Make sure that VSCode is picking up the right python version. This should look like `~/.cache/pypoetry/virtualenvs/virtual-labs[uuid]...`
+---
+
+## Operational scripts
+
+Installed as `uv run` entrypoints (defined in [pyproject.toml](pyproject.toml)):
+
+| Command | Purpose |
+| ------- | ------- |
+| `uv run populate-tiers` | Seed/refresh subscription tiers (`--test` for test mode) — [scripts/populate_subscription_tiers.py](scripts/populate_subscription_tiers.py) |
+| `uv run upgrade-subscription` | Upgrade an existing subscription — [scripts/upgrade_subscription.py](scripts/upgrade_subscription.py) |
+| `uv run send_emails` | Send templated emails — [scripts/send_emails.py](scripts/send_emails.py) |
+| `uv run manage-coupons` | Manage Stripe coupons — [scripts/manage_stripe_coupons.py](scripts/manage_stripe_coupons.py) |
+| `uv run bulk-invite` | Bulk-invite users to a project — [scripts/bulk_invite_to_project.py](scripts/bulk_invite_to_project.py) |
+| `uv run migrate-tax-billing` | One-off migration to the tax-billing model — [scripts/migrate_to_tax_billing.py](scripts/migrate_to_tax_billing.py) |
+
+---
+
+## Code quality
+
+- **Formatting & linting:** [Ruff](https://docs.astral.sh/ruff/) — `make format` / `make lint`
+- **Static typing:** [`ty`](https://docs.astral.sh/ty/) — `make type-check` (config in `pyproject.toml`)
+- **Pre-commit hooks:** ruff format + ruff lint on push
+
+Install hooks once after cloning:
+
+```bash
+uv run pre-commit install
+```
+
+CI runs `style-check` against `.pre-commit-config-ci.yaml`.
+
+---
+
+## IDE setup
+
+### VS Code
+
+1. Point the Python interpreter at the uv-managed venv: `.venv/bin/python` in the project root (created by `uv sync`).
 2. Recommended extensions:
-   - Ruff (extension_id - charliermarsh.ruff)
-   - MyPy Type Checker (extension_id: ms-python.mypy-type-checker)
+   - **Ruff** (`charliermarsh.ruff`)
+   - **Python** (`ms-python.python`)
 
-# Contributing
+The project uses [`ty`](https://docs.astral.sh/ty/) (configured in `pyproject.toml`) as the type checker — invoke it via `make type-check`.
 
-To create an MR and push code to it, you will need to setup git-hooks *only the first time you push code to the repo*.
+---
 
-1. Install git hooks to enable pre-push checks
+## Contributing
 
-```
-poetry run pre-commit install
-```
+See [CONTRIBUTING.md](CONTRIBUTING.md). In short:
 
-This will setup a git hook (pre-push) that is configured to run the following checks.
+1. Branch off `main`.
+2. `uv run pre-commit install` (first time only).
+3. Keep PRs focused; include tests where reasonable.
+4. Run `make check-all` and `make test` before opening a PR.
 
-- Formatting (using ruff)
-- Linting (using ruff)
+---
 
-# Funding & Acknowledgment
- 
+## Funding & acknowledgment
+
 The development of this software was supported by funding to the Blue Brain Project, a research center of the École polytechnique fédérale de Lausanne (EPFL), from the Swiss government's ETH Board of the Swiss Federal Institutes of Technology.
- 
+
 Copyright © 2024 Blue Brain Project/EPFL
 Copyright © 2025 Open Brain Institute

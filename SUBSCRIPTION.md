@@ -2,458 +2,474 @@
 
 ## Overview
 
-The Virtual Labs platform offers a tiered subscription model designed to accommodate different user needs and usage patterns. This document outlines the subscription system's architecture, functionality, and workflows.
+The Virtual Labs platform offers a tiered subscription model with first-class **tax-aware billing** (Stripe Tax / Swiss VAT) and **credit-based** usage accounting. This document describes the current data model, lifecycle, Stripe webhook contract, tax-quote flow, and promotion-code flow.
 
 ```mermaid
 graph TD
-    A[User] --> B{Choose Path}
-    B -->|Create Virtual Lab First| C[Free Subscription Activated]
-    B -->|Create Subscription First| D[Pro/Premium Plan]
-    C --> E{Choose Subscription}
-    E -->|Upgrade| D
-    E -->|Stay on| F[Free Plan]
+    A[User] --> C[Create Virtual Lab]
+    C --> F[Free Subscription Activated]
+    F --> E{Choose Subscription}
+    E -->|Upgrade| D[Pro / Premium Plan]
+    E -->|Stay on| F2[Free Plan]
     D --> G[Access Advanced Features]
-    D --> H[Receive Monthly/Yearly Credits]
-    F --> I[Limited Features]
-    F --> J[Basic Credits]
+    D --> H[Receive Monthly / Yearly Credits]
+    F2 --> I[Limited Features]
+    F2 --> J[Basic Credits welcome bonus]
     D -->|Top-up| K[Add Additional Credits]
-    F -->|Top-up| K
-    D -->|Payment Fails| F
+    F2 -->|Top-up| K
+    D -->|Payment Fails| F2
+    D --> Q[Apply Promotion Code]
+    F2 --> Q
 ```
 
-## User Onboarding Paths
+> **A virtual lab is a prerequisite for any subscription.** Pro / Premium plans cannot be created standalone — the user must first create a virtual lab (which auto-activates the Free tier), then upgrade it. Top-ups and promotion codes are likewise scoped to an existing virtual lab.
 
-Users can join the Virtual Labs platform through two different paths:
+---
 
-### Path 1: Create Virtual Lab First
-1. User creates a virtual lab
-2. Free subscription is automatically activated
-3. User receives 100 initial credits
-4. User can later upgrade to Pro/Premium plans
+## Subscription tiers
 
-### Path 2: Create Subscription First
-1. User selects and purchases a Pro/Premium subscription
-2. User receives subscription benefits immediately
-3. User can create virtual labs with enhanced features
-4. User receives monthly/yearly credits based on their plan
-5. User also receives an additional 100 free credits as a welcome bonus
+Tiers are defined in the `subscription_tier` table and seeded via the `populate-tiers` script (see [scripts/populate_subscription_tiers.py](scripts/populate_subscription_tiers.py)).
 
+| Tier    | Stripe? | Monthly credits | Yearly credits | Notes                                                  |
+| ------- | ------- | --------------- | -------------- | ------------------------------------------------------ |
+| Free    | No      | 100 (one-time welcome bonus, gated by `ENABLE_WELCOME_BONUS`) | N/A | Auto-activated on first virtual lab creation           |
+| Pro     | Yes     | Configured per tier row                                       | Configured per tier row | `stripe_monthly_price_id` / `stripe_yearly_price_id`   |
+| Premium | Yes     | Configured per tier row                                       | Configured per tier row | Higher credit allotment, full feature set              |
 
+Each tier carries `stripe_product_id`, monthly/yearly price IDs and amounts, discounts, currency (defaults to `chf`), feature/metadata JSON, and credit allotments.
 
-## Subscription Tiers
+---
 
-The system offers three subscription tiers:
+## Credits & currency
 
-| Tier | Features | Monthly Credits | Yearly Credits |
-|------|----------|----------------|----------------|
-| Free | Basic functionality | 100 credits (one-time) | N/A |
-| Pro | Advanced features | 50 credits/month | 650 credits/year |
-| Premium | All features | Varies by plan | Varies by plan |
+- **Internal currency:** credits. All accounting and quota enforcement work in credits, not money.
+- **Conversion:** `CreditConverter` ([virtual_labs/services/credit_converter.py](virtual_labs/services/credit_converter.py)) translates between currency and credits using the `credit_exchange_rate` table (per-currency rates). Subscription tier currency defaults to **CHF**.
+- **Accounting integration:** credits are pushed to the OBP accounting service via `accounting_service.top_up_virtual_lab_budget(...)`.
+- **Welcome bonus:** `WELCOME_BONUS_CREDITS` (gated by `ENABLE_WELCOME_BONUS`) is added on first lab creation, regardless of paid plan.
+- **Top-ups:** users can buy additional credits at any time as standalone payments.
 
-## Key Concepts
+---
 
-### Credits System
+## Tax-aware billing (Stripe Tax)
 
-Credits are the platform's internal currency used for various operations:
+The platform supports **tax-inclusive pricing** and **VAT computation** via Stripe Tax. Swiss VAT (CH) is the first enforced jurisdiction; the system is structured to support more countries by configuration.
 
-> **Note:** All users, regardless of their subscription path, receive 100 free credits as a welcome bonus. This is in addition to any monthly or yearly credits they receive from their Pro/Premium subscription.
+### Settings
 
-- **Pro/Premium Plans**: Users receive monthly or yearly credits based on their subscription type
-- **Top-ups**: Users can purchase additional credits at any time as standalone payments
-- **Conversion Rate**: Money paid for subscriptions or top-ups is converted to credits (at a rate of 0.05 credits per monetary unit)
-- **Cumulative**: Credits accumulate over time and don't expire
+Defined in `.env.development` / settings:
 
-### Payment Processing
+| Setting                                | Purpose                                                                 |
+| -------------------------------------- | ----------------------------------------------------------------------- |
+| `STRIPE_API_VERSION`                   | Stripe API version pinned for the integration                           |
+| `STRIPE_CREDIT_TAX_CODE`               | Stripe Tax product code applied to credit purchases                     |
+| `BILLING_TAX_ENABLED`                  | Master switch for tax calculation                                       |
+| `BILLING_TAX_ENABLED_COUNTRIES`        | Comma-separated ISO-3166 codes where tax is computed (e.g. `CH`)        |
+| `BILLING_TAX_BEHAVIOR`                 | `exclusive` (tax added on top of subtotal) — see `TaxBehavior` enum     |
+| `BILLING_TAX_MISSING_COUNTRY_MODE`     | `block` rejects requests without a billing country; alternative: allow  |
 
-The platform integrates with Stripe for payment processing:
+### Domain model
 
-- **Subscription Payments**: Auto-billed monthly or yearly
-- **Immediate Processing**: No trial periods or delays for subscription payments
-- **Standalone Payments**: One-time payments for credit top-ups
-- **Payment Failure Handling**: Automatic downgrade to Free plan if subscription payment fails
+[virtual_labs/domain/billing.py](virtual_labs/domain/billing.py):
 
-## Subscription Lifecycle
+- `BillingFlow` — `standalone` (credit top-up) or `subscription`.
+- `TaxBehavior` — `exclusive`.
+- `TaxStatus` — `calculated`, `not_applicable`, `pending`, `failed`.
+- `BillingAddress` — ISO-3166 country code required (2-letter, uppercased automatically).
 
-### 1. Virtual Lab Creation & Free Tier
+### Quote flow
 
-When a user first creates a virtual lab, they're automatically enrolled in the Free subscription:
+The frontend obtains a **billing quote** *before* checkout so the user sees the correct VAT-inclusive total:
 
 ```mermaid
 sequenceDiagram
-    User->>+Backend: Create Virtual Lab
-    Backend->>+Database: Create VL Record
-    Backend->>+Database: Create Free Subscription
-    Backend->>+Accounting: Allocate 100 Initial Credits
-    Backend-->>-User: VL Created with Free Plan
+    User->>+Frontend: Pick plan / top-up amount + billing address
+    Frontend->>+Backend: POST /billing/quotes
+    Backend->>+Stripe: Tax calculation (line items + address)
+    Stripe-->>-Backend: tax amount + status + calculation id
+    Backend->>+Database: Persist BillingQuote (expires_at)
+    Backend-->>-Frontend: subtotal / tax / total / quote id
+    Frontend->>+Backend: Create subscription / payment intent (with quote id)
 ```
 
-**Code Sample:**
-```python
-# Create free subscription for new lab
-if not await subscription_repo.get_free_subscription_by_user_id(
-    user_id=owner_id
-):
-    await subscription_repo.create_free_subscription(
-        user_id=owner_id, virtual_lab_id=UUID(str(db_lab.id))
-    )
+The `billing_quote` table stores `flow`, optional `subscription_tier_id` + `interval` (for subscription quotes) or `credits` (for standalone), `subtotal`, `tax_amount`, `total`, `currency`, `tax_behavior`, `tax_country`, `tax_status`, full `billing_address_json`, `stripe_tax_calculation_id`, and `expires_at`. Quotes are short-lived and reference-able by payment-intent / subscription creation.
 
-# Initial credit allocation
-welcome_bonus_credits = (
-    settings.WELCOME_BONUS_CREDITS
-    if settings.ENABLE_WELCOME_BONUS
-    else Decimal(0)
-)
-```
+### Endpoints
 
-### 2. Upgrading to Pro/Premium
+- `POST /billing/quotes` — create a tax-aware quote (subscription or standalone).
+- `POST /billing/credit-conversions` — convert credits ↔ currency at the active exchange rate.
 
-Users can upgrade from the Free plan to a Pro or Premium subscription:
+See [virtual_labs/routes/billing.py](virtual_labs/routes/billing.py).
 
-```mermaid
-sequenceDiagram
-    User->>+Frontend: Select Pro/Premium Plan
-    Frontend->>+Backend: Create Subscription Request
-    Backend->>+Stripe: Create Subscription
-    Stripe-->>-Backend: Subscription Created
-    Backend->>+Database: Store Subscription Details
-    Backend->>+Accounting: Allocate Plan Credits
-    Backend-->>-User: Subscription Activated
-```
+---
 
-**Code Sample:**
-```python
-stripe_subscription = await stripe_service.create_subscription(
-    customer_id=customer_id,
-    price_id=price_id,
-    payment_method_id=payload.payment_method_id,
-    metadata={
-        "user_id": str(user_id),
-        "email": user["email"],
-        "name": user["full_name"],
-    },
-    discount_id=discount_id,
-)
-```
-
-### 3. Webhook-Based Payment Processing
-
-Stripe webhooks are crucial for managing subscription state and payment processing:
-
-```mermaid
-graph TD
-    A[Stripe Event] -->|Webhook| B[Backend API]
-    B -->|Subscription Events| C[Update Subscription Status]
-    B -->|Payment Events| D[Process Payment]
-    B -->|Standalone Payment Events| E[Process Top-up]
-    C -->|Payment Success| F[Allocate Credits]
-    C -->|Payment Failure| G[Downgrade to Free]
-    D -->|Invoice Paid| F
-    D -->|Invoice Failed| G
-    E -->|Payment Success| H[Add Top-up Credits]
-```
-
-The webhook system handles various events:
-
-#### Subscription Events
-- `customer.subscription.created`
-- `customer.subscription.updated`
-- `customer.subscription.deleted`
-
-#### Payment Events
-- `invoice.payment_succeeded`
-- `invoice.payment_failed`
-
-#### Standalone Payment Events
-- `payment_intent.succeeded`
-- `payment_intent.payment_failed`
-- `payment_intent.canceled`
-
-**Code Sample:**
-```python
-async def handle_webhook_event(
-    self, event_json: stripe.Event, db_session: AsyncSession
-) -> Dict[str, Any]:
-    event_type = event_json.get("type")
-    event_id = event_json.get("id")
-    metadata = event_json.get("data", {}).get("object", {}).get("metadata", {})
-
-    if event_type in self.subscription_update_events:
-        return await self._handle_subscription_event(event_json, db_session)
-    if metadata.get("standalone") and (
-        event_type in self.standalone_payment_events
-    ):
-        return await self._handle_standalone_payment_event(
-            event_json, db_session
-        )
-    elif event_type in self.payment_update_events:
-        return await self._handle_payment_event(event_json, db_session)
-```
-
-### 4. Credit Allocation
-
-When a payment succeeds, credits are allocated to the user's account:
-
-```mermaid
-sequenceDiagram
-    Stripe->>+Backend: Payment Succeeded Event
-    Backend->>+Database: Update Payment Status
-    Backend->>+Database: Get Subscription Details
-    Backend->>+Accounting: Allocate Credits
-    Accounting-->>-Backend: Credits Added
-    Backend-->>-Stripe: Acknowledge Event
-```
-
-**Code Sample:**
-```python
-# For subscription credits
-subscription_credit_amount = (
-    subscription_tier.yearly_credits
-    if subscription_tier.stripe_yearly_price_id == price_id
-    else subscription_tier.monthly_credits
-)
-
-await accounting_service.top_up_virtual_lab_budget(
-    virtual_lab_id,
-    float(subscription_credit_amount),
-)
-
-# For standalone payments
-credits_amount = await self.credit_converter.currency_to_credits(
-    amount,
-    payment.currency,
-)
-
-if accounting_service.is_enabled:
-    await accounting_service.top_up_virtual_lab_budget(
-        UUID(virtual_lab_id), float(credits_amount)
-    )
-```
-
-### 5. Handling Payment Failures
-
-If a subscription payment fails, the system automatically downgrades the user to the Free plan:
-
-```mermaid
-sequenceDiagram
-    Stripe->>+Backend: Payment Failed Event
-    Backend->>+Database: Update Payment Status
-    Backend->>+Database: Downgrade to Free Plan
-    Backend->>+Keycloak: Update User Properties
-    Backend-->>-Stripe: Acknowledge Event
-```
-
-**Code Sample:**
-```python
-if (
-    event_type == "customer.subscription.deleted"
-    or subscription.status != "active"
-):
-    try:
-        await self.kc_user.update_user_custom_properties(
-            user_id=subscription.user_id,
-            properties=[
-                ("plan", SubscriptionTierEnum.FREE, "multiple"),
-            ],
-        )
-    except Exception as e:
-        logger.warning(
-            f"Failed to update user custom properties in Keycloak: {str(e)}"
-        )
-    # Continue with subscription downgrade even if Keycloak update fails
-    await self.subscription_repository.downgrade_to_free(
-        user_id=subscription.user_id
-    )
-```
-
-### 6. Standalone Top-up Payments
-
-Users can purchase additional credits at any time, regardless of their subscription plan:
-
-```mermaid
-sequenceDiagram
-    User->>+Frontend: Purchase Additional Credits
-    Frontend->>+Backend: Create Standalone Payment
-    Backend->>+Stripe: Create Payment Intent
-    Stripe-->>-Backend: Payment Intent Created
-    Backend-->>-User: Process Payment
-    Stripe->>+Backend: Payment Succeeded Webhook
-    Backend->>+Database: Record Payment
-    Backend->>+Accounting: Add Credits to Account
-    Backend-->>-Stripe: Acknowledge Event
-```
-
-**Code Sample:**
-```python
-payment_intent = await stripe_service.create_payment_intent(
-    amount=payload.amount,
-    currency=payload.currency,
-    customer_id=customer_id,
-    virtual_lab_id=payload.virtual_lab_id,
-    payment_method_id=payload.payment_method_id,
-    metadata={
-        "user_id": str(user_id),
-        "virtual_lab_id": str(payload.virtual_lab_id),
-        "subscription_id": str(subscription.id),
-        "standalone": "true",
-    },
-)
-```
-
-## Database Structure
-
-The system uses several interconnected database models to track subscriptions and payments:
-
-- **Subscription**: Base subscription model with common fields
-  - **FreeSubscription**: Extends Subscription for free tier users
-  - **PaidSubscription**: Extends Subscription for Pro/Premium tier users
-- **SubscriptionPayment**: Tracks individual payments for subscriptions or standalone top-ups
-- **SubscriptionTier**: Defines available plans and their features
-- **StripeUser**: Links platform users to their Stripe customer IDs
+## Database structure
 
 ```mermaid
 erDiagram
     Subscription ||--o{ SubscriptionPayment : has
-    VirtualLab ||--o{ SubscriptionPayment : has
+    Subscription ||--|| FreeSubscription : "is-a (polymorphic)"
+    Subscription ||--|| PaidSubscription : "is-a (polymorphic)"
     SubscriptionTier ||--o{ Subscription : defines
-    
+    VirtualLab ||--o{ Subscription : owns
+    VirtualLab ||--o{ SubscriptionPayment : "billed to"
+    StripeUser ||--o{ PaidSubscription : "stripe customer"
+    BillingQuote ||--o{ SubscriptionPayment : "tax breakdown"
+    PromotionCode ||--o{ PromotionCodeUsage : has
+    VirtualLab ||--o{ PromotionCodeUsage : "credits applied"
+
     Subscription {
         UUID id
         UUID user_id
         UUID virtual_lab_id
+        UUID tier_id
+        string type "polymorphic discriminator: free | paid"
         SubscriptionStatus status
+        SubscriptionSource source "api | script | sql"
         datetime current_period_start
         datetime current_period_end
-        string type
+        datetime created_at
+        datetime updated_at
     }
-    
+
     FreeSubscription {
         UUID id
         int usage_count
     }
-    
+
     PaidSubscription {
         UUID id
         string stripe_subscription_id
         string stripe_price_id
         string customer_id
-        boolean cancel_at_period_end
+        bool cancel_at_period_end
+        datetime canceled_at
+        datetime ended_at
+        datetime billing_cycle_anchor
+        string default_payment_method
+        string latest_invoice
+        bool auto_renew
         int amount
         string currency
-        string interval
+        string interval "month | year"
+        string cancellation_reason
+        json stripe_event
     }
-    
+
     SubscriptionPayment {
         UUID id
         UUID subscription_id
         UUID virtual_lab_id
         string customer_id
+        string stripe_invoice_id
+        string stripe_payment_intent_id
+        string stripe_charge_id
+        string card_brand
+        string card_last4
+        int card_exp_month
+        int card_exp_year
         int amount_paid
+        int amount_subtotal
+        int amount_tax
+        int amount_total
         string currency
+        TaxBehavior tax_behavior
+        string tax_country
+        TaxStatus tax_status
+        string stripe_tax_calculation_id
+        json billing_address_json
+        UUID billing_quote_id
+        int credit_base_amount
+        int credits_purchased
         PaymentStatus status
-        boolean standalone
+        datetime period_start
+        datetime period_end
+        datetime payment_date
+        string invoice_pdf
+        string receipt_url
+        bool standalone
+        json stripe_event
     }
-    
+
     SubscriptionTier {
         UUID id
-        string tier
-        string name
+        SubscriptionTierEnum tier "free | pro | premium"
+        string stripe_product_id
+        string stripe_monthly_price_id
+        string stripe_yearly_price_id
         int monthly_amount
         int yearly_amount
         int monthly_credits
         int yearly_credits
+        int monthly_discount
+        int yearly_discount
+        string currency
+        json features
+        json plan_metadata
+        bool active
+    }
+
+    BillingQuote {
+        UUID id
+        UUID user_id
+        UUID virtual_lab_id
+        BillingFlow flow "standalone | subscription"
+        UUID subscription_tier_id
+        string interval
+        int subtotal
+        int tax_amount
+        int total
+        string currency
+        TaxBehavior tax_behavior
+        string tax_country
+        TaxStatus tax_status
+        json billing_address_json
+        string stripe_tax_calculation_id
+        datetime expires_at
+    }
+
+    StripeUser {
+        UUID id
+        UUID user_id
+        string stripe_customer_id
+    }
+
+    PromotionCode {
+        UUID id
+        string code
+        float credits_amount
+        int validity_period_days
+        int max_uses_per_user_per_period
+        int max_total_uses
+        int current_total_uses
+        datetime valid_from
+        datetime valid_until
+        bool active
+    }
+
+    PromotionCodeUsage {
+        UUID id
+        UUID promotion_code_id
+        UUID user_id
+        UUID virtual_lab_id
+        int credits_granted
+        PromotionCodeUsageStatus status "pending | completed | failed"
+        string accounting_transaction_id
+        string error_message
+        datetime redeemed_at
     }
 ```
 
-## Subscription States
+> Authoritative source: [virtual_labs/infrastructure/db/models.py](virtual_labs/infrastructure/db/models.py). All schema changes go through Alembic — see [alembic/versions](alembic/versions).
 
-Due to the nature of our subscription flow (where payment is required at the time of subscription creation), some subscription states are not used in practice. The most commonly used states are:
+### Notable constraints
 
-- **Active**: Subscription is in good standing with successful payments
-- **Canceled**: Subscription has been explicitly canceled by the user
-- **Unpaid**: Payment failed and subscription is no longer active
-- **Paused**: Free subscription is temporarily paused when user upgrades to Pro/Premium (not manually pausable)
+- `SubscriptionPayment.standalone = true` implies `virtual_lab_id IS NOT NULL` (check constraint).
+- `SubscriptionPayment` carries the full **tax breakdown** (`amount_subtotal`, `amount_tax`, `amount_total`) and an optional `billing_quote_id` linking back to the quote used at checkout.
+- `PaidSubscription.stripe_subscription_id` is unique; `Subscription` uses polymorphic joined-table inheritance (`type` discriminator).
+- `Subscription.source` records where the row originated (`api`, `script`, `sql`) — useful for migrations and bulk operations.
 
-> **Note:** The Paused state is only used internally when upgrading from Free to Pro/Premium. The Free subscription is paused until the user downgrades back to Free (either by canceling or due to payment failure). Users cannot manually pause their subscriptions.
+---
 
-The following states are not typically used in our system:
-- **Past Due**: Not used as we require immediate payment
-- **Incomplete**: Not used as we require payment at creation
-- **Incomplete Expired**: Not used as we require payment at creation
+## Subscription lifecycle
+
+### 1. Virtual lab creation → Free tier
 
 ```mermaid
-stateDiagram-v2
-    [*] --> FreeActive: Create Virtual Lab
-    FreeActive --> ProActive: Upgrade to Pro/Premium
-    ProActive --> FreePaused: Paid subscription captured
-    FreePaused --> FreeActive: Downgrade Complete
-    ProActive --> Canceled: User Cancels
-    ProActive --> Unpaid: Payment Fails
-    Unpaid --> [*]
-    Canceled --> [*]
+sequenceDiagram
+    User->>+Backend: Create Virtual Lab
+    Backend->>+Database: Insert VirtualLab row
+    Backend->>+Database: Insert FreeSubscription (status=active)
+    Backend->>+Accounting: top_up_virtual_lab_budget(welcome bonus)
+    Backend-->>-User: Lab ready, Free plan active
 ```
 
-## Important Considerations
+### 2. Upgrade to Pro / Premium
 
-### Webhook Security
+```mermaid
+sequenceDiagram
+    User->>+Frontend: Select plan + billing address
+    Frontend->>+Backend: POST /billing/quotes (subscription flow)
+    Backend-->>-Frontend: subtotal, tax, total, quote id
+    Frontend->>+Backend: Create subscription (price id, payment method, quote id)
+    Backend->>+Stripe: Create Subscription (with automatic_tax + customer tax_id where applicable)
+    Stripe-->>-Backend: Subscription created
+    Backend->>+Database: Insert PaidSubscription
+    Backend-->>-Frontend: Subscription pending payment
+    Stripe-->>+Backend: invoice.payment_succeeded webhook
+    Backend->>+Accounting: Allocate monthly/yearly credits
+```
 
-Webhooks are authenticated using Stripe signatures to ensure only legitimate events are processed:
+### 3. Renewal / cancellation
+
+- Renewal happens automatically via Stripe; the platform mirrors state through `customer.subscription.updated` and the `invoice.payment_succeeded` event.
+- Cancellation can be **at period end** (`cancel_at_period_end = true`) or **immediate**, tracked via `canceled_at` / `ended_at`. See [virtual_labs/usecases/subscription/cancel_subscription.py](virtual_labs/usecases/subscription/cancel_subscription.py).
+
+### 4. Payment failure → downgrade
+
+On `invoice.payment_failed` (or a terminal `customer.subscription.deleted` / non-active status), the system:
+
+1. Marks the payment as `failed` in `subscription_payment`.
+2. Calls `subscription_repository.downgrade_to_free(user_id=…)`.
+3. Best-effort updates the user's Keycloak custom property `plan = FREE`.
+
+Keycloak update failures do **not** block the downgrade (logged as warning).
+
+---
+
+## Stripe webhooks
+
+Webhook signatures are verified on every request before dispatch:
 
 ```python
 event = await stripe_service.construct_event(body, stripe_signature)
-
 if not event:
-    raise HTTPException(
-        status_code=HTTPStatus.BAD_REQUEST,
-        detail="Invalid Stripe webhook signature",
-    )
+    raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail="Invalid Stripe webhook signature")
 ```
 
-### Error Handling
+The dispatcher lives in [virtual_labs/infrastructure/stripe/webhook.py](virtual_labs/infrastructure/stripe/webhook.py) and the event constants in [virtual_labs/infrastructure/stripe/helpers.py](virtual_labs/infrastructure/stripe/helpers.py).
 
-The system implements comprehensive error handling to ensure robustness:
+### Handled events
 
-- Database transaction management
-- Exception catching and logging
-- Graceful fallback mechanisms
-- Status tracking for all payment operations
+**Subscription events** (`SUBSCRIPTION_UPDATE_EVENTS` = upsert ∪ deleted):
 
-### Subscription Synchronization
+- `customer.subscription.created`
+- `customer.subscription.updated`
+- `customer.subscription.pending_update_applied`
+- `customer.subscription.pending_update_expired`
+- `customer.subscription.deleted`
 
-The system maintains consistency between Stripe's subscription data and the internal database:
+**Invoice payment events** (`INVOICE_PAYMENT_EVENTS`):
 
-- Webhook events update internal state
-- Audit trails for all subscription changes
+- `invoice.payment_succeeded`
+- `invoice.payment_failed`
 
-## User Experience Flows
+**Standalone (top-up) payment events** (`STANDALONE_PAYMENT_EVENTS`):
 
-### New User Flow
+- `payment_intent.succeeded`
+- `payment_intent.payment_failed`
+- `payment_intent.canceled`
 
-1. User creates a virtual lab
-2. Free subscription is automatically created
-3. 100 initial credits are allocated
-4. User can immediately use basic features
-5. User is prompted to upgrade for advanced features
+Standalone events are routed by checking `metadata.standalone == "true"` on the payment intent — set when the intent is created for credit top-ups.
 
-### Upgrade Flow
+```mermaid
+graph TD
+    A[Stripe event] --> B{Signature valid?}
+    B -- no --> X[400 Bad Request]
+    B -- yes --> C{Event type}
+    C -->|customer.subscription.*| D[Sync PaidSubscription row]
+    C -->|invoice.payment_succeeded| E[Insert SubscriptionPayment + allocate credits]
+    C -->|invoice.payment_failed| F[Mark payment failed + downgrade to Free]
+    C -->|payment_intent.* with metadata.standalone| G[Insert standalone payment + add top-up credits]
+    D --> Z[Ack]
+    E --> Z
+    F --> Z
+    G --> Z
+```
 
-1. User selects a Pro/Premium plan
-2. User provides payment details
-3. Subscription is created in Stripe
-4. Initial payment is processed
-5. Plan credits are allocated
-6. User gains access to advanced features
+> **v1 → v2 events:** the helper `resource_id_from_event` is the single switchover point if/when Stripe is migrated to v2 thin events. Handlers consume the resource id only.
 
-### Payment Renewal Flow
+---
 
-1. Stripe attempts automatic renewal billing
-2. On success, subscription continues and new credits are allocated
-3. On failure, user is downgraded to Free plan
-4. User is notified about payment failure and downgrade
+## Promotion codes
 
-### Credit Top-up Flow
+Users can redeem promotion codes for credits, gated by per-user / per-period and total-use caps.
 
-1. User selects amount to top up
-2. User confirms payment method
-3. Payment is processed immediately
-4. On success, credits are added to account
-5. User receives confirmation of added credits
+### Tables
+
+- `promotion_code` — code definition, `credits_amount`, `validity_period_days`, `max_uses_per_user_per_period`, `max_total_uses`, `valid_from` / `valid_until`, `active` flag.
+- `promotion_code_usage` — successful (or in-flight) redemptions with `status` ∈ {`pending`, `completed`, `failed`}, optional `accounting_transaction_id`, error message.
+- `promotion_code_redemption_attempt` — analytics row for every attempt (success or failure, with `failure_reason`).
+
+Validation rules (DB-enforced check constraints): positive credits, positive caps, `valid_until > valid_from`.
+
+### Flow
+
+```mermaid
+sequenceDiagram
+    User->>+Backend: POST /promotions/redeem (code, virtual_lab_id)
+    Backend->>+Database: Insert PromotionCodeRedemptionAttempt
+    Backend->>+Validator: Check code active, in window, caps not exceeded
+    Validator-->>-Backend: ok / reason
+    Backend->>+Database: Insert PromotionCodeUsage (pending)
+    Backend->>+Accounting: top_up_virtual_lab_budget(credits)
+    Accounting-->>-Backend: txn id
+    Backend->>+Database: Update usage (completed) + increment current_total_uses
+    Backend-->>-User: Credits applied
+```
+
+Admin endpoints (under the admin router in [virtual_labs/routes/promotions.py](virtual_labs/routes/promotions.py)) cover code creation, listing, activation, and audit. Bulk management is available via `uv run manage-coupons` ([scripts/manage_stripe_coupons.py](scripts/manage_stripe_coupons.py)).
+
+---
+
+## Subscription statuses
+
+The full Stripe status enum is mirrored in `SubscriptionStatus`:
+
+| Status                | Used? | Meaning                                                   |
+| --------------------- | ----- | --------------------------------------------------------- |
+| `active`              | yes   | Good standing, payments succeeding                        |
+| `canceled`            | yes   | Cancelled by user or at period end                        |
+| `unpaid`              | yes   | Terminal state after failed invoice; downgraded to Free   |
+| `paused`              | yes   | Internal-only — Free sub paused while a paid sub is active|
+| `past_due`            | rare  | Not normally used; we require immediate payment           |
+| `incomplete`          | rare  | Not used — checkout requires successful payment           |
+| `incomplete_expired`  | rare  | Not used                                                  |
+
+**Two states the user can be in at any moment:**
+
+| Effective tier | Free row     | Paid row     |
+| -------------- | ------------ | ------------ |
+| **Free**       | `active`     | — (or `canceled` / `unpaid`) |
+| **Paid**       | `paused`     | `active`     |
+
+The Free row is created with the virtual lab and **never deleted**: it acts as a fallback that is paused while a paid plan is active and re-activated on downgrade.
+
+```mermaid
+flowchart LR
+    Start([Virtual lab created]):::entry --> Free
+
+    subgraph Free_box [ Free tier — status: active ]
+        Free[FreeSubscription<br/>active]:::free
+    end
+
+    subgraph Paid_box [ Paid tier — status: active, Free shadow paused ]
+        Paid[PaidSubscription<br/>active]:::paid
+        FreeShadow[FreeSubscription<br/>paused]:::shadow
+    end
+
+    Free -- "upgrade<br/>first invoice paid" --> Paid
+    Paid -. auto-pause .-> FreeShadow
+
+    Paid -- "user cancels<br/>(immediate or period end)" --> Canceled{{PaidSubscription canceled}}:::term
+    Paid -- "invoice.payment_failed<br/>(terminal)" --> Unpaid{{PaidSubscription unpaid}}:::term
+
+    Canceled -- "reactivate Free<br/>KC plan = FREE" --> Free
+    Unpaid -- "downgrade_to_free()<br/>KC plan = FREE" --> Free
+
+    classDef entry  fill:#eef,stroke:#557,color:#223
+    classDef free   fill:#e7f5e7,stroke:#3a7,color:#143
+    classDef paid   fill:#fff2cc,stroke:#b58900,color:#5a3
+    classDef shadow fill:#f6f6f6,stroke:#aaa,color:#666,stroke-dasharray: 4 3
+    classDef term   fill:#fdecea,stroke:#c0392b,color:#5a1a14
+```
+
+**Transitions in detail**
+
+| From | To   | Trigger                                                                   | Side effects                                                                 |
+| ---- | ---- | ------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| —    | Free | `POST /virtual-labs` (lab created)                                        | Insert `FreeSubscription` (active), allocate welcome bonus                   |
+| Free | Paid | Successful checkout — `invoice.payment_succeeded` for the new sub         | Insert `PaidSubscription` (active), pause Free row, allocate plan credits    |
+| Paid | Free | User cancels — immediate or at period end (`customer.subscription.deleted`) | Paid row → `canceled`, Free row → `active`, KC `plan = FREE`               |
+| Paid | Free | Stripe payment fails — `invoice.payment_failed` (terminal)                | Paid row → `unpaid`, Free row → `active`, KC `plan = FREE`                   |
+
+In-state events that **don't** change tier: renewals (`invoice.payment_succeeded` on an existing sub), top-ups (standalone payment intents), and promotion-code redemptions — they only allocate credits.
+
+---
+
+## Operational notes
+
+- **Migrations:** all subscription / billing / tax / promotion tables are managed by Alembic — see [alembic/versions](alembic/versions). The one-off `migrate-tax-billing` script ([scripts/migrate_to_tax_billing.py](scripts/migrate_to_tax_billing.py)) backfills tax fields on legacy `subscription_payment` rows during the rollout.
+- **Audit trail:** `SubscriptionPayment.stripe_event` and `PaidSubscription.stripe_event` retain the raw Stripe payload of the last event applied, for forensic debugging.
+- **Idempotency:** webhook handlers are designed to be re-runnable — they look up subscriptions by `stripe_subscription_id` and payments by `stripe_invoice_id` / `stripe_payment_intent_id`.
+- **Keycloak sync:** plan changes mirror to the user's KC custom properties (`plan` attribute). Failures are tolerated and logged.
+- **Local testing:** the Stripe CLI container in `docker-compose.yml` forwards webhook events to the local API. Test cards are documented in the Stripe docs; for Setup Intents see the README "Billing / Stripe testing" section.
