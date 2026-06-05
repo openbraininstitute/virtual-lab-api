@@ -966,3 +966,27 @@ class EmailVerification(Base):
         Index("ix_email_verif_user_lab", "user_id", "virtual_lab_id"),
         Index("ix_email_verif_user_email", "user_id", "email", "verified"),
     )
+
+
+class Institution(Base):
+    """
+    Represents an institution entity.
+    """
+
+    __tablename__ = "institution"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    name: Mapped[str] = mapped_column(String(250), nullable=False, index=True)
+    contact_email: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=func.now(), onupdate=func.now(), nullable=False
+    )
