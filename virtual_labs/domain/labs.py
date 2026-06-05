@@ -1,6 +1,6 @@
-from datetime import datetime
+from datetime import date, datetime
 from enum import Enum
-from typing import Generic, TypeVar
+from typing import Generic, Optional, TypeVar
 
 from pydantic import UUID4, BaseModel, ConfigDict, EmailStr, Field, JsonValue
 
@@ -19,6 +19,18 @@ class ComputeCell(str, Enum):
 class LabResponse(BaseModel, Generic[T]):
     message: str
     data: T
+
+
+class CourseDetails(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID4
+    virtual_lab_id: UUID4
+    template_project_id: UUID4
+    institution_id: Optional[UUID4] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    last_drop_date: Optional[date] = None
 
 
 class VirtualLabBase(BaseModel):
@@ -60,6 +72,7 @@ class VirtualLabDetails(VirtualLabBase):
     updated_at: datetime | None = None
     members_count: int | None = None
     projects_count: int | None = None
+    course: CourseDetails | None = None
 
 
 class VirtualLab(VirtualLabBase):

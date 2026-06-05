@@ -17,6 +17,7 @@ from stripe import SetupIntent
 from virtual_labs.infrastructure.db.config import session_pool
 from virtual_labs.infrastructure.db.models import (
     Bookmark,
+    Course,
     FreeSubscription,
     PaidSubscription,
     PaymentMethod,
@@ -221,6 +222,11 @@ async def cleanup_resources(
             await session.execute(
                 delete(UserPreference).where(UserPreference.project_id == project_id)
             )
+
+        # Delete course before projects (course has FK to project via template_project_id)
+        await session.execute(
+            statement=delete(Course).where(Course.virtual_lab_id == lab_id)
+        )
 
         for project_id in project_ids:
             await session.execute(

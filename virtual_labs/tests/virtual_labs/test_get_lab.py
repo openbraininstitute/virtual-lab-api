@@ -1,20 +1,25 @@
 import copy
 from http import HTTPStatus
 from typing import Any, AsyncGenerator, cast
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient, Response
 
-from virtual_labs.tests.utils import cleanup_resources, get_headers
+from virtual_labs.infrastructure.db.models import Course
+from virtual_labs.tests.utils import (
+    cleanup_resources,
+    get_headers,
+    session_context_factory,
+)
 
 
 @pytest_asyncio.fixture
-async def mock_lab_without_course(
+async def mock_lab(
     async_test_client: AsyncClient,
-) -> AsyncGenerator[tuple[AsyncClient, dict[str, str], dict[str, str]], None]:
-    """Creates a standard virtual lab without a course."""
+) -> AsyncGenerator[tuple[AsyncClient, dict[str, Any], dict[str, str]], None]:
+    """Creates a standard virtual lab."""
     client = async_test_client
     body = {
         "name": f"Test Lab {uuid4()}",
@@ -39,36 +44,49 @@ async def mock_lab_without_course(
 @pytest_asyncio.fixture
 async def mock_lab_with_course(
     async_test_client: AsyncClient,
-) -> AsyncGenerator[tuple[AsyncClient, dict[str, str], dict[str, str]], None]:
-    """Creates a virtual lab with a course configuration."""
+) -> AsyncGenerator[tuple[AsyncClient, dict[str, Any], dict[str, str], str], None]:
+    """Creates a virtual lab with a project and a course linked to it."""
     client = async_test_client
-    template_project_id = str(uuid4())
-    body = {
+    headers = get_headers()
+
+    # Create lab
+    lab_body = {
         "name": f"Test Lab {uuid4()}",
         "description": "Test",
         "reference_email": "user@test.org",
         "entity": "EPFL, Switzerland",
-        "course": {"template_project_id": template_project_id, "is_initialized": False},
     }
-    headers = get_headers()
-    lab_create_response = await client.post(
-        "/virtual-labs",
-        json=body,
-        headers=headers,
+    lab_response = await client.post("/virtual-labs", json=lab_body, headers=headers)
+    assert lab_response.status_code == 200
+    lab = lab_response.json()["data"]["virtual_lab"]
+    lab_id = lab["id"]
+
+    # Create project (needed as template_project_id)
+    project_body = {"name": f"Template Project {uuid4()}", "description": "Template"}
+    project_response = await client.post(
+        f"/virtual-labs/{lab_id}/projects", json=project_body, headers=headers
     )
+    assert project_response.status_code == 200
+    project_id = project_response.json()["data"]["project"]["id"]
 
-    assert lab_create_response.status_code == 200
-    lab = lab_create_response.json()["data"]["virtual_lab"]
+    # Create course record in DB
+    async with session_context_factory() as session:
+        course = Course(
+            virtual_lab_id=UUID(lab_id),
+            template_project_id=UUID(project_id),
+        )
+        session.add(course)
+        await session.commit()
 
-    yield client, lab, headers
-    await cleanup_resources(client=client, lab_id=lab["id"])
+    yield client, lab, headers, project_id
+    await cleanup_resources(client=client, lab_id=lab_id)
 
 
 @pytest.mark.asyncio
 async def test_get_lab_by_id_without_course(
-    mock_lab_without_course: tuple[AsyncClient, dict[str, str], dict[str, str]],
+    mock_lab: tuple[AsyncClient, dict[str, Any], dict[str, str]],
 ) -> None:
-    client, lab, headers = mock_lab_without_course
+    client, lab, headers = mock_lab
     lab_id = lab["id"]
 
     response = await client.get(f"/virtual-labs/{lab_id}", headers=headers)
@@ -81,18 +99,14 @@ async def test_get_lab_by_id_without_course(
     assert actual["reference_email"] == lab["reference_email"]
     assert actual["entity"] == lab["entity"]
     assert actual["created_at"] == lab["created_at"]
-
-    assert actual["course"] is None or actual["course"] == {
-        "is_initialized": False,
-        "template_project_id": None,
-    }
+    assert actual["course"] is None
 
 
 @pytest.mark.asyncio
 async def test_get_lab_by_id_with_course(
-    mock_lab_with_course: tuple[AsyncClient, dict[str, str], dict[str, str]],
+    mock_lab_with_course: tuple[AsyncClient, dict[str, Any], dict[str, str], str],
 ) -> None:
-    client, lab, headers = mock_lab_with_course
+    client, lab, headers, project_id = mock_lab_with_course
     lab_id = lab["id"]
 
     response = await client.get(f"/virtual-labs/{lab_id}", headers=headers)
@@ -100,14 +114,13 @@ async def test_get_lab_by_id_with_course(
 
     actual = response.json()["data"]["virtual_lab"]
     assert actual["id"] == lab_id
-    assert actual["name"] == lab["name"]
-    assert actual["description"] == lab["description"]
-    assert actual["reference_email"] == lab["reference_email"]
-    assert actual["entity"] == lab["entity"]
-    assert actual["created_at"] == lab["created_at"]
-
     assert actual["course"] is not None
-    assert actual["course"]["is_initialized"] is False
+    assert actual["course"]["virtual_lab_id"] == lab_id
+    assert actual["course"]["template_project_id"] == project_id
+    assert actual["course"]["institution_id"] is None
+    assert actual["course"]["start_date"] is None
+    assert actual["course"]["end_date"] is None
+    assert actual["course"]["last_drop_date"] is None
 
 
 def assert_get_and_delete_body_are_same(
