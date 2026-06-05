@@ -131,7 +131,6 @@ async def search_virtual_lab_by_name(
 @router.get(
     "/{virtual_lab_id}",
     response_model=VirtualLabWithAdmins,
-    response_model_exclude_none=False,
     summary="Get non deleted virtual lab by id",
 )
 @verify_vlab_read

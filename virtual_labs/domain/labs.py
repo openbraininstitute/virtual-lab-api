@@ -3,6 +3,7 @@ from enum import Enum, StrEnum, auto
 from typing import Generic, Optional, TypeVar
 
 from pydantic import UUID4, BaseModel, ConfigDict, EmailStr, Field, JsonValue
+from pydantic.functional_serializers import model_serializer
 
 from virtual_labs.domain.user import ShortenedUser, UserWithInviteStatus
 
@@ -128,6 +129,15 @@ class VirtualLabResponse(BaseModel):
 class VirtualLabWithAdmins(VirtualLab):
     admins: list[UUID4] | None = None
     owner: ShortenedUser | None = None
+
+    @model_serializer(mode="wrap")
+    def _serialize(self, handler):
+        data = handler(self)
+        if data.get("admins") is None:
+            data.pop("admins", None)
+        if data.get("owner") is None:
+            data.pop("owner", None)
+        return data
 
 
 class VirtualLabDetailExpand(StrEnum):
