@@ -16,7 +16,7 @@ from virtual_labs.tests.utils import (
 
 
 @pytest_asyncio.fixture
-async def mock_lab(
+async def mock_lab_without_course(
     async_test_client: AsyncClient,
 ) -> AsyncGenerator[tuple[AsyncClient, dict[str, Any], dict[str, str]], None]:
     """Creates a standard virtual lab."""
