@@ -155,7 +155,7 @@ async def test_institution_creation_fails_for_non_admin_user(
 
 
 @pytest.mark.asyncio
-async def test_institution_creation_fails_with_duplicate_name(
+async def test_institution_creation_returns_existing_on_duplicate_name(
     async_test_client: AsyncClient,
 ) -> None:
     headers = get_headers()
@@ -176,10 +176,12 @@ async def test_institution_creation_fails_with_duplicate_name(
             headers=headers,
         )
         assert response.status_code == 200
+        first_id = response.json()["data"]["id"]
 
         response = await async_test_client.post(
             "/institutions",
             json=body,
             headers=headers,
         )
-        assert response.status_code == 409
+        assert response.status_code == 200
+        assert response.json()["data"]["id"] == first_id
