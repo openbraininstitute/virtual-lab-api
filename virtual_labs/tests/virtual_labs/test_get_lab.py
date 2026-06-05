@@ -58,7 +58,7 @@ async def mock_lab_with_course(
     }
     lab_response = await client.post("/virtual-labs", json=lab_body, headers=headers)
     assert lab_response.status_code == 200
-    lab = lab_response.json()["data"]["virtual_lab"]
+    lab = lab_response.json()
     lab_id = lab["id"]
 
     # Create project (needed as template_project_id)
@@ -67,7 +67,7 @@ async def mock_lab_with_course(
         f"/virtual-labs/{lab_id}/projects", json=project_body, headers=headers
     )
     assert project_response.status_code == 200
-    project_id = project_response.json()["data"]["project"]["id"]
+    project_id = project_response.json()["id"]
 
     # Create course record in DB
     async with session_context_factory() as session:
