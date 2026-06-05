@@ -84,7 +84,7 @@ async def mock_lab_with_course(
 
 @pytest.mark.asyncio
 async def test_get_lab_by_id_without_course(
-    mock_lab_with_course: tuple[AsyncClient, dict[str, Any], dict[str, str]],
+    mock_lab_without_course: tuple[AsyncClient, dict[str, Any], dict[str, str]],
 ) -> None:
     client, lab, headers = mock_lab_without_course
     lab_id = lab["id"]
