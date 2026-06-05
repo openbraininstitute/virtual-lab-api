@@ -1,8 +1,13 @@
 from fastapi import APIRouter, Depends
+from pydantic import UUID4
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.authorization import verify_service_admin
-from virtual_labs.domain.institution import InstitutionCreate, InstitutionOut
+from virtual_labs.domain.institution import (
+    InstitutionCreate,
+    InstitutionOut,
+    InstitutionUpdate,
+)
 from virtual_labs.domain.labs import LabResponse
 from virtual_labs.infrastructure.db.config import default_session_factory
 from virtual_labs.infrastructure.kc.auth import verify_jwt
@@ -23,5 +28,20 @@ async def create_institution(
     result = await usecases.create_institution(session, payload)
     return LabResponse[InstitutionOut](
         message="Newly created institution",
+        data=result,
+    )
+
+
+@router.patch("/{institution_id}", response_model=LabResponse[InstitutionOut])
+@verify_service_admin([VLAB_SERVICE_ADMIN_GROUP])
+async def update_institution(
+    institution_id: UUID4,
+    payload: InstitutionUpdate,
+    session: AsyncSession = Depends(default_session_factory),
+    auth: tuple[AuthUser, str] = Depends(verify_jwt),
+) -> LabResponse[InstitutionOut]:
+    result = await usecases.update_institution(session, institution_id, payload)
+    return LabResponse[InstitutionOut](
+        message="Updated institution",
         data=result,
     )
