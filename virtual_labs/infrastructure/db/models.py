@@ -981,7 +981,9 @@ class Institution(Base):
         default=uuid4,
         server_default=func.gen_random_uuid(),
     )
-    name: Mapped[str] = mapped_column(String(250), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(
+        String(250), nullable=False, unique=True, index=True
+    )
     contact_email: Mapped[str] = mapped_column(String(255), nullable=False)
 
     created_at: Mapped[datetime] = mapped_column(
