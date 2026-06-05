@@ -107,6 +107,7 @@ class VirtualLab(Base):
     invites = relationship("VirtualLabInvite", back_populates="virtual_lab")
     payment_methods = relationship("PaymentMethod", back_populates="virtual_lab")
     payments = relationship("SubscriptionPayment", back_populates="virtual_lab")
+    course = relationship("Course", back_populates="virtual_lab", uselist=False)
 
     __table_args__ = (
         Index(
@@ -1002,10 +1003,17 @@ class Course(Base):
         server_default=func.gen_random_uuid(),
     )
     virtual_lab_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("virtual_lab.id"), nullable=False, index=True
+        UUID(as_uuid=True),
+        ForeignKey("virtual_lab.id"),
+        nullable=False,
+        unique=True,
+        index=True,
     )
     institution_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("institution.id"), nullable=True, index=True
+    )
+    template_project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("project.id"), nullable=False, index=True
     )
     start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
@@ -1018,5 +1026,6 @@ class Course(Base):
         DateTime(timezone=True), default=func.now(), onupdate=func.now(), nullable=False
     )
 
-    virtual_lab = relationship("VirtualLab")
+    virtual_lab = relationship("VirtualLab", back_populates="course")
+    template_project = relationship("Project")
     institution = relationship("Institution")
