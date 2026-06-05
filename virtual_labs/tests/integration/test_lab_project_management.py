@@ -168,7 +168,7 @@ async def created_project(
         f"Failed to create project: {project_response.text}"
     )
 
-    project_id = project_response.json()["data"]["project"]["id"]
+    project_id = project_response.json()["id"]
     async with session_context_factory() as session:
         project_data = await session.get(Project, UUID(project_id))
 
@@ -209,13 +209,11 @@ class TestVirtualLabCreation:
         )
 
         assert response.status_code == HTTPStatus.OK
-        response_data = response.json()["data"]
-        created_lab_data = response_data["virtual_lab"]
+        created_lab_data = response.json()
         lab_id = created_lab_data["id"]
 
         try:
             # Assert response structure (basic check)
-            assert "virtual_lab" in response_data
             assert created_lab_data["name"] == lab_name
 
             # Assert DB record
@@ -277,9 +275,7 @@ class TestVirtualLabCreation:
         assert response.status_code == HTTPStatus.CONFLICT
         error_data = response.json()
         assert error_data["error_code"] == "ENTITY_ALREADY_EXISTS"
-        assert (
-            "Another virtual lab with same name already exists" in error_data["message"]
-        )
+        assert "A virtual lab with this name already exists" in error_data["message"]
 
     async def test_create_virtual_lab_owner_already_has_lab(
         self,
@@ -305,7 +301,10 @@ class TestVirtualLabCreation:
         assert response.status_code == HTTPStatus.FORBIDDEN
         error_data = response.json()
         assert error_data["error_code"] == "FORBIDDEN_OPERATION"
-        assert "User already has a virtual lab" in error_data["message"]
+        assert (
+            "The user already owns a virtual lab and cannot create another."
+            in error_data["message"]
+        )
 
     async def test_create_virtual_lab_unverified_email(
         self, async_test_client: AsyncClient, test_user_ids: Dict[str, str]
@@ -777,7 +776,7 @@ class TestAttachUsersToProject:
             headers=get_headers(owner_username),
         )
         assert lab_response.status_code == HTTPStatus.OK
-        lab_id = lab_response.json()["data"]["virtual_lab"]["id"]
+        lab_id = lab_response.json()["id"]
 
         gqr = GroupQueryRepository()
 
@@ -802,8 +801,8 @@ class TestAttachUsersToProject:
         )
 
         assert project_response.status_code == HTTPStatus.OK
-        project_data = project_response.json()["data"]
-        created_project_id = project_data["project"]["id"]
+        project_data = project_response.json()
+        created_project_id = project_data["id"]
 
         # get project data to check project admin group
         async with session_context_factory() as session:

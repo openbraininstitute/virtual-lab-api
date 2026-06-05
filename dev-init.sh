@@ -140,13 +140,15 @@ cat > /tmp/kc-user-profile.json <<'EOF'
       "name": "plan",
       "displayName": "Subscription Plan",
       "permissions": { "view": ["admin", "user"], "edit": ["admin"] },
-      "validations": {}
+      "multivalued": true,
+      "validations": { "multivalued": { "min": 0, "max": 64 } }
     },
     {
       "name": "virtual_lab_id",
       "displayName": "Virtual Lab ID",
       "permissions": { "view": ["admin", "user"], "edit": ["admin"] },
-      "validations": {}
+      "multivalued": true,
+      "validations": { "multivalued": { "min": 0, "max": 64 } }
     }
   ]
 }

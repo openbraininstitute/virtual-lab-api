@@ -23,13 +23,13 @@ async def mock_lab_with_project(
     headers = get_headers()
 
     lab_response = await client.post("/virtual-labs", json=body, headers=headers)
-    lab_id = lab_response.json()["data"]["virtual_lab"]["id"]
+    lab_id = lab_response.json()["id"]
 
     project_body = {"name": f"Test Project {uuid4()}", "description": "Test"}
     project_response = await client.post(
         f"/virtual-labs/{lab_id}/projects", json=project_body, headers=headers
     )
-    project_id = project_response.json()["data"]["project"]["id"]
+    project_id = project_response.json()["id"]
 
     yield client, lab_id, project_id, headers
     await cleanup_resources(client=client, lab_id=lab_id)

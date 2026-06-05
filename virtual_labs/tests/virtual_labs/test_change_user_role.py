@@ -31,7 +31,7 @@ async def mock_lab_invite(
 ) -> AsyncGenerator[tuple[AsyncClient, str, str, str], None]:
     # Create lab
     lab_response = await create_mock_lab(async_test_client)
-    lab_id = lab_response.json()["data"]["virtual_lab"]["id"]
+    lab_id = lab_response.json()["id"]
     headers = get_headers("test")
 
     # Invite a user

@@ -91,7 +91,7 @@ async def setup_lab_and_invite(
     lab_id_str: str = ""
     try:
         lab_response = await create_mock_lab(async_test_client, owner_username="test")
-        lab_id_str = lab_response.json()["data"]["virtual_lab"]["id"]
+        lab_id_str = lab_response.json()["id"]
         lab_id_uuid = UUID(lab_id_str)
 
         invitee_email = "test-2@test.com"
@@ -201,7 +201,7 @@ async def test_accept_member_invite_success(
     invitee_role = UserRoleEnum.member
 
     lab_response = await create_mock_lab(client, owner_username=lab_owner_username)
-    lab_id_str = lab_response.json()["data"]["virtual_lab"]["id"]
+    lab_id_str = lab_response.json()["id"]
     lab_id_uuid = UUID(lab_id_str)
 
     admin_group_id = ""
@@ -486,7 +486,7 @@ async def test_accept_invite_role_change_before_accept(
     invitee_id = test_user_ids[invitee_username]
 
     lab_response = await create_mock_lab(client, owner_username=lab_owner_username)
-    lab_id_str = lab_response.json()["data"]["virtual_lab"]["id"]
+    lab_id_str = lab_response.json()["id"]
     lab_id_uuid = UUID(lab_id_str)
     invite_headers = get_headers(lab_owner_username)
 
@@ -598,7 +598,7 @@ async def test_accept_multiple_invites_different_emails_same_user(
     accepting_user_id = test_user_ids[accepting_user_username]
 
     lab_response = await create_mock_lab(client, owner_username=lab_owner_username)
-    lab_id_str = lab_response.json()["data"]["virtual_lab"]["id"]
+    lab_id_str = lab_response.json()["id"]
     lab_id_uuid = UUID(lab_id_str)
     invite_headers = get_headers(lab_owner_username)
 

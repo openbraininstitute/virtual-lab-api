@@ -169,6 +169,60 @@ class ProjectQueryRepository:
             rows=[row.t for row in result],
         )
 
+    async def list_vlab_projects_for_user(
+        self,
+        *,
+        virtual_lab_id: UUID4,
+        accessible_project_ids: set[UUID] | None,
+        search: str | None,
+        pagination: PageParams,
+    ) -> PaginatedDbResult[list[Project]]:
+        """List non-deleted projects in a vlab with an optional
+        substring filter and a pre-computed access set.
+
+        * `accessible_project_ids=None`: caller is unrestricted
+           Returns every project in the vlab
+        * `accessible_project_ids=set()`: caller has no project-level
+          grants. Short-circuits to an empty page without hitting the
+          DB.
+        * non-empty set — restricts results to those project ids.
+        """
+        if accessible_project_ids is not None and not accessible_project_ids:
+            return PaginatedDbResult(count=0, rows=[])
+
+        conditions = [
+            Project.virtual_lab_id == virtual_lab_id,
+            ~Project.deleted,
+        ]
+        if accessible_project_ids is not None:
+            conditions.append(Project.id.in_(accessible_project_ids))
+        if search:
+            needle = f"%{search.strip().lower()}%"
+            conditions.append(
+                or_(
+                    func.lower(Project.name).ilike(needle),
+                    func.lower(Project.description).ilike(needle),
+                )
+            )
+
+        base = select(Project).where(and_(*conditions))
+
+        count = (
+            await self.session.scalar(
+                select(func.count()).select_from(base.options(noload("*")).subquery())
+            )
+        ) or 0
+
+        rows = (
+            await self.session.scalars(
+                base.order_by(Project.updated_at.desc(), Project.created_at.desc())
+                .offset((pagination.page - 1) * pagination.size)
+                .limit(pagination.size)
+            )
+        ).all()
+
+        return PaginatedDbResult(count=count, rows=list(rows))
+
     async def retrieve_one_project_strict(
         self, virtual_lab_id: UUID4, project_id: UUID4
     ) -> Tuple[Project, VirtualLab]:
@@ -177,6 +231,7 @@ class ProjectQueryRepository:
             .join(VirtualLab)
             .filter(
                 and_(
+                    ~Project.deleted,
                     Project.id == project_id,
                     Project.virtual_lab_id == virtual_lab_id,
                 )

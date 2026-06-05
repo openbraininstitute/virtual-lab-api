@@ -34,7 +34,7 @@ async def mock_create_project(
 
     client = async_test_client
     vl_response, headers = mock_lab_create
-    virtual_lab_id = vl_response.json()["data"]["virtual_lab"]["id"]
+    virtual_lab_id = vl_response.json()["id"]
 
     payload = {
         "name": param_name,
@@ -55,7 +55,7 @@ async def mock_create_projects(
 ) -> AsyncGenerator[tuple[UUID, list[UUID], dict[str, str]], None]:
     client = async_test_client
     vl_response, headers = mock_lab_create
-    virtual_lab_id = vl_response.json()["data"]["virtual_lab"]["id"]
+    virtual_lab_id = vl_response.json()["id"]
 
     projects: list[UUID] = []
 
@@ -69,7 +69,7 @@ async def mock_create_projects(
             f"/virtual-labs/{virtual_lab_id}/projects",
             json=payload,
         )
-        project_id = response.json()["data"]["project"]["id"]
+        project_id = response.json()["id"]
         async with session_context_factory() as session:
             await session.execute(
                 statement=update(Project).where(Project.id == UUID(project_id))
@@ -96,7 +96,7 @@ async def mock_create_vl_projects(
 
     for i in range(VL_COUNT):
         virtual_lab_resp = await create_mock_lab(async_test_client)
-        virtual_lab_id = virtual_lab_resp.json()["data"]["virtual_lab"]["id"]
+        virtual_lab_id = virtual_lab_resp.json()["id"]
         projects: list[UUID] = []
         payload = {
             "name": f"existed project {i}",
@@ -106,7 +106,7 @@ async def mock_create_vl_projects(
             f"/virtual-labs/{virtual_lab_id}/projects",
             json=payload,
         )
-        project_id = response.json()["data"]["project"]["id"]
+        project_id = response.json()["id"]
         projects.append(project_id)
 
         for j in range(PROJECTS_PER_VL_COUNT):
@@ -119,7 +119,7 @@ async def mock_create_vl_projects(
                 f"/virtual-labs/{virtual_lab_id}/projects",
                 json=payload,
             )
-            project_id = response.json()["data"]["project"]["id"]
+            project_id = response.json()["id"]
             projects.append(project_id)
 
         vl_projects.append({virtual_lab_id: projects})
@@ -139,7 +139,7 @@ async def mock_create_full_vl_projects(
     headers = get_headers()
 
     virtual_lab_resp = await create_mock_lab(async_test_client)
-    virtual_lab_id = virtual_lab_resp.json()["data"]["virtual_lab"]["id"]
+    virtual_lab_id = virtual_lab_resp.json()["id"]
     projects: list[dict[str, Any]] = []
 
     for i in range(PROJECTS_PER_VL_COUNT):
@@ -151,7 +151,7 @@ async def mock_create_full_vl_projects(
             f"/virtual-labs/{virtual_lab_id}/projects",
             json=payload,
         )
-        projects.append(response.json()["data"]["project"])
+        projects.append(response.json())
 
     yield projects, headers
 

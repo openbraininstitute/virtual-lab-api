@@ -35,7 +35,7 @@ async def mock_lab(
     )
 
     assert lab_create_response.status_code == 200
-    lab = lab_create_response.json()["data"]["virtual_lab"]
+    lab = lab_create_response.json()
 
     yield client, lab, headers
     await cleanup_resources(client=client, lab_id=lab["id"])
@@ -92,7 +92,7 @@ async def test_get_lab_by_id_without_course(
     response = await client.get(f"/virtual-labs/{lab_id}", headers=headers)
     assert response.status_code == HTTPStatus.OK
 
-    actual = response.json()["data"]["virtual_lab"]
+    actual = response.json()
     assert actual["id"] == lab_id
     assert actual["name"] == lab["name"]
     assert actual["description"] == lab["description"]
@@ -100,6 +100,28 @@ async def test_get_lab_by_id_without_course(
     assert actual["entity"] == lab["entity"]
     assert actual["created_at"] == lab["created_at"]
     assert actual["course"] is None
+    assert "admins" not in actual
+    assert "owner" not in actual
+
+
+@pytest.mark.asyncio
+async def test_get_lab_by_id_expands_admins_and_owner(
+    mock_lab_without_course: tuple[AsyncClient, dict[str, str], dict[str, str]],
+) -> None:
+    client, lab, headers = mock_lab_without_course
+    lab_id = lab["id"]
+
+    response = await client.get(
+        f"/virtual-labs/{lab_id}",
+        params=[("expand", "admins"), ("expand", "owner")],
+        headers=headers,
+    )
+    assert response.status_code == HTTPStatus.OK
+
+    actual = response.json()
+    assert actual["id"] == lab_id
+    assert actual["admins"]
+    assert actual["owner"]["id"] is not None
 
 
 @pytest.mark.asyncio
@@ -112,7 +134,7 @@ async def test_get_lab_by_id_with_course(
     response = await client.get(f"/virtual-labs/{lab_id}", headers=headers)
     assert response.status_code == HTTPStatus.OK
 
-    actual = response.json()["data"]["virtual_lab"]
+    actual = response.json()
     assert actual["id"] == lab_id
     assert actual["course"] is not None
     assert actual["course"]["virtual_lab_id"] == lab_id
@@ -127,12 +149,10 @@ def assert_get_and_delete_body_are_same(
     get_response: Response, delete_response: Response
 ) -> None:
     """Checks that virtual lab in the response of get and delete endpoints are the same."""
-    delete_body = copy.deepcopy(
-        cast(dict[str, Any], delete_response.json()["data"]["virtual_lab"])
-    )
+    delete_body = copy.deepcopy(cast(dict[str, Any], delete_response.json()))
 
-    get_body = copy.deepcopy(
-        cast(dict[str, Any], get_response.json()["data"]["virtual_lab"])
-    )
+    get_body = copy.deepcopy(cast(dict[str, Any], get_response.json()))
+    get_body.pop("admins", None)
+    get_body.pop("created_by", None)
 
     assert delete_body == get_body

@@ -26,7 +26,7 @@ async def mock_lab_create(
         headers=headers,
     )
     assert response.status_code == 200
-    lab_id = response.json()["data"]["virtual_lab"]["id"]
+    lab_id = response.json()["id"]
     yield client, lab_id, headers
 
     await cleanup_resources(client=client, lab_id=lab_id)
@@ -79,7 +79,7 @@ async def test_regular_update_does_not_change_compute_cell(
 
     get_response = await client.get(f"/virtual-labs/{lab_id}", headers=headers)
     assert get_response.status_code == 200
-    initial_compute_cell = get_response.json()["data"]["virtual_lab"]["compute_cell"]
+    initial_compute_cell = get_response.json()["compute_cell"]
 
     update_body = {
         "name": "Updated Name",

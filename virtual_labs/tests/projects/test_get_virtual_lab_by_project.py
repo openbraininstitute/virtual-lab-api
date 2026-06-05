@@ -30,7 +30,7 @@ async def mock_lab_with_project(
     }
     lab_response = await client.post("/virtual-labs", json=lab_body, headers=headers)
     assert lab_response.status_code == 200
-    virtual_lab_id = lab_response.json()["data"]["virtual_lab"]["id"]
+    virtual_lab_id = lab_response.json()["id"]
 
     project_body = {
         "name": f"Test Project {uuid4()}",
@@ -42,7 +42,7 @@ async def mock_lab_with_project(
         headers=headers,
     )
     assert project_response.status_code == 200
-    project_id = project_response.json()["data"]["project"]["id"]
+    project_id = project_response.json()["id"]
 
     yield virtual_lab_id, project_id, headers
 

@@ -13,7 +13,7 @@ async def test_vlm_project_deletion(
 ) -> None:
     client = async_test_client
     response, headers = mock_lab_create
-    virtual_lab_id = response.json()["data"]["virtual_lab"]["id"]
+    virtual_lab_id = response.json()["id"]
 
     payload = {
         "name": f"Test Project {uuid4()}",
@@ -25,7 +25,7 @@ async def test_vlm_project_deletion(
         json=payload,
         headers=headers,
     )
-    project_id = response.json()["data"]["project"]["id"]
+    project_id = response.json()["id"]
 
     headers = get_headers()
     response = await client.delete(

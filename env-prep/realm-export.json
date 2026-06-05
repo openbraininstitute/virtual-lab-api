@@ -1092,7 +1092,8 @@
         "roles",
         "profile",
         "email",
-        "address"
+        "address",
+        "groups"
       ],
       "optionalClientScopes": [
         "phone",

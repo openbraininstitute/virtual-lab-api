@@ -16,6 +16,7 @@ from stripe import SetupIntent
 
 from virtual_labs.infrastructure.db.config import session_pool
 from virtual_labs.infrastructure.db.models import (
+    BillingQuote,
     Bookmark,
     Course,
     FreeSubscription,
@@ -110,7 +111,7 @@ async def create_mock_lab_with_project(
         headers=headers,
     )
     assert lab_response.status_code == 200
-    lab_id = lab_response.json()["data"]["virtual_lab"]["id"]
+    lab_id = lab_response.json()["id"]
 
     project_body = {
         "name": f"Test Project {uuid4()}",
@@ -122,8 +123,8 @@ async def create_mock_lab_with_project(
         headers=headers,
     )
 
-    project_id = project_response.json()["data"]["project"]["id"]
-    return (lab_response.json()["data"]["virtual_lab"], project_id)
+    project_id = project_response.json()["id"]
+    return (lab_response.json(), project_id)
 
 
 def get_invite_token_from_email_body(email_body: str) -> str:
@@ -276,6 +277,12 @@ async def cleanup_resources(
         await session.execute(
             statement=delete(PromotionCodeUsage).where(
                 PromotionCodeUsage.virtual_lab_id == lab_id
+            )
+        )
+
+        await session.execute(
+            statement=delete(BillingQuote).where(
+                BillingQuote.virtual_lab_id == UUID(lab_id)
             )
         )
 
