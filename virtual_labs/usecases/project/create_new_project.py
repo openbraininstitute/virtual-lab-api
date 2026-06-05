@@ -54,10 +54,7 @@ async def create_new_project_use_case(
     )
 
     user_projects_count = await pqr.get_owned_projects_count(user_id=user_id)
-    if (
-        not virtual_lab.course_template_project_id
-        and user_projects_count >= settings.MAX_PROJECTS_NUMBER
-    ):
+    if user_projects_count >= settings.MAX_PROJECTS_NUMBER:
         raise VliError(
             error_code=VliErrorCode.LIMIT_EXCEEDED,
             http_status_code=status.BAD_REQUEST,

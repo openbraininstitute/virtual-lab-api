@@ -21,11 +21,6 @@ class LabResponse(BaseModel, Generic[T]):
     data: T
 
 
-class Course(BaseModel):
-    template_project_id: UUID4 | None = None
-    is_initialized: bool = False
-
-
 class VirtualLabBase(BaseModel):
     name: str = Field(max_length=250)
     description: str
@@ -40,7 +35,6 @@ class VirtualLabUpdate(BaseModel):
     description: str | None = None
     reference_email: EmailStr | None = None
     entity: str | None = None
-    course: Course | None = None
 
 
 class VirtualLabComputeCellUpdate(BaseModel):
@@ -66,7 +60,6 @@ class VirtualLabDetails(VirtualLabBase):
     updated_at: datetime | None = None
     members_count: int | None = None
     projects_count: int | None = None
-    course: Course | None = None
 
 
 class VirtualLab(VirtualLabBase):
@@ -80,7 +73,6 @@ class VirtualLab(VirtualLabBase):
     members_count: int | None = None
     projects_count: int | None = None
     created_by: UUID4
-    course: Course | None = None
 
 
 class VirtualLabWithInviteDetails(VirtualLabDetails):
@@ -121,7 +113,7 @@ class VirtualLabResponse(BaseModel):
 
 
 class VirtualLabCreate(VirtualLabBase):
-    course: Course | None = None
+    pass
 
 
 class CreateLabOut(BaseModel):

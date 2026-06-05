@@ -11,7 +11,6 @@ from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.types import LabTypeEnum, LabTypes
 from virtual_labs.domain.common import DbPagination, PageParams, VirtualLabResponse
 from virtual_labs.domain.labs import (
-    Course,
     VirtualLabDetails,
     VirtualLabWithInviteDetails,
 )
@@ -110,10 +109,6 @@ async def list_user_virtual_labs(
                     },
                     members_count=total_members,
                     projects_count=total_projects,
-                    course=Course(
-                        template_project_id=_lab.course_template_project_id,
-                        is_initialized=_lab.is_course_initialized,
-                    ),
                 )
                 membership_lab_with_counts.append(lab_with_counts)
 

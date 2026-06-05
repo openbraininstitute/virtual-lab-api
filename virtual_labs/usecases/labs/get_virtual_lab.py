@@ -6,7 +6,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
-from virtual_labs.domain.labs import Course, VirtualLab, VirtualLabResponse
+from virtual_labs.domain.labs import VirtualLab, VirtualLabResponse
 from virtual_labs.repositories import labs as repository
 from virtual_labs.repositories.group_repo import GroupQueryRepository
 
@@ -26,10 +26,6 @@ async def get_virtual_lab(
                     for column in db_lab.__table__.columns
                 },
                 created_by=db_lab.created_by,
-                course=Course(
-                    template_project_id=db_lab.course_template_project_id,
-                    is_initialized=db_lab.is_course_initialized,
-                ),
             ),
             admins=[UUID(a.id) for a in admins],
         )
