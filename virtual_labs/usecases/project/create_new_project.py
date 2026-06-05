@@ -157,10 +157,7 @@ async def ensure_allow_creation_by_count_restriction(
             message="Could not load virtual lab context",
         )
 
-    if (
-        not virtual_lab.course_template_project_id
-        and owned_count >= settings.MAX_PROJECTS_NUMBER
-    ):
+    if not virtual_lab.course and owned_count >= settings.MAX_PROJECTS_NUMBER:
         raise VliError(
             error_code=VliErrorCode.LIMIT_EXCEEDED,
             http_status_code=status.BAD_REQUEST,
