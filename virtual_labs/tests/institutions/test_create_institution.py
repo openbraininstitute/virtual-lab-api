@@ -96,7 +96,10 @@ async def test_institution_creation_fails_without_auth(
     response = await async_test_client.post(
         "/institutions",
         json=body,
-        headers={"Content-Type": "application/json"},
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": "",
+        },
     )
 
     assert response.status_code == 401
