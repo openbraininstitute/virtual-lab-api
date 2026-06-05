@@ -85,6 +85,7 @@ class VirtualLab(VirtualLabBase):
     projects_count: int | None = None
     created_by: UUID4
     email_verified: bool
+    course: CourseDetails | None = None
 
 
 class VirtualLabWithInviteDetails(VirtualLabDetails):
