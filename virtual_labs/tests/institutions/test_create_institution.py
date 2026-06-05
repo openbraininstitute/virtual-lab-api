@@ -103,3 +103,29 @@ async def test_institution_creation_fails_without_auth(
     )
 
     assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_institution_creation_fails_with_duplicate_name(
+    async_test_client: AsyncClient,
+) -> None:
+    headers = get_headers()
+    name = f"Test Institution {uuid4()}"
+    body = {
+        "name": name,
+        "contact_email": "contact@institution.org",
+    }
+
+    response = await async_test_client.post(
+        "/institutions",
+        json=body,
+        headers=headers,
+    )
+    assert response.status_code == 200
+
+    response = await async_test_client.post(
+        "/institutions",
+        json=body,
+        headers=headers,
+    )
+    assert response.status_code == 409
