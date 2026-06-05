@@ -107,7 +107,9 @@ class VirtualLab(Base):
     invites = relationship("VirtualLabInvite", back_populates="virtual_lab")
     payment_methods = relationship("PaymentMethod", back_populates="virtual_lab")
     payments = relationship("SubscriptionPayment", back_populates="virtual_lab")
-    course = relationship("Course", back_populates="virtual_lab", uselist=False)
+    course = relationship(
+        "Course", back_populates="virtual_lab", uselist=False, lazy="joined"
+    )
 
     __table_args__ = (
         Index(
