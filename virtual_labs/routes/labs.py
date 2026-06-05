@@ -10,9 +10,7 @@ from virtual_labs.core.authorization import (
     verify_vlab_write,
     verity_member_invite,
 )
-from virtual_labs.core.ledger.modules.virtual_lab import (
-    COURSE_LAB_POLICY,
-)
+from virtual_labs.core.ledger.modules.virtual_lab import REGULAR_LAB_POLICY
 from virtual_labs.core.types import UserGroup, UserRoleEnum, VliAppResponse
 from virtual_labs.domain.common import ListResponse, PaginationRequest
 from virtual_labs.domain.invite import InvitePayload
@@ -188,7 +186,7 @@ async def create_virtual_lab(
     auth: tuple[AuthUserGrants, str] = Depends(parse_auth_grants),
 ) -> VirtualLabDetails:
     return await usecases.create_virtual_lab(
-        session, lab, auth, policy=COURSE_LAB_POLICY
+        session, lab, auth, policy=REGULAR_LAB_POLICY
     )
 
 
