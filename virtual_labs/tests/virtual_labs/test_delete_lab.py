@@ -30,7 +30,7 @@ async def mock_lab_create(
         headers=headers,
     )
     assert response.status_code == 200
-    lab_id = response.json()["data"]["virtual_lab"]["id"]
+    lab_id = response.json()["id"]
 
     # Able to retrieve virtual lab before deletion
     newly_created_lab = await client.get(f"/virtual-labs/{lab_id}", headers=headers)
@@ -65,7 +65,7 @@ async def create_mock_lab_with_project(
             headers=headers,
         )
         assert lab_response.status_code == 200
-        lab_id = lab_response.json()["data"]["virtual_lab"]["id"]
+        lab_id = lab_response.json()["id"]
 
         project_body = {
             "name": f"Test Project {uuid4()}",
@@ -77,9 +77,9 @@ async def create_mock_lab_with_project(
             headers=headers,
         )
 
-        project_id = project_response.json()["data"]["project"]["id"]
-        virtual_lab_id = lab_response.json()["data"]["virtual_lab"]["id"]
-        lab = (lab_response.json()["data"]["virtual_lab"], virtual_lab_id, project_id)
+        project_id = project_response.json()["id"]
+        virtual_lab_id = lab_response.json()["id"]
+        lab = (lab_response.json(), virtual_lab_id, project_id)
         labs_with_project.append((lab, owner_username))
 
         return lab
@@ -96,7 +96,7 @@ async def test_delete_lab(
 ) -> None:
     client, response, headers = mock_lab_create
 
-    lab_id = response.json()["data"]["virtual_lab"]["id"]
+    lab_id = response.json()["id"]
     response = await client.delete(f"/virtual-labs/{lab_id}", headers=headers)
     assert response.status_code == 200
 

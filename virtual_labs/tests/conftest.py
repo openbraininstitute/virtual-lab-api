@@ -51,9 +51,7 @@ async def mock_lab_create(
 
     # Clean up any existing labs
     if existing_labs_response.status_code == 200:
-        existing_labs = (
-            existing_labs_response.json().get("data", {}).get("virtual_labs", [])
-        )
+        existing_labs = existing_labs_response.json().get("data", [])
         for lab in existing_labs:
             lab_id = lab.get("id")
             if lab_id:
@@ -80,10 +78,6 @@ async def mock_lab_create(
     yield response, headers
 
     # Clean up the newly created lab
-    if (
-        response.status_code == 200
-        and response.json().get("data")
-        and response.json()["data"].get("virtual_lab")
-    ):
-        lab_id = response.json()["data"]["virtual_lab"]["id"]
+    if response.status_code == 200 and response.json().get("id"):
+        lab_id = response.json()["id"]
         await cleanup_resources(client, lab_id)

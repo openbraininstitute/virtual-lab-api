@@ -11,11 +11,10 @@ from __future__ import annotations
 from types import SimpleNamespace
 from typing import Any, cast
 
-from virtual_labs.repositories.stripe_repo import StripeRepository
-
 import pytest
 
 from virtual_labs.infrastructure.settings import settings
+from virtual_labs.repositories.stripe_repo import StripeRepository
 from virtual_labs.services.payment_guard import (
     CountryMismatchBlocked,
     ensure_ch_country_match,

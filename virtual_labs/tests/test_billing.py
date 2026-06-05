@@ -52,7 +52,7 @@ async def mock_lab_for_billing(
         headers=get_headers(lab_owner_user),
     )
     assert response.status_code == 200, response.text
-    lab_id = response.json()["data"]["virtual_lab"]["id"]
+    lab_id = response.json()["id"]
 
     yield client, lab_id
 

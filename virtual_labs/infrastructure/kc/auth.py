@@ -12,7 +12,7 @@ from loguru import logger
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.exceptions.identity_error import IdentityError
-from virtual_labs.infrastructure.kc.config import kc_realm
+from virtual_labs.infrastructure.kc.config import KeycloakRealm
 from virtual_labs.infrastructure.kc.models import AuthUser, ClientToken
 from virtual_labs.infrastructure.settings import settings
 
@@ -21,15 +21,6 @@ from .config import kc_auth
 auth_header: HTTPBearer | OAuth2AuthorizationCodeBearer = HTTPBearer(auto_error=False)
 
 KC_SUBJECT: str = f"service-account-{settings.KC_CLIENT_ID}"
-
-
-def get_public_key() -> str:
-    """
-    get the public key to decode the token
-    """
-    return (
-        f"-----BEGIN PUBLIC KEY-----\n{kc_auth.public_key()}\n-----END PUBLIC KEY-----"
-    )
 
 
 def verify_jwt(
@@ -184,8 +175,8 @@ async def authenticated_user_id(
 
 def get_client_token() -> str:
     try:
-        kc_realm.connection.get_token()  # This refreshes client token
-        return ClientToken.model_validate(kc_realm.connection.token).access_token
+        KeycloakRealm.connection.get_token()  # This refreshes client token
+        return ClientToken.model_validate(KeycloakRealm.connection.token).access_token
     except Exception as error:
         logger.error(f"Error retrieving client token {error}")
         raise error

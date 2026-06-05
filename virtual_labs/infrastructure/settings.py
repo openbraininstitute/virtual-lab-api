@@ -120,6 +120,8 @@ class Settings(BaseSettings):
 
     PAID_SUBSCRIPTION_DISCOUNT: Decimal = Decimal("0.5")
     MAX_PROJECTS_NUMBER: int = 20
+    PAGINATION_DEFAULT_PAGE_SIZE: int = 20
+    PAGINATION_MAX_PAGE_SIZE: int = 100
 
     VLAB_SERVICE_ADMIN_GROUP: str = "/service/virtual-lab-svc/admin"
     ENTITYCORE_SERVICE_ADMIN_GROUP: str = "/service/entitycore/admin"

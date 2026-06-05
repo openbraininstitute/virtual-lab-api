@@ -32,7 +32,7 @@ async def retrieve_all_user_projects_use_case(
     user_id = get_user_id_from_auth(auth)
 
     try:
-        groups = gqr.retrieve_user_groups(user_id=str(user_id))
+        groups = await gqr.a_retrieve_user_groups(user_id=str(user_id))
         group_ids = [g.id for g in groups]
 
         results = await pr.retrieve_projects_batch(
@@ -54,8 +54,7 @@ async def retrieve_all_user_projects_use_case(
         ]
 
         recent_workspace = await prefr.get_user_recent_workspace(user_id)
-    except SQLAlchemyError as err:
-        print("error", err)
+    except SQLAlchemyError:
         raise VliError(
             error_code=VliErrorCode.DATABASE_ERROR,
             http_status_code=status.BAD_REQUEST,

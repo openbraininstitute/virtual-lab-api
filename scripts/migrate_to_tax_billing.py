@@ -68,7 +68,6 @@ from virtual_labs.infrastructure.db.models import (
     SubscriptionTier,
 )
 
-
 # ---------------------------------------------------------------------------
 # Constants & globals
 # ---------------------------------------------------------------------------
@@ -228,9 +227,7 @@ async def phase0_preflight(cfg: RunConfig) -> None:
     try:
         client = _stripe(cfg.stripe_api_key)
         balance = client.balance.retrieve()
-        logger.info(
-            f"✅ Stripe reachable; livemode={balance.livemode}"
-        )
+        logger.info(f"✅ Stripe reachable; livemode={balance.livemode}")
     except stripe.AuthenticationError:
         logger.error("❌ Stripe auth failed. Check STRIPE_SECRET_KEY.")
         raise SystemExit(2)
@@ -612,11 +609,11 @@ async def phase4_customer_addresses(cfg: RunConfig, state: MigrationState) -> No
 
     if cfg.address_policy == "attempt_keycloak_sync" and candidates:
         # Lazy import — Keycloak is heavy and the import has side effects.
-        from virtual_labs.infrastructure.kc.config import kc_realm
+        from virtual_labs.infrastructure.kc.config import KeycloakRealm
 
         for su, customer in candidates:
             try:
-                kc_user = await kc_realm.a_get_user(str(su.user_id))
+                kc_user = await KeycloakRealm.a_get_user(str(su.user_id))
             except Exception as e:
                 logger.warning(f"   kc lookup failed for {su.user_id}: {e}")
                 no_address.append(
@@ -968,7 +965,9 @@ async def _amain(cfg: RunConfig) -> int:
                     "Press Ctrl-C to stop, or continue to Phase 1.",
                     style="green",
                 )
-                if not await inquirer.confirm(message="Continue?", default=True).execute_async():
+                if not await inquirer.confirm(
+                    message="Continue?", default=True
+                ).execute_async():
                     return 0
         return 0
     except KeyboardInterrupt:

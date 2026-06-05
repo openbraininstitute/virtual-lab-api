@@ -46,7 +46,6 @@ async def get_user_active_subscription(
                 data=None,
             )
 
-        await session.refresh(subscription)
         details = SubscriptionDetails.from_subscription(subscription)
 
         subscription_type = (

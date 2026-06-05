@@ -227,7 +227,7 @@ class TestSetRecentWorkspace:
 
         # if creation succeeds, use that lab/project for testing access control
         if other_vl_response.status_code == 200:
-            other_vl_id = other_vl_response.json()["data"]["virtual_lab"]["id"]
+            other_vl_id = other_vl_response.json()["id"]
 
             other_project_response = await client.post(
                 f"/virtual-labs/{other_vl_id}/projects",
@@ -239,9 +239,7 @@ class TestSetRecentWorkspace:
             )
 
             if other_project_response.status_code == 200:
-                other_project_id = other_project_response.json()["data"]["project"][
-                    "id"
-                ]
+                other_project_id = other_project_response.json()["id"]
 
                 # try to set other user's workspace as current user's preference
                 payload = {

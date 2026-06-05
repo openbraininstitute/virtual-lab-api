@@ -4,7 +4,7 @@ from uuid import UUID
 
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import with_polymorphic
+from sqlalchemy.orm import selectin_polymorphic, with_polymorphic
 
 from virtual_labs.infrastructure.db.models import (
     FreeSubscription,
@@ -99,6 +99,9 @@ class SubscriptionRepository:
 
         stmt = (
             select(Subscription)
+            .options(
+                selectin_polymorphic(Subscription, [FreeSubscription, PaidSubscription])
+            )
             .where(and_(*filters))
             .order_by(Subscription.created_at.desc())
         )
