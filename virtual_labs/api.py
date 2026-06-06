@@ -29,6 +29,7 @@ from virtual_labs.routes.billing import router as billing_router
 from virtual_labs.routes.bookmarks import router as bookmarks_router
 from virtual_labs.routes.common import router as common_router
 from virtual_labs.routes.config import router as config_router
+from virtual_labs.routes.course import router as course_router
 from virtual_labs.routes.institution import router as institution_router
 from virtual_labs.routes.invites import router as invite_router
 from virtual_labs.routes.labs import router as virtual_lab_router
@@ -191,5 +192,6 @@ base_router.include_router(promotions_router)
 base_router.include_router(admin_promotions_router)
 base_router.include_router(config_router)
 base_router.include_router(institution_router)
+base_router.include_router(course_router)
 
 app.include_router(base_router)
