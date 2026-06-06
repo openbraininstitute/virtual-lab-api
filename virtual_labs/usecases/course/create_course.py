@@ -174,6 +174,41 @@ async def _provision_project_accounting(
 
 
 # ──────────────────────────────────────────────────────────────────────
+# Post-commit best-effort operations
+# ──────────────────────────────────────────────────────────────────────
+
+COURSE_PROJECT_INITIAL_CREDITS = 200.0
+
+
+async def _seed_course_project_budget(
+    virtual_lab_id: UUID4,
+    project_id: UUID4,
+) -> None:
+    """Credit the vlab, then transfer to the course project. Best-effort —
+    failures are logged but do not roll back the course creation."""
+    if settings.ACCOUNTING_BASE_URL is None:
+        return
+    try:
+        # 1. Top up the vlab account
+        await accounting_cases.top_up_virtual_lab_budget(
+            virtual_lab_id=virtual_lab_id,
+            amount=COURSE_PROJECT_INITIAL_CREDITS,
+        )
+        # 2. Transfer from vlab to project
+        await accounting_cases.assign_project_budget(
+            virtual_lab_id=virtual_lab_id,
+            project_id=project_id,
+            amount=COURSE_PROJECT_INITIAL_CREDITS,
+        )
+        logger.info(
+            f"Assigned {COURSE_PROJECT_INITIAL_CREDITS} credits to "
+            f"course project {project_id}"
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.error(f"Failed to seed budget for course project {project_id}: {exc}")
+
+
+# ──────────────────────────────────────────────────────────────────────
 # Orchestrator
 # ──────────────────────────────────────────────────────────────────────
 
@@ -269,6 +304,9 @@ async def create_course(
                 http_status_code=500,
                 message="Course creation failed",
             ) from err
+
+    # ── Post-commit: best-effort credit assignment ──
+    await _seed_course_project_budget(vlab_id, project_id)
 
     return VliAppResponse[CourseOut](
         message="Course created successfully",
