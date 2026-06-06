@@ -1,20 +1,14 @@
 from datetime import date
 from typing import Optional
 
-from pydantic import UUID4, BaseModel, ConfigDict, EmailStr, Field
-
-from virtual_labs.domain.labs import ComputeCell
+from pydantic import UUID4, BaseModel, ConfigDict
 
 
 class CourseCreateBody(BaseModel):
-    # Fields for creating the underlying virtual lab
-    name: str = Field(max_length=250)
-    description: str
-    reference_email: EmailStr | None = None
-    entity: str
-    compute_cell: ComputeCell = ComputeCell.CELL_A
+    """Payload for creating a course by assigning an existing virtual lab and project."""
 
-    # Course-specific fields
+    virtual_lab_id: UUID4
+    template_project_id: UUID4
     institution_id: UUID4
     start_date: Optional[date] = None
     end_date: Optional[date] = None
