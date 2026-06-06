@@ -991,6 +991,14 @@ class Institution(Base):
     )
 
 
+class CourseStatus(str, Enum):
+    """Enum representing course lifecycle statuses."""
+
+    DRAFT = "draft"
+    ACTIVE = "active"
+    VOIDED = "voided"
+
+
 class Course(Base):
     """
     Represents a course linked to a virtual lab and optionally to an institution.
@@ -1020,6 +1028,9 @@ class Course(Base):
     start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     last_drop_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    status: Mapped[CourseStatus] = mapped_column(
+        SAEnum(CourseStatus), nullable=False, default=CourseStatus.DRAFT, index=True
+    )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=func.now(), nullable=False
