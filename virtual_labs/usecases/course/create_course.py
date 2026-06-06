@@ -12,7 +12,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Awaitable, Callable
 from http import HTTPStatus
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from loguru import logger
 from pydantic import UUID4
@@ -31,8 +31,7 @@ from virtual_labs.infrastructure.db.models import (
     VirtualLab,
 )
 from virtual_labs.infrastructure.kc.config import KeycloakRealm
-from virtual_labs.infrastructure.kc.grant import AuthUserGrants
-from virtual_labs.infrastructure.kc.models import CreatedGroup
+from virtual_labs.infrastructure.kc.models import AuthUser, CreatedGroup
 from virtual_labs.infrastructure.settings import settings
 from virtual_labs.shared.group_namespace import (
     make_project_group_name,
@@ -217,9 +216,9 @@ async def _seed_course_project_budget(
 async def create_course(
     db: AsyncSession,
     payload: CourseCreateBody,
-    auth: tuple[AuthUserGrants, str],
+    auth: tuple[AuthUser, str],
 ) -> VliAppResponse[CourseOut]:
-    owner_id = auth[0].id
+    owner_id = UUID(auth[0].sub)
     owner_email = auth[0].email
 
     vlab_id: UUID4 = uuid4()

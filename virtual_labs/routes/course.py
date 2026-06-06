@@ -5,7 +5,8 @@ from virtual_labs.core.authorization import verify_service_admin
 from virtual_labs.core.types import VliAppResponse
 from virtual_labs.domain.course import CourseCreateBody, CourseOut
 from virtual_labs.infrastructure.db.config import default_session_factory
-from virtual_labs.infrastructure.kc.grant import AuthUserGrants, parse_auth_grants
+from virtual_labs.infrastructure.kc.auth import verify_jwt
+from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.shared.groups import VLAB_SERVICE_ADMIN_GROUP
 from virtual_labs.usecases import course as usecases
 
@@ -22,6 +23,6 @@ router = APIRouter(prefix="/courses", tags=["Course Endpoints"])
 async def create_course_endpoint(
     payload: CourseCreateBody,
     session: AsyncSession = Depends(default_session_factory),
-    auth: tuple[AuthUserGrants, str] = Depends(parse_auth_grants),
+    auth: tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> VliAppResponse[CourseOut]:
     return await usecases.create_course(session, payload, auth)
