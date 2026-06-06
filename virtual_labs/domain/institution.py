@@ -1,11 +1,16 @@
 from typing import Optional
 
-from pydantic import UUID4, BaseModel, ConfigDict, EmailStr, Field
+from pydantic import UUID4, BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
 class InstitutionCreate(BaseModel):
     name: str = Field(max_length=250)
     contact_email: EmailStr
+
+    @field_validator("name")
+    @classmethod
+    def strip_name(cls, v: str) -> str:
+        return v.strip()
 
 
 class InstitutionUpdate(BaseModel):

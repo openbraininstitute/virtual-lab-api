@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends
+from typing import Optional
+
+from fastapi import APIRouter, Depends, Query
 from pydantic import UUID4
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -43,5 +45,43 @@ async def update_institution(
     result = await usecases.update_institution(session, institution_id, payload)
     return LabResponse[InstitutionOut](
         message="Updated institution",
+        data=result,
+    )
+
+
+@router.get(
+    "/_search",
+    response_model=LabResponse[list[InstitutionOut]],
+    summary="Search institutions by name",
+)
+@verify_service_admin([VLAB_SERVICE_ADMIN_GROUP])
+async def search_institutions(
+    q: Optional[str] = Query(
+        default=None, description="Search term to filter institutions by name"
+    ),
+    session: AsyncSession = Depends(default_session_factory),
+    auth: tuple[AuthUser, str] = Depends(verify_jwt),
+) -> LabResponse[list[InstitutionOut]]:
+    results = await usecases.search_institutions_by_name(session, query=q)
+    return LabResponse[list[InstitutionOut]](
+        message="Institutions matching query" if q else "All institutions",
+        data=results,
+    )
+
+
+@router.get(
+    "/{institution_id}",
+    response_model=LabResponse[InstitutionOut],
+    summary="Get an institution by ID",
+)
+@verify_service_admin([VLAB_SERVICE_ADMIN_GROUP])
+async def get_institution(
+    institution_id: UUID4,
+    session: AsyncSession = Depends(default_session_factory),
+    auth: tuple[AuthUser, str] = Depends(verify_jwt),
+) -> LabResponse[InstitutionOut]:
+    result = await usecases.get_institution_by_id(session, institution_id)
+    return LabResponse[InstitutionOut](
+        message="Institution found",
         data=result,
     )
