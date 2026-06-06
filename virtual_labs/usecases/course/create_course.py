@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Awaitable, Callable
+from http import HTTPStatus
 from uuid import uuid4
 
 from loguru import logger
@@ -294,14 +295,14 @@ async def create_course(
             logger.error(f"DB integrity error during course creation: {err}")
             raise VliError(
                 error_code=VliErrorCode.ENTITY_ALREADY_EXISTS,
-                http_status_code=409,
+                http_status_code=HTTPStatus.CONFLICT,
                 message="Course creation failed due to a conflict",
             ) from err
         except SQLAlchemyError as err:
             logger.error(f"DB error during course creation: {err}")
             raise VliError(
                 error_code=VliErrorCode.DATABASE_ERROR,
-                http_status_code=500,
+                http_status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
                 message="Course creation failed",
             ) from err
 
