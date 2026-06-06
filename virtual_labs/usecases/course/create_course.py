@@ -25,6 +25,7 @@ from virtual_labs.infrastructure.db.models import (
     VirtualLab,
 )
 from virtual_labs.infrastructure.kc.models import AuthUser
+from virtual_labs.usecases.project.create_new_project import seed_course_project_budget
 
 
 async def _validate_virtual_lab(db: AsyncSession, virtual_lab_id: UUID) -> VirtualLab:
@@ -105,6 +106,10 @@ async def create_course(
             http_status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
             message="Course creation failed",
         ) from err
+
+    # Post-commit: refresh vlab (now has course relationship) and seed credits
+    vlab = await _validate_virtual_lab(db, payload.virtual_lab_id)
+    await seed_course_project_budget(vlab, project_id=payload.template_project_id)
 
     return VliAppResponse[CourseOut](
         message="Course created successfully",
