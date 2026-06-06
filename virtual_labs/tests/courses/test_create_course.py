@@ -139,7 +139,7 @@ async def test_course_created_successfully(
     assert "virtual_lab_id" in data
     assert "institution_id" in data
     assert "template_project_id" in data
-    assert data["status"] == "DRAFT"
+    assert data["status"] == "draft"
 
 
 @pytest.mark.asyncio
@@ -165,7 +165,7 @@ async def test_course_default_status_is_draft(
 
     assert response.status_code == 200
     data = response.json()["data"]
-    assert data["status"] == "DRAFT"
+    assert data["status"] == "draft"
 
 
 @pytest.mark.asyncio
