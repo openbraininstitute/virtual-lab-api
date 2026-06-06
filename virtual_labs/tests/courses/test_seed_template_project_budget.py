@@ -1,5 +1,6 @@
 """Tests that create_course seeds the template project with credits via seed_course_project_budget."""
 
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
@@ -46,8 +47,8 @@ async def test_create_course_calls_seed_course_project_budget(
     db = AsyncMock()
     db.commit = AsyncMock()
 
-    async def fake_refresh(obj: object) -> None:
-        obj.id = course_id  # type: ignore[attr-defined]
+    async def fake_refresh(obj: Any) -> None:
+        obj.id = course_id
         obj.status = "draft"
 
     db.refresh = AsyncMock(side_effect=fake_refresh)
