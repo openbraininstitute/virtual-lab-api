@@ -62,7 +62,7 @@ check-all: format lint style-check type-check  ## Run format, lint, style-check 
 
 test:  ## Run tests
 	uv run populate-tiers --test
-	uv run pytest -s virtual_labs/tests/institutions/test_get_institution.py
+	uv run pytest -s virtual_labs/tests/courses/test_create_course.py
 
 init-db:  ## Create & seed db tables
 	uv run alembic upgrade head
