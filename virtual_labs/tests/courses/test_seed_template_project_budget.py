@@ -45,6 +45,7 @@ async def test_create_course_calls_seed_course_project_budget(
     course_id = uuid4()
 
     db = AsyncMock()
+    db.add = MagicMock()
     db.commit = AsyncMock()
 
     async def fake_refresh(obj: Any) -> None:
