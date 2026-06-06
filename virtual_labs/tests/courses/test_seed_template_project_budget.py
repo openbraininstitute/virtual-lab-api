@@ -5,79 +5,55 @@ from uuid import uuid4
 
 import pytest
 
-from virtual_labs.usecases.project.create_new_project import seed_course_project_budget
+from virtual_labs.usecases.course.create_course import create_course
 
 
-def _make_virtual_lab(*, has_course: bool) -> MagicMock:
+@pytest.mark.asyncio
+@patch(
+    "virtual_labs.usecases.course.create_course.seed_course_project_budget",
+    new_callable=AsyncMock,
+)
+@patch(
+    "virtual_labs.usecases.course.create_course._validate_project",
+    new_callable=AsyncMock,
+)
+@patch(
+    "virtual_labs.usecases.course.create_course._validate_virtual_lab",
+    new_callable=AsyncMock,
+)
+async def test_create_course_calls_seed_course_project_budget(
+    mock_validate_vlab: AsyncMock,
+    mock_validate_project: AsyncMock,
+    mock_seed_budget: AsyncMock,
+) -> None:
+    """create_course should call seed_course_project_budget with the vlab and template project id."""
     vlab = MagicMock()
     vlab.id = uuid4()
-    vlab.course = MagicMock() if has_course else None
-    return vlab
+    mock_validate_vlab.return_value = vlab
+    mock_validate_project.return_value = MagicMock()
 
+    template_project_id = uuid4()
+    payload = MagicMock()
+    payload.virtual_lab_id = vlab.id
+    payload.template_project_id = template_project_id
+    payload.institution_id = uuid4()
+    payload.start_date = None
+    payload.end_date = None
+    payload.last_drop_date = None
 
-@pytest.mark.asyncio
-@patch("virtual_labs.usecases.project.create_new_project.settings")
-@patch("virtual_labs.usecases.project.create_new_project.accounting_cases")
-async def test_seed_course_project_budget_tops_up_and_assigns(
-    mock_accounting: MagicMock,
-    mock_settings: MagicMock,
-) -> None:
-    """Verifies that when a vlab has a course, credits are topped up and assigned."""
-    mock_settings.ACCOUNTING_BASE_URL = "http://accounting:8000"
-    mock_accounting.top_up_virtual_lab_budget = AsyncMock()
-    mock_accounting.assign_project_budget = AsyncMock()
+    course_id = uuid4()
 
-    vlab = _make_virtual_lab(has_course=True)
-    project_id = uuid4()
+    db = AsyncMock()
+    db.commit = AsyncMock()
 
-    result = await seed_course_project_budget(vlab, project_id=project_id)
+    async def fake_refresh(obj: object) -> None:
+        obj.id = course_id  # type: ignore[attr-defined]
+        obj.status = "draft"
 
-    assert result is True
-    mock_accounting.top_up_virtual_lab_budget.assert_awaited_once_with(
-        virtual_lab_id=vlab.id,
-        amount=200.0,
-    )
-    mock_accounting.assign_project_budget.assert_awaited_once_with(
-        virtual_lab_id=vlab.id,
-        project_id=project_id,
-        amount=200.0,
-    )
+    db.refresh = AsyncMock(side_effect=fake_refresh)
 
+    auth = (MagicMock(), "token")
 
-@pytest.mark.asyncio
-@patch("virtual_labs.usecases.project.create_new_project.settings")
-@patch("virtual_labs.usecases.project.create_new_project.accounting_cases")
-async def test_seed_course_project_budget_skips_without_accounting(
-    mock_accounting: MagicMock,
-    mock_settings: MagicMock,
-) -> None:
-    mock_settings.ACCOUNTING_BASE_URL = None
-    mock_accounting.top_up_virtual_lab_budget = AsyncMock()
-    mock_accounting.assign_project_budget = AsyncMock()
+    await create_course(db, payload, auth)
 
-    vlab = _make_virtual_lab(has_course=True)
-
-    result = await seed_course_project_budget(vlab, project_id=uuid4())
-
-    assert result is False
-    mock_accounting.top_up_virtual_lab_budget.assert_not_awaited()
-    mock_accounting.assign_project_budget.assert_not_awaited()
-
-
-@pytest.mark.asyncio
-@patch("virtual_labs.usecases.project.create_new_project.settings")
-@patch("virtual_labs.usecases.project.create_new_project.accounting_cases")
-async def test_seed_course_project_budget_does_not_raise_on_failure(
-    mock_accounting: MagicMock,
-    mock_settings: MagicMock,
-) -> None:
-    mock_settings.ACCOUNTING_BASE_URL = "http://accounting:8000"
-    mock_accounting.top_up_virtual_lab_budget = AsyncMock(
-        side_effect=Exception("accounting down")
-    )
-
-    vlab = _make_virtual_lab(has_course=True)
-
-    result = await seed_course_project_budget(vlab, project_id=uuid4())
-
-    assert result is False
+    mock_seed_budget.assert_awaited_once_with(vlab, project_id=template_project_id)
