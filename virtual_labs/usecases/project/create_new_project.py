@@ -492,6 +492,7 @@ async def create_new_project_use_case(
         owned_count=owned_count,
     )
 
+    # Course projects get budget if they have capacity
     await seed_course_project_budget(
         virtual_lab,
         project_id=project_draft_id,
