@@ -75,22 +75,22 @@ async def create_course(
     await _validate_virtual_lab(db, payload.virtual_lab_id)
     await _validate_project(db, payload.template_project_id, payload.virtual_lab_id)
 
-    try:
-        async with db.begin():
-            db_course = Course(
-                virtual_lab_id=payload.virtual_lab_id,
-                institution_id=payload.institution_id,
-                template_project_id=payload.template_project_id,
-                start_date=payload.start_date,
-                end_date=payload.end_date,
-                last_drop_date=payload.last_drop_date,
-                status=CourseStatus.DRAFT,
-            )
-            db.add(db_course)
-            await db.flush()
-            await db.refresh(db_course)
+    db_course = Course(
+        virtual_lab_id=payload.virtual_lab_id,
+        institution_id=payload.institution_id,
+        template_project_id=payload.template_project_id,
+        start_date=payload.start_date,
+        end_date=payload.end_date,
+        last_drop_date=payload.last_drop_date,
+        status=CourseStatus.DRAFT,
+    )
+    db.add(db_course)
 
+    try:
+        await db.commit()
+        await db.refresh(db_course)
     except IntegrityError as err:
+        await db.rollback()
         logger.error(f"DB integrity error during course creation: {err}")
         raise VliError(
             error_code=VliErrorCode.ENTITY_ALREADY_EXISTS,
@@ -98,6 +98,7 @@ async def create_course(
             message="Course creation failed due to a conflict (virtual lab may already have a course)",
         ) from err
     except SQLAlchemyError as err:
+        await db.rollback()
         logger.error(f"DB error during course creation: {err}")
         raise VliError(
             error_code=VliErrorCode.DATABASE_ERROR,

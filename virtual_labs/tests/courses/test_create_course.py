@@ -269,14 +269,11 @@ async def test_course_creation_fails_with_nonexistent_project(
 @pytest.mark.asyncio
 async def test_course_creation_fails_without_auth(
     async_test_client: AsyncClient,
-    institution_id: str,
-    vlab_with_project: tuple[str, str],
 ) -> None:
-    vlab_id, project_id = vlab_with_project
     body = {
-        "virtual_lab_id": vlab_id,
-        "template_project_id": project_id,
-        "institution_id": institution_id,
+        "virtual_lab_id": str(uuid4()),
+        "template_project_id": str(uuid4()),
+        "institution_id": str(uuid4()),
     }
 
     response = await async_test_client.post(
@@ -294,15 +291,12 @@ async def test_course_creation_fails_without_auth(
 @pytest.mark.asyncio
 async def test_course_creation_fails_for_non_admin_user(
     async_test_client: AsyncClient,
-    institution_id: str,
-    vlab_with_project: tuple[str, str],
 ) -> None:
     headers = get_headers()
-    vlab_id, project_id = vlab_with_project
     body = {
-        "virtual_lab_id": vlab_id,
-        "template_project_id": project_id,
-        "institution_id": institution_id,
+        "virtual_lab_id": str(uuid4()),
+        "template_project_id": str(uuid4()),
+        "institution_id": str(uuid4()),
     }
 
     with patch(
