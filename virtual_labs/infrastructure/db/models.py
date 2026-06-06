@@ -1011,8 +1011,8 @@ class Course(Base):
         unique=True,
         index=True,
     )
-    institution_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("institution.id"), nullable=True, index=True
+    institution_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("institution.id"), nullable=False, index=True
     )
     template_project_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("project.id"), nullable=False, index=True
