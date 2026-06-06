@@ -16,7 +16,6 @@ class CourseCreateBody(BaseModel):
 
     # Course-specific fields
     institution_id: UUID4
-    template_project_id: UUID4
     start_date: Optional[date] = None
     end_date: Optional[date] = None
     last_drop_date: Optional[date] = None
