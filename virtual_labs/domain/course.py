@@ -35,3 +35,20 @@ class CourseOut(BaseModel):
     start_date: Optional[date] = None
     end_date: Optional[date] = None
     last_drop_date: Optional[date] = None
+
+
+class CourseDetailOut(BaseModel):
+    """Course with resolved virtual lab and institution names."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID4
+    virtual_lab_id: UUID4
+    virtual_lab_name: str
+    institution_id: UUID4
+    institution_name: str
+    template_project_id: UUID4
+    status: str
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    last_drop_date: Optional[date] = None

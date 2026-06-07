@@ -1048,9 +1048,9 @@ class Course(Base):
         DateTime(timezone=True), default=func.now(), onupdate=func.now(), nullable=False
     )
 
-    virtual_lab = relationship("VirtualLab", back_populates="course")
+    virtual_lab = relationship("VirtualLab", back_populates="course", lazy="joined")
     template_project = relationship("Project")
-    institution = relationship("Institution")
+    institution = relationship("Institution", lazy="joined")
 
     def ensure_mutable(self) -> None:
         """Raise if the course is not in draft status."""
@@ -1077,6 +1077,9 @@ class Course(Base):
             raise ValueError(
                 f"Cannot activate: the following fields are not set: {', '.join(missing)}"
             )
+        assert self.start_date is not None
+        assert self.end_date is not None
+        assert self.last_drop_date is not None
         if not (self.start_date < self.last_drop_date < self.end_date):
             raise ValueError(
                 f"Cannot activate: dates must satisfy start_date < last_drop_date < end_date, "

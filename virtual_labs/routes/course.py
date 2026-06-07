@@ -1,10 +1,15 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from pydantic import UUID4
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.authorization import verify_service_admin
 from virtual_labs.core.types import VliAppResponse
-from virtual_labs.domain.course import CourseCreateBody, CourseOut, CourseUpdateBody
+from virtual_labs.domain.course import (
+    CourseCreateBody,
+    CourseDetailOut,
+    CourseOut,
+    CourseUpdateBody,
+)
 from virtual_labs.infrastructure.db.config import default_session_factory
 from virtual_labs.infrastructure.kc.auth import verify_jwt
 from virtual_labs.infrastructure.kc.models import AuthUser
@@ -12,6 +17,36 @@ from virtual_labs.shared.groups import VLAB_SERVICE_ADMIN_GROUP
 from virtual_labs.usecases import course as usecases
 
 router = APIRouter(prefix="/courses", tags=["Course Endpoints"])
+
+
+@router.get(
+    "",
+    operation_id="search_courses",
+    summary="Search courses by virtual lab name",
+    response_model=VliAppResponse[list[CourseDetailOut]],
+)
+@verify_service_admin([VLAB_SERVICE_ADMIN_GROUP])
+async def search_courses_endpoint(
+    vlab_name: str = Query(..., min_length=1, description="Virtual lab name to search"),
+    session: AsyncSession = Depends(default_session_factory),
+    auth: tuple[AuthUser, str] = Depends(verify_jwt),
+) -> VliAppResponse[list[CourseDetailOut]]:
+    return await usecases.search_courses_by_vlab_name(session, vlab_name)
+
+
+@router.get(
+    "/{course_id}",
+    operation_id="get_course",
+    summary="Get a course by ID",
+    response_model=VliAppResponse[CourseDetailOut],
+)
+@verify_service_admin([VLAB_SERVICE_ADMIN_GROUP])
+async def get_course_endpoint(
+    course_id: UUID4,
+    session: AsyncSession = Depends(default_session_factory),
+    auth: tuple[AuthUser, str] = Depends(verify_jwt),
+) -> VliAppResponse[CourseDetailOut]:
+    return await usecases.get_course_by_id(session, course_id)
 
 
 @router.post(
@@ -29,21 +64,6 @@ async def create_course_endpoint(
     return await usecases.create_course(session, payload, auth)
 
 
-@router.post(
-    "/{course_id}/activate",
-    operation_id="activate_course",
-    summary="Activate a course",
-    response_model=VliAppResponse[CourseOut],
-)
-@verify_service_admin([VLAB_SERVICE_ADMIN_GROUP])
-async def activate_course_endpoint(
-    course_id: UUID4,
-    session: AsyncSession = Depends(default_session_factory),
-    auth: tuple[AuthUser, str] = Depends(verify_jwt),
-) -> VliAppResponse[CourseOut]:
-    return await usecases.activate_course(session, course_id, auth)
-
-
 @router.patch(
     "/{course_id}",
     operation_id="update_course",
@@ -58,6 +78,21 @@ async def update_course_endpoint(
     auth: tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> VliAppResponse[CourseOut]:
     return await usecases.update_course(session, course_id, payload, auth)
+
+
+@router.post(
+    "/{course_id}/activate",
+    operation_id="activate_course",
+    summary="Activate a course",
+    response_model=VliAppResponse[CourseOut],
+)
+@verify_service_admin([VLAB_SERVICE_ADMIN_GROUP])
+async def activate_course_endpoint(
+    course_id: UUID4,
+    session: AsyncSession = Depends(default_session_factory),
+    auth: tuple[AuthUser, str] = Depends(verify_jwt),
+) -> VliAppResponse[CourseOut]:
+    return await usecases.activate_course(session, course_id, auth)
 
 
 @router.post(
