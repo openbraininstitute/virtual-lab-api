@@ -1062,7 +1062,7 @@ class Course(Base):
         self.status = CourseStatus.VOIDED
 
     def activate(self) -> None:
-        """Transition from draft to active. Requires all dates to be set."""
+        """Transition from draft to active. Requires all dates to be set and ordered."""
         self.ensure_mutable()
         missing = [
             name
@@ -1076,5 +1076,10 @@ class Course(Base):
         if missing:
             raise ValueError(
                 f"Cannot activate: the following fields are not set: {', '.join(missing)}"
+            )
+        if not (self.start_date < self.last_drop_date < self.end_date):
+            raise ValueError(
+                f"Cannot activate: dates must satisfy start_date < last_drop_date < end_date, "
+                f"got {self.start_date} / {self.last_drop_date} / {self.end_date}"
             )
         self.status = CourseStatus.ACTIVE
