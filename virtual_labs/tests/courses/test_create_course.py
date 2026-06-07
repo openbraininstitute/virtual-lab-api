@@ -14,6 +14,7 @@ from httpx import AsyncClient, Response
 from sqlalchemy import delete, select
 
 from virtual_labs.infrastructure.db.models import Course
+from virtual_labs.infrastructure.settings import settings
 from virtual_labs.shared.groups import VLAB_SERVICE_ADMIN_GROUP
 from virtual_labs.tests.utils import (
     create_mock_lab_with_project,
@@ -61,10 +62,24 @@ async def vlab_with_project(
     async_test_client: AsyncClient,
 ) -> AsyncGenerator[tuple[str, str], None]:
     """Create a real virtual lab + project to be assigned to a course."""
+    from uuid import UUID
+
+    from sqlalchemy import update
+
+    from virtual_labs.infrastructure.db.models import VirtualLab
     from virtual_labs.tests.utils import cleanup_resources
 
     lab_data, project_id = await create_mock_lab_with_project(async_test_client)
     lab_id = lab_data["id"]
+
+    # Mark the lab as a course lab by setting owner_id to the course user
+    async with session_context_factory() as session:
+        await session.execute(
+            update(VirtualLab)
+            .where(VirtualLab.id == UUID(lab_id))
+            .values(owner_id=settings.MULTIPLE_VLABS_ALLOWED_USER_ID)
+        )
+        await session.commit()
 
     yield lab_id, project_id
 
@@ -411,3 +426,34 @@ async def test_course_creation_fails_duplicate_vlab(
     course_id = resp1.json()["data"].get("id")
     if course_id:
         await _cleanup_course(course_id)
+
+
+@pytest.mark.asyncio
+async def test_course_creation_fails_for_regular_vlab(
+    async_test_client: AsyncClient,
+    institution_id: str,
+) -> None:
+    """A course cannot be created on a regular (non-course) virtual lab."""
+    from virtual_labs.tests.utils import cleanup_resources
+
+    # Create a normal lab (owner is the regular test user, not the course user)
+    lab_data, project_id = await create_mock_lab_with_project(async_test_client)
+    lab_id = lab_data["id"]
+
+    headers = get_headers()
+    body = _make_course_payload(lab_id, project_id, institution_id)
+
+    try:
+        with patch(
+            "virtual_labs.core.authorization.verify_service_admin.kc_auth"
+        ) as mock_kc:
+            mock_kc.userinfo.side_effect = _mock_admin_userinfo
+            response = await async_test_client.post(
+                "/courses",
+                json=body,
+                headers=headers,
+            )
+
+        assert response.status_code == 403
+    finally:
+        await cleanup_resources(async_test_client, lab_id)

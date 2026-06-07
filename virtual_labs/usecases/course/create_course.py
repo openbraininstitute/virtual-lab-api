@@ -25,11 +25,12 @@ from virtual_labs.infrastructure.db.models import (
     VirtualLab,
 )
 from virtual_labs.infrastructure.kc.models import AuthUser
+from virtual_labs.infrastructure.settings import settings
 from virtual_labs.usecases.project.create_new_project import seed_course_project_budget
 
 
 async def _validate_virtual_lab(db: AsyncSession, virtual_lab_id: UUID) -> VirtualLab:
-    """Ensure the virtual lab exists and is not deleted."""
+    """Ensure the virtual lab exists, is not deleted, and is a course lab."""
     result = await db.execute(
         select(VirtualLab).where(
             VirtualLab.id == virtual_lab_id,
@@ -42,6 +43,12 @@ async def _validate_virtual_lab(db: AsyncSession, virtual_lab_id: UUID) -> Virtu
             error_code=VliErrorCode.ENTITY_NOT_FOUND,
             http_status_code=HTTPStatus.NOT_FOUND,
             message=f"Virtual lab {virtual_lab_id} not found",
+        )
+    if vlab.owner_id != settings.MULTIPLE_VLABS_ALLOWED_USER_ID:
+        raise VliError(
+            error_code=VliErrorCode.NOT_ALLOWED_OP,
+            http_status_code=HTTPStatus.FORBIDDEN,
+            message="Virtual lab is not a course lab",
         )
     return vlab
 
