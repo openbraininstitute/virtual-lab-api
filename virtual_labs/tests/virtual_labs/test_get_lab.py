@@ -7,7 +7,7 @@ import pytest
 import pytest_asyncio
 from httpx import AsyncClient, Response
 
-from virtual_labs.infrastructure.db.models import Course
+from virtual_labs.infrastructure.db.models import Course, Institution
 from virtual_labs.tests.utils import (
     cleanup_resources,
     get_headers,
@@ -69,11 +69,19 @@ async def mock_lab_with_course(
     assert project_response.status_code == 200
     project_id = project_response.json()["id"]
 
-    # Create course record in DB
+    # Create course record in DB (with a test institution)
     async with session_context_factory() as session:
+        institution = Institution(
+            name=f"Test Institution {uuid4()}",
+            contact_email="test@institution.org",
+        )
+        session.add(institution)
+        await session.flush()
+
         course = Course(
             virtual_lab_id=UUID(lab_id),
             template_project_id=UUID(project_id),
+            institution_id=institution.id,
         )
         session.add(course)
         await session.commit()
@@ -139,7 +147,7 @@ async def test_get_lab_by_id_with_course(
     assert actual["course"] is not None
     assert actual["course"]["virtual_lab_id"] == lab_id
     assert actual["course"]["template_project_id"] == project_id
-    assert actual["course"]["institution_id"] is None
+    assert actual["course"]["institution_id"] is not None
     assert actual["course"]["start_date"] is None
     assert actual["course"]["end_date"] is None
     assert actual["course"]["last_drop_date"] is None
