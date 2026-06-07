@@ -1002,6 +1002,11 @@ class CourseStatus(str, Enum):
 class Course(Base):
     """
     Represents a course linked to a virtual lab and optionally to an institution.
+
+    Mutability rules:
+    - Draft: fully mutable (fields + status)
+    - Active: immutable fields, can only be voided
+    - Voided: fully immutable
     """
 
     __tablename__ = "course"
@@ -1046,3 +1051,30 @@ class Course(Base):
     virtual_lab = relationship("VirtualLab", back_populates="course")
     template_project = relationship("Project")
     institution = relationship("Institution")
+
+    def ensure_mutable(self) -> None:
+        """Raise if the course is not in draft status."""
+        if self.status != CourseStatus.DRAFT:
+            raise ValueError("Only draft courses can be modified")
+
+    def void(self) -> None:
+        """Transition to voided. Always allowed (idempotent)."""
+        self.status = CourseStatus.VOIDED
+
+    def activate(self) -> None:
+        """Transition from draft to active. Requires all dates to be set."""
+        self.ensure_mutable()
+        missing = [
+            name
+            for name, value in [
+                ("start_date", self.start_date),
+                ("end_date", self.end_date),
+                ("last_drop_date", self.last_drop_date),
+            ]
+            if value is None
+        ]
+        if missing:
+            raise ValueError(
+                f"Cannot activate: the following fields are not set: {', '.join(missing)}"
+            )
+        self.status = CourseStatus.ACTIVE

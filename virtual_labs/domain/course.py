@@ -15,6 +15,15 @@ class CourseCreateBody(BaseModel):
     last_drop_date: Optional[date] = None
 
 
+class CourseUpdateBody(BaseModel):
+    """Payload for updating a draft course."""
+
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    last_drop_date: Optional[date] = None
+    institution_id: Optional[UUID4] = None
+
+
 class CourseOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

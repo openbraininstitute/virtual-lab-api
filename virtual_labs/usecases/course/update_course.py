@@ -1,4 +1,4 @@
-"""Activate or void a course."""
+"""Update a draft course."""
 
 from __future__ import annotations
 
@@ -11,34 +11,30 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.types import VliAppResponse
-from virtual_labs.domain.course import CourseOut
+from virtual_labs.domain.course import CourseOut, CourseUpdateBody
 from virtual_labs.infrastructure.db.models import Course
 from virtual_labs.infrastructure.kc.models import AuthUser
 
 
-async def _get_course(db: AsyncSession, course_id: UUID) -> Course:
-    """Fetch course by ID or raise 404."""
+async def update_course(
+    db: AsyncSession,
+    course_id: UUID,
+    payload: CourseUpdateBody,
+    auth: tuple[AuthUser, str],
+) -> VliAppResponse[CourseOut]:
+    """Update mutable fields on a course. Only draft courses can be updated."""
     result = await db.execute(select(Course).where(Course.id == course_id))
     course = result.scalar_one_or_none()
+
     if course is None:
         raise VliError(
             error_code=VliErrorCode.ENTITY_NOT_FOUND,
             http_status_code=HTTPStatus.NOT_FOUND,
             message=f"Course {course_id} not found",
         )
-    return course
-
-
-async def activate_course(
-    db: AsyncSession,
-    course_id: UUID,
-    auth: tuple[AuthUser, str],
-) -> VliAppResponse[CourseOut]:
-    """Set course status to active. Only draft courses can be activated."""
-    course = await _get_course(db, course_id)
 
     try:
-        course.activate()
+        course.ensure_mutable()
     except ValueError as e:
         raise VliError(
             error_code=VliErrorCode.NOT_ALLOWED_OP,
@@ -46,33 +42,16 @@ async def activate_course(
             message=str(e),
         )
 
-    await db.commit()
-    await db.refresh(course)
-
-    logger.info(f"Course {course_id} activated by user {auth[0].sub}")
-
-    return VliAppResponse[CourseOut](
-        message="Course activated successfully",
-        data=CourseOut.model_validate(course),
-    )
-
-
-async def void_course(
-    db: AsyncSession,
-    course_id: UUID,
-    auth: tuple[AuthUser, str],
-) -> VliAppResponse[CourseOut]:
-    """Set course status to voided."""
-    course = await _get_course(db, course_id)
-
-    course.void()
+    update_data = payload.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(course, field, value)
 
     await db.commit()
     await db.refresh(course)
 
-    logger.info(f"Course {course_id} voided by user {auth[0].sub}")
+    logger.info(f"Course {course_id} updated by user {auth[0].sub}")
 
     return VliAppResponse[CourseOut](
-        message="Course voided successfully",
+        message="Course updated successfully",
         data=CourseOut.model_validate(course),
     )

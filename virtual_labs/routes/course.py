@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.authorization import verify_service_admin
 from virtual_labs.core.types import VliAppResponse
-from virtual_labs.domain.course import CourseCreateBody, CourseOut
+from virtual_labs.domain.course import CourseCreateBody, CourseOut, CourseUpdateBody
 from virtual_labs.infrastructure.db.config import default_session_factory
 from virtual_labs.infrastructure.kc.auth import verify_jwt
 from virtual_labs.infrastructure.kc.models import AuthUser
@@ -42,6 +42,22 @@ async def activate_course_endpoint(
     auth: tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> VliAppResponse[CourseOut]:
     return await usecases.activate_course(session, course_id, auth)
+
+
+@router.patch(
+    "/{course_id}",
+    operation_id="update_course",
+    summary="Update a draft course",
+    response_model=VliAppResponse[CourseOut],
+)
+@verify_service_admin([VLAB_SERVICE_ADMIN_GROUP])
+async def update_course_endpoint(
+    course_id: UUID4,
+    payload: CourseUpdateBody,
+    session: AsyncSession = Depends(default_session_factory),
+    auth: tuple[AuthUser, str] = Depends(verify_jwt),
+) -> VliAppResponse[CourseOut]:
+    return await usecases.update_course(session, course_id, payload, auth)
 
 
 @router.post(
