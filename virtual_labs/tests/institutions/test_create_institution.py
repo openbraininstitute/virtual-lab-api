@@ -4,16 +4,11 @@ from uuid import uuid4
 import pytest
 from httpx import AsyncClient
 
-from virtual_labs.shared.groups import VLAB_SERVICE_ADMIN_GROUP
+from virtual_labs.tests.institutions.conftest import (
+    mock_admin_userinfo,
+    mock_non_admin_userinfo,
+)
 from virtual_labs.tests.utils import get_headers
-
-
-def _mock_admin_userinfo(*args, **kwargs):
-    return {"groups": [VLAB_SERVICE_ADMIN_GROUP]}
-
-
-def _mock_non_admin_userinfo(*args, **kwargs):
-    return {"groups": ["/some-other-group"]}
 
 
 @pytest.mark.asyncio
@@ -29,11 +24,9 @@ async def test_institution_created_successfully(
     with patch(
         "virtual_labs.core.authorization.verify_service_admin.kc_auth"
     ) as mock_kc:
-        mock_kc.userinfo.side_effect = _mock_admin_userinfo
+        mock_kc.userinfo.side_effect = mock_admin_userinfo
         response = await async_test_client.post(
-            "/institutions",
-            json=body,
-            headers=headers,
+            "/institutions", json=body, headers=headers
         )
 
     assert response.status_code == 200
@@ -48,18 +41,14 @@ async def test_institution_creation_fails_without_name(
     async_test_client: AsyncClient,
 ) -> None:
     headers = get_headers()
-    body = {
-        "contact_email": "contact@institution.org",
-    }
+    body = {"contact_email": "contact@institution.org"}
 
     with patch(
         "virtual_labs.core.authorization.verify_service_admin.kc_auth"
     ) as mock_kc:
-        mock_kc.userinfo.side_effect = _mock_admin_userinfo
+        mock_kc.userinfo.side_effect = mock_admin_userinfo
         response = await async_test_client.post(
-            "/institutions",
-            json=body,
-            headers=headers,
+            "/institutions", json=body, headers=headers
         )
 
     assert response.status_code == 422
@@ -70,18 +59,14 @@ async def test_institution_creation_fails_without_contact_email(
     async_test_client: AsyncClient,
 ) -> None:
     headers = get_headers()
-    body = {
-        "name": f"Test Institution {uuid4()}",
-    }
+    body = {"name": f"Test Institution {uuid4()}"}
 
     with patch(
         "virtual_labs.core.authorization.verify_service_admin.kc_auth"
     ) as mock_kc:
-        mock_kc.userinfo.side_effect = _mock_admin_userinfo
+        mock_kc.userinfo.side_effect = mock_admin_userinfo
         response = await async_test_client.post(
-            "/institutions",
-            json=body,
-            headers=headers,
+            "/institutions", json=body, headers=headers
         )
 
     assert response.status_code == 422
@@ -92,19 +77,14 @@ async def test_institution_creation_fails_with_invalid_email(
     async_test_client: AsyncClient,
 ) -> None:
     headers = get_headers()
-    body = {
-        "name": f"Test Institution {uuid4()}",
-        "contact_email": "not-an-email",
-    }
+    body = {"name": f"Test Institution {uuid4()}", "contact_email": "not-an-email"}
 
     with patch(
         "virtual_labs.core.authorization.verify_service_admin.kc_auth"
     ) as mock_kc:
-        mock_kc.userinfo.side_effect = _mock_admin_userinfo
+        mock_kc.userinfo.side_effect = mock_admin_userinfo
         response = await async_test_client.post(
-            "/institutions",
-            json=body,
-            headers=headers,
+            "/institutions", json=body, headers=headers
         )
 
     assert response.status_code == 422
@@ -122,10 +102,7 @@ async def test_institution_creation_fails_without_auth(
     response = await async_test_client.post(
         "/institutions",
         json=body,
-        headers={
-            "Content-Type": "application/json",
-            "Authorization": "",
-        },
+        headers={"Content-Type": "application/json", "Authorization": ""},
     )
 
     assert response.status_code == 401
@@ -144,11 +121,9 @@ async def test_institution_creation_fails_for_non_admin_user(
     with patch(
         "virtual_labs.core.authorization.verify_service_admin.kc_auth"
     ) as mock_kc:
-        mock_kc.userinfo.side_effect = _mock_non_admin_userinfo
+        mock_kc.userinfo.side_effect = mock_non_admin_userinfo
         response = await async_test_client.post(
-            "/institutions",
-            json=body,
-            headers=headers,
+            "/institutions", json=body, headers=headers
         )
 
     assert response.status_code == 403
@@ -160,28 +135,21 @@ async def test_institution_creation_returns_existing_on_duplicate_name(
 ) -> None:
     headers = get_headers()
     name = f"Test Institution {uuid4()}"
-    body = {
-        "name": name,
-        "contact_email": "contact@institution.org",
-    }
+    body = {"name": name, "contact_email": "contact@institution.org"}
 
     with patch(
         "virtual_labs.core.authorization.verify_service_admin.kc_auth"
     ) as mock_kc:
-        mock_kc.userinfo.side_effect = _mock_admin_userinfo
+        mock_kc.userinfo.side_effect = mock_admin_userinfo
 
         response = await async_test_client.post(
-            "/institutions",
-            json=body,
-            headers=headers,
+            "/institutions", json=body, headers=headers
         )
         assert response.status_code == 200
         first_id = response.json()["data"]["id"]
 
         response = await async_test_client.post(
-            "/institutions",
-            json=body,
-            headers=headers,
+            "/institutions", json=body, headers=headers
         )
         assert response.status_code == 200
         assert response.json()["data"]["id"] == first_id
