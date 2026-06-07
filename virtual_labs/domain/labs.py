@@ -146,7 +146,7 @@ class VirtualLabDetailExpand(StrEnum):
 
 
 class VirtualLabCreate(VirtualLabBase):
-    pass
+    is_course: bool = False
 
 
 class CreateLabOut(BaseModel):
