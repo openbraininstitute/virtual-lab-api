@@ -1,4 +1,4 @@
-"""Tests for the activate-course endpoint (POST /courses/{course_id}/activate)."""
+"""Tests for the update-course endpoint (PATCH /courses/{course_id})."""
 
 from typing import AsyncGenerator
 from unittest.mock import patch
@@ -107,9 +107,19 @@ async def draft_course(
     await cleanup_resources(async_test_client, lab_id)
 
 
-async def _set_course_dates(async_test_client: AsyncClient, course_id: str) -> None:
-    """Set all required dates on a draft course so it can be activated."""
+# ──────────────────────────────────────────────────────────────────────
+# Happy-path tests
+# ──────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_update_draft_course_all_dates(
+    async_test_client: AsyncClient,
+    draft_course: tuple[str, str],
+) -> None:
+    course_id, _ = draft_course
     headers = get_headers()
+
     with patch(
         "virtual_labs.core.authorization.verify_service_admin.kc_auth"
     ) as mock_kc:
@@ -123,36 +133,128 @@ async def _set_course_dates(async_test_client: AsyncClient, course_id: str) -> N
             },
             headers=headers,
         )
+
     assert response.status_code == 200
-
-
-# ──────────────────────────────────────────────────────────────────────
-# Happy-path tests
-# ──────────────────────────────────────────────────────────────────────
+    data = response.json()["data"]
+    assert data["start_date"] == "2026-09-01"
+    assert data["end_date"] == "2026-12-15"
+    assert data["last_drop_date"] == "2026-10-01"
 
 
 @pytest.mark.asyncio
-async def test_activate_course_successfully(
+async def test_update_draft_course_partial(
     async_test_client: AsyncClient,
     draft_course: tuple[str, str],
 ) -> None:
+    """Sending only one field should update only that field."""
     course_id, _ = draft_course
     headers = get_headers()
-
-    await _set_course_dates(async_test_client, course_id)
 
     with patch(
         "virtual_labs.core.authorization.verify_service_admin.kc_auth"
     ) as mock_kc:
         mock_kc.userinfo.side_effect = _mock_admin_userinfo
-        response = await async_test_client.post(
-            f"/courses/{course_id}/activate", headers=headers
+        response = await async_test_client.patch(
+            f"/courses/{course_id}",
+            json={"start_date": "2026-09-01"},
+            headers=headers,
         )
 
     assert response.status_code == 200
     data = response.json()["data"]
-    assert data["id"] == course_id
-    assert data["status"] == "active"
+    assert data["start_date"] == "2026-09-01"
+    assert data["end_date"] is None
+    assert data["last_drop_date"] is None
+
+
+@pytest.mark.asyncio
+async def test_update_draft_course_institution(
+    async_test_client: AsyncClient,
+    draft_course: tuple[str, str],
+    institution_id: str,
+) -> None:
+    """Can update institution_id on a draft course."""
+    course_id, _ = draft_course
+    headers = get_headers()
+
+    with patch(
+        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
+    ) as mock_kc:
+        mock_kc.userinfo.side_effect = _mock_admin_userinfo
+        response = await async_test_client.patch(
+            f"/courses/{course_id}",
+            json={"institution_id": institution_id},
+            headers=headers,
+        )
+
+    assert response.status_code == 200
+    assert response.json()["data"]["institution_id"] == institution_id
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Immutability tests
+# ──────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_update_active_course_fails(
+    async_test_client: AsyncClient,
+    draft_course: tuple[str, str],
+) -> None:
+    """Active courses cannot be updated."""
+    course_id, _ = draft_course
+    headers = get_headers()
+
+    with patch(
+        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
+    ) as mock_kc:
+        mock_kc.userinfo.side_effect = _mock_admin_userinfo
+        # Set dates and activate
+        await async_test_client.patch(
+            f"/courses/{course_id}",
+            json={
+                "start_date": "2026-09-01",
+                "end_date": "2026-12-15",
+                "last_drop_date": "2026-10-01",
+            },
+            headers=headers,
+        )
+        await async_test_client.post(f"/courses/{course_id}/activate", headers=headers)
+
+        # Try to update
+        response = await async_test_client.patch(
+            f"/courses/{course_id}",
+            json={"start_date": "2027-01-01"},
+            headers=headers,
+        )
+
+    assert response.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_update_voided_course_fails(
+    async_test_client: AsyncClient,
+    draft_course: tuple[str, str],
+) -> None:
+    """Voided courses cannot be updated."""
+    course_id, _ = draft_course
+    headers = get_headers()
+
+    with patch(
+        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
+    ) as mock_kc:
+        mock_kc.userinfo.side_effect = _mock_admin_userinfo
+        # Void the course
+        await async_test_client.post(f"/courses/{course_id}/void", headers=headers)
+
+        # Try to update
+        response = await async_test_client.patch(
+            f"/courses/{course_id}",
+            json={"start_date": "2027-01-01"},
+            headers=headers,
+        )
+
+    assert response.status_code == 409
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -161,127 +263,34 @@ async def test_activate_course_successfully(
 
 
 @pytest.mark.asyncio
-async def test_activate_course_fails_when_dates_missing(
+async def test_update_course_not_found(
     async_test_client: AsyncClient,
-    draft_course: tuple[str, str],
 ) -> None:
-    """Cannot activate a course without all dates set."""
-    course_id, _ = draft_course
     headers = get_headers()
 
     with patch(
         "virtual_labs.core.authorization.verify_service_admin.kc_auth"
     ) as mock_kc:
         mock_kc.userinfo.side_effect = _mock_admin_userinfo
-        response = await async_test_client.post(
-            f"/courses/{course_id}/activate", headers=headers
-        )
-
-    assert response.status_code == 409
-    assert "not set" in response.json()["message"]
-
-
-@pytest.mark.asyncio
-async def test_activate_course_fails_with_partial_dates(
-    async_test_client: AsyncClient,
-    draft_course: tuple[str, str],
-) -> None:
-    """Cannot activate if only some dates are set."""
-    course_id, _ = draft_course
-    headers = get_headers()
-
-    with patch(
-        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-    ) as mock_kc:
-        mock_kc.userinfo.side_effect = _mock_admin_userinfo
-        # Set only start_date
-        await async_test_client.patch(
-            f"/courses/{course_id}",
+        response = await async_test_client.patch(
+            f"/courses/{uuid4()}",
             json={"start_date": "2026-09-01"},
             headers=headers,
-        )
-        response = await async_test_client.post(
-            f"/courses/{course_id}/activate", headers=headers
-        )
-
-    assert response.status_code == 409
-    msg = response.json()["message"]
-    assert "end_date" in msg
-    assert "last_drop_date" in msg
-
-
-@pytest.mark.asyncio
-async def test_activate_course_fails_when_already_active(
-    async_test_client: AsyncClient,
-    draft_course: tuple[str, str],
-) -> None:
-    course_id, _ = draft_course
-    headers = get_headers()
-
-    await _set_course_dates(async_test_client, course_id)
-
-    with patch(
-        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-    ) as mock_kc:
-        mock_kc.userinfo.side_effect = _mock_admin_userinfo
-        # Activate first
-        await async_test_client.post(f"/courses/{course_id}/activate", headers=headers)
-        # Try to activate again
-        response = await async_test_client.post(
-            f"/courses/{course_id}/activate", headers=headers
-        )
-
-    assert response.status_code == 409
-
-
-@pytest.mark.asyncio
-async def test_activate_course_fails_when_voided(
-    async_test_client: AsyncClient,
-    draft_course: tuple[str, str],
-) -> None:
-    course_id, _ = draft_course
-    headers = get_headers()
-
-    with patch(
-        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-    ) as mock_kc:
-        mock_kc.userinfo.side_effect = _mock_admin_userinfo
-        # Void first
-        await async_test_client.post(f"/courses/{course_id}/void", headers=headers)
-        # Try to activate
-        response = await async_test_client.post(
-            f"/courses/{course_id}/activate", headers=headers
-        )
-
-    assert response.status_code == 409
-
-
-@pytest.mark.asyncio
-async def test_activate_course_not_found(
-    async_test_client: AsyncClient,
-) -> None:
-    headers = get_headers()
-
-    with patch(
-        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-    ) as mock_kc:
-        mock_kc.userinfo.side_effect = _mock_admin_userinfo
-        response = await async_test_client.post(
-            f"/courses/{uuid4()}/activate", headers=headers
         )
 
     assert response.status_code == 404
 
 
 @pytest.mark.asyncio
-async def test_activate_course_fails_without_auth(
+async def test_update_course_fails_without_auth(
     async_test_client: AsyncClient,
     draft_course: tuple[str, str],
 ) -> None:
     course_id, _ = draft_course
 
-    response = await async_test_client.post(
-        f"/courses/{course_id}/activate",
+    response = await async_test_client.patch(
+        f"/courses/{course_id}",
+        json={"start_date": "2026-09-01"},
         headers={"Content-Type": "application/json", "Authorization": ""},
     )
 
@@ -289,7 +298,7 @@ async def test_activate_course_fails_without_auth(
 
 
 @pytest.mark.asyncio
-async def test_activate_course_fails_for_non_admin(
+async def test_update_course_fails_for_non_admin(
     async_test_client: AsyncClient,
     draft_course: tuple[str, str],
 ) -> None:
@@ -300,8 +309,10 @@ async def test_activate_course_fails_for_non_admin(
         "virtual_labs.core.authorization.verify_service_admin.kc_auth"
     ) as mock_kc:
         mock_kc.userinfo.side_effect = _mock_non_admin_userinfo
-        response = await async_test_client.post(
-            f"/courses/{course_id}/activate", headers=headers
+        response = await async_test_client.patch(
+            f"/courses/{course_id}",
+            json={"start_date": "2026-09-01"},
+            headers=headers,
         )
 
     assert response.status_code == 403

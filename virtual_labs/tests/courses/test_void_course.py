@@ -107,6 +107,25 @@ async def draft_course(
     await cleanup_resources(async_test_client, lab_id)
 
 
+async def _set_course_dates(async_test_client: AsyncClient, course_id: str) -> None:
+    """Set all required dates on a draft course so it can be activated."""
+    headers = get_headers()
+    with patch(
+        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
+    ) as mock_kc:
+        mock_kc.userinfo.side_effect = _mock_admin_userinfo
+        response = await async_test_client.patch(
+            f"/courses/{course_id}",
+            json={
+                "start_date": "2026-09-01",
+                "end_date": "2026-12-15",
+                "last_drop_date": "2026-10-01",
+            },
+            headers=headers,
+        )
+    assert response.status_code == 200
+
+
 # ──────────────────────────────────────────────────────────────────────
 # Happy-path tests
 # ──────────────────────────────────────────────────────────────────────
@@ -142,6 +161,8 @@ async def test_void_active_course_successfully(
     course_id, _ = draft_course
     headers = get_headers()
 
+    await _set_course_dates(async_test_client, course_id)
+
     with patch(
         "virtual_labs.core.authorization.verify_service_admin.kc_auth"
     ) as mock_kc:
@@ -158,16 +179,12 @@ async def test_void_active_course_successfully(
     assert data["status"] == "voided"
 
 
-# ──────────────────────────────────────────────────────────────────────
-# Error tests
-# ──────────────────────────────────────────────────────────────────────
-
-
 @pytest.mark.asyncio
-async def test_void_course_fails_when_already_voided(
+async def test_void_course_is_idempotent(
     async_test_client: AsyncClient,
     draft_course: tuple[str, str],
 ) -> None:
+    """Voiding an already-voided course succeeds (idempotent)."""
     course_id, _ = draft_course
     headers = get_headers()
 
@@ -175,14 +192,20 @@ async def test_void_course_fails_when_already_voided(
         "virtual_labs.core.authorization.verify_service_admin.kc_auth"
     ) as mock_kc:
         mock_kc.userinfo.side_effect = _mock_admin_userinfo
-        # Void first
+        # Void first time
         await async_test_client.post(f"/courses/{course_id}/void", headers=headers)
-        # Try to void again
+        # Void again — should still succeed
         response = await async_test_client.post(
             f"/courses/{course_id}/void", headers=headers
         )
 
-    assert response.status_code == 409
+    assert response.status_code == 200
+    assert response.json()["data"]["status"] == "voided"
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Error tests
+# ──────────────────────────────────────────────────────────────────────
 
 
 @pytest.mark.asyncio
