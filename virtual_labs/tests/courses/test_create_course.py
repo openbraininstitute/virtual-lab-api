@@ -457,3 +457,63 @@ async def test_course_creation_fails_for_regular_vlab(
         assert response.status_code == 403
     finally:
         await cleanup_resources(async_test_client, lab_id)
+
+
+@pytest.mark.asyncio
+async def test_course_creation_fails_duplicate_template_project(
+    async_test_client: AsyncClient,
+    institution_id: str,
+    vlab_with_project: tuple[str, str],
+) -> None:
+    """A template project can only be used by one course (unique constraint)."""
+    from uuid import UUID
+
+    from sqlalchemy import update
+
+    from virtual_labs.infrastructure.db.models import VirtualLab
+    from virtual_labs.tests.utils import cleanup_resources
+
+    vlab_id_1, project_id = vlab_with_project
+
+    # Create a second course lab
+    lab_data_2, _ = await create_mock_lab_with_project(
+        async_test_client, owner_username="test"
+    )
+    vlab_id_2 = lab_data_2["id"]
+
+    # Mark the second lab as a course lab
+    async with session_context_factory() as session:
+        await session.execute(
+            update(VirtualLab)
+            .where(VirtualLab.id == UUID(vlab_id_2))
+            .values(owner_id=settings.MULTIPLE_VLABS_ALLOWED_USER_ID)
+        )
+        await session.commit()
+
+    headers = get_headers()
+
+    try:
+        with patch(
+            "virtual_labs.core.authorization.verify_service_admin.kc_auth"
+        ) as mock_kc:
+            mock_kc.userinfo.side_effect = _mock_admin_userinfo
+
+            # First course with this template project should succeed
+            body1 = _make_course_payload(vlab_id_1, project_id, institution_id)
+            resp1 = await async_test_client.post(
+                "/courses", json=body1, headers=headers
+            )
+            assert resp1.status_code == 200
+
+            # Second course with the same template project should fail
+            body2 = _make_course_payload(vlab_id_2, project_id, institution_id)
+            resp2 = await async_test_client.post(
+                "/courses", json=body2, headers=headers
+            )
+            assert resp2.status_code == 409
+    finally:
+        # Cleanup
+        course_id = resp1.json()["data"].get("id") if resp1.status_code == 200 else None
+        if course_id:
+            await _cleanup_course(course_id)
+        await cleanup_resources(async_test_client, vlab_id_2)

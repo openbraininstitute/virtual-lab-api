@@ -1023,7 +1023,11 @@ class Course(Base):
         UUID(as_uuid=True), ForeignKey("institution.id"), nullable=False, index=True
     )
     template_project_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("project.id"), nullable=False, index=True
+        UUID(as_uuid=True),
+        ForeignKey("project.id"),
+        nullable=False,
+        unique=True,
+        index=True,
     )
     start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
