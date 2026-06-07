@@ -31,7 +31,19 @@ def mock_non_admin_userinfo(*args, **kwargs):
     return {"groups": ["/some-other-group"]}
 
 
-async def _get_or_create_institution() -> str:
+async def cleanup_course(course_id: str) -> None:
+    async with session_context_factory() as session:
+        await session.execute(delete(Course).where(Course.id == UUID(course_id)))
+        await session.commit()
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Fixtures
+# ──────────────────────────────────────────────────────────────────────
+
+
+@pytest_asyncio.fixture
+async def institution_id() -> str:
     async with session_context_factory() as session:
         result = await session.scalar(
             select(Institution.id).where(Institution.name == "Open Brain Institute")
@@ -49,20 +61,26 @@ async def _get_or_create_institution() -> str:
         return str(institution.id)
 
 
-async def _cleanup_course(course_id: str) -> None:
+@pytest_asyncio.fixture
+async def vlab_with_project(
+    async_test_client: AsyncClient,
+) -> AsyncGenerator[tuple[str, str], None]:
+    """Create a course-eligible virtual lab + project. Returns (vlab_id, project_id)."""
+    lab_data, project_id = await create_mock_lab_with_project(async_test_client)
+    lab_id = lab_data["id"]
+
+    # Mark as course lab
     async with session_context_factory() as session:
-        await session.execute(delete(Course).where(Course.id == UUID(course_id)))
+        await session.execute(
+            update(VirtualLab)
+            .where(VirtualLab.id == UUID(lab_id))
+            .values(owner_id=settings.MULTIPLE_VLABS_ALLOWED_USER_ID)
+        )
         await session.commit()
 
+    yield lab_id, project_id
 
-# ──────────────────────────────────────────────────────────────────────
-# Fixtures
-# ──────────────────────────────────────────────────────────────────────
-
-
-@pytest_asyncio.fixture
-async def institution_id() -> str:
-    return await _get_or_create_institution()
+    await cleanup_resources(async_test_client, lab_id)
 
 
 @pytest_asyncio.fixture
@@ -101,5 +119,5 @@ async def draft_course(
 
     yield course_id, lab_id
 
-    await _cleanup_course(course_id)
+    await cleanup_course(course_id)
     await cleanup_resources(async_test_client, lab_id)
