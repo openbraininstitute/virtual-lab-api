@@ -80,7 +80,7 @@ async def create_course(
     auth: tuple[AuthUser, str],
 ) -> VliAppResponse[CourseOut]:
     # Validate that the referenced virtual lab and project exist
-    await _validate_virtual_lab(db, payload.virtual_lab_id)
+    vlab = await _validate_virtual_lab(db, payload.virtual_lab_id)
     await _validate_project(db, payload.template_project_id, payload.virtual_lab_id)
 
     db_course = Course(
@@ -115,7 +115,7 @@ async def create_course(
         ) from err
 
     # Post-commit: refresh vlab (now has course relationship) and seed credits
-    vlab = await _validate_virtual_lab(db, payload.virtual_lab_id)
+    await db.refresh(vlab)
     await seed_course_project_budget(vlab, project_id=payload.template_project_id)
 
     return VliAppResponse[CourseOut](
