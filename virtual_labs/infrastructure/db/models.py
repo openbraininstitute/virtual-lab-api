@@ -1126,6 +1126,9 @@ class Seat(Base):
     expiry_date: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
     )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=func.now(), nullable=False
+    )
 
     course = relationship("Course")
     institution = relationship("Institution")
