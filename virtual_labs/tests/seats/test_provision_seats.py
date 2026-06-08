@@ -51,10 +51,15 @@ async def test_provision_seats_success(
     data = response.json()["data"]
     assert len(data["seats"]) == 2
     assert data["total_credits_topped_up"] == 400.0
+    batch_ids = set()
     for seat in data["seats"]:
         assert seat["virtual_lab_id"] == vlab_with_course
         assert seat["is_consumed"] is False
         assert seat["active_project_id"] is None
+        assert "batch_id" in seat
+        batch_ids.add(seat["batch_id"])
+    # All seats in the same provision call share one batch_id
+    assert len(batch_ids) == 1
 
 
 @pytest.mark.asyncio
