@@ -23,6 +23,7 @@ async def test_tops_up_and_assigns_when_vlab_has_course(
     mock_settings: MagicMock,
 ) -> None:
     mock_settings.ACCOUNTING_BASE_URL = "http://accounting:8000"
+    mock_settings.CREDITS_PER_SEAT = 200.0
     mock_accounting.top_up_virtual_lab_budget = AsyncMock()
     mock_accounting.assign_project_budget = AsyncMock()
 
