@@ -99,6 +99,7 @@ class Settings(BaseSettings):
 
     ACCOUNTING_BASE_URL: str | None = None
     CREDITS_PER_SEAT: float = 200.0
+    SEAT_EXPIRY_DAYS: int = 365
 
     SENTRY_DSN: str | None = None
     SENTRY_TRACES_SAMPLE_RATE: float = 1.0

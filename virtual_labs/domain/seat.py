@@ -8,7 +8,6 @@ class ProvisionSeatsBody(BaseModel):
 
     virtual_lab_id: UUID4
     number_of_seats: int = Field(..., gt=0)
-    expiry_date: datetime
 
 
 class SeatOut(BaseModel):

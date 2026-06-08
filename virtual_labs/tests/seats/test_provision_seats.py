@@ -17,7 +17,6 @@ def _provision_payload(virtual_lab_id: str, number_of_seats: int = 3) -> dict:
     return {
         "virtual_lab_id": virtual_lab_id,
         "number_of_seats": number_of_seats,
-        "expiry_date": "2027-06-01T00:00:00Z",
     }
 
 
@@ -261,18 +260,33 @@ async def test_provision_seats_fails_with_negative_seats(
 
 
 @pytest.mark.asyncio
-async def test_provision_seats_fails_without_expiry_date(
+async def test_provision_seats_expiry_date_is_one_year(
     async_test_client: AsyncClient,
+    vlab_with_course: str,
 ) -> None:
-    headers = get_headers()
-    body = {"virtual_lab_id": str(uuid4()), "number_of_seats": 1}
+    """Seats should have an expiry date approximately 1 year from now."""
+    from datetime import datetime, timedelta, timezone
 
-    with patch(
-        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-    ) as mock_kc:
+    headers = get_headers()
+    body = _provision_payload(vlab_with_course, number_of_seats=1)
+
+    with (
+        patch(
+            "virtual_labs.core.authorization.verify_service_admin.kc_auth"
+        ) as mock_kc,
+        patch(
+            "virtual_labs.usecases.seat.provision_seats.accounting_cases.top_up_virtual_lab_budget"
+        ) as mock_top_up,
+    ):
         mock_kc.userinfo.side_effect = mock_admin_userinfo
+        mock_top_up.return_value = AsyncMock()
         response = await async_test_client.post(
             "/seats/provision", json=body, headers=headers
         )
 
-    assert response.status_code == 422
+    assert response.status_code == 200
+    seat = response.json()["data"]["seats"][0]
+    expiry = datetime.fromisoformat(seat["expiry_date"])
+    expected = datetime.now(timezone.utc) + timedelta(days=365)
+    # Allow 60 seconds tolerance for test execution time
+    assert abs((expiry - expected).total_seconds()) < 60
