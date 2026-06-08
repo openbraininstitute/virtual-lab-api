@@ -98,6 +98,7 @@ class Settings(BaseSettings):
     BILLING_BLOCK_CH_COUNTRY_MISMATCH: bool = True
 
     ACCOUNTING_BASE_URL: str | None = None
+    CREDITS_PER_SEAT: float = 200.0
 
     SENTRY_DSN: str | None = None
     SENTRY_TRACES_SAMPLE_RATE: float = 1.0

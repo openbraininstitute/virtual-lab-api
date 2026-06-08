@@ -37,6 +37,7 @@ from virtual_labs.routes.payments import router as payments_router
 from virtual_labs.routes.projects import router as project_router
 from virtual_labs.routes.promotions import admin_router as admin_promotions_router
 from virtual_labs.routes.promotions import router as promotions_router
+from virtual_labs.routes.seat import router as seat_router
 from virtual_labs.routes.subscription import router as subscription_router
 from virtual_labs.routes.user import router as user_router
 
@@ -193,5 +194,6 @@ base_router.include_router(admin_promotions_router)
 base_router.include_router(config_router)
 base_router.include_router(institution_router)
 base_router.include_router(course_router)
+base_router.include_router(seat_router)
 
 app.include_router(base_router)
