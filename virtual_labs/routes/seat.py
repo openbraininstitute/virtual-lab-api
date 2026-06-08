@@ -40,14 +40,14 @@ async def provision_seats_endpoint(
     "/batches/{batch_id}",
     operation_id="get_seat_batch",
     summary="Get a seat batch by ID",
-    response_model=VliAppResponse[SeatBatchSearchResponse],
+    response_model=SeatBatchSearchResponse,
 )
 @verify_service_admin([VLAB_SERVICE_ADMIN_GROUP])
 async def get_seat_batch_endpoint(
     batch_id: UUID4,
     session: AsyncSession = Depends(default_session_factory),
     auth: tuple[AuthUser, str] = Depends(verify_jwt),
-) -> VliAppResponse[SeatBatchSearchResponse]:
+) -> SeatBatchSearchResponse:
     return await usecases.get_seat_batch_by_id(session, batch_id)
 
 
@@ -55,7 +55,7 @@ async def get_seat_batch_endpoint(
     "/batches",
     operation_id="search_seat_batches",
     summary="Search seat batches with filters",
-    response_model=VliAppResponse[SeatBatchSearchResponse],
+    response_model=SeatBatchSearchResponse,
 )
 @verify_service_admin([VLAB_SERVICE_ADMIN_GROUP])
 async def search_seat_batches_endpoint(
@@ -77,7 +77,7 @@ async def search_seat_batches_endpoint(
     ),
     session: AsyncSession = Depends(default_session_factory),
     auth: tuple[AuthUser, str] = Depends(verify_jwt),
-) -> VliAppResponse[SeatBatchSearchResponse]:
+) -> SeatBatchSearchResponse:
     return await usecases.search_seat_batches(
         session,
         course_id=course_id,

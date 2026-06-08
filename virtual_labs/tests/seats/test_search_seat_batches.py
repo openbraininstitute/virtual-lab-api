@@ -59,7 +59,7 @@ async def test_get_seat_batch_by_id(
         )
 
     assert response.status_code == 200
-    result = response.json()["data"]
+    result = response.json()
     assert "institution" in result
     assert "course" in result
     assert "batches" in result
@@ -88,7 +88,7 @@ async def test_get_seat_batch_includes_course_details(
         )
 
     assert response.status_code == 200
-    result = response.json()["data"]
+    result = response.json()
     course = result["course"]
     assert "virtual_lab_name" in course
     assert "virtual_lab_id" in course
@@ -114,7 +114,7 @@ async def test_get_seat_batch_includes_institution_details(
         )
 
     assert response.status_code == 200
-    result = response.json()["data"]
+    result = response.json()
     institution = result["institution"]
     assert institution["id"] == institution_id
     assert "name" in institution
@@ -171,7 +171,7 @@ async def test_search_seat_batches_by_course_id(
         )
 
     assert response.status_code == 200
-    result = response.json()["data"]
+    result = response.json()
     assert len(result["batches"]) == 2
     # Verify batch sizes
     sizes = sorted(b["number_of_seats"] for b in result["batches"])
@@ -198,7 +198,7 @@ async def test_search_seat_batches_by_institution_id(
         )
 
     assert response.status_code == 200
-    result = response.json()["data"]
+    result = response.json()
     assert len(result["batches"]) >= 1
     assert result["institution"]["id"] == institution_id
 
@@ -221,7 +221,7 @@ async def test_search_seat_batches_by_vlab_name(
         )
 
     assert response.status_code == 200
-    result = response.json()["data"]
+    result = response.json()
     assert len(result["batches"]) >= 1
 
 
@@ -244,7 +244,7 @@ async def test_search_seat_batches_by_institution_name(
         )
 
     assert response.status_code == 200
-    result = response.json()["data"]
+    result = response.json()
     assert len(result["batches"]) >= 1
 
 
@@ -303,7 +303,7 @@ async def test_search_seat_batches_by_created_after(
         )
 
     assert response.status_code == 200
-    result = response.json()["data"]
+    result = response.json()
     assert len(result["batches"]) >= 1
 
 

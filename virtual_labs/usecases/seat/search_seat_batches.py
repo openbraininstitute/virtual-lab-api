@@ -14,7 +14,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
-from virtual_labs.core.types import VliAppResponse
 from virtual_labs.domain.seat import (
     CourseSummary,
     InstitutionSummary,
@@ -28,7 +27,7 @@ from virtual_labs.infrastructure.db.models import Course, Institution, Seat, Vir
 async def get_seat_batch_by_id(
     db: AsyncSession,
     batch_id: UUID4,
-) -> VliAppResponse[SeatBatchSearchResponse]:
+) -> SeatBatchSearchResponse:
     """Get a specific batch of seats by batch_id."""
     result = await db.execute(
         select(Seat)
@@ -71,13 +70,10 @@ async def get_seat_batch_by_id(
         seats=seat_outputs,
     )
 
-    return VliAppResponse(
-        message="Seat batch found",
-        data=SeatBatchSearchResponse(
-            institution=institution_summary,
-            course=course_summary,
-            batches=[batch],
-        ),
+    return SeatBatchSearchResponse(
+        institution=institution_summary,
+        course=course_summary,
+        batches=[batch],
     )
 
 
@@ -90,7 +86,7 @@ async def search_seat_batches(
     institution_name: Optional[str] = None,
     created_after: Optional[datetime] = None,
     created_before: Optional[datetime] = None,
-) -> VliAppResponse[SeatBatchSearchResponse]:
+) -> SeatBatchSearchResponse:
     """Search seat batches with optional filters."""
     query = (
         select(Seat)
@@ -159,11 +155,8 @@ async def search_seat_batches(
             )
         )
 
-    return VliAppResponse(
-        message=f"Found {len(batches)} seat batch(es)",
-        data=SeatBatchSearchResponse(
-            institution=institution_summary,
-            course=course_summary,
-            batches=batches,
-        ),
+    return SeatBatchSearchResponse(
+        institution=institution_summary,
+        course=course_summary,
+        batches=batches,
     )
