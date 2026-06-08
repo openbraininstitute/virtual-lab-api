@@ -1106,9 +1106,13 @@ class Seat(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
-    vlab_id: Mapped[uuid.UUID] = mapped_column(
+    virtual_lab_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("virtual_lab.id"),
+    )
+    institution_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("institution.id"),
         nullable=False,
     )
     is_consumed: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -1120,3 +1124,4 @@ class Seat(Base):
     )
 
     virtual_lab = relationship("VirtualLab")
+    institution = relationship("Institution")
