@@ -32,18 +32,18 @@ async def test_update_draft_course_all_dates(
         response = await async_test_client.patch(
             f"/courses/{course_id}",
             json={
-                "start_date": "2026-09-01",
-                "end_date": "2026-12-15",
-                "last_drop_date": "2026-10-01",
+                "start_date": "2026-09-01T00:00:00Z",
+                "end_date": "2026-12-15T00:00:00Z",
+                "last_drop_date": "2026-09-14T00:00:00Z",
             },
             headers=headers,
         )
 
     assert response.status_code == 200
     data = response.json()["data"]
-    assert data["start_date"] == "2026-09-01"
-    assert data["end_date"] == "2026-12-15"
-    assert data["last_drop_date"] == "2026-10-01"
+    assert data["start_date"] == "2026-09-01T00:00:00"
+    assert data["end_date"] == "2026-12-15T00:00:00"
+    assert data["last_drop_date"] == "2026-09-14T00:00:00"
 
 
 @pytest.mark.asyncio
@@ -61,13 +61,13 @@ async def test_update_draft_course_partial(
         mock_kc.userinfo.side_effect = mock_admin_userinfo
         response = await async_test_client.patch(
             f"/courses/{course_id}",
-            json={"start_date": "2026-09-01"},
+            json={"start_date": "2026-09-01T00:00:00Z"},
             headers=headers,
         )
 
     assert response.status_code == 200
     data = response.json()["data"]
-    assert data["start_date"] == "2026-09-01"
+    assert data["start_date"] == "2026-09-01T00:00:00"
     assert data["end_date"] is None
     assert data["last_drop_date"] is None
 
@@ -118,9 +118,9 @@ async def test_update_active_course_fails(
         await async_test_client.patch(
             f"/courses/{course_id}",
             json={
-                "start_date": "2026-09-01",
-                "end_date": "2026-12-15",
-                "last_drop_date": "2026-10-01",
+                "start_date": "2026-09-01T00:00:00Z",
+                "end_date": "2026-12-15T00:00:00Z",
+                "last_drop_date": "2026-09-14T00:00:00Z",
             },
             headers=headers,
         )
@@ -129,7 +129,7 @@ async def test_update_active_course_fails(
         # Try to update
         response = await async_test_client.patch(
             f"/courses/{course_id}",
-            json={"start_date": "2027-01-01"},
+            json={"start_date": "2027-01-01T00:00:00Z"},
             headers=headers,
         )
 
@@ -155,7 +155,7 @@ async def test_update_voided_course_fails(
         # Try to update
         response = await async_test_client.patch(
             f"/courses/{course_id}",
-            json={"start_date": "2027-01-01"},
+            json={"start_date": "2027-01-01T00:00:00Z"},
             headers=headers,
         )
 
@@ -179,7 +179,7 @@ async def test_update_course_not_found(
         mock_kc.userinfo.side_effect = mock_admin_userinfo
         response = await async_test_client.patch(
             f"/courses/{uuid4()}",
-            json={"start_date": "2026-09-01"},
+            json={"start_date": "2026-09-01T00:00:00Z"},
             headers=headers,
         )
 
@@ -195,7 +195,7 @@ async def test_update_course_fails_without_auth(
 
     response = await async_test_client.patch(
         f"/courses/{course_id}",
-        json={"start_date": "2026-09-01"},
+        json={"start_date": "2026-09-01T00:00:00Z"},
         headers={"Content-Type": "application/json", "Authorization": ""},
     )
 
@@ -216,7 +216,7 @@ async def test_update_course_fails_for_non_admin(
         mock_kc.userinfo.side_effect = mock_non_admin_userinfo
         response = await async_test_client.patch(
             f"/courses/{course_id}",
-            json={"start_date": "2026-09-01"},
+            json={"start_date": "2026-09-01T00:00:00Z"},
             headers=headers,
         )
 

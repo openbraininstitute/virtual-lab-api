@@ -1,5 +1,5 @@
 import uuid
-from datetime import date, datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 from enum import Enum
 from typing import Any, Dict, Literal, Optional, TypedDict
@@ -10,7 +10,6 @@ from sqlalchemy import (
     Boolean,
     CheckConstraint,
     Column,
-    Date,
     DateTime,
     Float,
     ForeignKey,
@@ -1034,9 +1033,15 @@ class Course(Base):
         unique=True,
         index=True,
     )
-    start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
-    end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
-    last_drop_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    start_date: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    end_date: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    last_drop_date: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     status: Mapped[CourseStatus] = mapped_column(
         SAEnum(CourseStatus), nullable=False, default=CourseStatus.DRAFT, index=True
     )
@@ -1063,6 +1068,7 @@ class Course(Base):
 
     def activate(self) -> None:
         """Transition from draft to active. Requires all dates to be set and ordered."""
+
         self.ensure_mutable()
         missing = [
             name
@@ -1084,5 +1090,11 @@ class Course(Base):
             raise ValueError(
                 f"Cannot activate: dates must satisfy start_date < last_drop_date < end_date, "
                 f"got {self.start_date} / {self.last_drop_date} / {self.end_date}"
+            )
+        max_drop = self.start_date + timedelta(weeks=2)
+        if self.last_drop_date > max_drop:
+            raise ValueError(
+                f"Cannot activate: last_drop_date must be within 2 weeks of start_date, "
+                f"got {self.last_drop_date} but max allowed is {max_drop}"
             )
         self.status = CourseStatus.ACTIVE

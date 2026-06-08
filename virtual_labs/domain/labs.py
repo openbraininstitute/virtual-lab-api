@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import datetime
 from enum import Enum, StrEnum, auto
 from typing import Generic, Optional, TypeVar
 
@@ -29,9 +29,9 @@ class CourseDetails(BaseModel):
     virtual_lab_id: UUID4
     template_project_id: UUID4
     institution_id: Optional[UUID4] = None
-    start_date: Optional[date] = None
-    end_date: Optional[date] = None
-    last_drop_date: Optional[date] = None
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    last_drop_date: Optional[datetime] = None
 
 
 class VirtualLabBase(BaseModel):

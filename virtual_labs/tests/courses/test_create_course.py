@@ -115,9 +115,9 @@ async def test_course_creation_with_optional_dates(
 
     body = {
         **_make_course_payload(vlab_id, project_id, institution_id),
-        "start_date": "2026-09-01",
-        "end_date": "2026-12-15",
-        "last_drop_date": "2026-10-01",
+        "start_date": "2026-09-01T00:00:00Z",
+        "end_date": "2026-12-15T00:00:00Z",
+        "last_drop_date": "2026-09-14T00:00:00Z",
     }
 
     with patch(
@@ -128,9 +128,9 @@ async def test_course_creation_with_optional_dates(
 
     assert response.status_code == 200
     data = response.json()["data"]
-    assert data["start_date"] == "2026-09-01"
-    assert data["end_date"] == "2026-12-15"
-    assert data["last_drop_date"] == "2026-10-01"
+    assert data["start_date"] == "2026-09-01T00:00:00"
+    assert data["end_date"] == "2026-12-15T00:00:00"
+    assert data["last_drop_date"] == "2026-09-14T00:00:00"
 
     await cleanup_course(data["id"])
 

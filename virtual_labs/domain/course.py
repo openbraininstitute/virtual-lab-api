@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import datetime
 from typing import Optional
 
 from pydantic import UUID4, BaseModel, ConfigDict
@@ -10,17 +10,17 @@ class CourseCreateBody(BaseModel):
     virtual_lab_id: UUID4
     template_project_id: UUID4
     institution_id: UUID4
-    start_date: Optional[date] = None
-    end_date: Optional[date] = None
-    last_drop_date: Optional[date] = None
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    last_drop_date: Optional[datetime] = None
 
 
 class CourseUpdateBody(BaseModel):
     """Payload for updating a draft course."""
 
-    start_date: Optional[date] = None
-    end_date: Optional[date] = None
-    last_drop_date: Optional[date] = None
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    last_drop_date: Optional[datetime] = None
     institution_id: Optional[UUID4] = None
 
 
@@ -32,9 +32,9 @@ class CourseOut(BaseModel):
     institution_id: UUID4
     template_project_id: UUID4
     status: str
-    start_date: Optional[date] = None
-    end_date: Optional[date] = None
-    last_drop_date: Optional[date] = None
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    last_drop_date: Optional[datetime] = None
 
 
 class CourseDetailOut(BaseModel):
@@ -49,6 +49,6 @@ class CourseDetailOut(BaseModel):
     institution_name: str
     template_project_id: UUID4
     status: str
-    start_date: Optional[date] = None
-    end_date: Optional[date] = None
-    last_drop_date: Optional[date] = None
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    last_drop_date: Optional[datetime] = None

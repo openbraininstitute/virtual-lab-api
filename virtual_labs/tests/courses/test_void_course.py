@@ -23,9 +23,9 @@ async def _set_course_dates(async_test_client: AsyncClient, course_id: str) -> N
         response = await async_test_client.patch(
             f"/courses/{course_id}",
             json={
-                "start_date": "2026-09-01",
-                "end_date": "2026-12-15",
-                "last_drop_date": "2026-10-01",
+                "start_date": "2026-09-01T00:00:00Z",
+                "end_date": "2026-12-15T00:00:00Z",
+                "last_drop_date": "2026-09-14T00:00:00Z",
             },
             headers=headers,
         )
