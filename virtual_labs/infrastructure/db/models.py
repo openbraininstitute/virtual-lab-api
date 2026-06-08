@@ -1106,9 +1106,10 @@ class Seat(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
-    virtual_lab_id: Mapped[uuid.UUID | None] = mapped_column(
+    course_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("virtual_lab.id"),
+        ForeignKey("course.id"),
+        nullable=False,
     )
     institution_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -1126,5 +1127,5 @@ class Seat(Base):
         DateTime(timezone=True), nullable=False
     )
 
-    virtual_lab = relationship("VirtualLab")
+    course = relationship("Course")
     institution = relationship("Institution")

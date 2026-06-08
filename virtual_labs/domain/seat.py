@@ -6,7 +6,7 @@ from pydantic import UUID4, BaseModel, ConfigDict, Field
 class ProvisionSeatsBody(BaseModel):
     """Payload for provisioning seats for a virtual lab."""
 
-    virtual_lab_id: UUID4
+    course_id: UUID4
     number_of_seats: int = Field(..., gt=0)
 
 
@@ -14,7 +14,7 @@ class SeatOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID4
-    virtual_lab_id: UUID4 | None
+    course_id: UUID4
     institution_id: UUID4
     batch_id: UUID4
     is_consumed: bool

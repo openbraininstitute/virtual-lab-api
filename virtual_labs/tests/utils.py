@@ -227,9 +227,13 @@ async def cleanup_resources(
                 delete(UserPreference).where(UserPreference.project_id == project_id)
             )
 
-        # Delete seats before course (seat has FK to virtual_lab)
+        # Delete seats before course (seat has FK to course)
         await session.execute(
-            statement=delete(Seat).where(Seat.virtual_lab_id == UUID(lab_id))
+            statement=delete(Seat).where(
+                Seat.course_id.in_(
+                    select(Course.id).where(Course.virtual_lab_id == lab_id)
+                )
+            )
         )
 
         # Delete course before projects (course has FK to project via template_project_id)

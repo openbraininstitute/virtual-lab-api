@@ -28,9 +28,9 @@ from virtual_labs.tests.utils import (
 # ──────────────────────────────────────────────────────────────────────
 
 
-async def cleanup_seats(vlab_id: str) -> None:
+async def cleanup_seats(course_id: str) -> None:
     async with session_context_factory() as session:
-        await session.execute(delete(Seat).where(Seat.virtual_lab_id == UUID(vlab_id)))
+        await session.execute(delete(Seat).where(Seat.course_id == UUID(course_id)))
         await session.commit()
 
 
@@ -45,11 +45,11 @@ async def institution_id() -> str:
 
 
 @pytest_asyncio.fixture
-async def vlab_with_course(
+async def course_for_seats(
     async_test_client: AsyncClient,
     institution_id: str,
 ) -> AsyncGenerator[str, None]:
-    """Create a virtual lab with a course. Returns the vlab_id."""
+    """Create a virtual lab with a course. Returns the course_id."""
     lab_data, project_id = await create_mock_lab_with_project(async_test_client)
     lab_id = lab_data["id"]
 
@@ -79,21 +79,8 @@ async def vlab_with_course(
     assert response.status_code == 200
     course_id = response.json()["data"]["id"]
 
-    yield lab_id
+    yield course_id
 
-    await cleanup_seats(lab_id)
+    await cleanup_seats(course_id)
     await cleanup_course(course_id)
-    await cleanup_resources(async_test_client, lab_id)
-
-
-@pytest_asyncio.fixture
-async def vlab_without_course(
-    async_test_client: AsyncClient,
-) -> AsyncGenerator[str, None]:
-    """Create a virtual lab WITHOUT a course. Returns the vlab_id."""
-    lab_data, _ = await create_mock_lab_with_project(async_test_client)
-    lab_id = lab_data["id"]
-
-    yield lab_id
-
     await cleanup_resources(async_test_client, lab_id)

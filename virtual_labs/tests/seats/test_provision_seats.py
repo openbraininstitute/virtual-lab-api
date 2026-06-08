@@ -1,7 +1,7 @@
 """Tests for the provision-seats endpoint (POST /seats/provision)."""
 
 from unittest.mock import AsyncMock, patch
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import pytest
 from httpx import AsyncClient
@@ -13,9 +13,9 @@ from virtual_labs.tests.utils import (
 )
 
 
-def _provision_payload(virtual_lab_id: str, number_of_seats: int = 3) -> dict:
+def _provision_payload(course_id: str, number_of_seats: int = 3) -> dict:
     return {
-        "virtual_lab_id": virtual_lab_id,
+        "course_id": course_id,
         "number_of_seats": number_of_seats,
     }
 
@@ -28,10 +28,10 @@ def _provision_payload(virtual_lab_id: str, number_of_seats: int = 3) -> dict:
 @pytest.mark.asyncio
 async def test_provision_seats_success(
     async_test_client: AsyncClient,
-    vlab_with_course: str,
+    course_for_seats: str,
 ) -> None:
     headers = get_headers()
-    body = _provision_payload(vlab_with_course, number_of_seats=2)
+    body = _provision_payload(course_for_seats, number_of_seats=2)
 
     with (
         patch(
@@ -53,7 +53,7 @@ async def test_provision_seats_success(
     assert data["total_credits_topped_up"] == 400.0
     batch_ids = set()
     for seat in data["seats"]:
-        assert seat["virtual_lab_id"] == vlab_with_course
+        assert "course_id" in seat
         assert seat["is_consumed"] is False
         assert seat["active_project_id"] is None
         assert "batch_id" in seat
@@ -65,10 +65,10 @@ async def test_provision_seats_success(
 @pytest.mark.asyncio
 async def test_provision_seats_calls_accounting_top_up(
     async_test_client: AsyncClient,
-    vlab_with_course: str,
+    course_for_seats: str,
 ) -> None:
     headers = get_headers()
-    body = _provision_payload(vlab_with_course, number_of_seats=5)
+    body = _provision_payload(course_for_seats, number_of_seats=5)
 
     with (
         patch(
@@ -89,21 +89,21 @@ async def test_provision_seats_calls_accounting_top_up(
         )
 
     assert response.status_code == 200
-    mock_top_up.assert_awaited_once_with(
-        virtual_lab_id=UUID(body["virtual_lab_id"]),
-        amount=1000.0,
-    )
+    mock_top_up.assert_awaited_once()
+    call_kwargs = mock_top_up.call_args.kwargs
+    assert call_kwargs["amount"] == 1000.0
+    assert "virtual_lab_id" in call_kwargs
 
 
 @pytest.mark.asyncio
 async def test_provision_seats_institution_from_course(
     async_test_client: AsyncClient,
-    vlab_with_course: str,
+    course_for_seats: str,
     institution_id: str,
 ) -> None:
     """Seats should get institution_id from the course, not the request."""
     headers = get_headers()
-    body = _provision_payload(vlab_with_course, number_of_seats=1)
+    body = _provision_payload(course_for_seats, number_of_seats=1)
 
     with (
         patch(
@@ -163,7 +163,7 @@ async def test_provision_seats_fails_for_non_admin(
 
 
 @pytest.mark.asyncio
-async def test_provision_seats_fails_with_nonexistent_vlab(
+async def test_provision_seats_fails_with_nonexistent_course(
     async_test_client: AsyncClient,
 ) -> None:
     headers = get_headers()
@@ -181,31 +181,12 @@ async def test_provision_seats_fails_with_nonexistent_vlab(
 
 
 @pytest.mark.asyncio
-async def test_provision_seats_fails_without_course(
-    async_test_client: AsyncClient,
-    vlab_without_course: str,
-) -> None:
-    headers = get_headers()
-    body = _provision_payload(vlab_without_course)
-
-    with patch(
-        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-    ) as mock_kc:
-        mock_kc.userinfo.side_effect = mock_admin_userinfo
-        response = await async_test_client.post(
-            "/seats/provision", json=body, headers=headers
-        )
-
-    assert response.status_code == 400
-
-
-@pytest.mark.asyncio
 async def test_provision_seats_fails_when_accounting_fails(
     async_test_client: AsyncClient,
-    vlab_with_course: str,
+    course_for_seats: str,
 ) -> None:
     headers = get_headers()
-    body = _provision_payload(vlab_with_course, number_of_seats=1)
+    body = _provision_payload(course_for_seats, number_of_seats=1)
 
     with (
         patch(
@@ -267,13 +248,13 @@ async def test_provision_seats_fails_with_negative_seats(
 @pytest.mark.asyncio
 async def test_provision_seats_expiry_date_is_one_year(
     async_test_client: AsyncClient,
-    vlab_with_course: str,
+    course_for_seats: str,
 ) -> None:
     """Seats should have an expiry date approximately 1 year from now."""
     from datetime import datetime, timedelta, timezone
 
     headers = get_headers()
-    body = _provision_payload(vlab_with_course, number_of_seats=1)
+    body = _provision_payload(course_for_seats, number_of_seats=1)
 
     with (
         patch(

@@ -1,4 +1,4 @@
-"""Provision seats for a virtual lab.
+"""Provision seats for a course.
 
 Creates the requested number of seat records and tops up the virtual lab
 budget via the accounting service.
@@ -11,42 +11,39 @@ from datetime import datetime, timedelta, timezone
 from http import HTTPStatus
 
 from loguru import logger
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.types import VliAppResponse
 from virtual_labs.domain.seat import ProvisionSeatsBody, ProvisionSeatsResponse, SeatOut
-from virtual_labs.infrastructure.db.models import Seat
+from virtual_labs.infrastructure.db.models import Course, Seat
 from virtual_labs.infrastructure.settings import settings
 from virtual_labs.usecases import accounting as accounting_cases
-from virtual_labs.usecases.labs.get_virtual_lab_or_raise import (
-    get_virtual_lab_or_raise,
-)
 
 
 async def provision_seats(
     db: AsyncSession,
     payload: ProvisionSeatsBody,
 ) -> VliAppResponse[ProvisionSeatsResponse]:
-    # 1. Validate virtual lab exists and is not deleted
-    vlab = await get_virtual_lab_or_raise(db, payload.virtual_lab_id)
-
-    # 2. Check that the virtual lab has an associated course
-    if not vlab.course:
+    # 1. Validate course exists
+    result = await db.execute(select(Course).where(Course.id == payload.course_id))
+    course = result.scalar_one_or_none()
+    if course is None:
         raise VliError(
-            error_code=VliErrorCode.NOT_ALLOWED_OP,
-            http_status_code=HTTPStatus.BAD_REQUEST,
-            message="Virtual lab does not have an associated course",
+            error_code=VliErrorCode.ENTITY_NOT_FOUND,
+            http_status_code=HTTPStatus.NOT_FOUND,
+            message=f"Course {payload.course_id} not found. Cannot provision seats without a valid course.",
         )
 
-    # 3. Create seat records
+    # 2. Create seat records
     batch_id = uuid.uuid4()
     expiry_date = datetime.now(timezone.utc) + timedelta(days=settings.SEAT_EXPIRY_DAYS)
     seats: list[Seat] = []
     for _ in range(payload.number_of_seats):
         seat = Seat(
-            virtual_lab_id=payload.virtual_lab_id,
-            institution_id=vlab.course.institution_id,
+            course_id=course.id,
+            institution_id=course.institution_id,
             batch_id=batch_id,
             expiry_date=expiry_date,
         )
@@ -55,28 +52,28 @@ async def provision_seats(
 
     await db.flush()
 
-    # 4. Top up the virtual lab budget
+    # 3. Top up the virtual lab budget
     total_credits = payload.number_of_seats * settings.CREDITS_PER_SEAT
 
     if settings.ACCOUNTING_BASE_URL is not None:
         try:
             await accounting_cases.top_up_virtual_lab_budget(
-                virtual_lab_id=payload.virtual_lab_id,
+                virtual_lab_id=course.virtual_lab_id,
                 amount=total_credits,
             )
             logger.info(
-                f"Topped up vlab {payload.virtual_lab_id} with {total_credits} credits "
-                f"for {payload.number_of_seats} seats"
+                f"Topped up vlab {course.virtual_lab_id} with {total_credits} credits "
+                f"for {payload.number_of_seats} seats (course {course.id})"
             )
         except Exception as ex:
             logger.error(
-                f"Failed to top up vlab {payload.virtual_lab_id} "
-                f"for seat provisioning: {ex}"
+                f"Failed to top up vlab {course.virtual_lab_id} "
+                f"for seat provisioning (course {course.id}): {ex}"
             )
             raise VliError(
                 error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
                 http_status_code=HTTPStatus.BAD_GATEWAY,
-                message="Failed to top up virtual lab budget via accounting service",
+                message=f"Failed to top up virtual lab budget for course {course.id}",
                 details=str(ex),
             ) from ex
 
