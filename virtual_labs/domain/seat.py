@@ -38,6 +38,10 @@ class ProvisionSeatsResponse(BaseModel):
     total_credits_topped_up: float
 
 
+class ListSeatsResponse(BaseModel):
+    seats: list[SeatOut]
+
+
 # ──────────────────────────────────────────────────────────────────────
 # Batch search response schemas
 # ──────────────────────────────────────────────────────────────────────
