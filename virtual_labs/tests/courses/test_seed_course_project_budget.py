@@ -1,11 +1,11 @@
-"""Tests for seed_course_project_budget logic."""
+"""Tests for seed_course_project_budget in create_course module."""
 
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
 
-from virtual_labs.usecases.project.create_new_project import seed_course_project_budget
+from virtual_labs.usecases.course.create_course import seed_course_project_budget
 
 
 def _make_virtual_lab(*, has_course: bool) -> MagicMock:
@@ -16,8 +16,8 @@ def _make_virtual_lab(*, has_course: bool) -> MagicMock:
 
 
 @pytest.mark.asyncio
-@patch("virtual_labs.usecases.project.create_new_project.settings")
-@patch("virtual_labs.usecases.project.create_new_project.accounting_cases")
+@patch("virtual_labs.usecases.course.create_course.settings")
+@patch("virtual_labs.usecases.course.create_course.accounting_cases")
 async def test_tops_up_and_assigns_when_vlab_has_course(
     mock_accounting: MagicMock,
     mock_settings: MagicMock,
@@ -44,8 +44,8 @@ async def test_tops_up_and_assigns_when_vlab_has_course(
 
 
 @pytest.mark.asyncio
-@patch("virtual_labs.usecases.project.create_new_project.settings")
-@patch("virtual_labs.usecases.project.create_new_project.accounting_cases")
+@patch("virtual_labs.usecases.course.create_course.settings")
+@patch("virtual_labs.usecases.course.create_course.accounting_cases")
 async def test_skips_when_vlab_has_no_course(
     mock_accounting: MagicMock,
     mock_settings: MagicMock,
@@ -65,8 +65,8 @@ async def test_skips_when_vlab_has_no_course(
 
 
 @pytest.mark.asyncio
-@patch("virtual_labs.usecases.project.create_new_project.settings")
-@patch("virtual_labs.usecases.project.create_new_project.accounting_cases")
+@patch("virtual_labs.usecases.course.create_course.settings")
+@patch("virtual_labs.usecases.course.create_course.accounting_cases")
 async def test_skips_when_accounting_url_not_configured(
     mock_accounting: MagicMock,
     mock_settings: MagicMock,
@@ -86,8 +86,8 @@ async def test_skips_when_accounting_url_not_configured(
 
 
 @pytest.mark.asyncio
-@patch("virtual_labs.usecases.project.create_new_project.settings")
-@patch("virtual_labs.usecases.project.create_new_project.accounting_cases")
+@patch("virtual_labs.usecases.course.create_course.settings")
+@patch("virtual_labs.usecases.course.create_course.accounting_cases")
 async def test_returns_false_on_accounting_failure(
     mock_accounting: MagicMock,
     mock_settings: MagicMock,
