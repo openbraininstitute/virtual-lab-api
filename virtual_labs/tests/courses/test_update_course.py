@@ -41,9 +41,9 @@ async def test_update_draft_course_all_dates(
 
     assert response.status_code == 200
     data = response.json()["data"]
-    assert data["start_date"] == "2026-09-01T00:00:00"
-    assert data["end_date"] == "2026-12-15T00:00:00"
-    assert data["last_drop_date"] == "2026-09-14T00:00:00"
+    assert data["start_date"] == "2026-09-01T00:00:00Z"
+    assert data["end_date"] == "2026-12-15T00:00:00Z"
+    assert data["last_drop_date"] == "2026-09-14T00:00:00Z"
 
 
 @pytest.mark.asyncio
@@ -67,7 +67,7 @@ async def test_update_draft_course_partial(
 
     assert response.status_code == 200
     data = response.json()["data"]
-    assert data["start_date"] == "2026-09-01T00:00:00"
+    assert data["start_date"] == "2026-09-01T00:00:00Z"
     assert data["end_date"] is None
     assert data["last_drop_date"] is None
 
