@@ -210,6 +210,24 @@ async def test_provision_seats_fails_when_accounting_fails(
 
 
 @pytest.mark.asyncio
+async def test_provision_seats_fails_when_exceeding_max_batch_size(
+    async_test_client: AsyncClient,
+) -> None:
+    headers = get_headers()
+    body = _provision_payload(str(uuid4()), number_of_seats=101)
+
+    with patch(
+        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
+    ) as mock_kc:
+        mock_kc.userinfo.side_effect = mock_admin_userinfo
+        response = await async_test_client.post(
+            "/seats/provision", json=body, headers=headers
+        )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
 async def test_provision_seats_fails_with_zero_seats(
     async_test_client: AsyncClient,
 ) -> None:

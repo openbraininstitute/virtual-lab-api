@@ -12,7 +12,7 @@ class ProvisionSeatsBody(BaseModel):
     """Payload for provisioning seats for a course."""
 
     course_id: UUID4
-    number_of_seats: int = Field(..., gt=0)
+    number_of_seats: int = Field(..., gt=0, le=100)
 
 
 # ──────────────────────────────────────────────────────────────────────
