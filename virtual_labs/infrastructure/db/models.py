@@ -1098,3 +1098,25 @@ class Course(Base):
                 f"got {self.last_drop_date} but max allowed is {max_drop}"
             )
         self.status = CourseStatus.ACTIVE
+
+
+class Seat(Base):
+    __tablename__ = "seat"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    vlab_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("virtual_lab.id"),
+        nullable=False,
+    )
+    is_consumed: Mapped[bool] = mapped_column(Boolean, default=False)
+    active_project_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), unique=True
+    )
+    expiry_date: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+
+    virtual_lab = relationship("VirtualLab")
