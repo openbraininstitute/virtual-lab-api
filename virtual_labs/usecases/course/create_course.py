@@ -11,6 +11,7 @@ from http import HTTPStatus
 from uuid import UUID
 
 from loguru import logger
+from pydantic import UUID4
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -26,7 +27,7 @@ from virtual_labs.infrastructure.db.models import (
 )
 from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.infrastructure.settings import settings
-from virtual_labs.usecases.project.create_new_project import seed_course_project_budget
+from virtual_labs.usecases import accounting as accounting_cases
 
 
 async def _validate_virtual_lab(db: AsyncSession, virtual_lab_id: UUID) -> VirtualLab:
@@ -72,6 +73,44 @@ async def _validate_project(
             message=(f"Project {project_id} not found in virtual lab {virtual_lab_id}"),
         )
     return project
+
+
+async def seed_course_project_budget(
+    virtual_lab: VirtualLab,
+    *,
+    project_id: UUID4,
+) -> bool:
+    """Top-up the course vlab and assign credits to the new project.
+
+    Only applies when the virtual lab is linked to a course. Best-effort:
+    failures are logged but do not roll back project creation.
+    """
+    if settings.ACCOUNTING_BASE_URL is None:
+        return False
+
+    if not virtual_lab.course:
+        return False
+
+    course_project_credits = 200.0
+
+    try:
+        await accounting_cases.top_up_virtual_lab_budget(
+            virtual_lab_id=virtual_lab.id,
+            amount=course_project_credits,
+        )
+        await accounting_cases.assign_project_budget(
+            virtual_lab_id=virtual_lab.id,
+            project_id=project_id,
+            amount=course_project_credits,
+        )
+        logger.info(
+            f"Assigned {course_project_credits} course credits to "
+            f"project {project_id} in vlab {virtual_lab.id}"
+        )
+        return True
+    except Exception as ex:  # noqa: BLE001
+        logger.error(f"Failed to seed course budget for project {project_id}: {ex}")
+        return False
 
 
 async def create_course(

@@ -377,44 +377,6 @@ async def seed_initial_project_budget(
         return False
 
 
-async def seed_course_project_budget(
-    virtual_lab: VirtualLab,
-    *,
-    project_id: UUID4,
-) -> bool:
-    """Top-up the course vlab and assign credits to the new project.
-
-    Only applies when the virtual lab is linked to a course. Best-effort:
-    failures are logged but do not roll back project creation.
-    """
-    if settings.ACCOUNTING_BASE_URL is None:
-        return False
-
-    if not virtual_lab.course:
-        return False
-
-    course_project_credits = 200.0
-
-    try:
-        await accounting_cases.top_up_virtual_lab_budget(
-            virtual_lab_id=virtual_lab.id,
-            amount=course_project_credits,
-        )
-        await accounting_cases.assign_project_budget(
-            virtual_lab_id=virtual_lab.id,
-            project_id=project_id,
-            amount=course_project_credits,
-        )
-        logger.info(
-            f"Assigned {course_project_credits} course credits to "
-            f"project {project_id} in vlab {virtual_lab.id}"
-        )
-        return True
-    except Exception as ex:  # noqa: BLE001
-        logger.error(f"Failed to seed course budget for project {project_id}: {ex}")
-        return False
-
-
 async def create_new_project_use_case(
     session: AsyncSession,
     *,
@@ -490,12 +452,6 @@ async def create_new_project_use_case(
         virtual_lab_id=virtual_lab_id,
         project_id=project_draft_id,
         owned_count=owned_count,
-    )
-
-    # Course projects get budget if they have capacity
-    await seed_course_project_budget(
-        virtual_lab,
-        project_id=project_draft_id,
     )
 
     project_admins = list({*(vlab_admin_users or []), str(user_id)})
