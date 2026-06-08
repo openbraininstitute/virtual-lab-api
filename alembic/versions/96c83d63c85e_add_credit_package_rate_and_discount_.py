@@ -1,8 +1,8 @@
-"""add credit_package_rate table and migrate from credit_exchange_rate
+"""add credit package rate and discount fields
 
-Revision ID: a3d7f2c19e84
+Revision ID: 96c83d63c85e
 Revises: 80f793ed56d5
-Create Date: 2026-05-18 10:00:00.000000
+Create Date: 2026-06-08 11:21:20.898319
 
 """
 
@@ -13,14 +13,13 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "a3d7f2c19e84"
+revision: str = "96c83d63c85e"
 down_revision: Union[str, None] = "80f793ed56d5"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # 1. Create the new credit_package_rate table
     op.create_table(
         "credit_package_rate",
         sa.Column(
@@ -38,11 +37,7 @@ def upgrade() -> None:
             server_default=sa.text("now()"),
             nullable=True,
         ),
-        sa.Column(
-            "deactivated_at",
-            sa.DateTime(timezone=True),
-            nullable=True,
-        ),
+        sa.Column("deactivated_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -67,7 +62,7 @@ def upgrade() -> None:
             name="check_discount_pct_range",
         ),
     )
-    # Partial unique index: no overlapping active ranges for the same currency
+    # partial unique index: no overlapping active ranges for the same currency
     op.create_index(
         "uq_credit_package_rate_currency_min",
         "credit_package_rate",
@@ -76,8 +71,9 @@ def upgrade() -> None:
         postgresql_where=sa.text("active = true"),
     )
 
-    # 2. Migrate data from credit_exchange_rate → credit_package_rate
-    # Each existing flat rate becomes a catch-all row (min=1, max=NULL, discount=0)
+    # migrate data: each existing flat rate becomes a catch-all row
+    # (min=1, max=NULL, discount=0). Autogenerate only diffs schema, so this
+    # data copy must be written by hand.
     op.execute(
         """
         INSERT INTO credit_package_rate (currency, min_credits, max_credits, rate, discount_pct, active)
@@ -86,18 +82,21 @@ def upgrade() -> None:
         """
     )
 
-    # 3. Drop the old table
+    # drop the old flat-rate table.
+    op.drop_index(
+        op.f("ix_credit_exchange_rate_currency"), table_name="credit_exchange_rate"
+    )
     op.drop_table("credit_exchange_rate")
 
-    # 4. Add credit_package_rate_id to billing_quote to persist the rate tier applied
+    # persist the applied rate tier + discount + quoted credit count on the
+    # quote so standalone fulfillment grants exactly what was quoted.
     op.add_column(
-        "billing_quote",
-        sa.Column("discount_pct", sa.Integer(), server_default="0", nullable=True),
+        "billing_quote", sa.Column("discount_pct", sa.Integer(), nullable=True)
     )
     op.add_column(
-        "billing_quote",
-        sa.Column("credit_package_rate_id", sa.UUID(), nullable=True),
+        "billing_quote", sa.Column("credit_package_rate_id", sa.UUID(), nullable=True)
     )
+    op.add_column("billing_quote", sa.Column("credits", sa.Integer(), nullable=True))
     op.create_foreign_key(
         "fk_billing_quote_credit_package_rate",
         "billing_quote",
@@ -108,28 +107,32 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    # 1. Remove discount columns from billing_quote
     op.drop_constraint(
         "fk_billing_quote_credit_package_rate", "billing_quote", type_="foreignkey"
     )
+    op.drop_column("billing_quote", "credits")
     op.drop_column("billing_quote", "credit_package_rate_id")
     op.drop_column("billing_quote", "discount_pct")
 
-    # 2. Recreate credit_exchange_rate
     op.create_table(
         "credit_exchange_rate",
-        sa.Column("currency", sa.String(), nullable=False),
-        sa.Column("rate", sa.Numeric(precision=10, scale=6), nullable=False),
-        sa.Column("description", sa.String(), nullable=True),
-        sa.PrimaryKeyConstraint("currency"),
+        sa.Column("currency", sa.VARCHAR(), autoincrement=False, nullable=False),
+        sa.Column(
+            "rate",
+            sa.NUMERIC(precision=10, scale=6),
+            autoincrement=False,
+            nullable=False,
+        ),
+        sa.Column("description", sa.VARCHAR(), autoincrement=False, nullable=True),
+        sa.PrimaryKeyConstraint("currency", name=op.f("credit_exchange_rate_pkey")),
     )
     op.create_index(
-        "ix_credit_exchange_rate_currency",
+        op.f("ix_credit_exchange_rate_currency"),
         "credit_exchange_rate",
         ["currency"],
+        unique=False,
     )
 
-    # 2. Migrate back: take the base rate (min_credits=1) from each currency
     op.execute(
         """
         INSERT INTO credit_exchange_rate (currency, rate)
@@ -139,8 +142,9 @@ def downgrade() -> None:
         """
     )
 
-    # 3. Drop credit_package_rate
     op.drop_index(
-        "uq_credit_package_rate_currency_min", table_name="credit_package_rate"
+        "uq_credit_package_rate_currency_min",
+        table_name="credit_package_rate",
+        postgresql_where=sa.text("active = true"),
     )
     op.drop_table("credit_package_rate")

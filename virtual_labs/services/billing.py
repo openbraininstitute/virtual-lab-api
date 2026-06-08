@@ -215,6 +215,7 @@ class BillingQuoteService:
             stripe_tax_calculation_id=stripe_tax_calculation_id,
             discount_pct=discount_pct,
             credit_package_rate_id=credit_package_rate_id,
+            credits=payload.credits,
             expires_at=quote_expires_at_end_of_today(),
         )
         self.session.add(quote)

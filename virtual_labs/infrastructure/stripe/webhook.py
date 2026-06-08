@@ -962,7 +962,7 @@ class StripeWebhook:
             metadata,
             default_currency=DEFAULT_CURRENCY,
         )
-        await self._apply_standalone_amounts_and_tax(
+        quote = await self._apply_standalone_amounts_and_tax(
             payment, amounts, metadata, db_session
         )
 
@@ -970,10 +970,16 @@ class StripeWebhook:
 
         # success-only credit conversion + accounting top-up
         if payment.status == PaymentStatus.SUCCEEDED:
-            credits = await self.credit_converter.currency_to_credits(
-                amounts.subtotal, payment.currency
-            )
-            payment.credits_purchased = int(credits)
+            # the quote persists the authoritative credit count, grant exactly that
+            if quote is not None and quote.credits is not None:
+                credits = quote.credits
+            else:
+                credits = int(
+                    await self.credit_converter.currency_to_credits(
+                        amounts.subtotal, payment.currency
+                    )
+                )
+            payment.credits_purchased = credits
             # commit the tax calculation as a Stripe Tax Transaction so the
             # tax shows up in the dashboard. Subscriptions get this for free
             # via `automatic_tax`; standalone PaymentIntents must commit
@@ -1092,7 +1098,7 @@ class StripeWebhook:
         amounts: PaymentIntentAmounts,
         metadata: dict[str, str],
         db_session: AsyncSession,
-    ) -> None:
+    ) -> BillingQuote | None:
         payment.amount_paid = amounts.total
         payment.amount_subtotal = amounts.subtotal
         payment.amount_tax = amounts.tax
@@ -1114,15 +1120,16 @@ class StripeWebhook:
 
         billing_quote_id = metadata.get("billing_quote_id")
         if not billing_quote_id:
-            return
+            return None
         quote = await db_session.get(BillingQuote, UUID(str(billing_quote_id)))
         payment.billing_quote_id = UUID(str(billing_quote_id))
         if quote is None:
-            return
+            return None
         payment.billing_address_json = quote.billing_address_json
         payment.stripe_tax_calculation_id = (
             quote.stripe_tax_calculation_id or payment.stripe_tax_calculation_id
         )
+        return quote
 
     # Stripe API helpers
     async def _fetch_subscription(

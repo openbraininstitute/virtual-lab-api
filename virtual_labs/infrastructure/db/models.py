@@ -621,6 +621,7 @@ class BillingQuote(Base):
     credit_package_rate_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("credit_package_rate.id"), nullable=True
     )
+    credits: Mapped[int | None] = mapped_column(Integer, nullable=True)
     expires_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
     )
@@ -713,13 +714,7 @@ class StripeUser(Base):
 
 
 class CreditPackageRate(Base):
-    """Volume-based credit pricing.
-
-    Each row defines the unit price for a credit quantity band.
-    A single catch-all row (min_credits=1, max_credits=NULL) reproduces
-    flat pricing. Multiple rows with non-overlapping ranges provide
-    volume discounts.
-    """
+    """Volume-based credit pricing."""
 
     __tablename__ = "credit_package_rate"
     __table_args__ = (

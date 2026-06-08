@@ -3,6 +3,7 @@
 from decimal import Decimal
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -11,13 +12,16 @@ from virtual_labs.services.credit_converter import CreditConverter
 
 def _make_tier(
     *,
+    id: UUID | None = None,
     currency: str = "chf",
     min_credits: int = 1,
     max_credits: int | None = None,
     rate: Decimal = Decimal("0.10"),
     discount_pct: int = 0,
 ) -> SimpleNamespace:
+    # Mirror a persisted CreditPackageRate row: it always carries a UUID id.
     return SimpleNamespace(
+        id=id if id is not None else uuid4(),
         currency=currency,
         min_credits=min_credits,
         max_credits=max_credits,
@@ -51,8 +55,9 @@ async def test_flat_rate_conversion(mock_repo: AsyncMock) -> None:
 @pytest.mark.asyncio
 async def test_volume_discount_conversion(mock_repo: AsyncMock) -> None:
     """Volume tier: 2000 credits × 0.09 × 100 = 18000 cents."""
+    tier_id = uuid4()
     mock_repo.get_rate_for_credits = AsyncMock(
-        return_value=_make_tier(rate=Decimal("0.09"), discount_pct=10)
+        return_value=_make_tier(id=tier_id, rate=Decimal("0.09"), discount_pct=10)
     )
     converter = CreditConverter(package_rate_repo=mock_repo)
 
@@ -62,6 +67,8 @@ async def test_volume_discount_conversion(mock_repo: AsyncMock) -> None:
     assert result.rate == Decimal("0.09")
     assert result.discount_pct == 10
     assert result.base_rate == Decimal("0.10")
+    # the resolved tier's id is surfaced so the quote can link back to it
+    assert result.credit_package_rate_id == tier_id
 
 
 @pytest.mark.asyncio

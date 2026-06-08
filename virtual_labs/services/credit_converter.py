@@ -68,7 +68,7 @@ class CreditConverter:
             rate=tier.rate,
             discount_pct=tier.discount_pct,
             base_rate=base_rate or tier.rate,
-            credit_package_rate_id=UUID(str(tier.id)) if hasattr(tier, "id") else None,
+            credit_package_rate_id=tier.id,
         )
 
     async def currency_to_credits(self, amount: int, currency: str) -> Decimal:

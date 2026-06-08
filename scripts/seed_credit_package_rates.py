@@ -30,7 +30,7 @@ from decimal import Decimal
 from datetime import datetime, timezone
 
 from dotenv import load_dotenv
-from sqlalchemy import delete, select, text
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -40,9 +40,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from virtual_labs.infrastructure.db.models import CreditPackageRate  # noqa: E402
 
 
-# ---------------------------------------------------------------------------
-# Tier definitions
-# ---------------------------------------------------------------------------
 
 @dataclass(frozen=True)
 class TierDef:
@@ -69,9 +66,6 @@ CHF_FLAT_TIER: list[TierDef] = [
 ]
 
 
-# ---------------------------------------------------------------------------
-# Logic
-# ---------------------------------------------------------------------------
 
 async def seed_rates(
     database_url: str,
@@ -122,11 +116,14 @@ async def seed_rates(
                 print("\n  [DRY-RUN] No changes applied. Pass --apply to write.\n")
                 return
 
-            # Delete existing rows for this currency
+
             await session.execute(
-                delete(CreditPackageRate).where(
-                    CreditPackageRate.currency == currency
+                update(CreditPackageRate)
+                .where(
+                    CreditPackageRate.currency == currency,
+                    CreditPackageRate.active.is_(True),
                 )
+                .values(active=False, deactivated_at=datetime.now(timezone.utc))
             )
 
             # Insert new tiers
@@ -149,10 +146,6 @@ async def seed_rates(
     finally:
         await engine.dispose()
 
-
-# ---------------------------------------------------------------------------
-# CLI
-# ---------------------------------------------------------------------------
 
 def main() -> None:
     load_dotenv(".env.local")
