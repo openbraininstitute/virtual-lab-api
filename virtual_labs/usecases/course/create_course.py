@@ -82,7 +82,7 @@ async def seed_course_project_budget(
     if not virtual_lab.course:
         return False
 
-    course_project_credits = 200.0
+    course_project_credits = settings.CREDITS_PER_SEAT
 
     try:
         await accounting_cases.top_up_virtual_lab_budget(
