@@ -8,11 +8,12 @@ from httpx import AsyncClient
 from sqlalchemy import select
 
 from virtual_labs.infrastructure.db.models import VirtualLab
-from virtual_labs.tests.courses.conftest import (
+from virtual_labs.tests.utils import (
+    get_headers,
     mock_admin_userinfo,
     mock_non_admin_userinfo,
+    session_context_factory,
 )
-from virtual_labs.tests.utils import get_headers, session_context_factory
 
 # ──────────────────────────────────────────────────────────────────────
 # GET /courses/{course_id}

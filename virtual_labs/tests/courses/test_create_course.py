@@ -12,14 +12,12 @@ import pytest
 import pytest_asyncio
 from httpx import AsyncClient, Response
 
-from virtual_labs.tests.courses.conftest import (
-    cleanup_course,
-    mock_admin_userinfo,
-    mock_non_admin_userinfo,
-)
 from virtual_labs.tests.utils import (
+    cleanup_course,
     create_mock_lab_with_project,
     get_headers,
+    mock_admin_userinfo,
+    mock_non_admin_userinfo,
 )
 
 

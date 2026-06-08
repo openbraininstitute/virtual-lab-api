@@ -77,6 +77,9 @@ async def provision_seats(
 
     await db.commit()
 
+    for s in seats:
+        await db.refresh(s)
+
     seat_outputs = [SeatOut.model_validate(s) for s in seats]
 
     return VliAppResponse(

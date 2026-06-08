@@ -20,12 +20,14 @@ from virtual_labs.infrastructure.db.models import (
     Bookmark,
     Course,
     FreeSubscription,
+    Institution,
     PaidSubscription,
     PaymentMethod,
     Project,
     ProjectInvite,
     ProjectStar,
     PromotionCodeUsage,
+    Seat,
     Subscription,
     SubscriptionPayment,
     SubscriptionStatus,
@@ -40,6 +42,7 @@ from virtual_labs.infrastructure.kc.auth import get_client_token
 from virtual_labs.infrastructure.kc.config import kc_auth
 from virtual_labs.infrastructure.stripe.config import stripe_client
 from virtual_labs.repositories.group_repo import GroupMutationRepository
+from virtual_labs.shared.groups import VLAB_SERVICE_ADMIN_GROUP
 
 email_server_baseurl = "http://localhost:8025"
 
@@ -223,6 +226,11 @@ async def cleanup_resources(
             await session.execute(
                 delete(UserPreference).where(UserPreference.project_id == project_id)
             )
+
+        # Delete seats before course (seat has FK to virtual_lab)
+        await session.execute(
+            statement=delete(Seat).where(Seat.virtual_lab_id == UUID(lab_id))
+        )
 
         # Delete course before projects (course has FK to project via template_project_id)
         await session.execute(
@@ -413,3 +421,48 @@ async def get_user_id_from_test_auth(auth_header: str) -> UUID:
         token=auth_header.replace("Bearer ", ""), validate=False
     )
     return UUID(auth_user["sub"])
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Shared admin auth helpers
+# ──────────────────────────────────────────────────────────────────────
+
+
+def mock_admin_userinfo(*args, **kwargs):
+    """Keycloak userinfo mock returning vlab-svc admin group."""
+    return {"groups": [VLAB_SERVICE_ADMIN_GROUP]}
+
+
+def mock_non_admin_userinfo(*args, **kwargs):
+    """Keycloak userinfo mock returning a non-admin group."""
+    return {"groups": ["/some-other-group"]}
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Shared course/institution helpers
+# ──────────────────────────────────────────────────────────────────────
+
+
+async def cleanup_course(course_id: str) -> None:
+    async with session_context_factory() as session:
+        await session.execute(delete(Course).where(Course.id == UUID(course_id)))
+        await session.commit()
+
+
+async def get_or_create_institution() -> str:
+    """Return the ID of the 'Open Brain Institute' institution, creating it if needed."""
+    async with session_context_factory() as session:
+        result = await session.scalar(
+            select(Institution.id).where(Institution.name == "Open Brain Institute")
+        )
+        if result:
+            return str(result)
+
+        institution = Institution(
+            name="Open Brain Institute",
+            contact_email="obi-virtual-lab@openbraininstitute.org",
+        )
+        session.add(institution)
+        await session.commit()
+        await session.refresh(institution)
+        return str(institution.id)

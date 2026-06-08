@@ -6,11 +6,11 @@ from uuid import uuid4
 import pytest
 from httpx import AsyncClient
 
-from virtual_labs.tests.courses.conftest import (
+from virtual_labs.tests.utils import (
+    get_headers,
     mock_admin_userinfo,
     mock_non_admin_userinfo,
 )
-from virtual_labs.tests.utils import get_headers
 
 
 async def _set_course_dates(async_test_client: AsyncClient, course_id: str) -> None:
