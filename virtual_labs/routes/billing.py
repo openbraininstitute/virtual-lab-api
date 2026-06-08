@@ -110,6 +110,7 @@ async def convert_billing_credits(
         result = await converter.convert_credits(
             payload.credits,
             payload.currency,
+            with_base_rate=True,
         )
     except ValueError as exc:
         raise VliError(

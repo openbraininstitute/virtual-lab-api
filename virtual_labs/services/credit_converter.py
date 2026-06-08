@@ -27,7 +27,10 @@ class CreditConversionResult:
     amount: int  # total in smallest currency unit (cents/rappen)
     rate: Decimal  # effective rate per credit
     discount_pct: int  # 0 when flat, 5/10/15… for volume tiers
-    base_rate: Decimal  # rate for the smallest tier (for "Save X%" display)
+    # Rate for the smallest tier, for "Save X%" display. Only populated when
+    # the caller asks for it (`with_base_rate=True`); None otherwise so the
+    # quote/fulfillment paths avoid a second query they never read.
+    base_rate: Decimal | None
     credit_package_rate_id: UUID | None  # FK to credit_package_rate row used
 
 
@@ -37,19 +40,15 @@ class CreditConverter:
     def __init__(self, package_rate_repo: CreditPackageRateRepository) -> None:
         self.package_rate_repo = package_rate_repo
 
-    async def credits_to_currency(self, credits: int, currency: str) -> Decimal:
-        """Convert credits to a currency amount (in smallest unit, e.g. cents).
-
-        Backward-compatible signature: returns just the amount as a Decimal.
-        Use `convert_credits` for the full breakdown.
-        """
-        result = await self.convert_credits(credits, currency)
-        return Decimal(str(result.amount))
-
     async def convert_credits(
-        self, credits: int, currency: str
+        self, credits: int, currency: str, *, with_base_rate: bool = False
     ) -> CreditConversionResult:
         """Convert credits to currency with full tier breakdown.
+
+        ``with_base_rate`` controls whether the list-price ("Save X%") rate is
+        also fetched. The quote-creation and webhook fulfillment paths never
+        read it, so it defaults to False to avoid a second query; only the
+        display endpoint that renders the discount opts in.
 
         Raises ValueError if no matching tier is found for the currency.
         """
@@ -61,13 +60,18 @@ class CreditConverter:
             )
 
         amount = int(Decimal(str(credits)) * tier.rate * Decimal("100"))
-        base_rate = await self.package_rate_repo.get_base_rate(currency)
+
+        base_rate: Decimal | None = None
+        if with_base_rate:
+            base_rate = (
+                await self.package_rate_repo.get_base_rate(currency) or tier.rate
+            )
 
         return CreditConversionResult(
             amount=amount,
             rate=tier.rate,
             discount_pct=tier.discount_pct,
-            base_rate=base_rate or tier.rate,
+            base_rate=base_rate,
             credit_package_rate_id=tier.id,
         )
 
@@ -83,17 +87,6 @@ class CreditConverter:
             raise ValueError(f"Unsupported currency: {currency}")
 
         return Decimal(str(amount)) / base_rate / Decimal("100")
-
-    async def get_exchange_rate(self, currency: str) -> Decimal:
-        """Get the base exchange rate for a currency.
-
-        Backward-compatible: returns the rate for the lowest tier.
-        """
-        currency = currency.lower()
-        base_rate = await self.package_rate_repo.get_base_rate(currency)
-        if base_rate is None:
-            raise ValueError(f"Unsupported currency: {currency}")
-        return base_rate
 
 
 async def get_credit_converter(

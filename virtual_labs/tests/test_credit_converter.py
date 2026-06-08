@@ -48,8 +48,8 @@ async def test_flat_rate_conversion(mock_repo: AsyncMock) -> None:
     """Single tier (flat pricing): 100 credits × 0.10 × 100 = 1000 cents."""
     converter = CreditConverter(package_rate_repo=mock_repo)
 
-    amount = await converter.credits_to_currency(100, "chf")
-    assert amount == Decimal("1000")
+    result = await converter.convert_credits(100, "chf")
+    assert result.amount == 1000
 
 
 @pytest.mark.asyncio
@@ -66,9 +66,52 @@ async def test_volume_discount_conversion(mock_repo: AsyncMock) -> None:
     assert result.amount == 18000
     assert result.rate == Decimal("0.09")
     assert result.discount_pct == 10
-    assert result.base_rate == Decimal("0.10")
     # the resolved tier's id is surfaced so the quote can link back to it
     assert result.credit_package_rate_id == tier_id
+
+
+@pytest.mark.asyncio
+async def test_convert_credits_skips_base_rate_by_default(mock_repo: AsyncMock) -> None:
+    """The quote/fulfillment path must not pay for the base-rate query."""
+    converter = CreditConverter(package_rate_repo=mock_repo)
+
+    result = await converter.convert_credits(2000, "chf")
+
+    assert result.base_rate is None
+    mock_repo.get_base_rate.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_convert_credits_with_base_rate_fetches_list_price(
+    mock_repo: AsyncMock,
+) -> None:
+    """The display path opts in and gets the list-price base rate."""
+    mock_repo.get_rate_for_credits = AsyncMock(
+        return_value=_make_tier(rate=Decimal("0.09"), discount_pct=10)
+    )
+    mock_repo.get_base_rate = AsyncMock(return_value=Decimal("0.10"))
+    converter = CreditConverter(package_rate_repo=mock_repo)
+
+    result = await converter.convert_credits(2000, "chf", with_base_rate=True)
+
+    assert result.base_rate == Decimal("0.10")
+    mock_repo.get_base_rate.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_convert_credits_base_rate_falls_back_to_tier_rate(
+    mock_repo: AsyncMock,
+) -> None:
+    """If no list-price row exists, base_rate falls back to the tier rate."""
+    mock_repo.get_rate_for_credits = AsyncMock(
+        return_value=_make_tier(rate=Decimal("0.09"), discount_pct=10)
+    )
+    mock_repo.get_base_rate = AsyncMock(return_value=None)
+    converter = CreditConverter(package_rate_repo=mock_repo)
+
+    result = await converter.convert_credits(2000, "chf", with_base_rate=True)
+
+    assert result.base_rate == Decimal("0.09")
 
 
 @pytest.mark.asyncio
@@ -93,7 +136,7 @@ async def test_unsupported_currency_raises(mock_repo: AsyncMock) -> None:
     converter = CreditConverter(package_rate_repo=mock_repo)
 
     with pytest.raises(ValueError, match="No pricing tier found"):
-        await converter.credits_to_currency(100, "jpy")
+        await converter.convert_credits(100, "jpy")
 
 
 @pytest.mark.asyncio
@@ -108,20 +151,10 @@ async def test_currency_to_credits_uses_base_rate(mock_repo: AsyncMock) -> None:
 
 
 @pytest.mark.asyncio
-async def test_get_exchange_rate_returns_base(mock_repo: AsyncMock) -> None:
-    """get_exchange_rate returns the base tier rate."""
-    mock_repo.get_base_rate = AsyncMock(return_value=Decimal("0.10"))
-    converter = CreditConverter(package_rate_repo=mock_repo)
-
-    rate = await converter.get_exchange_rate("chf")
-    assert rate == Decimal("0.10")
-
-
-@pytest.mark.asyncio
-async def test_get_exchange_rate_unsupported_currency(mock_repo: AsyncMock) -> None:
+async def test_currency_to_credits_unsupported_currency(mock_repo: AsyncMock) -> None:
     """No base rate → ValueError."""
     mock_repo.get_base_rate = AsyncMock(return_value=None)
     converter = CreditConverter(package_rate_repo=mock_repo)
 
     with pytest.raises(ValueError, match="Unsupported currency"):
-        await converter.get_exchange_rate("xyz")
+        await converter.currency_to_credits(1000, "xyz")

@@ -49,10 +49,16 @@ class CreditPackageRateRepository:
         return result.scalars().first()
 
     async def get_base_rate(self, currency: str) -> Optional[Decimal]:
-        """Get the rate for the smallest tier (min_credits=1).
+        """Get the list price: the rate of the ``min_credits = 1`` tier.
 
-        Used for reverse calculations (currency → credits) and to
-        provide a `base_rate` reference for discount display.
+        Used for reverse calculations (currency → credits) and as the
+        `base_rate` reference for discount display. The contract is the
+        *list price*, so this pins ``min_credits = 1`` rather than "the
+        lowest active tier" — otherwise a currency seeded without a base
+        row would silently report a discounted tier as the list price,
+        corrupting "Save X%" display and reverse conversions.
+
+        Returns None if the currency has no active ``min_credits = 1`` row.
         """
         stmt = (
             select(CreditPackageRate.rate)
@@ -60,9 +66,9 @@ class CreditPackageRateRepository:
                 and_(
                     CreditPackageRate.currency == currency.lower(),
                     CreditPackageRate.active.is_(True),
+                    CreditPackageRate.min_credits == 1,
                 )
             )
-            .order_by(CreditPackageRate.min_credits.asc())
             .limit(1)
         )
         result = await self.session.execute(stmt)
