@@ -16,6 +16,7 @@ class SeatOut(BaseModel):
     id: UUID4
     virtual_lab_id: UUID4 | None
     institution_id: UUID4
+    batch_id: UUID4
     is_consumed: bool
     active_project_id: UUID4 | None
     expiry_date: datetime

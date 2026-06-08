@@ -6,6 +6,7 @@ budget via the accounting service.
 
 from __future__ import annotations
 
+import uuid
 from datetime import datetime, timedelta, timezone
 from http import HTTPStatus
 
@@ -39,12 +40,14 @@ async def provision_seats(
         )
 
     # 3. Create seat records
+    batch_id = uuid.uuid4()
     expiry_date = datetime.now(timezone.utc) + timedelta(days=settings.SEAT_EXPIRY_DAYS)
     seats: list[Seat] = []
     for _ in range(payload.number_of_seats):
         seat = Seat(
             virtual_lab_id=payload.virtual_lab_id,
             institution_id=vlab.course.institution_id,
+            batch_id=batch_id,
             expiry_date=expiry_date,
         )
         db.add(seat)

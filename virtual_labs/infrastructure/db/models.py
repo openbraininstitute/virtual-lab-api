@@ -1116,6 +1116,9 @@ class Seat(Base):
         nullable=False,
     )
     is_consumed: Mapped[bool] = mapped_column(Boolean, default=False)
+    batch_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, index=True
+    )
     active_project_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), unique=True
     )
