@@ -116,7 +116,6 @@ async def assign_seats(
                 auth=auth,
             )
             seat.active_project_id = project_out.id
-            seat.is_consumed = True
             assigned.append((seat, student, project_out.id))
         except Exception as ex:  # noqa: BLE001
             logger.error(f"Failed to create project for {student.student_id}: {ex}")
