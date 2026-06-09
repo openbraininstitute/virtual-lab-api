@@ -411,6 +411,9 @@ async def create_new_project_use_case(
 
     vlab_admin_group_id = str(virtual_lab.admin_group_id)
     vlab_member_group_id = str(virtual_lab.member_group_id)
+    # Resolve the course relationship before rollback expires the instance
+    await session.refresh(virtual_lab, ["course"])
+    is_course_vlab = bool(virtual_lab.course)
 
     # release the read-only transaction held by the pre-checks above before
     # opening the write transaction inside `create_project_record`, we roll
@@ -448,7 +451,7 @@ async def create_new_project_use_case(
         )
 
     # post-commit: Only
-    if not virtual_lab.course:
+    if not is_course_vlab:
         await seed_initial_project_budget(
             virtual_lab_id=virtual_lab_id,
             project_id=project_draft_id,
