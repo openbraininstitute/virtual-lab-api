@@ -1,11 +1,12 @@
 """Shared fixtures for seat tests.
 
-Re-uses shared helpers since seats require a course-enabled virtual lab.
+Creates a course-enabled virtual lab (is_course=True) through the API,
+which uses COURSE_LAB_POLICY (no billing/subscription required).
 """
 
 from typing import AsyncGenerator
 from unittest.mock import patch
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest_asyncio
 from httpx import AsyncClient
@@ -16,7 +17,6 @@ from virtual_labs.infrastructure.settings import settings
 from virtual_labs.tests.utils import (
     cleanup_course,
     cleanup_resources,
-    create_mock_lab_with_project,
     get_headers,
     get_or_create_institution,
     mock_admin_userinfo,
@@ -49,11 +49,26 @@ async def course_for_seats(
     async_test_client: AsyncClient,
     institution_id: str,
 ) -> AsyncGenerator[str, None]:
-    """Create a virtual lab with a course. Returns the course_id."""
-    lab_data, project_id = await create_mock_lab_with_project(async_test_client)
-    lab_id = lab_data["id"]
+    """Create a course-enabled virtual lab and a course. Returns the course_id.
 
-    # Mark as course lab
+    Uses is_course=True so COURSE_LAB_POLICY is applied (no billing/subscription).
+    """
+    client = async_test_client
+    headers = get_headers()
+
+    # 1. Create a course-enabled vlab (no subscription needed)
+    lab_body = {
+        "name": f"Course Lab {uuid4()}",
+        "description": "Test course lab",
+        "reference_email": "course@test.org",
+        "entity": "EPFL, Switzerland",
+        "is_course": True,
+    }
+    lab_response = await client.post("/virtual-labs", json=lab_body, headers=headers)
+    assert lab_response.status_code == 200
+    lab_id = lab_response.json()["id"]
+
+    # Mark as course lab (owner_id must be the service user for course validation)
     async with session_context_factory() as session:
         await session.execute(
             update(VirtualLab)
@@ -62,25 +77,36 @@ async def course_for_seats(
         )
         await session.commit()
 
-    # Create a course for this vlab
-    headers = get_headers()
-    body = {
+    # 2. Create a project (needed as template_project_id)
+    project_body = {
+        "name": f"Template Project {uuid4()}",
+        "description": "Template",
+    }
+    project_response = await client.post(
+        f"/virtual-labs/{lab_id}/projects", json=project_body, headers=headers
+    )
+    assert project_response.status_code == 200
+    project_id = project_response.json()["id"]
+
+    # 3. Create a course for this vlab
+    course_body = {
         "virtual_lab_id": lab_id,
         "template_project_id": project_id,
         "institution_id": institution_id,
     }
-
     with patch(
         "virtual_labs.core.authorization.verify_service_admin.kc_auth"
     ) as mock_kc:
         mock_kc.userinfo.side_effect = mock_admin_userinfo
-        response = await async_test_client.post("/courses", json=body, headers=headers)
+        course_response = await client.post(
+            "/courses", json=course_body, headers=headers
+        )
 
-    assert response.status_code == 200
-    course_id = response.json()["data"]["id"]
+    assert course_response.status_code == 200
+    course_id = course_response.json()["data"]["id"]
 
     yield course_id
 
     await cleanup_seats(course_id)
     await cleanup_course(course_id)
-    await cleanup_resources(async_test_client, lab_id)
+    await cleanup_resources(client, lab_id)

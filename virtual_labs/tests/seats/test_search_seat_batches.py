@@ -215,9 +215,9 @@ async def test_search_seat_batches_by_vlab_name(
         "virtual_labs.core.authorization.verify_service_admin.kc_auth"
     ) as mock_kc:
         mock_kc.userinfo.side_effect = mock_admin_userinfo
-        # Use "Test Lab" which is part of the lab name created by fixtures
+        # Use "Course Lab" which is part of the lab name created by fixtures
         response = await async_test_client.get(
-            "/seats/batches", params={"vlab_name": "Test Lab"}, headers=headers
+            "/seats/batches", params={"vlab_name": "Course Lab"}, headers=headers
         )
 
     assert response.status_code == 200
