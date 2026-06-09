@@ -55,7 +55,7 @@ async def provision_seats(
     await db.flush()
 
     # 3. Top up the virtual lab budget
-    total_credits = payload.number_of_seats * settings.CREDITS_PER_SEAT
+    total_credits = sum(s.credit_value for s in seats)
 
     if settings.ACCOUNTING_BASE_URL is not None:
         try:
