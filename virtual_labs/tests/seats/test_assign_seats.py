@@ -1,6 +1,8 @@
 """Tests for the assign-seats endpoint (POST /courses/{course_id}/assign_seats)."""
 
-from unittest.mock import AsyncMock, patch
+from contextlib import contextmanager
+from dataclasses import dataclass
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
@@ -44,6 +46,42 @@ async def _provision_seats(client: AsyncClient, course_id: str, count: int) -> N
     assert resp.status_code == 200
 
 
+@dataclass
+class AccountingMocks:
+    """Holds mocks exposed by mock_assign_accounting."""
+
+    balance: MagicMock
+    transfer: MagicMock
+
+
+@contextmanager
+def mock_assign_accounting(
+    accounting_url: str | None = "http://accounting:8000",
+):
+    """Patch accounting dependencies for the assign-seats flow.
+
+    Yields an AccountingMocks instance with .balance and .transfer mocks
+    (only available when accounting_url is not None).
+    """
+    with (
+        patch(
+            "virtual_labs.usecases.project.create_new_project.ensure_accounting_initialization",
+            new_callable=AsyncMock,
+        ),
+        patch(
+            "virtual_labs.usecases.course.assign_seats.settings.ACCOUNTING_BASE_URL",
+            accounting_url,
+        ),
+        patch(
+            "virtual_labs.usecases.course.assign_seats.accounting_cases.get_virtual_lab_balance"
+        ) as mock_balance,
+        patch(
+            "virtual_labs.usecases.course.assign_seats.accounting_cases.assign_project_budget"
+        ) as mock_transfer,
+    ):
+        yield AccountingMocks(balance=mock_balance, transfer=mock_transfer)
+
+
 # ──────────────────────────────────────────────────────────────────────
 # Happy-path tests
 # ──────────────────────────────────────────────────────────────────────
@@ -65,24 +103,9 @@ async def test_assign_seats_success(
     }
     body = _assign_payload([student])
 
-    with (
-        patch(
-            "virtual_labs.usecases.project.create_new_project.ensure_accounting_initialization",
-            new_callable=AsyncMock,
-        ),
-        patch(
-            "virtual_labs.usecases.course.assign_seats.settings.ACCOUNTING_BASE_URL",
-            "http://accounting:8000",
-        ),
-        patch(
-            "virtual_labs.usecases.course.assign_seats.accounting_cases.get_virtual_lab_balance"
-        ) as mock_balance,
-        patch(
-            "virtual_labs.usecases.course.assign_seats.accounting_cases.assign_project_budget"
-        ) as mock_transfer,
-    ):
-        mock_balance.return_value = AsyncMock(data=AsyncMock(balance=1000.0))
-        mock_transfer.return_value = AsyncMock()
+    with mock_assign_accounting() as mocks:
+        mocks.balance.return_value = AsyncMock(data=AsyncMock(balance=1000.0))
+        mocks.transfer.return_value = AsyncMock()
         response = await async_test_client.post(
             f"/courses/{course_id}/assign_seats", json=body, headers=headers
         )
@@ -116,24 +139,9 @@ async def test_assign_seats_multiple_students(
     ]
     body = _assign_payload(students)
 
-    with (
-        patch(
-            "virtual_labs.usecases.project.create_new_project.ensure_accounting_initialization",
-            new_callable=AsyncMock,
-        ),
-        patch(
-            "virtual_labs.usecases.course.assign_seats.settings.ACCOUNTING_BASE_URL",
-            "http://accounting:8000",
-        ),
-        patch(
-            "virtual_labs.usecases.course.assign_seats.accounting_cases.get_virtual_lab_balance"
-        ) as mock_balance,
-        patch(
-            "virtual_labs.usecases.course.assign_seats.accounting_cases.assign_project_budget"
-        ) as mock_transfer,
-    ):
-        mock_balance.return_value = AsyncMock(data=AsyncMock(balance=5000.0))
-        mock_transfer.return_value = AsyncMock()
+    with mock_assign_accounting() as mocks:
+        mocks.balance.return_value = AsyncMock(data=AsyncMock(balance=5000.0))
+        mocks.transfer.return_value = AsyncMock()
         response = await async_test_client.post(
             f"/courses/{course_id}/assign_seats", json=body, headers=headers
         )
@@ -163,24 +171,9 @@ async def test_assign_seats_credit_transfer_fails_gracefully(
     }
     body = _assign_payload([student])
 
-    with (
-        patch(
-            "virtual_labs.usecases.project.create_new_project.ensure_accounting_initialization",
-            new_callable=AsyncMock,
-        ),
-        patch(
-            "virtual_labs.usecases.course.assign_seats.settings.ACCOUNTING_BASE_URL",
-            "http://accounting:8000",
-        ),
-        patch(
-            "virtual_labs.usecases.course.assign_seats.accounting_cases.get_virtual_lab_balance"
-        ) as mock_balance,
-        patch(
-            "virtual_labs.usecases.course.assign_seats.accounting_cases.assign_project_budget"
-        ) as mock_transfer,
-    ):
-        mock_balance.return_value = AsyncMock(data=AsyncMock(balance=1000.0))
-        mock_transfer.side_effect = Exception("accounting down")
+    with mock_assign_accounting() as mocks:
+        mocks.balance.return_value = AsyncMock(data=AsyncMock(balance=1000.0))
+        mocks.transfer.side_effect = Exception("accounting down")
         response = await async_test_client.post(
             f"/courses/{course_id}/assign_seats", json=body, headers=headers
         )
@@ -209,16 +202,7 @@ async def test_assign_seats_no_accounting_url(
     }
     body = _assign_payload([student])
 
-    with (
-        patch(
-            "virtual_labs.usecases.project.create_new_project.ensure_accounting_initialization",
-            new_callable=AsyncMock,
-        ),
-        patch(
-            "virtual_labs.usecases.course.assign_seats.settings.ACCOUNTING_BASE_URL",
-            None,
-        ),
-    ):
+    with mock_assign_accounting(accounting_url=None):
         response = await async_test_client.post(
             f"/courses/{course_id}/assign_seats", json=body, headers=headers
         )
@@ -245,24 +229,9 @@ async def test_assign_seats_partial_credit(
     }
     body = _assign_payload([student])
 
-    with (
-        patch(
-            "virtual_labs.usecases.project.create_new_project.ensure_accounting_initialization",
-            new_callable=AsyncMock,
-        ),
-        patch(
-            "virtual_labs.usecases.course.assign_seats.settings.ACCOUNTING_BASE_URL",
-            "http://accounting:8000",
-        ),
-        patch(
-            "virtual_labs.usecases.course.assign_seats.accounting_cases.get_virtual_lab_balance"
-        ) as mock_balance,
-        patch(
-            "virtual_labs.usecases.course.assign_seats.accounting_cases.assign_project_budget"
-        ) as mock_transfer,
-    ):
-        mock_balance.return_value = AsyncMock(data=AsyncMock(balance=50.0))
-        mock_transfer.return_value = AsyncMock()
+    with mock_assign_accounting() as mocks:
+        mocks.balance.return_value = AsyncMock(data=AsyncMock(balance=50.0))
+        mocks.transfer.return_value = AsyncMock()
         response = await async_test_client.post(
             f"/courses/{course_id}/assign_seats", json=body, headers=headers
         )
@@ -291,23 +260,8 @@ async def test_assign_seats_zero_balance_skips_transfer(
     }
     body = _assign_payload([student])
 
-    with (
-        patch(
-            "virtual_labs.usecases.project.create_new_project.ensure_accounting_initialization",
-            new_callable=AsyncMock,
-        ),
-        patch(
-            "virtual_labs.usecases.course.assign_seats.settings.ACCOUNTING_BASE_URL",
-            "http://accounting:8000",
-        ),
-        patch(
-            "virtual_labs.usecases.course.assign_seats.accounting_cases.get_virtual_lab_balance"
-        ) as mock_balance,
-        patch(
-            "virtual_labs.usecases.course.assign_seats.accounting_cases.assign_project_budget"
-        ) as mock_transfer,
-    ):
-        mock_balance.return_value = AsyncMock(data=AsyncMock(balance=0.0))
+    with mock_assign_accounting() as mocks:
+        mocks.balance.return_value = AsyncMock(data=AsyncMock(balance=0.0))
         response = await async_test_client.post(
             f"/courses/{course_id}/assign_seats", json=body, headers=headers
         )
@@ -317,7 +271,7 @@ async def test_assign_seats_zero_balance_skips_transfer(
     assert results[0]["assignment_successful"] is True
     assert results[0]["credit_transferred"] is False
     assert results[0]["credit_transferred_amount"] == 0
-    mock_transfer.assert_not_awaited()
+    mocks.transfer.assert_not_awaited()
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -468,3 +422,59 @@ async def test_assign_seats_rejects_empty_students_list(
     )
 
     assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_assign_seats_mixed_outcomes(
+    async_test_client: AsyncClient,
+    course_for_seats: str,
+) -> None:
+    """Multiple students: first gets full credit, second partial, third zero balance."""
+    headers = get_headers()
+    course_id = course_for_seats
+    await _provision_seats(async_test_client, course_id, 3)
+
+    students = [
+        {
+            "student_id": f"stu-{uuid4().hex[:8]}",
+            "email": f"{uuid4().hex[:8]}@uni.org",
+        }
+        for _ in range(3)
+    ]
+    body = _assign_payload(students)
+
+    # Simulate decreasing balance: 1000 → 50 → 0
+    balance_responses = [
+        AsyncMock(data=AsyncMock(balance=1000.0)),
+        AsyncMock(data=AsyncMock(balance=50.0)),
+        AsyncMock(data=AsyncMock(balance=0.0)),
+    ]
+
+    with mock_assign_accounting() as mocks:
+        mocks.balance.side_effect = balance_responses
+        mocks.transfer.return_value = AsyncMock()
+        response = await async_test_client.post(
+            f"/courses/{course_id}/assign_seats", json=body, headers=headers
+        )
+
+    assert response.status_code == 200
+    results = response.json()["results"]
+    assert len(results) == 3
+
+    # First: full credit (balance=1000, seat_credit=200)
+    assert results[0]["assignment_successful"] is True
+    assert results[0]["credit_transferred"] is True
+    assert results[0]["credit_transferred_amount"] == 200.0
+    assert results[0]["error"] is None
+
+    # Second: partial credit (balance=50, seat_credit=200)
+    assert results[1]["assignment_successful"] is True
+    assert results[1]["credit_transferred"] is True
+    assert results[1]["credit_transferred_amount"] == 50.0
+    assert "Partial credit" in results[1]["error"]
+
+    # Third: zero balance — no transfer attempted
+    assert results[2]["assignment_successful"] is True
+    assert results[2]["credit_transferred"] is False
+    assert results[2]["credit_transferred_amount"] == 0
+    assert results[2]["error"] is None
