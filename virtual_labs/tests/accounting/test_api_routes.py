@@ -9,7 +9,6 @@ from httpx import AsyncClient
 from virtual_labs.tests.utils import (
     cleanup_resources,
     get_headers,
-    mock_admin_userinfo,
 )
 
 
@@ -218,10 +217,8 @@ def vlab_with_course():
 
 @pytest.fixture
 def service_admin_auth(vlab_with_course):
-    """Patch kc_auth.userinfo so the caller is recognised as a service admin."""
-    with patch("virtual_labs.routes.accounting.kc_auth") as mock_kc:
-        mock_kc.userinfo.side_effect = mock_admin_userinfo
-        yield mock_kc
+    """Activates vlab_with_course and provides service admin headers."""
+    yield get_headers("test-service-admin")
 
 
 @pytest.mark.asyncio
@@ -247,7 +244,8 @@ async def test_reverse_project_budget_works_if_vlab_has_course_and_caller_is_ser
     mock_lab_with_project: tuple[AsyncClient, str, str, dict[str, str]],
     service_admin_auth,
 ) -> None:
-    client, lab_id, project_id, headers = mock_lab_with_project
+    client, lab_id, project_id, _ = mock_lab_with_project
+    headers = service_admin_auth
 
     mock_reverse_response = {
         "message": "Reverse budget operation executed",
@@ -292,7 +290,8 @@ async def test_assign_project_budget_works_if_vlab_has_course_and_caller_is_serv
     mock_lab_with_project: tuple[AsyncClient, str, str, dict[str, str]],
     service_admin_auth,
 ) -> None:
-    client, lab_id, project_id, headers = mock_lab_with_project
+    client, lab_id, project_id, _ = mock_lab_with_project
+    headers = service_admin_auth
 
     mock_assign_response = {"message": "Assign budget operation executed", "data": None}
 
@@ -334,19 +333,14 @@ async def test_top_up_virtual_lab_budget_fails_if_not_service_admin(
 async def test_top_up_virtual_lab_budget_works_for_service_admin(
     mock_lab_with_project: tuple[AsyncClient, str, str, dict[str, str]],
 ) -> None:
-    client, lab_id, _, headers = mock_lab_with_project
+    client, lab_id, _, _ = mock_lab_with_project
+    headers = get_headers("test-service-admin")
 
     mock_top_up_response = {"message": "Top up operation executed", "data": None}
 
-    with (
-        patch(
-            "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-        ) as mock_kc,
-        patch(
-            "virtual_labs.usecases.accounting.top_up_virtual_lab_budget"
-        ) as mock_top_up,
-    ):
-        mock_kc.userinfo.side_effect = mock_admin_userinfo
+    with patch(
+        "virtual_labs.usecases.accounting.top_up_virtual_lab_budget"
+    ) as mock_top_up:
         mock_top_up.return_value = mock_top_up_response
 
         response = await client.post(
