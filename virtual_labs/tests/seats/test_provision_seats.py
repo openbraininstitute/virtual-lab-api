@@ -6,11 +6,8 @@ from uuid import uuid4
 import pytest
 from httpx import AsyncClient
 
-from virtual_labs.tests.utils import (
-    get_headers,
-    mock_admin_userinfo,
-    mock_non_admin_userinfo,
-)
+from virtual_labs.tests.seats.conftest import SERVICE_ADMIN_HEADERS
+from virtual_labs.tests.utils import get_headers
 
 
 def _provision_payload(course_id: str, number_of_seats: int = 3) -> dict:
@@ -30,21 +27,14 @@ async def test_provision_seats_success(
     async_test_client: AsyncClient,
     course_for_seats: str,
 ) -> None:
-    headers = get_headers()
     body = _provision_payload(course_for_seats, number_of_seats=2)
 
-    with (
-        patch(
-            "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-        ) as mock_kc,
-        patch(
-            "virtual_labs.usecases.seat.provision_seats.accounting_cases.top_up_virtual_lab_budget"
-        ) as mock_top_up,
-    ):
-        mock_kc.userinfo.side_effect = mock_admin_userinfo
+    with patch(
+        "virtual_labs.usecases.seat.provision_seats.accounting_cases.top_up_virtual_lab_budget"
+    ) as mock_top_up:
         mock_top_up.return_value = AsyncMock()
         response = await async_test_client.post(
-            "/seats/provision", json=body, headers=headers
+            "/seats/provision", json=body, headers=SERVICE_ADMIN_HEADERS
         )
 
     assert response.status_code == 200
@@ -67,13 +57,9 @@ async def test_provision_seats_calls_accounting_top_up(
     async_test_client: AsyncClient,
     course_for_seats: str,
 ) -> None:
-    headers = get_headers()
     body = _provision_payload(course_for_seats, number_of_seats=5)
 
     with (
-        patch(
-            "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-        ) as mock_kc,
         patch(
             "virtual_labs.usecases.seat.provision_seats.accounting_cases.top_up_virtual_lab_budget"
         ) as mock_top_up,
@@ -82,10 +68,9 @@ async def test_provision_seats_calls_accounting_top_up(
             "http://accounting:8000",
         ),
     ):
-        mock_kc.userinfo.side_effect = mock_admin_userinfo
         mock_top_up.return_value = AsyncMock()
         response = await async_test_client.post(
-            "/seats/provision", json=body, headers=headers
+            "/seats/provision", json=body, headers=SERVICE_ADMIN_HEADERS
         )
 
     assert response.status_code == 200
@@ -102,21 +87,14 @@ async def test_provision_seats_institution_from_course(
     institution_id: str,
 ) -> None:
     """Seats should get institution_id from the course, not the request."""
-    headers = get_headers()
     body = _provision_payload(course_for_seats, number_of_seats=1)
 
-    with (
-        patch(
-            "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-        ) as mock_kc,
-        patch(
-            "virtual_labs.usecases.seat.provision_seats.accounting_cases.top_up_virtual_lab_budget"
-        ) as mock_top_up,
-    ):
-        mock_kc.userinfo.side_effect = mock_admin_userinfo
+    with patch(
+        "virtual_labs.usecases.seat.provision_seats.accounting_cases.top_up_virtual_lab_budget"
+    ) as mock_top_up:
         mock_top_up.return_value = AsyncMock()
         response = await async_test_client.post(
-            "/seats/provision", json=body, headers=headers
+            "/seats/provision", json=body, headers=SERVICE_ADMIN_HEADERS
         )
 
     assert response.status_code == 200
@@ -151,13 +129,9 @@ async def test_provision_seats_fails_for_non_admin(
     headers = get_headers()
     body = _provision_payload(str(uuid4()))
 
-    with patch(
-        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-    ) as mock_kc:
-        mock_kc.userinfo.side_effect = mock_non_admin_userinfo
-        response = await async_test_client.post(
-            "/seats/provision", json=body, headers=headers
-        )
+    response = await async_test_client.post(
+        "/seats/provision", json=body, headers=headers
+    )
 
     assert response.status_code == 403
 
@@ -168,16 +142,11 @@ async def test_provision_seats_fails_for_draft_course(
     draft_course_for_seats: str,
 ) -> None:
     """Cannot provision seats for a course that is still in DRAFT status."""
-    headers = get_headers()
     body = _provision_payload(draft_course_for_seats, number_of_seats=2)
 
-    with patch(
-        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-    ) as mock_kc:
-        mock_kc.userinfo.side_effect = mock_admin_userinfo
-        response = await async_test_client.post(
-            "/seats/provision", json=body, headers=headers
-        )
+    response = await async_test_client.post(
+        "/seats/provision", json=body, headers=SERVICE_ADMIN_HEADERS
+    )
 
     assert response.status_code == 409
     assert "draft" in response.json()["message"].lower()
@@ -189,16 +158,11 @@ async def test_provision_seats_fails_for_voided_course(
     voided_course_for_seats: str,
 ) -> None:
     """Cannot provision seats for a course that has been voided."""
-    headers = get_headers()
     body = _provision_payload(voided_course_for_seats, number_of_seats=2)
 
-    with patch(
-        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-    ) as mock_kc:
-        mock_kc.userinfo.side_effect = mock_admin_userinfo
-        response = await async_test_client.post(
-            "/seats/provision", json=body, headers=headers
-        )
+    response = await async_test_client.post(
+        "/seats/provision", json=body, headers=SERVICE_ADMIN_HEADERS
+    )
 
     assert response.status_code == 409
     assert "voided" in response.json()["message"].lower()
@@ -208,16 +172,11 @@ async def test_provision_seats_fails_for_voided_course(
 async def test_provision_seats_fails_with_nonexistent_course(
     async_test_client: AsyncClient,
 ) -> None:
-    headers = get_headers()
     body = _provision_payload(str(uuid4()))
 
-    with patch(
-        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-    ) as mock_kc:
-        mock_kc.userinfo.side_effect = mock_admin_userinfo
-        response = await async_test_client.post(
-            "/seats/provision", json=body, headers=headers
-        )
+    response = await async_test_client.post(
+        "/seats/provision", json=body, headers=SERVICE_ADMIN_HEADERS
+    )
 
     assert response.status_code == 404
 
@@ -227,13 +186,9 @@ async def test_provision_seats_fails_when_accounting_fails(
     async_test_client: AsyncClient,
     course_for_seats: str,
 ) -> None:
-    headers = get_headers()
     body = _provision_payload(course_for_seats, number_of_seats=1)
 
     with (
-        patch(
-            "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-        ) as mock_kc,
         patch(
             "virtual_labs.usecases.seat.provision_seats.accounting_cases.top_up_virtual_lab_budget"
         ) as mock_top_up,
@@ -242,10 +197,9 @@ async def test_provision_seats_fails_when_accounting_fails(
             "http://accounting:8000",
         ),
     ):
-        mock_kc.userinfo.side_effect = mock_admin_userinfo
         mock_top_up.side_effect = Exception("accounting service down")
         response = await async_test_client.post(
-            "/seats/provision", json=body, headers=headers
+            "/seats/provision", json=body, headers=SERVICE_ADMIN_HEADERS
         )
 
     assert response.status_code == 502
@@ -255,16 +209,11 @@ async def test_provision_seats_fails_when_accounting_fails(
 async def test_provision_seats_fails_when_exceeding_max_batch_size(
     async_test_client: AsyncClient,
 ) -> None:
-    headers = get_headers()
     body = _provision_payload(str(uuid4()), number_of_seats=101)
 
-    with patch(
-        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-    ) as mock_kc:
-        mock_kc.userinfo.side_effect = mock_admin_userinfo
-        response = await async_test_client.post(
-            "/seats/provision", json=body, headers=headers
-        )
+    response = await async_test_client.post(
+        "/seats/provision", json=body, headers=SERVICE_ADMIN_HEADERS
+    )
 
     assert response.status_code == 422
 
@@ -273,16 +222,11 @@ async def test_provision_seats_fails_when_exceeding_max_batch_size(
 async def test_provision_seats_fails_with_zero_seats(
     async_test_client: AsyncClient,
 ) -> None:
-    headers = get_headers()
     body = _provision_payload(str(uuid4()), number_of_seats=0)
 
-    with patch(
-        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-    ) as mock_kc:
-        mock_kc.userinfo.side_effect = mock_admin_userinfo
-        response = await async_test_client.post(
-            "/seats/provision", json=body, headers=headers
-        )
+    response = await async_test_client.post(
+        "/seats/provision", json=body, headers=SERVICE_ADMIN_HEADERS
+    )
 
     assert response.status_code == 422
 
@@ -291,16 +235,11 @@ async def test_provision_seats_fails_with_zero_seats(
 async def test_provision_seats_fails_with_negative_seats(
     async_test_client: AsyncClient,
 ) -> None:
-    headers = get_headers()
     body = _provision_payload(str(uuid4()), number_of_seats=-1)
 
-    with patch(
-        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-    ) as mock_kc:
-        mock_kc.userinfo.side_effect = mock_admin_userinfo
-        response = await async_test_client.post(
-            "/seats/provision", json=body, headers=headers
-        )
+    response = await async_test_client.post(
+        "/seats/provision", json=body, headers=SERVICE_ADMIN_HEADERS
+    )
 
     assert response.status_code == 422
 
@@ -313,21 +252,14 @@ async def test_provision_seats_expiry_date_is_one_year(
     """Seats should have an expiry date approximately 1 year from now."""
     from datetime import datetime, timedelta, timezone
 
-    headers = get_headers()
     body = _provision_payload(course_for_seats, number_of_seats=1)
 
-    with (
-        patch(
-            "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-        ) as mock_kc,
-        patch(
-            "virtual_labs.usecases.seat.provision_seats.accounting_cases.top_up_virtual_lab_budget"
-        ) as mock_top_up,
-    ):
-        mock_kc.userinfo.side_effect = mock_admin_userinfo
+    with patch(
+        "virtual_labs.usecases.seat.provision_seats.accounting_cases.top_up_virtual_lab_budget"
+    ) as mock_top_up:
         mock_top_up.return_value = AsyncMock()
         response = await async_test_client.post(
-            "/seats/provision", json=body, headers=headers
+            "/seats/provision", json=body, headers=SERVICE_ADMIN_HEADERS
         )
 
     assert response.status_code == 200

@@ -1,6 +1,5 @@
 """Tests for course retrieval endpoints (GET /courses/{id} and GET /courses?vlab_name=...)."""
 
-from unittest.mock import patch
 from uuid import UUID, uuid4
 
 import pytest
@@ -8,10 +7,9 @@ from httpx import AsyncClient
 from sqlalchemy import select
 
 from virtual_labs.infrastructure.db.models import VirtualLab
+from virtual_labs.tests.courses.conftest import SERVICE_ADMIN_HEADERS
 from virtual_labs.tests.utils import (
     get_headers,
-    mock_admin_userinfo,
-    mock_non_admin_userinfo,
     session_context_factory,
 )
 
@@ -26,13 +24,10 @@ async def test_get_course_by_id_successfully(
     draft_course: tuple[str, str],
 ) -> None:
     course_id, _ = draft_course
-    headers = get_headers()
 
-    with patch(
-        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-    ) as mock_kc:
-        mock_kc.userinfo.side_effect = mock_admin_userinfo
-        response = await async_test_client.get(f"/courses/{course_id}", headers=headers)
+    response = await async_test_client.get(
+        f"/courses/{course_id}", headers=SERVICE_ADMIN_HEADERS
+    )
 
     assert response.status_code == 200
     data = response.json()["data"]
@@ -49,13 +44,10 @@ async def test_get_course_by_id_includes_names(
 ) -> None:
     """Response should include resolved virtual_lab_name and institution_name."""
     course_id, _ = draft_course
-    headers = get_headers()
 
-    with patch(
-        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-    ) as mock_kc:
-        mock_kc.userinfo.side_effect = mock_admin_userinfo
-        response = await async_test_client.get(f"/courses/{course_id}", headers=headers)
+    response = await async_test_client.get(
+        f"/courses/{course_id}", headers=SERVICE_ADMIN_HEADERS
+    )
 
     data = response.json()["data"]
     assert isinstance(data["virtual_lab_name"], str)
@@ -67,13 +59,9 @@ async def test_get_course_by_id_includes_names(
 async def test_get_course_by_id_not_found(
     async_test_client: AsyncClient,
 ) -> None:
-    headers = get_headers()
-
-    with patch(
-        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-    ) as mock_kc:
-        mock_kc.userinfo.side_effect = mock_admin_userinfo
-        response = await async_test_client.get(f"/courses/{uuid4()}", headers=headers)
+    response = await async_test_client.get(
+        f"/courses/{uuid4()}", headers=SERVICE_ADMIN_HEADERS
+    )
 
     assert response.status_code == 404
 
@@ -101,11 +89,7 @@ async def test_get_course_by_id_fails_for_non_admin(
     course_id, _ = draft_course
     headers = get_headers()
 
-    with patch(
-        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-    ) as mock_kc:
-        mock_kc.userinfo.side_effect = mock_non_admin_userinfo
-        response = await async_test_client.get(f"/courses/{course_id}", headers=headers)
+    response = await async_test_client.get(f"/courses/{course_id}", headers=headers)
 
     assert response.status_code == 403
 
@@ -122,7 +106,6 @@ async def test_search_courses_by_vlab_name(
 ) -> None:
     """Searching by partial vlab name should return the course."""
     course_id, vlab_id = draft_course
-    headers = get_headers()
 
     async with session_context_factory() as session:
         vlab = await session.scalar(
@@ -134,13 +117,9 @@ async def test_search_courses_by_vlab_name(
     # Search with a substring of the name
     search_term = vlab_name[:5]
 
-    with patch(
-        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-    ) as mock_kc:
-        mock_kc.userinfo.side_effect = mock_admin_userinfo
-        response = await async_test_client.get(
-            "/courses", params={"vlab_name": search_term}, headers=headers
-        )
+    response = await async_test_client.get(
+        "/courses", params={"vlab_name": search_term}, headers=SERVICE_ADMIN_HEADERS
+    )
 
     assert response.status_code == 200
     data = response.json()["data"]
@@ -157,7 +136,6 @@ async def test_search_courses_by_vlab_name_case_insensitive(
 ) -> None:
     """Search should be case-insensitive."""
     _, vlab_id = draft_course
-    headers = get_headers()
 
     async with session_context_factory() as session:
         vlab = await session.scalar(
@@ -166,13 +144,11 @@ async def test_search_courses_by_vlab_name_case_insensitive(
         assert vlab is not None
         vlab_name = vlab.name
 
-    with patch(
-        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-    ) as mock_kc:
-        mock_kc.userinfo.side_effect = mock_admin_userinfo
-        response = await async_test_client.get(
-            "/courses", params={"vlab_name": vlab_name.upper()}, headers=headers
-        )
+    response = await async_test_client.get(
+        "/courses",
+        params={"vlab_name": vlab_name.upper()},
+        headers=SERVICE_ADMIN_HEADERS,
+    )
 
     assert response.status_code == 200
     assert len(response.json()["data"]) >= 1
@@ -183,17 +159,11 @@ async def test_search_courses_no_results(
     async_test_client: AsyncClient,
 ) -> None:
     """Searching with a non-matching name should return empty list."""
-    headers = get_headers()
-
-    with patch(
-        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-    ) as mock_kc:
-        mock_kc.userinfo.side_effect = mock_admin_userinfo
-        response = await async_test_client.get(
-            "/courses",
-            params={"vlab_name": "nonexistent-lab-xyz-99999"},
-            headers=headers,
-        )
+    response = await async_test_client.get(
+        "/courses",
+        params={"vlab_name": "nonexistent-lab-xyz-99999"},
+        headers=SERVICE_ADMIN_HEADERS,
+    )
 
     assert response.status_code == 200
     assert response.json()["data"] == []
@@ -204,13 +174,7 @@ async def test_search_courses_requires_vlab_name_param(
     async_test_client: AsyncClient,
 ) -> None:
     """GET /courses without vlab_name query param should fail validation."""
-    headers = get_headers()
-
-    with patch(
-        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-    ) as mock_kc:
-        mock_kc.userinfo.side_effect = mock_admin_userinfo
-        response = await async_test_client.get("/courses", headers=headers)
+    response = await async_test_client.get("/courses", headers=SERVICE_ADMIN_HEADERS)
 
     assert response.status_code == 422
 
@@ -234,12 +198,8 @@ async def test_search_courses_fails_for_non_admin(
 ) -> None:
     headers = get_headers()
 
-    with patch(
-        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-    ) as mock_kc:
-        mock_kc.userinfo.side_effect = mock_non_admin_userinfo
-        response = await async_test_client.get(
-            "/courses", params={"vlab_name": "test"}, headers=headers
-        )
+    response = await async_test_client.get(
+        "/courses", params={"vlab_name": "test"}, headers=headers
+    )
 
     assert response.status_code == 403

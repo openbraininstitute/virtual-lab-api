@@ -1,17 +1,13 @@
 """Tests for the seat batch search endpoints."""
 
-from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
 from httpx import AsyncClient
 
+from virtual_labs.tests.seats.conftest import SERVICE_ADMIN_HEADERS
 from virtual_labs.tests.seats.helpers import provision_seats
-from virtual_labs.tests.utils import (
-    get_headers,
-    mock_admin_userinfo,
-    mock_non_admin_userinfo,
-)
+from virtual_labs.tests.utils import get_headers
 
 # ──────────────────────────────────────────────────────────────────────
 # GET /seats/batches/{batch_id}
@@ -26,14 +22,9 @@ async def test_get_seat_batch_by_id(
     data = await provision_seats(async_test_client, course_for_seats)
     batch_id = data["seats"][0]["batch_id"]
 
-    headers = get_headers()
-    with patch(
-        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-    ) as mock_kc:
-        mock_kc.userinfo.side_effect = mock_admin_userinfo
-        response = await async_test_client.get(
-            f"/seats/batches/{batch_id}", headers=headers
-        )
+    response = await async_test_client.get(
+        f"/seats/batches/{batch_id}", headers=SERVICE_ADMIN_HEADERS
+    )
 
     assert response.status_code == 200
     result = response.json()
@@ -55,14 +46,9 @@ async def test_get_seat_batch_includes_course_details(
     data = await provision_seats(async_test_client, course_for_seats)
     batch_id = data["seats"][0]["batch_id"]
 
-    headers = get_headers()
-    with patch(
-        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-    ) as mock_kc:
-        mock_kc.userinfo.side_effect = mock_admin_userinfo
-        response = await async_test_client.get(
-            f"/seats/batches/{batch_id}", headers=headers
-        )
+    response = await async_test_client.get(
+        f"/seats/batches/{batch_id}", headers=SERVICE_ADMIN_HEADERS
+    )
 
     assert response.status_code == 200
     result = response.json()
@@ -81,14 +67,9 @@ async def test_get_seat_batch_includes_institution_details(
     data = await provision_seats(async_test_client, course_for_seats)
     batch_id = data["seats"][0]["batch_id"]
 
-    headers = get_headers()
-    with patch(
-        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-    ) as mock_kc:
-        mock_kc.userinfo.side_effect = mock_admin_userinfo
-        response = await async_test_client.get(
-            f"/seats/batches/{batch_id}", headers=headers
-        )
+    response = await async_test_client.get(
+        f"/seats/batches/{batch_id}", headers=SERVICE_ADMIN_HEADERS
+    )
 
     assert response.status_code == 200
     result = response.json()
@@ -102,14 +83,9 @@ async def test_get_seat_batch_includes_institution_details(
 async def test_get_seat_batch_not_found(
     async_test_client: AsyncClient,
 ) -> None:
-    headers = get_headers()
-    with patch(
-        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-    ) as mock_kc:
-        mock_kc.userinfo.side_effect = mock_admin_userinfo
-        response = await async_test_client.get(
-            f"/seats/batches/{uuid4()}", headers=headers
-        )
+    response = await async_test_client.get(
+        f"/seats/batches/{uuid4()}", headers=SERVICE_ADMIN_HEADERS
+    )
 
     assert response.status_code == 404
 
@@ -138,14 +114,11 @@ async def test_search_seat_batches_by_course_id(
     await provision_seats(async_test_client, course_for_seats, number_of_seats=3)
     await provision_seats(async_test_client, course_for_seats, number_of_seats=2)
 
-    headers = get_headers()
-    with patch(
-        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-    ) as mock_kc:
-        mock_kc.userinfo.side_effect = mock_admin_userinfo
-        response = await async_test_client.get(
-            "/seats/batches", params={"course_id": course_for_seats}, headers=headers
-        )
+    response = await async_test_client.get(
+        "/seats/batches",
+        params={"course_id": course_for_seats},
+        headers=SERVICE_ADMIN_HEADERS,
+    )
 
     assert response.status_code == 200
     result = response.json()
@@ -163,16 +136,11 @@ async def test_search_seat_batches_by_institution_id(
 ) -> None:
     await provision_seats(async_test_client, course_for_seats)
 
-    headers = get_headers()
-    with patch(
-        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-    ) as mock_kc:
-        mock_kc.userinfo.side_effect = mock_admin_userinfo
-        response = await async_test_client.get(
-            "/seats/batches",
-            params={"institution_id": institution_id},
-            headers=headers,
-        )
+    response = await async_test_client.get(
+        "/seats/batches",
+        params={"institution_id": institution_id},
+        headers=SERVICE_ADMIN_HEADERS,
+    )
 
     assert response.status_code == 200
     result = response.json()
@@ -187,15 +155,12 @@ async def test_search_seat_batches_by_vlab_name(
 ) -> None:
     await provision_seats(async_test_client, course_for_seats)
 
-    headers = get_headers()
-    with patch(
-        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-    ) as mock_kc:
-        mock_kc.userinfo.side_effect = mock_admin_userinfo
-        # Use "Course Lab" which is part of the lab name created by fixtures
-        response = await async_test_client.get(
-            "/seats/batches", params={"vlab_name": "Course Lab"}, headers=headers
-        )
+    # Use "Course Lab" which is part of the lab name created by fixtures
+    response = await async_test_client.get(
+        "/seats/batches",
+        params={"vlab_name": "Course Lab"},
+        headers=SERVICE_ADMIN_HEADERS,
+    )
 
     assert response.status_code == 200
     result = response.json()
@@ -209,16 +174,11 @@ async def test_search_seat_batches_by_institution_name(
 ) -> None:
     await provision_seats(async_test_client, course_for_seats)
 
-    headers = get_headers()
-    with patch(
-        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-    ) as mock_kc:
-        mock_kc.userinfo.side_effect = mock_admin_userinfo
-        response = await async_test_client.get(
-            "/seats/batches",
-            params={"institution_name": "Open Brain"},
-            headers=headers,
-        )
+    response = await async_test_client.get(
+        "/seats/batches",
+        params={"institution_name": "Open Brain"},
+        headers=SERVICE_ADMIN_HEADERS,
+    )
 
     assert response.status_code == 200
     result = response.json()
@@ -229,14 +189,11 @@ async def test_search_seat_batches_by_institution_name(
 async def test_search_seat_batches_no_results(
     async_test_client: AsyncClient,
 ) -> None:
-    headers = get_headers()
-    with patch(
-        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-    ) as mock_kc:
-        mock_kc.userinfo.side_effect = mock_admin_userinfo
-        response = await async_test_client.get(
-            "/seats/batches", params={"course_id": str(uuid4())}, headers=headers
-        )
+    response = await async_test_client.get(
+        "/seats/batches",
+        params={"course_id": str(uuid4())},
+        headers=SERVICE_ADMIN_HEADERS,
+    )
 
     assert response.status_code == 404
 
@@ -246,13 +203,10 @@ async def test_search_seat_batches_fails_for_non_admin(
     async_test_client: AsyncClient,
 ) -> None:
     headers = get_headers()
-    with patch(
-        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-    ) as mock_kc:
-        mock_kc.userinfo.side_effect = mock_non_admin_userinfo
-        response = await async_test_client.get(
-            "/seats/batches", params={"course_id": str(uuid4())}, headers=headers
-        )
+
+    response = await async_test_client.get(
+        "/seats/batches", params={"course_id": str(uuid4())}, headers=headers
+    )
 
     assert response.status_code == 403
 
@@ -264,20 +218,15 @@ async def test_search_seat_batches_by_created_after(
 ) -> None:
     await provision_seats(async_test_client, course_for_seats)
 
-    headers = get_headers()
-    with patch(
-        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-    ) as mock_kc:
-        mock_kc.userinfo.side_effect = mock_admin_userinfo
-        # Use a date in the past to ensure we find the batch
-        response = await async_test_client.get(
-            "/seats/batches",
-            params={
-                "course_id": course_for_seats,
-                "created_after": "2020-01-01T00:00:00Z",
-            },
-            headers=headers,
-        )
+    # Use a date in the past to ensure we find the batch
+    response = await async_test_client.get(
+        "/seats/batches",
+        params={
+            "course_id": course_for_seats,
+            "created_after": "2020-01-01T00:00:00Z",
+        },
+        headers=SERVICE_ADMIN_HEADERS,
+    )
 
     assert response.status_code == 200
     result = response.json()
@@ -291,19 +240,14 @@ async def test_search_seat_batches_by_created_before_filters_out(
 ) -> None:
     await provision_seats(async_test_client, course_for_seats)
 
-    headers = get_headers()
-    with patch(
-        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-    ) as mock_kc:
-        mock_kc.userinfo.side_effect = mock_admin_userinfo
-        # Use a date in the past to ensure nothing is found
-        response = await async_test_client.get(
-            "/seats/batches",
-            params={
-                "course_id": course_for_seats,
-                "created_before": "2020-01-01T00:00:00Z",
-            },
-            headers=headers,
-        )
+    # Use a date in the past to ensure nothing is found
+    response = await async_test_client.get(
+        "/seats/batches",
+        params={
+            "course_id": course_for_seats,
+            "created_before": "2020-01-01T00:00:00Z",
+        },
+        headers=SERVICE_ADMIN_HEADERS,
+    )
 
     assert response.status_code == 404

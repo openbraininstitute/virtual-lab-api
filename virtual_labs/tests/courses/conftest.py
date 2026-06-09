@@ -1,7 +1,6 @@
 """Shared fixtures and helpers for course tests."""
 
 from typing import AsyncGenerator
-from unittest.mock import patch
 from uuid import UUID
 
 import pytest_asyncio
@@ -16,9 +15,10 @@ from virtual_labs.tests.utils import (
     create_mock_lab_with_project,
     get_headers,
     get_or_create_institution,
-    mock_admin_userinfo,
     session_context_factory,
 )
+
+SERVICE_ADMIN_HEADERS = get_headers("test-service-admin")
 
 # ──────────────────────────────────────────────────────────────────────
 # Fixtures
@@ -70,18 +70,15 @@ async def draft_course(
         )
         await session.commit()
 
-    headers = get_headers()
     body = {
         "virtual_lab_id": lab_id,
         "template_project_id": project_id,
         "institution_id": institution_id,
     }
 
-    with patch(
-        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-    ) as mock_kc:
-        mock_kc.userinfo.side_effect = mock_admin_userinfo
-        response = await async_test_client.post("/courses", json=body, headers=headers)
+    response = await async_test_client.post(
+        "/courses", json=body, headers=SERVICE_ADMIN_HEADERS
+    )
 
     assert response.status_code == 200
     course_id = response.json()["data"]["id"]

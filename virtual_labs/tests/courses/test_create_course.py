@@ -5,20 +5,18 @@ It does NOT provision KC groups, accounting, or create vlab/project records.
 """
 
 from typing import AsyncGenerator
-from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient, Response
 
+from virtual_labs.tests.courses.conftest import SERVICE_ADMIN_HEADERS
 from virtual_labs.tests.utils import (
     cleanup_course,
     cleanup_resources,
     create_mock_lab_with_project,
     get_headers,
-    mock_admin_userinfo,
-    mock_non_admin_userinfo,
 )
 
 
@@ -38,18 +36,15 @@ async def mock_create_course(
     institution_id: str,
     vlab_with_project: tuple[str, str],
 ) -> AsyncGenerator[tuple[Response, dict[str, str]], None]:
-    headers = get_headers()
     vlab_id, project_id = vlab_with_project
 
     body = _make_course_payload(vlab_id, project_id, institution_id)
 
-    with patch(
-        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-    ) as mock_kc:
-        mock_kc.userinfo.side_effect = mock_admin_userinfo
-        response = await async_test_client.post("/courses", json=body, headers=headers)
+    response = await async_test_client.post(
+        "/courses", json=body, headers=SERVICE_ADMIN_HEADERS
+    )
 
-    yield response, headers
+    yield response, SERVICE_ADMIN_HEADERS
 
     # Cleanup course row (vlab/project cleaned by vlab_with_project fixture)
     if response.status_code == 200:
@@ -109,7 +104,6 @@ async def test_course_creation_with_optional_dates(
     institution_id: str,
     vlab_with_project: tuple[str, str],
 ) -> None:
-    headers = get_headers()
     vlab_id, project_id = vlab_with_project
 
     body = {
@@ -119,11 +113,9 @@ async def test_course_creation_with_optional_dates(
         "last_drop_date": "2026-09-14T00:00:00Z",
     }
 
-    with patch(
-        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-    ) as mock_kc:
-        mock_kc.userinfo.side_effect = mock_admin_userinfo
-        response = await async_test_client.post("/courses", json=body, headers=headers)
+    response = await async_test_client.post(
+        "/courses", json=body, headers=SERVICE_ADMIN_HEADERS
+    )
 
     assert response.status_code == 200
     data = response.json()["data"]
@@ -144,14 +136,11 @@ async def test_course_creation_fails_with_nonexistent_vlab(
     async_test_client: AsyncClient,
     institution_id: str,
 ) -> None:
-    headers = get_headers()
     body = _make_course_payload(str(uuid4()), str(uuid4()), institution_id)
 
-    with patch(
-        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-    ) as mock_kc:
-        mock_kc.userinfo.side_effect = mock_admin_userinfo
-        response = await async_test_client.post("/courses", json=body, headers=headers)
+    response = await async_test_client.post(
+        "/courses", json=body, headers=SERVICE_ADMIN_HEADERS
+    )
 
     assert response.status_code == 404
 
@@ -162,15 +151,12 @@ async def test_course_creation_fails_with_nonexistent_project(
     institution_id: str,
     vlab_with_project: tuple[str, str],
 ) -> None:
-    headers = get_headers()
     vlab_id, _ = vlab_with_project
     body = _make_course_payload(vlab_id, str(uuid4()), institution_id)
 
-    with patch(
-        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-    ) as mock_kc:
-        mock_kc.userinfo.side_effect = mock_admin_userinfo
-        response = await async_test_client.post("/courses", json=body, headers=headers)
+    response = await async_test_client.post(
+        "/courses", json=body, headers=SERVICE_ADMIN_HEADERS
+    )
 
     assert response.status_code == 404
 
@@ -197,11 +183,7 @@ async def test_course_creation_fails_for_non_admin_user(
     headers = get_headers()
     body = _make_course_payload(str(uuid4()), str(uuid4()), str(uuid4()))
 
-    with patch(
-        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-    ) as mock_kc:
-        mock_kc.userinfo.side_effect = mock_non_admin_userinfo
-        response = await async_test_client.post("/courses", json=body, headers=headers)
+    response = await async_test_client.post("/courses", json=body, headers=headers)
 
     assert response.status_code == 403
 
@@ -211,14 +193,11 @@ async def test_course_creation_fails_without_virtual_lab_id(
     async_test_client: AsyncClient,
     institution_id: str,
 ) -> None:
-    headers = get_headers()
     body = {"template_project_id": str(uuid4()), "institution_id": institution_id}
 
-    with patch(
-        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-    ) as mock_kc:
-        mock_kc.userinfo.side_effect = mock_admin_userinfo
-        response = await async_test_client.post("/courses", json=body, headers=headers)
+    response = await async_test_client.post(
+        "/courses", json=body, headers=SERVICE_ADMIN_HEADERS
+    )
 
     assert response.status_code == 422
 
@@ -228,14 +207,11 @@ async def test_course_creation_fails_without_template_project_id(
     async_test_client: AsyncClient,
     institution_id: str,
 ) -> None:
-    headers = get_headers()
     body = {"virtual_lab_id": str(uuid4()), "institution_id": institution_id}
 
-    with patch(
-        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-    ) as mock_kc:
-        mock_kc.userinfo.side_effect = mock_admin_userinfo
-        response = await async_test_client.post("/courses", json=body, headers=headers)
+    response = await async_test_client.post(
+        "/courses", json=body, headers=SERVICE_ADMIN_HEADERS
+    )
 
     assert response.status_code == 422
 
@@ -244,14 +220,11 @@ async def test_course_creation_fails_without_template_project_id(
 async def test_course_creation_fails_without_institution_id(
     async_test_client: AsyncClient,
 ) -> None:
-    headers = get_headers()
     body = {"virtual_lab_id": str(uuid4()), "template_project_id": str(uuid4())}
 
-    with patch(
-        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-    ) as mock_kc:
-        mock_kc.userinfo.side_effect = mock_admin_userinfo
-        response = await async_test_client.post("/courses", json=body, headers=headers)
+    response = await async_test_client.post(
+        "/courses", json=body, headers=SERVICE_ADMIN_HEADERS
+    )
 
     assert response.status_code == 422
 
@@ -263,20 +236,18 @@ async def test_course_creation_fails_duplicate_vlab(
     vlab_with_project: tuple[str, str],
 ) -> None:
     """A virtual lab can only have one course (unique constraint)."""
-    headers = get_headers()
     vlab_id, project_id = vlab_with_project
     body = _make_course_payload(vlab_id, project_id, institution_id)
 
-    with patch(
-        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-    ) as mock_kc:
-        mock_kc.userinfo.side_effect = mock_admin_userinfo
+    resp1 = await async_test_client.post(
+        "/courses", json=body, headers=SERVICE_ADMIN_HEADERS
+    )
+    assert resp1.status_code == 200
 
-        resp1 = await async_test_client.post("/courses", json=body, headers=headers)
-        assert resp1.status_code == 200
-
-        resp2 = await async_test_client.post("/courses", json=body, headers=headers)
-        assert resp2.status_code == 409
+    resp2 = await async_test_client.post(
+        "/courses", json=body, headers=SERVICE_ADMIN_HEADERS
+    )
+    assert resp2.status_code == 409
 
     await cleanup_course(resp1.json()["data"]["id"])
 
@@ -292,17 +263,12 @@ async def test_course_creation_fails_for_regular_vlab(
     lab_data, project_id = await create_mock_lab_with_project(async_test_client)
     lab_id = lab_data["id"]
 
-    headers = get_headers()
     body = _make_course_payload(lab_id, project_id, institution_id)
 
     try:
-        with patch(
-            "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-        ) as mock_kc:
-            mock_kc.userinfo.side_effect = mock_admin_userinfo
-            response = await async_test_client.post(
-                "/courses", json=body, headers=headers
-            )
+        response = await async_test_client.post(
+            "/courses", json=body, headers=SERVICE_ADMIN_HEADERS
+        )
 
         assert response.status_code == 403
     finally:

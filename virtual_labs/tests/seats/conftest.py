@@ -5,7 +5,6 @@ which uses COURSE_LAB_POLICY (no billing/subscription required).
 """
 
 from typing import AsyncGenerator
-from unittest.mock import patch
 from uuid import UUID, uuid4
 
 import pytest_asyncio
@@ -19,9 +18,10 @@ from virtual_labs.tests.utils import (
     cleanup_resources,
     get_headers,
     get_or_create_institution,
-    mock_admin_userinfo,
     session_context_factory,
 )
+
+SERVICE_ADMIN_HEADERS = get_headers("test-service-admin")
 
 # ──────────────────────────────────────────────────────────────────────
 # Helpers
@@ -94,34 +94,26 @@ async def course_for_seats(
         "template_project_id": project_id,
         "institution_id": institution_id,
     }
-    with patch(
-        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-    ) as mock_kc:
-        mock_kc.userinfo.side_effect = mock_admin_userinfo
-        course_response = await client.post(
-            "/courses", json=course_body, headers=headers
-        )
+    course_response = await client.post(
+        "/courses", json=course_body, headers=SERVICE_ADMIN_HEADERS
+    )
 
     assert course_response.status_code == 200
     course_id = course_response.json()["data"]["id"]
 
     # 4. Set required dates and activate the course
-    with patch(
-        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-    ) as mock_kc:
-        mock_kc.userinfo.side_effect = mock_admin_userinfo
-        await client.patch(
-            f"/courses/{course_id}",
-            json={
-                "start_date": "2026-09-01T00:00:00Z",
-                "end_date": "2026-12-15T00:00:00Z",
-                "last_drop_date": "2026-09-14T00:00:00Z",
-            },
-            headers=headers,
-        )
-        activate_response = await client.post(
-            f"/courses/{course_id}/activate", headers=headers
-        )
+    await client.patch(
+        f"/courses/{course_id}",
+        json={
+            "start_date": "2026-09-01T00:00:00Z",
+            "end_date": "2026-12-15T00:00:00Z",
+            "last_drop_date": "2026-09-14T00:00:00Z",
+        },
+        headers=SERVICE_ADMIN_HEADERS,
+    )
+    activate_response = await client.post(
+        f"/courses/{course_id}/activate", headers=SERVICE_ADMIN_HEADERS
+    )
     assert activate_response.status_code == 200
 
     yield course_id
@@ -174,13 +166,9 @@ async def draft_course_for_seats(
         "template_project_id": project_id,
         "institution_id": institution_id,
     }
-    with patch(
-        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-    ) as mock_kc:
-        mock_kc.userinfo.side_effect = mock_admin_userinfo
-        course_response = await client.post(
-            "/courses", json=course_body, headers=headers
-        )
+    course_response = await client.post(
+        "/courses", json=course_body, headers=SERVICE_ADMIN_HEADERS
+    )
 
     assert course_response.status_code == 200
     course_id = course_response.json()["data"]["id"]
@@ -235,19 +223,17 @@ async def voided_course_for_seats(
         "template_project_id": project_id,
         "institution_id": institution_id,
     }
-    with patch(
-        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-    ) as mock_kc:
-        mock_kc.userinfo.side_effect = mock_admin_userinfo
-        course_response = await client.post(
-            "/courses", json=course_body, headers=headers
-        )
-        assert course_response.status_code == 200
-        course_id = course_response.json()["data"]["id"]
+    course_response = await client.post(
+        "/courses", json=course_body, headers=SERVICE_ADMIN_HEADERS
+    )
+    assert course_response.status_code == 200
+    course_id = course_response.json()["data"]["id"]
 
-        # Void the course
-        void_response = await client.post(f"/courses/{course_id}/void", headers=headers)
-        assert void_response.status_code == 200
+    # Void the course
+    void_response = await client.post(
+        f"/courses/{course_id}/void", headers=SERVICE_ADMIN_HEADERS
+    )
+    assert void_response.status_code == 200
 
     yield course_id
 
