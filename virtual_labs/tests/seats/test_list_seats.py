@@ -129,3 +129,53 @@ async def test_list_seats_fails_without_auth(
     )
 
     assert response.status_code == 401
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Ordering
+# ──────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_list_seats_assigned_first_ordered_by_assignment_time(
+    async_test_client: AsyncClient,
+    course_for_seats: str,
+) -> None:
+    """Assigned seats appear before unassigned, sorted by project creation asc."""
+    from unittest.mock import AsyncMock
+    from uuid import uuid4 as uuid
+
+    from virtual_labs.tests.seats.test_assign_seats import mock_assign_accounting
+
+    # Provision 3 seats
+    await _provision_seats(async_test_client, course_for_seats, number_of_seats=3)
+
+    headers = get_headers()
+
+    # Assign 2 of the 3 seats
+    students = [
+        {"student_id": f"stu-{uuid().hex[:8]}", "email": f"{uuid().hex[:8]}@uni.org"},
+        {"student_id": f"stu-{uuid().hex[:8]}", "email": f"{uuid().hex[:8]}@uni.org"},
+    ]
+    with mock_assign_accounting() as mocks:
+        mocks.balance.return_value = AsyncMock(data=AsyncMock(balance=5000.0))
+        mocks.transfer.return_value = AsyncMock()
+        assign_resp = await async_test_client.post(
+            f"/courses/{course_for_seats}/assign_seats",
+            json={"students": students},
+            headers=headers,
+        )
+    assert assign_resp.status_code == 200
+
+    # List seats
+    response = await async_test_client.get(
+        f"/seats/courses/{course_for_seats}", headers=headers
+    )
+    assert response.status_code == 200
+    seats = response.json()["seats"]
+
+    # First 2 should be assigned (have project), last should be unassigned
+    assert seats[0]["project"] is not None
+    assert seats[1]["project"] is not None
+    assert seats[2]["project"] is None
+    assert seats[2]["active_project_id"] is None

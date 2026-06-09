@@ -1122,7 +1122,7 @@ class Seat(Base):
         UUID(as_uuid=True), nullable=False, index=True
     )
     active_project_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), unique=True
+        UUID(as_uuid=True), ForeignKey("project.id"), unique=True
     )
     expiry_date: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
@@ -1134,3 +1134,4 @@ class Seat(Base):
 
     course = relationship("Course")
     institution = relationship("Institution")
+    project = relationship("Project", lazy="noload")
