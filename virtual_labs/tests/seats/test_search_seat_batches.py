@@ -1,40 +1,17 @@
 """Tests for the seat batch search endpoints."""
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
 from httpx import AsyncClient
 
+from virtual_labs.tests.seats.helpers import provision_seats
 from virtual_labs.tests.utils import (
     get_headers,
     mock_admin_userinfo,
     mock_non_admin_userinfo,
 )
-
-
-async def _provision_seats(
-    client: AsyncClient, course_id: str, number_of_seats: int = 2
-) -> dict:
-    """Helper to provision seats and return the response data."""
-    headers = get_headers()
-    body = {"course_id": course_id, "number_of_seats": number_of_seats}
-
-    with (
-        patch(
-            "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-        ) as mock_kc,
-        patch(
-            "virtual_labs.usecases.seat.provision_seats.accounting_cases.top_up_virtual_lab_budget"
-        ) as mock_top_up,
-    ):
-        mock_kc.userinfo.side_effect = mock_admin_userinfo
-        mock_top_up.return_value = AsyncMock()
-        response = await client.post("/seats/provision", json=body, headers=headers)
-
-    assert response.status_code == 200
-    return response.json()["data"]
-
 
 # ──────────────────────────────────────────────────────────────────────
 # GET /seats/batches/{batch_id}
@@ -46,7 +23,7 @@ async def test_get_seat_batch_by_id(
     async_test_client: AsyncClient,
     course_for_seats: str,
 ) -> None:
-    data = await _provision_seats(async_test_client, course_for_seats)
+    data = await provision_seats(async_test_client, course_for_seats)
     batch_id = data["seats"][0]["batch_id"]
 
     headers = get_headers()
@@ -75,7 +52,7 @@ async def test_get_seat_batch_includes_course_details(
     async_test_client: AsyncClient,
     course_for_seats: str,
 ) -> None:
-    data = await _provision_seats(async_test_client, course_for_seats)
+    data = await provision_seats(async_test_client, course_for_seats)
     batch_id = data["seats"][0]["batch_id"]
 
     headers = get_headers()
@@ -101,7 +78,7 @@ async def test_get_seat_batch_includes_institution_details(
     course_for_seats: str,
     institution_id: str,
 ) -> None:
-    data = await _provision_seats(async_test_client, course_for_seats)
+    data = await provision_seats(async_test_client, course_for_seats)
     batch_id = data["seats"][0]["batch_id"]
 
     headers = get_headers()
@@ -158,8 +135,8 @@ async def test_search_seat_batches_by_course_id(
     async_test_client: AsyncClient,
     course_for_seats: str,
 ) -> None:
-    await _provision_seats(async_test_client, course_for_seats, number_of_seats=3)
-    await _provision_seats(async_test_client, course_for_seats, number_of_seats=2)
+    await provision_seats(async_test_client, course_for_seats, number_of_seats=3)
+    await provision_seats(async_test_client, course_for_seats, number_of_seats=2)
 
     headers = get_headers()
     with patch(
@@ -184,7 +161,7 @@ async def test_search_seat_batches_by_institution_id(
     course_for_seats: str,
     institution_id: str,
 ) -> None:
-    await _provision_seats(async_test_client, course_for_seats)
+    await provision_seats(async_test_client, course_for_seats)
 
     headers = get_headers()
     with patch(
@@ -208,7 +185,7 @@ async def test_search_seat_batches_by_vlab_name(
     async_test_client: AsyncClient,
     course_for_seats: str,
 ) -> None:
-    await _provision_seats(async_test_client, course_for_seats)
+    await provision_seats(async_test_client, course_for_seats)
 
     headers = get_headers()
     with patch(
@@ -230,7 +207,7 @@ async def test_search_seat_batches_by_institution_name(
     async_test_client: AsyncClient,
     course_for_seats: str,
 ) -> None:
-    await _provision_seats(async_test_client, course_for_seats)
+    await provision_seats(async_test_client, course_for_seats)
 
     headers = get_headers()
     with patch(
@@ -285,7 +262,7 @@ async def test_search_seat_batches_by_created_after(
     async_test_client: AsyncClient,
     course_for_seats: str,
 ) -> None:
-    await _provision_seats(async_test_client, course_for_seats)
+    await provision_seats(async_test_client, course_for_seats)
 
     headers = get_headers()
     with patch(
@@ -312,7 +289,7 @@ async def test_search_seat_batches_by_created_before_filters_out(
     async_test_client: AsyncClient,
     course_for_seats: str,
 ) -> None:
-    await _provision_seats(async_test_client, course_for_seats)
+    await provision_seats(async_test_client, course_for_seats)
 
     headers = get_headers()
     with patch(

@@ -9,7 +9,7 @@ from uuid import uuid4
 import pytest
 from httpx import AsyncClient
 
-from virtual_labs.tests.seats.test_search_seat_batches import _provision_seats
+from virtual_labs.tests.seats.helpers import provision_seats
 from virtual_labs.tests.utils import get_headers
 
 # ──────────────────────────────────────────────────────────────────────
@@ -23,7 +23,7 @@ async def test_list_seats_returns_provisioned_seats(
     course_for_seats: str,
 ) -> None:
     """Vlab admin can list seats for a course they own."""
-    await _provision_seats(async_test_client, course_for_seats, number_of_seats=3)
+    await provision_seats(async_test_client, course_for_seats, number_of_seats=3)
 
     headers = get_headers()  # "test" user is the lab owner/admin
     response = await async_test_client.get(
@@ -58,7 +58,7 @@ async def test_list_seats_contains_expected_fields(
     course_for_seats: str,
 ) -> None:
     """Each seat in the response has all the required fields."""
-    await _provision_seats(async_test_client, course_for_seats, number_of_seats=1)
+    await provision_seats(async_test_client, course_for_seats, number_of_seats=1)
 
     headers = get_headers()
     response = await async_test_client.get(
@@ -148,7 +148,7 @@ async def test_list_seats_assigned_first_ordered_by_assignment_time(
     from virtual_labs.tests.seats.test_assign_seats import mock_assign_accounting
 
     # Provision 3 seats
-    await _provision_seats(async_test_client, course_for_seats, number_of_seats=3)
+    await provision_seats(async_test_client, course_for_seats, number_of_seats=3)
 
     headers = get_headers()
 

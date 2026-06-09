@@ -8,9 +8,9 @@ from uuid import uuid4
 import pytest
 from httpx import AsyncClient
 
+from virtual_labs.tests.seats.helpers import provision_seats
 from virtual_labs.tests.utils import (
     get_headers,
-    mock_admin_userinfo,
 )
 
 
@@ -23,27 +23,6 @@ def _assign_payload(students: list[dict] | None = None) -> dict:
             }
         ]
     return {"students": students}
-
-
-async def _provision_seats(client: AsyncClient, course_id: str, count: int) -> None:
-    """Helper to provision seats for a course."""
-    headers = get_headers()
-    with (
-        patch(
-            "virtual_labs.core.authorization.verify_service_admin.kc_auth"
-        ) as mock_kc,
-        patch(
-            "virtual_labs.usecases.seat.provision_seats.accounting_cases.top_up_virtual_lab_budget"
-        ) as mock_top_up,
-    ):
-        mock_kc.userinfo.side_effect = mock_admin_userinfo
-        mock_top_up.return_value = AsyncMock()
-        resp = await client.post(
-            "/seats/provision",
-            json={"course_id": course_id, "number_of_seats": count},
-            headers=headers,
-        )
-    assert resp.status_code == 200
 
 
 @dataclass
@@ -95,7 +74,7 @@ async def test_assign_seats_success(
     """Assign a single seat — project created, credit transfer succeeds."""
     headers = get_headers()
     course_id = course_for_seats
-    await _provision_seats(async_test_client, course_id, 2)
+    await provision_seats(async_test_client, course_id, 2)
 
     student = {
         "student_id": f"stu-{uuid4().hex[:8]}",
@@ -128,7 +107,7 @@ async def test_assign_seats_multiple_students(
     """Assign multiple seats in one call."""
     headers = get_headers()
     course_id = course_for_seats
-    await _provision_seats(async_test_client, course_id, 3)
+    await provision_seats(async_test_client, course_id, 3)
 
     students = [
         {
@@ -163,7 +142,7 @@ async def test_assign_seats_credit_transfer_fails_gracefully(
     """If credit transfer fails, seat is still assigned but credit_transferred=False."""
     headers = get_headers()
     course_id = course_for_seats
-    await _provision_seats(async_test_client, course_id, 1)
+    await provision_seats(async_test_client, course_id, 1)
 
     student = {
         "student_id": f"stu-{uuid4().hex[:8]}",
@@ -194,7 +173,7 @@ async def test_assign_seats_no_accounting_url(
     """When ACCOUNTING_BASE_URL is None, assignment succeeds but no transfer."""
     headers = get_headers()
     course_id = course_for_seats
-    await _provision_seats(async_test_client, course_id, 1)
+    await provision_seats(async_test_client, course_id, 1)
 
     student = {
         "student_id": f"stu-{uuid4().hex[:8]}",
@@ -221,7 +200,7 @@ async def test_assign_seats_partial_credit(
     """When balance < seat credit, transfers what's available (partial)."""
     headers = get_headers()
     course_id = course_for_seats
-    await _provision_seats(async_test_client, course_id, 1)
+    await provision_seats(async_test_client, course_id, 1)
 
     student = {
         "student_id": f"stu-{uuid4().hex[:8]}",
@@ -252,7 +231,7 @@ async def test_assign_seats_zero_balance_skips_transfer(
     """When balance is 0, no transfer is attempted."""
     headers = get_headers()
     course_id = course_for_seats
-    await _provision_seats(async_test_client, course_id, 1)
+    await provision_seats(async_test_client, course_id, 1)
 
     student = {
         "student_id": f"stu-{uuid4().hex[:8]}",
@@ -432,7 +411,7 @@ async def test_assign_seats_mixed_outcomes(
     """Multiple students: first gets full credit, second partial, third zero balance."""
     headers = get_headers()
     course_id = course_for_seats
-    await _provision_seats(async_test_client, course_id, 3)
+    await provision_seats(async_test_client, course_id, 3)
 
     students = [
         {
