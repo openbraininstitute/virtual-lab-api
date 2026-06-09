@@ -129,7 +129,7 @@ async def assign_seats_endpoint(
     session: AsyncSession = Depends(default_session_factory),
 ) -> AssignSeatResponse:
     _user, course = grant
-    seats = await usecases.assign_seats(
+    results = await usecases.assign_seats(
         session, course=course, students=payload.students, auth=auth
     )
-    return AssignSeatResponse(seats=seats)
+    return AssignSeatResponse(results=results)

@@ -3,8 +3,6 @@ from typing import Optional
 
 from pydantic import UUID4, BaseModel, ConfigDict, Field, model_validator
 
-from virtual_labs.domain.seat import SeatOut
-
 
 class CourseCreateBody(BaseModel):
     """Payload for creating a course by assigning an existing virtual lab and project."""
@@ -85,5 +83,16 @@ class AssignSeatsBody(BaseModel):
         return self
 
 
+class SeatAssignmentResult(BaseModel):
+    """Result for a single seat assignment attempt."""
+
+    student_id: str
+    email: str
+    assignment_successful: bool
+    credit_transferred: bool
+    project_id: UUID4 | None = None
+    error: str | None = None
+
+
 class AssignSeatResponse(BaseModel):
-    seats: list[SeatOut]
+    results: list[SeatAssignmentResult]
