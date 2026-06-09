@@ -307,3 +307,53 @@ async def test_assign_project_budget_works_if_vlab_has_course_and_caller_is_serv
 
         assert response.status_code == 200
         assert response.json() == mock_assign_response
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Top-up endpoint tests
+# ──────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_top_up_virtual_lab_budget_fails_if_not_service_admin(
+    mock_lab_with_project: tuple[AsyncClient, str, str, dict[str, str]],
+) -> None:
+    """Regular vlab admin cannot top up — only service admins can."""
+    client, lab_id, _, headers = mock_lab_with_project
+
+    response = await client.post(
+        f"/virtual-labs/{lab_id}/accounting/budget/top-up",
+        headers=headers,
+        json={"amount": 1000.00},
+    )
+
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_top_up_virtual_lab_budget_works_for_service_admin(
+    mock_lab_with_project: tuple[AsyncClient, str, str, dict[str, str]],
+) -> None:
+    client, lab_id, _, headers = mock_lab_with_project
+
+    mock_top_up_response = {"message": "Top up operation executed", "data": None}
+
+    with (
+        patch(
+            "virtual_labs.core.authorization.verify_service_admin.kc_auth"
+        ) as mock_kc,
+        patch(
+            "virtual_labs.usecases.accounting.top_up_virtual_lab_budget"
+        ) as mock_top_up,
+    ):
+        mock_kc.userinfo.side_effect = mock_admin_userinfo
+        mock_top_up.return_value = mock_top_up_response
+
+        response = await client.post(
+            f"/virtual-labs/{lab_id}/accounting/budget/top-up",
+            headers=headers,
+            json={"amount": 1000.00},
+        )
+
+        assert response.status_code == 200
+        assert response.json() == mock_top_up_response

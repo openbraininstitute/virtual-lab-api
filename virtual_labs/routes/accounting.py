@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.authorization import (
     verify_project_read,
+    verify_service_admin,
     verify_vlab_or_project_read,
     verify_vlab_read,
 )
@@ -22,6 +23,8 @@ from virtual_labs.external.accounting.models import (
     BudgetAssignResponse,
     BudgetReverseRequest,
     BudgetReverseResponse,
+    BudgetTopUpRequest,
+    BudgetTopUpResponse,
     ProjBalanceResponse,
     ProjectReportsResponse,
     VirtualLabReportsResponse,
@@ -225,5 +228,40 @@ async def reverse_project_budget(
         raise VliError(
             error_code=VliErrorCode.SERVER_ERROR,
             message="An unexpected error occurred during budget reversal",
+            http_status_code=status.INTERNAL_SERVER_ERROR,
+        )
+
+
+# Top-up endpoint
+
+
+@router.post(
+    "/{virtual_lab_id}/accounting/budget/top-up",
+    operation_id="top_up_virtual_lab_budget",
+    summary="Top up a virtual lab budget (service admin only)",
+    response_model=BudgetTopUpResponse,
+)
+@verify_service_admin([VLAB_SERVICE_ADMIN_GROUP])
+async def top_up_virtual_lab_budget(
+    virtual_lab_id: UUID4,
+    budget_top_up_request: BudgetTopUpRequest,
+    session: AsyncSession = Depends(default_session_factory),
+    auth: Tuple[AuthUser, str] = Depends(verify_jwt),
+) -> BudgetTopUpResponse:
+    try:
+        return await accounting_cases.top_up_virtual_lab_budget(
+            virtual_lab_id, budget_top_up_request.amount
+        )
+    except AccountingError as ex:
+        raise VliError(
+            error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
+            message=ex.message or "Could not complete budget top-up",
+            http_status_code=ex.http_status_code or status.INTERNAL_SERVER_ERROR,
+        )
+    except Exception as ex:
+        logger.exception(f"Unexpected error during budget top-up: {ex}")
+        raise VliError(
+            error_code=VliErrorCode.SERVER_ERROR,
+            message="An unexpected error occurred during budget top-up",
             http_status_code=status.INTERNAL_SERVER_ERROR,
         )

@@ -3,7 +3,10 @@ from decimal import Decimal
 from typing import Generic, Self, TypeVar
 from uuid import UUID
 
-from obp_accounting_sdk.constants import ServiceSubtype, ServiceType  # type: ignore[import-untyped]
+from obp_accounting_sdk.constants import (  # type: ignore[import-untyped]
+    ServiceSubtype,
+    ServiceType,
+)
 from pydantic import (
     UUID4,
     AwareDatetime,
@@ -61,6 +64,10 @@ class VlabBalanceResponse(BaseAccountingResponse):
 
 class BudgetTopUpResponse(BaseAccountingResponse):
     data: None
+
+
+class BudgetTopUpRequest(BaseModel):
+    amount: float
 
 
 class BudgetAssignRequest(BaseModel):
