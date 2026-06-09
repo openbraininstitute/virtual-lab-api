@@ -105,6 +105,150 @@ async def course_for_seats(
     assert course_response.status_code == 200
     course_id = course_response.json()["data"]["id"]
 
+    # 4. Set required dates and activate the course
+    with patch(
+        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
+    ) as mock_kc:
+        mock_kc.userinfo.side_effect = mock_admin_userinfo
+        await client.patch(
+            f"/courses/{course_id}",
+            json={
+                "start_date": "2026-09-01T00:00:00Z",
+                "end_date": "2026-12-15T00:00:00Z",
+                "last_drop_date": "2026-09-14T00:00:00Z",
+            },
+            headers=headers,
+        )
+        activate_response = await client.post(
+            f"/courses/{course_id}/activate", headers=headers
+        )
+    assert activate_response.status_code == 200
+
+    yield course_id
+
+    await cleanup_seats(course_id)
+    await cleanup_course(course_id)
+    await cleanup_resources(client, lab_id)
+
+
+@pytest_asyncio.fixture
+async def draft_course_for_seats(
+    async_test_client: AsyncClient,
+    institution_id: str,
+) -> AsyncGenerator[str, None]:
+    """Create a course-enabled virtual lab and a DRAFT course. Returns the course_id."""
+    client = async_test_client
+    headers = get_headers()
+
+    lab_body = {
+        "name": f"Course Lab {uuid4()}",
+        "description": "Test course lab",
+        "reference_email": "course@test.org",
+        "entity": "EPFL, Switzerland",
+        "is_course": True,
+    }
+    lab_response = await client.post("/virtual-labs", json=lab_body, headers=headers)
+    assert lab_response.status_code == 200
+    lab_id = lab_response.json()["id"]
+
+    async with session_context_factory() as session:
+        await session.execute(
+            update(VirtualLab)
+            .where(VirtualLab.id == UUID(lab_id))
+            .values(owner_id=settings.MULTIPLE_VLABS_ALLOWED_USER_ID)
+        )
+        await session.commit()
+
+    project_body = {
+        "name": f"Template Project {uuid4()}",
+        "description": "Template",
+    }
+    project_response = await client.post(
+        f"/virtual-labs/{lab_id}/projects", json=project_body, headers=headers
+    )
+    assert project_response.status_code == 200
+    project_id = project_response.json()["id"]
+
+    course_body = {
+        "virtual_lab_id": lab_id,
+        "template_project_id": project_id,
+        "institution_id": institution_id,
+    }
+    with patch(
+        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
+    ) as mock_kc:
+        mock_kc.userinfo.side_effect = mock_admin_userinfo
+        course_response = await client.post(
+            "/courses", json=course_body, headers=headers
+        )
+
+    assert course_response.status_code == 200
+    course_id = course_response.json()["data"]["id"]
+
+    yield course_id
+
+    await cleanup_seats(course_id)
+    await cleanup_course(course_id)
+    await cleanup_resources(client, lab_id)
+
+
+@pytest_asyncio.fixture
+async def voided_course_for_seats(
+    async_test_client: AsyncClient,
+    institution_id: str,
+) -> AsyncGenerator[str, None]:
+    """Create a course-enabled virtual lab and a VOIDED course. Returns the course_id."""
+    client = async_test_client
+    headers = get_headers()
+
+    lab_body = {
+        "name": f"Course Lab {uuid4()}",
+        "description": "Test course lab",
+        "reference_email": "course@test.org",
+        "entity": "EPFL, Switzerland",
+        "is_course": True,
+    }
+    lab_response = await client.post("/virtual-labs", json=lab_body, headers=headers)
+    assert lab_response.status_code == 200
+    lab_id = lab_response.json()["id"]
+
+    async with session_context_factory() as session:
+        await session.execute(
+            update(VirtualLab)
+            .where(VirtualLab.id == UUID(lab_id))
+            .values(owner_id=settings.MULTIPLE_VLABS_ALLOWED_USER_ID)
+        )
+        await session.commit()
+
+    project_body = {
+        "name": f"Template Project {uuid4()}",
+        "description": "Template",
+    }
+    project_response = await client.post(
+        f"/virtual-labs/{lab_id}/projects", json=project_body, headers=headers
+    )
+    assert project_response.status_code == 200
+    project_id = project_response.json()["id"]
+
+    course_body = {
+        "virtual_lab_id": lab_id,
+        "template_project_id": project_id,
+        "institution_id": institution_id,
+    }
+    with patch(
+        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
+    ) as mock_kc:
+        mock_kc.userinfo.side_effect = mock_admin_userinfo
+        course_response = await client.post(
+            "/courses", json=course_body, headers=headers
+        )
+        assert course_response.status_code == 200
+        course_id = course_response.json()["data"]["id"]
+
+        # Void the course
+        void_response = await client.post(f"/courses/{course_id}/void", headers=headers)
+        assert void_response.status_code == 200
+
     yield course_id
 
     await cleanup_seats(course_id)

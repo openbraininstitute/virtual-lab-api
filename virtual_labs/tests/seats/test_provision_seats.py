@@ -163,6 +163,48 @@ async def test_provision_seats_fails_for_non_admin(
 
 
 @pytest.mark.asyncio
+async def test_provision_seats_fails_for_draft_course(
+    async_test_client: AsyncClient,
+    draft_course_for_seats: str,
+) -> None:
+    """Cannot provision seats for a course that is still in DRAFT status."""
+    headers = get_headers()
+    body = _provision_payload(draft_course_for_seats, number_of_seats=2)
+
+    with patch(
+        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
+    ) as mock_kc:
+        mock_kc.userinfo.side_effect = mock_admin_userinfo
+        response = await async_test_client.post(
+            "/seats/provision", json=body, headers=headers
+        )
+
+    assert response.status_code == 409
+    assert "draft" in response.json()["message"].lower()
+
+
+@pytest.mark.asyncio
+async def test_provision_seats_fails_for_voided_course(
+    async_test_client: AsyncClient,
+    voided_course_for_seats: str,
+) -> None:
+    """Cannot provision seats for a course that has been voided."""
+    headers = get_headers()
+    body = _provision_payload(voided_course_for_seats, number_of_seats=2)
+
+    with patch(
+        "virtual_labs.core.authorization.verify_service_admin.kc_auth"
+    ) as mock_kc:
+        mock_kc.userinfo.side_effect = mock_admin_userinfo
+        response = await async_test_client.post(
+            "/seats/provision", json=body, headers=headers
+        )
+
+    assert response.status_code == 409
+    assert "voided" in response.json()["message"].lower()
+
+
+@pytest.mark.asyncio
 async def test_provision_seats_fails_with_nonexistent_course(
     async_test_client: AsyncClient,
 ) -> None:

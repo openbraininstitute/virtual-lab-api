@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.types import VliAppResponse
 from virtual_labs.domain.seat import ProvisionSeatsBody, ProvisionSeatsResponse, SeatOut
-from virtual_labs.infrastructure.db.models import Course, Seat
+from virtual_labs.infrastructure.db.models import Course, CourseStatus, Seat
 from virtual_labs.infrastructure.settings import settings
 from virtual_labs.usecases import accounting as accounting_cases
 
@@ -36,7 +36,18 @@ async def provision_seats(
             message=f"Course {payload.course_id} not found. Cannot provision seats without a valid course.",
         )
 
-    # 2. Create seat records
+    # 2. Validate course is active
+    if course.status != CourseStatus.ACTIVE:
+        raise VliError(
+            error_code=VliErrorCode.INVALID_REQUEST,
+            http_status_code=HTTPStatus.CONFLICT,
+            message=(
+                f"Course {payload.course_id} is in '{course.status.value}' status. "
+                f"Seats can only be provisioned for active courses."
+            ),
+        )
+
+    # 3. Create seat records
     batch_id = uuid.uuid4()
     expiry_date = datetime.now(timezone.utc) + timedelta(days=settings.SEAT_EXPIRY_DAYS)
     credit_value = settings.CREDITS_PER_SEAT
@@ -54,7 +65,7 @@ async def provision_seats(
 
     await db.flush()
 
-    # 3. Top up the virtual lab budget
+    # 4. Top up the virtual lab budget
     total_credits = sum(s.credit_value for s in seats)
 
     if settings.ACCOUNTING_BASE_URL is not None:
