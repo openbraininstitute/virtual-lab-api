@@ -6,13 +6,13 @@ from uuid import UUID
 
 from loguru import logger
 from pydantic import UUID4
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.domain.course import SeatAssignmentEntry, SeatAssignmentResult
 from virtual_labs.domain.project import ProjectCreationBody
-from virtual_labs.infrastructure.db.models import Course, CourseStatus, Seat
+from virtual_labs.infrastructure.db.models import Course, CourseStatus, Project, Seat
 from virtual_labs.infrastructure.kc.grant import AuthUserGrants
 from virtual_labs.infrastructure.settings import settings
 from virtual_labs.usecases import accounting as accounting_cases
@@ -107,6 +107,7 @@ async def assign_seats(
     results: list[SeatAssignmentResult] = []
 
     for seat, student in zip(seats, students):
+        project_id = None
         try:
             project_out = await create_new_project_use_case(
                 db,
@@ -116,12 +117,28 @@ async def assign_seats(
                 ),
                 auth=auth,
             )
+            project_id = project_out.id
             seat.active_project_id = project_out.id
-            seat.is_consumed = False
             await db.commit()
             assigned.append((seat, student, project_out.id))
         except Exception as ex:  # noqa: BLE001
-            logger.error(f"Failed to create project for {student.student_id}: {ex}")
+            logger.error(f"Failed to assign seat for {student.student_id}: {ex}")
+            # Soft-delete the orphan project if it was already created
+            if project_id is not None:
+                try:
+                    await db.execute(
+                        update(Project)
+                        .where(Project.id == project_id)
+                        .values(deleted=True, contact_email=None)
+                    )
+                    await db.commit()
+                    logger.info(
+                        f"Soft-deleted orphan project {project_id} for {student.student_id}"
+                    )
+                except Exception as cleanup_ex:  # noqa: BLE001
+                    logger.error(
+                        f"Failed to soft-delete orphan project {project_id}: {cleanup_ex}"
+                    )
             results.append(
                 SeatAssignmentResult(
                     student_id=student.student_id,
