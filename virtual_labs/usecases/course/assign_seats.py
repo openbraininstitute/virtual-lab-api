@@ -116,17 +116,21 @@ async def assign_seats(
     # Lock seats up front
     seats = await get_available_seats(db, course.id, len(students))
 
+    # Capture values before create_new_project_use_case expires the session
+    virtual_lab_id = course.virtual_lab_id
+    seat_credits = [float(s.credit_value) for s in seats]
+
     # Create projects and assign seats — commit each individually because
     # create_new_project_use_case issues a session.rollback() internally.
-    assigned: list[tuple[Seat, SeatAssignmentEntry, UUID4]] = []
+    assigned: list[tuple[SeatAssignmentEntry, UUID4, float]] = []
     results: list[SeatAssignmentResult] = []
 
-    for seat, student in zip(seats, students):
+    for seat, student, seat_credit in zip(seats, students, seat_credits):
         project_id = None
         try:
             project_out = await create_new_project_use_case(
                 db,
-                virtual_lab_id=course.virtual_lab_id,
+                virtual_lab_id=virtual_lab_id,
                 payload=ProjectCreationBody(
                     name=student.student_id, contact_email=student.email
                 ),
@@ -135,7 +139,7 @@ async def assign_seats(
             project_id = project_out.id
             seat.active_project_id = project_out.id
             await db.commit()
-            assigned.append((seat, student, project_out.id))
+            assigned.append((student, project_out.id, seat_credit))
         except Exception as ex:  # noqa: BLE001
             logger.error(f"Failed to assign seat for {student.student_id}: {ex}")
             # Soft-delete the orphan project if it was already created
@@ -165,13 +169,11 @@ async def assign_seats(
             )
 
     # Best-effort budget assignments — check balance before each transfer
-    for seat, student, project_id in assigned:
+    for student, project_id, seat_credit in assigned:
         # Allow accounting service to settle previous transfer
         await asyncio.sleep(0.2)
 
-        seat_credit = float(seat.credit_value)
-
-        balance = await _get_vlab_balance(course.virtual_lab_id)
+        balance = await _get_vlab_balance(virtual_lab_id)
 
         if balance is None:
             # Accounting unavailable — can't transfer
@@ -214,7 +216,7 @@ async def assign_seats(
         partial = transfer_amount < seat_credit
 
         transferred = await _transfer_credits(
-            virtual_lab_id=course.virtual_lab_id,
+            virtual_lab_id=virtual_lab_id,
             project_id=project_id,
             amount=transfer_amount,
         )
