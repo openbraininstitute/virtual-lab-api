@@ -97,3 +97,32 @@ class SeatAssignmentResult(BaseModel):
 
 class AssignSeatResponse(BaseModel):
     results: list[SeatAssignmentResult]
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Seat drop schemas
+# ──────────────────────────────────────────────────────────────────────
+
+
+class DropSeatsBody(BaseModel):
+    """Payload for dropping (releasing) seats."""
+
+    student_ids: list[str] = Field(..., min_length=1)
+
+    @model_validator(mode="after")
+    def _unique_ids(self) -> "DropSeatsBody":
+        if len(self.student_ids) != len(set(self.student_ids)):
+            raise ValueError("Duplicate student_id in request")
+        return self
+
+
+class SeatDropResult(BaseModel):
+    """Result for a single seat drop attempt."""
+
+    student_id: str
+    drop_successful: bool
+    error: str | None = None
+
+
+class DropSeatResponse(BaseModel):
+    results: list[SeatDropResult]

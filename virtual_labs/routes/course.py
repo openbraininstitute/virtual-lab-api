@@ -12,6 +12,8 @@ from virtual_labs.domain.course import (
     CourseDetailOut,
     CourseOut,
     CourseUpdateBody,
+    DropSeatResponse,
+    DropSeatsBody,
 )
 from virtual_labs.infrastructure.db.config import default_session_factory
 from virtual_labs.infrastructure.db.models import Course
@@ -133,3 +135,20 @@ async def assign_seats_endpoint(
         session, course=course, students=payload.students, auth=auth
     )
     return AssignSeatResponse(results=results)
+
+
+@router.post(
+    "/{course_id}/drop_seats",
+    operation_id="drop_seats",
+    summary="Drop (release) seats for students in a course",
+    response_model=DropSeatResponse,
+)
+async def drop_seats_endpoint(
+    course_id: UUID4,
+    payload: DropSeatsBody,
+    grant: tuple[AuthUserGrants, Course] = Depends(verify_course_admin),
+    session: AsyncSession = Depends(default_session_factory),
+) -> DropSeatResponse:
+    _user, course = grant
+    results = await usecases.drop_seats(session, course=course, payload=payload)
+    return DropSeatResponse(results=results)
