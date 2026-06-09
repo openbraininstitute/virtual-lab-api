@@ -39,6 +39,7 @@ async def provision_seats(
     # 2. Create seat records
     batch_id = uuid.uuid4()
     expiry_date = datetime.now(timezone.utc) + timedelta(days=settings.SEAT_EXPIRY_DAYS)
+    credit_value = settings.CREDITS_PER_SEAT
     seats: list[Seat] = []
     for _ in range(payload.number_of_seats):
         seat = Seat(
@@ -46,6 +47,7 @@ async def provision_seats(
             institution_id=course.institution_id,
             batch_id=batch_id,
             expiry_date=expiry_date,
+            credit_value=credit_value,
         )
         db.add(seat)
         seats.append(seat)

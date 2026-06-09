@@ -29,6 +29,7 @@ class SeatOut(BaseModel):
     batch_id: UUID4
     is_consumed: bool
     active_project_id: UUID4 | None
+    credit_value: int
     expiry_date: datetime
     created_at: datetime
 

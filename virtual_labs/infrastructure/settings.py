@@ -98,7 +98,7 @@ class Settings(BaseSettings):
     BILLING_BLOCK_CH_COUNTRY_MISMATCH: bool = True
 
     ACCOUNTING_BASE_URL: str | None = None
-    CREDITS_PER_SEAT: float = 200.0
+    CREDITS_PER_SEAT: int = 200
     SEAT_EXPIRY_DAYS: int = 365
 
     SENTRY_DSN: str | None = None

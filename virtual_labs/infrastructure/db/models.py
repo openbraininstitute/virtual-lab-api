@@ -1126,6 +1126,7 @@ class Seat(Base):
     expiry_date: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
     )
+    credit_value: Mapped[int] = mapped_column(Integer, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=func.now(), nullable=False
     )
