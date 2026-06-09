@@ -21,4 +21,4 @@ class InstitutionOut(BaseModel):
 
     id: UUID4
     name: str
-    contact_email: str
+    contact_email: EmailStr
