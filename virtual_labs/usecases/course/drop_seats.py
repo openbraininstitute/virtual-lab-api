@@ -133,13 +133,14 @@ async def drop_seats(
     # All valid — proceed with drops
     results: list[SeatDropResult] = []
     for seat, project in seats_with_projects:
+        seat_id = seat.id  # capture before potential session expiry
         try:
             await _drop_single_seat(db, seat=seat, project=project, course=course)
-            results.append(SeatDropResult(seat_id=seat.id, drop_successful=True))
+            results.append(SeatDropResult(seat_id=seat_id, drop_successful=True))
         except Exception as ex:  # noqa: BLE001
-            logger.error(f"Failed to drop seat {seat.id}: {ex}")
+            logger.error(f"Failed to drop seat {seat_id}: {ex}")
             results.append(
-                SeatDropResult(seat_id=seat.id, drop_successful=False, error=str(ex))
+                SeatDropResult(seat_id=seat_id, drop_successful=False, error=str(ex))
             )
 
     return results

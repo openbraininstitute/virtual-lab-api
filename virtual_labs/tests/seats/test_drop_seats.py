@@ -113,17 +113,17 @@ async def test_drop_seats_rejects_duplicate_seat_ids(
 
 
 # ──────────────────────────────────────────────────────────────────────
-# Usecase call (currently raises NotImplementedError → 500)
+# Non-existent seat test
 # ──────────────────────────────────────────────────────────────────────
 
 
 @pytest.mark.asyncio
-async def test_drop_seats_reaches_usecase(
+async def test_drop_seats_fails_for_nonexistent_seat(
     async_test_client: AsyncClient,
     course_for_seats: str,
 ) -> None:
-    """Vlab admin can reach the usecase (currently returns 500 since not implemented)."""
-    headers = get_headers()  # "test" user is the lab owner/admin
+    """Dropping a seat that doesn't exist in the course returns 404."""
+    headers = get_headers()
     body = _drop_payload()
 
     response = await async_test_client.post(
@@ -132,5 +132,71 @@ async def test_drop_seats_reaches_usecase(
         headers=headers,
     )
 
-    # The usecase raises NotImplementedError → FastAPI returns 500
-    assert response.status_code == 500
+    assert response.status_code == 404
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Happy-path tests
+# ──────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_drop_seats_success(
+    async_test_client: AsyncClient,
+    course_for_seats: str,
+) -> None:
+    """Provision seats, assign one, then drop it successfully."""
+    from unittest.mock import AsyncMock
+
+    from virtual_labs.tests.seats.helpers import provision_seats
+    from virtual_labs.tests.seats.test_assign_seats import mock_assign_accounting
+
+    headers = get_headers()
+    course_id = course_for_seats
+
+    # Provision 2 seats
+    await provision_seats(async_test_client, course_id, 2)
+
+    # Assign one seat
+    student = {
+        "student_id": f"stu-{uuid4().hex[:8]}",
+        "email": f"{uuid4().hex[:8]}@uni.org",
+    }
+    with mock_assign_accounting() as mocks:
+        mocks.balance.return_value = AsyncMock(data=AsyncMock(balance=1000.0))
+        mocks.transfer.return_value = AsyncMock()
+        assign_resp = await async_test_client.post(
+            f"/courses/{course_id}/assign_seats",
+            json={"students": [student]},
+            headers=headers,
+        )
+    assert assign_resp.status_code == 200
+    seat_id = assign_resp.json()["results"][0]["seat_id"]
+    assert seat_id is not None
+
+    # Drop the seat (mock accounting for the reverse)
+    from unittest.mock import patch
+
+    with (
+        patch(
+            "virtual_labs.usecases.course.drop_seats.accounting_cases.get_project_balance"
+        ) as mock_balance,
+        patch(
+            "virtual_labs.usecases.course.drop_seats.accounting_cases.reverse_project_budget"
+        ) as mock_reverse,
+    ):
+        mock_balance.return_value = AsyncMock(data=AsyncMock(balance="100.00"))
+        mock_reverse.return_value = AsyncMock()
+
+        drop_resp = await async_test_client.post(
+            f"/courses/{course_id}/drop_seats",
+            json={"seat_ids": [seat_id]},
+            headers=headers,
+        )
+
+    assert drop_resp.status_code == 200
+    results = drop_resp.json()["results"]
+    assert len(results) == 1
+    assert results[0]["seat_id"] == seat_id
+    assert results[0]["drop_successful"] is True
+    assert results[0]["error"] is None
