@@ -42,7 +42,6 @@ from virtual_labs.infrastructure.kc.auth import get_client_token
 from virtual_labs.infrastructure.kc.config import kc_auth
 from virtual_labs.infrastructure.stripe.config import stripe_client
 from virtual_labs.repositories.group_repo import GroupMutationRepository
-from virtual_labs.shared.groups import VLAB_SERVICE_ADMIN_GROUP
 
 email_server_baseurl = "http://localhost:8025"
 
@@ -425,21 +424,6 @@ async def get_user_id_from_test_auth(auth_header: str) -> UUID:
         token=auth_header.replace("Bearer ", ""), validate=False
     )
     return UUID(auth_user["sub"])
-
-
-# ──────────────────────────────────────────────────────────────────────
-# Shared admin auth helpers
-# ──────────────────────────────────────────────────────────────────────
-
-
-def mock_admin_userinfo(*args, **kwargs):
-    """Keycloak userinfo mock returning vlab-svc admin group."""
-    return {"groups": [VLAB_SERVICE_ADMIN_GROUP]}
-
-
-def mock_non_admin_userinfo(*args, **kwargs):
-    """Keycloak userinfo mock returning a non-admin group."""
-    return {"groups": ["/some-other-group"]}
 
 
 # ──────────────────────────────────────────────────────────────────────
