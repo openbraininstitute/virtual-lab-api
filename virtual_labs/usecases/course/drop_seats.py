@@ -17,11 +17,12 @@ from virtual_labs.repositories.user_repo import UserMutationRepository
 from virtual_labs.usecases import accounting as accounting_cases
 
 
-async def _remove_all_users_from_group(group_id: str) -> None:
-    """Remove every user from a Keycloak group."""
+async def _remove_all_users_from_group(group_id: str) -> list[str]:
+    """Remove every user from a Keycloak group. Returns list of user IDs that failed."""
     gqr = GroupQueryRepository()
     umr = UserMutationRepository()
 
+    failed_user_ids: list[str] = []
     users = await gqr.a_retrieve_group_users(group_id=group_id)
     for user in users:
         try:
@@ -30,11 +31,20 @@ async def _remove_all_users_from_group(group_id: str) -> None:
             logger.warning(
                 f"Failed to remove user {user.id} from group {group_id}: {ex}"
             )
+            failed_user_ids.append(user.id)
+    return failed_user_ids
 
 
 async def _clear_project_groups(project: Project) -> None:
-    """Remove all users from the project member KC group (the student)."""
-    await _remove_all_users_from_group(project.member_group_id)
+    """Remove all users from the project member KC group (the student).
+
+    Raises if any user could not be removed.
+    """
+    failed = await _remove_all_users_from_group(project.member_group_id)
+    if failed:
+        raise RuntimeError(
+            f"Failed to remove {len(failed)} user(s) from project member group: {failed}"
+        )
 
 
 async def _reverse_project_budget(virtual_lab_id: UUID, project_id: UUID) -> None:
