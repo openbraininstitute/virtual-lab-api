@@ -457,3 +457,21 @@ async def test_assign_seats_mixed_outcomes(
     assert results[2]["credit_transferred"] is False
     assert results[2]["credit_transferred_amount"] == 0
     assert results[2]["error"] is None
+
+
+@pytest.mark.asyncio
+async def test_assign_seats_fails_for_non_admin_user(
+    async_test_client: AsyncClient,
+    course_for_seats: str,
+) -> None:
+    """A user who is not a vlab admin cannot assign seats."""
+    headers = get_headers("test-1")  # different user, not admin of this lab
+    body = _assign_payload()
+
+    response = await async_test_client.post(
+        f"/courses/{course_for_seats}/assign_seats",
+        json=body,
+        headers=headers,
+    )
+
+    assert response.status_code == 403
