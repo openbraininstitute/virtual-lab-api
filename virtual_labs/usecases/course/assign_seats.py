@@ -101,7 +101,8 @@ async def assign_seats(
     # Lock seats up front
     seats = await get_available_seats(db, course.id, len(students))
 
-    # Create all projects and assign seats
+    # Create projects and assign seats — commit each individually because
+    # create_new_project_use_case issues a session.rollback() internally.
     assigned: list[tuple[Seat, SeatAssignmentEntry, UUID4]] = []
     results: list[SeatAssignmentResult] = []
 
@@ -116,6 +117,8 @@ async def assign_seats(
                 auth=auth,
             )
             seat.active_project_id = project_out.id
+            seat.is_consumed = False
+            await db.commit()
             assigned.append((seat, student, project_out.id))
         except Exception as ex:  # noqa: BLE001
             logger.error(f"Failed to create project for {student.student_id}: {ex}")
@@ -128,9 +131,6 @@ async def assign_seats(
                     error=str(ex),
                 )
             )
-
-    # Commit all seat assignments in one operation
-    await db.commit()
 
     # Best-effort budget assignments
     for seat, student, project_id in assigned:
