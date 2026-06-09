@@ -94,6 +94,7 @@ async def test_assign_seats_success(
     assert len(results) == 1
     assert results[0]["assignment_successful"] is True
     assert results[0]["credit_transferred"] is True
+    assert results[0]["seat_id"] is not None
     assert results[0]["project_id"] is not None
     assert results[0]["student_id"] == student["student_id"]
     assert results[0]["email"] == student["email"]
@@ -130,8 +131,11 @@ async def test_assign_seats_multiple_students(
     assert len(results) == 3
     assert all(r["assignment_successful"] for r in results)
     assert all(r["credit_transferred"] for r in results)
+    assert all(r["seat_id"] is not None for r in results)
     project_ids = [r["project_id"] for r in results]
     assert len(set(project_ids)) == 3
+    seat_ids = [r["seat_id"] for r in results]
+    assert len(set(seat_ids)) == 3
 
 
 @pytest.mark.asyncio

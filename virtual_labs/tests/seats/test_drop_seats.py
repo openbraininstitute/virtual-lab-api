@@ -8,10 +8,10 @@ from httpx import AsyncClient
 from virtual_labs.tests.utils import get_headers
 
 
-def _drop_payload(student_ids: list[str] | None = None) -> dict:
-    if student_ids is None:
-        student_ids = [f"student-{uuid4().hex[:8]}"]
-    return {"student_ids": student_ids}
+def _drop_payload(seat_ids: list[str] | None = None) -> dict:
+    if seat_ids is None:
+        seat_ids = [str(uuid4())]
+    return {"seat_ids": seat_ids}
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -76,13 +76,13 @@ async def test_drop_seats_fails_without_auth(
 
 
 @pytest.mark.asyncio
-async def test_drop_seats_rejects_empty_student_ids(
+async def test_drop_seats_rejects_empty_seat_ids(
     async_test_client: AsyncClient,
     course_for_seats: str,
 ) -> None:
-    """Empty student_ids list is rejected by validation."""
+    """Empty seat_ids list is rejected by validation."""
     headers = get_headers()
-    body = {"student_ids": []}
+    body = {"seat_ids": []}
 
     response = await async_test_client.post(
         f"/courses/{course_for_seats}/drop_seats",
@@ -94,14 +94,14 @@ async def test_drop_seats_rejects_empty_student_ids(
 
 
 @pytest.mark.asyncio
-async def test_drop_seats_rejects_duplicate_student_ids(
+async def test_drop_seats_rejects_duplicate_seat_ids(
     async_test_client: AsyncClient,
     course_for_seats: str,
 ) -> None:
-    """Duplicate student_id in request is rejected by validation."""
+    """Duplicate seat_id in request is rejected by validation."""
     headers = get_headers()
-    student_id = f"stu-{uuid4().hex[:8]}"
-    body = {"student_ids": [student_id, student_id]}
+    seat_id = str(uuid4())
+    body = {"seat_ids": [seat_id, seat_id]}
 
     response = await async_test_client.post(
         f"/courses/{course_for_seats}/drop_seats",

@@ -91,6 +91,7 @@ class SeatAssignmentResult(BaseModel):
     assignment_successful: bool
     credit_transferred: bool
     credit_transferred_amount: float | None = None
+    seat_id: UUID4 | None = None
     project_id: UUID4 | None = None
     error: str | None = None
 
@@ -107,19 +108,19 @@ class AssignSeatResponse(BaseModel):
 class DropSeatsBody(BaseModel):
     """Payload for dropping (releasing) seats."""
 
-    student_ids: list[str] = Field(..., min_length=1)
+    seat_ids: list[UUID4] = Field(..., min_length=1)
 
     @model_validator(mode="after")
     def _unique_ids(self) -> "DropSeatsBody":
-        if len(self.student_ids) != len(set(self.student_ids)):
-            raise ValueError("Duplicate student_id in request")
+        if len(self.seat_ids) != len(set(self.seat_ids)):
+            raise ValueError("Duplicate seat_id in request")
         return self
 
 
 class SeatDropResult(BaseModel):
     """Result for a single seat drop attempt."""
 
-    student_id: str
+    seat_id: UUID4
     drop_successful: bool
     error: str | None = None
 
