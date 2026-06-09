@@ -89,7 +89,7 @@ async def assign_seats(
             db,
             virtual_lab_id=course.virtual_lab_id,
             payload=ProjectCreationBody(
-                name=f"seat-{seat.id}",
+                name=f"{student.student_id}",
                 contact_email=student.email,
             ),
             auth=auth,
