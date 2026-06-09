@@ -412,7 +412,28 @@
       ]
     }
   },
-  "groups": [],
+  "groups": [
+    {
+      "id": "service-group",
+      "name": "service",
+      "path": "/service",
+      "subGroups": [
+        {
+          "id": "vlab-svc-group",
+          "name": "virtual-lab-svc",
+          "path": "/service/virtual-lab-svc",
+          "subGroups": [
+            {
+              "id": "vlab-svc-admin-group",
+              "name": "admin",
+              "path": "/service/virtual-lab-svc/admin",
+              "subGroups": []
+            }
+          ]
+        }
+      ]
+    }
+  ],
   "defaultRole": {
     "id": "50787f7f-3621-4a7b-9f61-45856d7db58d",
     "name": "default-roles-obp-realm",
@@ -785,6 +806,42 @@
       },
       "notBefore": 0,
       "groups": []
+    },
+    {
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "username": "test-service-admin",
+      "firstName": "Service",
+      "lastName": "Admin",
+      "email": "service-admin@test.com",
+      "emailVerified": true,
+      "createdTimestamp": 1578311988958,
+      "enabled": true,
+      "totp": false,
+      "credentials": [
+        {
+          "type": "password",
+          "userLabel": "My password",
+          "createdDate": 1710853579448,
+          "secretData": "{\"value\":\"BwCJ4By3F46GmWtpJml6aLDTmIwBwaKYL1+q6ILRLUOMLzfk6P0PMkvbjyKMdfv+jBQ0czZuCZNFoIg+sAUE1A==\",\"salt\":\"k4IdhhKonpZ7slbuBjrHPw==\",\"additionalParameters\":{}}",
+          "credentialData": "{\"hashIterations\":210000,\"algorithm\":\"pbkdf2-sha512\",\"additionalParameters\":{}}"
+        }
+      ],
+      "disableableCredentialTypes": [],
+      "requiredActions": [],
+      "realmRoles": [
+        "offline_access",
+        "uma_authorization"
+      ],
+      "clientRoles": {
+        "account": [
+          "view-profile",
+          "manage-account"
+        ]
+      },
+      "notBefore": 0,
+      "groups": [
+        "/service/virtual-lab-svc/admin"
+      ]
     }
   ],
   "scopeMappings": [
@@ -2642,16 +2699,6 @@
   "clientAuthenticationFlow": "clients",
   "dockerAuthenticationFlow": "docker auth",
   "firstBrokerLoginFlow": "first broker login",
-  "attributes": {
-    "cibaBackchannelTokenDeliveryMode": "poll",
-    "cibaExpiresIn": "120",
-    "cibaAuthRequestedUserHint": "login_hint",
-    "oauth2DeviceCodeLifespan": "600",
-    "oauth2DevicePollingInterval": "5",
-    "parRequestUriLifespan": "60",
-    "cibaInterval": "5",
-    "realmReusableOtpCode": "false"
-  },
   "keycloakVersion": "24.0.1",
   "userManagedAccessAllowed": false,
   "clientProfiles": {

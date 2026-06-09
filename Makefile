@@ -30,6 +30,7 @@ dev:  ## Run development api server
 	uv run uvicorn virtual_labs.api:app --reload
 
 init:  ## Run project with .env.local file (for local development)
+	uv run populate-tiers
 	./dev-init.sh --env-file ./.env.local
 
 init-ci:  ## Run project without env file (for CI/CD environments)
