@@ -103,5 +103,4 @@ async def list_seats_endpoint(
     grant: tuple[AuthUserGrants, Course] = Depends(verify_course_admin),
     session: AsyncSession = Depends(default_session_factory),
 ) -> ListSeatsResponse:
-    _user, _course = grant
     return await usecases.list_seats(session, course_id)
