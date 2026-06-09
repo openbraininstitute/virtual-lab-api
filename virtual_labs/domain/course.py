@@ -1,7 +1,9 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import UUID4, BaseModel, ConfigDict
+from pydantic import UUID4, BaseModel, ConfigDict, Field, model_validator
+
+from virtual_labs.domain.seat import SeatOut
 
 
 class CourseCreateBody(BaseModel):
@@ -53,3 +55,35 @@ class CourseDetailOut(BaseModel):
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
     last_drop_date: Optional[datetime] = None
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Seat assignment schemas
+# ──────────────────────────────────────────────────────────────────────
+
+
+class SeatAssignmentEntry(BaseModel):
+    """A single student to assign a seat to."""
+
+    student_id: str
+    email: str
+
+
+class AssignSeatsBody(BaseModel):
+    """Payload for assigning seats to users."""
+
+    students: list[SeatAssignmentEntry] = Field(..., min_length=1)
+
+    @model_validator(mode="after")
+    def _unique_ids_and_emails(self) -> "AssignSeatsBody":
+        ids = [s.student_id for s in self.students]
+        emails = [s.email for s in self.students]
+        if len(ids) != len(set(ids)):
+            raise ValueError("Duplicate student_id in request")
+        if len(emails) != len(set(emails)):
+            raise ValueError("Duplicate email in request")
+        return self
+
+
+class AssignSeatResponse(BaseModel):
+    seats: list[SeatOut]

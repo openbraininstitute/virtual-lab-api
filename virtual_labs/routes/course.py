@@ -3,15 +3,20 @@ from pydantic import UUID4
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.authorization import verify_service_admin
+from virtual_labs.core.authorization.verify_course_admin import verify_course_admin
 from virtual_labs.core.types import VliAppResponse
 from virtual_labs.domain.course import (
+    AssignSeatResponse,
+    AssignSeatsBody,
     CourseCreateBody,
     CourseDetailOut,
     CourseOut,
     CourseUpdateBody,
 )
 from virtual_labs.infrastructure.db.config import default_session_factory
+from virtual_labs.infrastructure.db.models import Course
 from virtual_labs.infrastructure.kc.auth import verify_jwt
+from virtual_labs.infrastructure.kc.grant import AuthUserGrants, parse_auth_grants
 from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.shared.groups import VLAB_SERVICE_ADMIN_GROUP
 from virtual_labs.usecases import course as usecases
@@ -108,3 +113,23 @@ async def void_course_endpoint(
     auth: tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> VliAppResponse[CourseOut]:
     return await usecases.void_course(session, course_id, auth)
+
+
+@router.post(
+    "/{course_id}/assign_seats",
+    operation_id="assign_seats",
+    summary="Assign available seats to a list of users (creates a project per seat)",
+    response_model=AssignSeatResponse,
+)
+async def assign_seats_endpoint(
+    course_id: UUID4,
+    payload: AssignSeatsBody,
+    grant: tuple[AuthUserGrants, Course] = Depends(verify_course_admin),
+    auth: tuple[AuthUserGrants, str] = Depends(parse_auth_grants),
+    session: AsyncSession = Depends(default_session_factory),
+) -> AssignSeatResponse:
+    _user, course = grant
+    seats = await usecases.assign_seats(
+        session, course=course, students=payload.students, auth=auth
+    )
+    return AssignSeatResponse(seats=seats)
