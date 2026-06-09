@@ -32,6 +32,7 @@ class CourseOut(BaseModel):
     institution_id: UUID4
     template_project_id: UUID4
     status: str
+    credits_per_seat: int
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
     last_drop_date: Optional[datetime] = None

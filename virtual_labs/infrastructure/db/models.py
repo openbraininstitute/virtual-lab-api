@@ -1045,6 +1045,7 @@ class Course(Base):
     status: Mapped[CourseStatus] = mapped_column(
         SAEnum(CourseStatus), nullable=False, default=CourseStatus.DRAFT, index=True
     )
+    credits_per_seat: Mapped[int] = mapped_column(Integer, nullable=False)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=func.now(), nullable=False

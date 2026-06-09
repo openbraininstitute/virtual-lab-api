@@ -14,6 +14,7 @@ from httpx import AsyncClient, Response
 
 from virtual_labs.tests.utils import (
     cleanup_course,
+    cleanup_resources,
     create_mock_lab_with_project,
     get_headers,
     mock_admin_userinfo,
@@ -286,7 +287,6 @@ async def test_course_creation_fails_for_regular_vlab(
     institution_id: str,
 ) -> None:
     """A course cannot be created on a regular (non-course) virtual lab."""
-    from virtual_labs.tests.utils import cleanup_resources
 
     # Create a normal lab (not marked as course lab)
     lab_data, project_id = await create_mock_lab_with_project(async_test_client)

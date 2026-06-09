@@ -121,6 +121,7 @@ async def create_course(
         end_date=payload.end_date,
         last_drop_date=payload.last_drop_date,
         status=CourseStatus.DRAFT,
+        credits_per_seat=settings.CREDITS_PER_SEAT,
     )
     db.add(db_course)
 
