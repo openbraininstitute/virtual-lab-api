@@ -82,6 +82,7 @@ async def mock_lab_with_course(
             virtual_lab_id=UUID(lab_id),
             template_project_id=UUID(project_id),
             institution_id=institution.id,
+            credits_per_seat=100,
         )
         session.add(course)
         await session.commit()
