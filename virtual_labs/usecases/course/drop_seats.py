@@ -157,9 +157,8 @@ async def _drop_single_seat(
         virtual_lab_id=course.virtual_lab_id, project_id=project.id
     )
 
-    # 3. Soft-delete the project
-    project.deleted = True
-    project.contact_email = None
+    # 3. Mark the project as dropped (stays visible for history)
+    project.is_dropped = True
 
     # 4. Release or consume the seat based on drop date.
     #    Keep active_project_id as a historical artifact — assignment checks

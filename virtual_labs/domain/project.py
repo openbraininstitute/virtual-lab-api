@@ -56,6 +56,7 @@ class Project(BaseModel):
     name: str
     description: str | None
     contact_email: str | None
+    is_dropped: bool = False
     created_at: datetime
     updated_at: datetime | None
 

@@ -139,6 +139,10 @@ async def test_vlm_project_list_direct_paginated_response(
     assert data["pagination"]["page"] == 1
     assert data["pagination"]["page_size"] == 2
     assert data["pagination"]["total_items"] >= len(data["data"])
+    # Verify is_dropped field is present in each project
+    for project in data["data"]:
+        assert "is_dropped" in project
+        assert project["is_dropped"] is False
 
 
 @pytest.mark.asyncio
