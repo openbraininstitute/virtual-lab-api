@@ -447,12 +447,13 @@ async def create_new_project_use_case(
             user_id=user_id,
         )
 
-    # post-commit
-    await seed_initial_project_budget(
-        virtual_lab_id=virtual_lab_id,
-        project_id=project_draft_id,
-        owned_count=owned_count,
-    )
+    # post-commit: Only
+    if not virtual_lab.course:
+        await seed_initial_project_budget(
+            virtual_lab_id=virtual_lab_id,
+            project_id=project_draft_id,
+            owned_count=owned_count,
+        )
 
     project_admins = list({*(vlab_admin_users or []), str(user_id)})
 
