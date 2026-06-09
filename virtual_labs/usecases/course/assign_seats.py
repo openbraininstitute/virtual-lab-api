@@ -1,5 +1,6 @@
 """Assign seats to a list of students."""
 
+import asyncio
 from datetime import datetime, timezone
 from http import HTTPStatus
 from uuid import UUID
@@ -44,6 +45,20 @@ async def get_available_seats(
             message=f"Not enough available seats: requested {count}, found {len(seats)}",
         )
     return list(seats)
+
+
+async def _get_vlab_balance(virtual_lab_id: UUID4) -> float | None:
+    """Return current vlab balance or None if accounting is unavailable."""
+    if settings.ACCOUNTING_BASE_URL is None:
+        return None
+    try:
+        resp = await accounting_cases.get_virtual_lab_balance(
+            virtual_lab_id=virtual_lab_id, include_projects=False
+        )
+        return float(resp.data.balance)
+    except Exception as ex:  # noqa: BLE001
+        logger.error(f"Failed to fetch balance for vlab {virtual_lab_id}: {ex}")
+        return None
 
 
 async def _transfer_credits(
@@ -149,27 +164,102 @@ async def assign_seats(
                 )
             )
 
-    # Best-effort budget assignments
+    # Best-effort budget assignments — check balance before each transfer
     for seat, student, project_id in assigned:
+        # Allow accounting service to settle previous transfer
+        await asyncio.sleep(0.2)
+
+        seat_credit = float(seat.credit_value)
+
+        balance = await _get_vlab_balance(course.virtual_lab_id)
+
+        if balance is None:
+            # Accounting unavailable — can't transfer
+            logger.warning(
+                f"Accounting unavailable for student {student.student_id}, "
+                f"project {project_id} — seat assigned but unfunded"
+            )
+            results.append(
+                SeatAssignmentResult(
+                    student_id=student.student_id,
+                    email=student.email,
+                    assignment_successful=True,
+                    credit_transferred=False,
+                    credit_transferred_amount=None,
+                    project_id=project_id,
+                )
+            )
+            continue
+
+        if balance <= 0:
+            # No credits left — skip transfer
+            logger.warning(
+                f"No balance remaining for student {student.student_id}, "
+                f"project {project_id} — seat assigned but unfunded"
+            )
+            results.append(
+                SeatAssignmentResult(
+                    student_id=student.student_id,
+                    email=student.email,
+                    assignment_successful=True,
+                    credit_transferred=False,
+                    credit_transferred_amount=0,
+                    project_id=project_id,
+                )
+            )
+            continue
+
+        # Determine transfer amount: full seat credit or whatever remains
+        transfer_amount = min(seat_credit, balance)
+        partial = transfer_amount < seat_credit
+
         transferred = await _transfer_credits(
             virtual_lab_id=course.virtual_lab_id,
             project_id=project_id,
-            amount=float(seat.credit_value),
+            amount=transfer_amount,
         )
+
         if not transferred:
             logger.warning(
                 f"Credit transfer failed for student {student.student_id}, "
                 f"project {project_id} — seat assigned but unfunded"
             )
-
-        results.append(
-            SeatAssignmentResult(
-                student_id=student.student_id,
-                email=student.email,
-                assignment_successful=True,
-                credit_transferred=transferred,
-                project_id=project_id,
+            results.append(
+                SeatAssignmentResult(
+                    student_id=student.student_id,
+                    email=student.email,
+                    assignment_successful=True,
+                    credit_transferred=False,
+                    credit_transferred_amount=0,
+                    project_id=project_id,
+                )
             )
-        )
+        elif partial:
+            logger.warning(
+                f"Partial credit for student {student.student_id}, "
+                f"project {project_id}: transferred {transfer_amount}/{seat_credit}"
+            )
+            results.append(
+                SeatAssignmentResult(
+                    student_id=student.student_id,
+                    email=student.email,
+                    assignment_successful=True,
+                    credit_transferred=True,
+                    credit_transferred_amount=transfer_amount,
+                    project_id=project_id,
+                    error=f"Partial credit: {transfer_amount}/{seat_credit}",
+                )
+            )
+        else:
+            results.append(
+                SeatAssignmentResult(
+                    student_id=student.student_id,
+                    email=student.email,
+                    assignment_successful=True,
+                    credit_transferred=True,
+                    credit_transferred_amount=transfer_amount,
+                    project_id=project_id,
+                )
+            )
 
     return results

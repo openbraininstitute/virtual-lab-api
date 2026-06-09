@@ -90,6 +90,7 @@ class SeatAssignmentResult(BaseModel):
     email: str
     assignment_successful: bool
     credit_transferred: bool
+    credit_transferred_amount: float | None = None
     project_id: UUID4 | None = None
     error: str | None = None
 
