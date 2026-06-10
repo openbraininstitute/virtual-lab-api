@@ -58,7 +58,7 @@ async def provision_seats(
             institution_id=course.institution_id,
             batch_id=batch_id,
             expiry_date=expiry_date,
-            credit_value=credit_value,  # Store to block transfers to courses of higuer credit value per seat
+            credit_value=credit_value,  # Store to block transfers to courses of higher credit value per seat
         )
         db.add(seat)
         seats.append(seat)

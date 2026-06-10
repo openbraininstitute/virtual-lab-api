@@ -45,7 +45,7 @@ async def test_provision_seats_success(
     for seat in data["seats"]:
         assert "course_id" in seat
         assert seat["is_consumed"] is False
-        assert seat["active_project_id"] is None
+        assert seat["enrolment_id"] is None
         assert "batch_id" in seat
         batch_ids.add(seat["batch_id"])
     # All seats in the same provision call share one batch_id

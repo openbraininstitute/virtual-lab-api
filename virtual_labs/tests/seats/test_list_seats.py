@@ -174,8 +174,7 @@ async def test_list_seats_assigned_first_ordered_by_assignment_time(
     assert response.status_code == 200
     seats = response.json()["seats"]
 
-    # First 2 should be assigned (have project), last should be unassigned
-    assert seats[0]["project"] is not None
-    assert seats[1]["project"] is not None
-    assert seats[2]["project"] is None
-    assert seats[2]["active_project_id"] is None
+    # First 2 should be assigned (have enrolment), last should be unassigned
+    assert seats[0]["enrolment"] is not None
+    assert seats[1]["enrolment"] is not None
+    assert seats[2]["enrolment"] is None

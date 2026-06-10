@@ -89,10 +89,8 @@ class SeatAssignmentResult(BaseModel):
     student_id: str
     email: str
     assignment_successful: bool
-    credit_transferred: bool
-    credit_transferred_amount: float | None = None
     seat_id: UUID4 | None = None
-    project_id: UUID4 | None = None
+    enrolment_id: UUID4 | None = None
     error: str | None = None
 
 
