@@ -41,16 +41,32 @@ async def cleanup_seats(course_id: str) -> None:
             .where(Seat.course_id == UUID(course_id))
             .values(enrolment_id=None)
         )
-        # Delete any projects linked to enrolments (test-created fake projects)
-        enrolment_project_ids = select(CourseEnrolment.project_id).where(
-            and_(
-                CourseEnrolment.course_id == UUID(course_id),
-                CourseEnrolment.project_id.is_not(None),
+        # Materialize project IDs linked to enrolments before nullifying the FK
+        enrolment_project_rows = (
+            (
+                await session.execute(
+                    select(CourseEnrolment.project_id).where(
+                        and_(
+                            CourseEnrolment.course_id == UUID(course_id),
+                            CourseEnrolment.project_id.is_not(None),
+                        )
+                    )
+                )
             )
+            .scalars()
+            .all()
         )
+        # Nullify enrolment.project_id so the FK no longer blocks project deletion
         await session.execute(
-            delete(Project).where(Project.id.in_(enrolment_project_ids))
+            update(CourseEnrolment)
+            .where(CourseEnrolment.course_id == UUID(course_id))
+            .values(project_id=None)
         )
+        # Delete any projects linked to enrolments (test-created fake projects)
+        if enrolment_project_rows:
+            await session.execute(
+                delete(Project).where(Project.id.in_(enrolment_project_rows))
+            )
         # Delete enrolments and seats
         await session.execute(
             delete(CourseEnrolment).where(CourseEnrolment.course_id == UUID(course_id))
