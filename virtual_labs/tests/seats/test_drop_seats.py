@@ -118,11 +118,11 @@ async def test_drop_seats_rejects_duplicate_seat_ids(
 
 
 @pytest.mark.asyncio
-async def test_drop_seats_fails_for_nonexistent_seat(
+async def test_drop_seats_nonexistent_seat_returns_error_in_results(
     async_test_client: AsyncClient,
     course_for_seats: str,
 ) -> None:
-    """Dropping a seat that doesn't exist in the course returns 404."""
+    """Dropping a seat that doesn't exist returns drop_successful=False in results."""
     headers = get_headers()
     body = _drop_payload()
 
@@ -132,7 +132,11 @@ async def test_drop_seats_fails_for_nonexistent_seat(
         headers=headers,
     )
 
-    assert response.status_code == 404
+    assert response.status_code == 200
+    results = response.json()["results"]
+    assert len(results) == 1
+    assert results[0]["drop_successful"] is False
+    assert "not found" in results[0]["error"].lower()
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -145,9 +149,7 @@ async def test_drop_seats_success(
     async_test_client: AsyncClient,
     course_for_seats: str,
 ) -> None:
-    """Provision seats, assign one, then drop it successfully."""
-    from unittest.mock import AsyncMock
-
+    """Provision seats, assign one, then drop it successfully (pre-activation)."""
     from virtual_labs.tests.seats.helpers import provision_seats
     from virtual_labs.tests.seats.test_assign_seats import mock_claim_email
 
@@ -172,20 +174,89 @@ async def test_drop_seats_success(
     seat_id = assign_resp.json()["results"][0]["seat_id"]
     assert seat_id is not None
 
-    # Drop the seat (mock accounting for the reverse)
-    from unittest.mock import patch
+    # Drop the seat (pre-activation: no project, no accounting needed)
+    drop_resp = await async_test_client.post(
+        f"/courses/{course_id}/drop_seats",
+        json={"seat_ids": [seat_id]},
+        headers=headers,
+    )
 
+    assert drop_resp.status_code == 200
+    results = drop_resp.json()["results"]
+    assert len(results) == 1
+    assert results[0]["seat_id"] == seat_id
+    assert results[0]["drop_successful"] is True
+    assert results[0]["error"] is None
+
+
+@pytest.mark.asyncio
+async def test_drop_seats_post_activation(
+    async_test_client: AsyncClient,
+    course_for_seats: str,
+) -> None:
+    """Drop a seat after activation: KC groups cleared and budget reversed."""
+    from unittest.mock import AsyncMock, patch
+    from uuid import UUID
+
+    from virtual_labs.infrastructure.db.models import CourseEnrolment, Project
+    from virtual_labs.tests.seats.helpers import provision_seats
+    from virtual_labs.tests.seats.test_assign_seats import mock_claim_email
+    from virtual_labs.tests.utils import session_context_factory
+
+    headers = get_headers()
+    course_id = course_for_seats
+
+    # Provision and assign
+    await provision_seats(async_test_client, course_id, 1)
+
+    student = {
+        "student_id": f"stu-{uuid4().hex[:8]}",
+        "email": f"{uuid4().hex[:8]}@uni.org",
+    }
+    with mock_claim_email():
+        assign_resp = await async_test_client.post(
+            f"/courses/{course_id}/assign_seats",
+            json={"students": [student]},
+            headers=headers,
+        )
+    assert assign_resp.status_code == 200
+    seat_id = assign_resp.json()["results"][0]["seat_id"]
+    enrolment_id = assign_resp.json()["results"][0]["enrolment_id"]
+
+    # Simulate activation: create a fake project and set enrolment.project_id
+    async with session_context_factory() as session:
+        project = Project(
+            id=uuid4(),
+            admin_group_id=f"admin-{uuid4().hex[:8]}",
+            member_group_id=f"member-{uuid4().hex[:8]}",
+            owner_id=uuid4(),
+            name=f"test-project-{uuid4().hex[:8]}",
+            virtual_lab_id=UUID(course_id),  # not accurate but FK not enforced in test
+        )
+        # We need the real vlab_id — get it from the enrolment's course
+
+        from virtual_labs.infrastructure.db.models import Course
+
+        course_obj = await session.get(Course, UUID(course_id))
+        project.virtual_lab_id = course_obj.virtual_lab_id
+        session.add(project)
+        await session.flush()
+
+        enrolment = await session.get(CourseEnrolment, UUID(enrolment_id))
+        enrolment.project_id = project.id
+        await session.commit()
+
+    # Drop the seat (post-activation: mock KC and accounting)
     with (
         patch(
-            "virtual_labs.usecases.course.drop_seats.accounting_cases.get_project_balance"
-        ) as mock_balance,
+            "virtual_labs.usecases.course.drop_seats._clear_project_groups",
+            new_callable=AsyncMock,
+        ) as mock_clear_groups,
         patch(
-            "virtual_labs.usecases.course.drop_seats.accounting_cases.reverse_project_budget"
-        ) as mock_reverse,
+            "virtual_labs.usecases.course.drop_seats._reverse_project_budget",
+            new_callable=AsyncMock,
+        ) as mock_reverse_budget,
     ):
-        mock_balance.return_value = AsyncMock(data=AsyncMock(balance="100.00"))
-        mock_reverse.return_value = AsyncMock()
-
         drop_resp = await async_test_client.post(
             f"/courses/{course_id}/drop_seats",
             json={"seat_ids": [seat_id]},
@@ -198,3 +269,76 @@ async def test_drop_seats_success(
     assert results[0]["seat_id"] == seat_id
     assert results[0]["drop_successful"] is True
     assert results[0]["error"] is None
+
+    # Verify KC and accounting were called
+    mock_clear_groups.assert_awaited_once()
+    mock_reverse_budget.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_drop_seats_post_activation_kc_failure(
+    async_test_client: AsyncClient,
+    course_for_seats: str,
+) -> None:
+    """Post-activation drop fails gracefully when KC group cleanup fails."""
+    from uuid import UUID
+
+    from virtual_labs.infrastructure.db.models import CourseEnrolment, Project
+    from virtual_labs.tests.seats.helpers import provision_seats
+    from virtual_labs.tests.seats.test_assign_seats import mock_claim_email
+    from virtual_labs.tests.utils import session_context_factory
+
+    headers = get_headers()
+    course_id = course_for_seats
+
+    # Provision and assign
+    await provision_seats(async_test_client, course_id, 1)
+
+    student = {
+        "student_id": f"stu-{uuid4().hex[:8]}",
+        "email": f"{uuid4().hex[:8]}@uni.org",
+    }
+    with mock_claim_email():
+        assign_resp = await async_test_client.post(
+            f"/courses/{course_id}/assign_seats",
+            json={"students": [student]},
+            headers=headers,
+        )
+    assert assign_resp.status_code == 200
+    seat_id = assign_resp.json()["results"][0]["seat_id"]
+    enrolment_id = assign_resp.json()["results"][0]["enrolment_id"]
+
+    # Simulate activation with a project that has bogus KC group IDs
+    async with session_context_factory() as session:
+        from virtual_labs.infrastructure.db.models import Course
+
+        course_obj = await session.get(Course, UUID(course_id))
+
+        project = Project(
+            id=uuid4(),
+            admin_group_id=f"bogus-admin-{uuid4().hex[:8]}",
+            member_group_id=f"bogus-member-{uuid4().hex[:8]}",
+            owner_id=uuid4(),
+            name=f"test-project-{uuid4().hex[:8]}",
+            virtual_lab_id=course_obj.virtual_lab_id,
+        )
+        session.add(project)
+        await session.flush()
+
+        enrolment = await session.get(CourseEnrolment, UUID(enrolment_id))
+        enrolment.project_id = project.id
+        await session.commit()
+
+    # Drop WITHOUT mocking KC — the bogus group IDs will cause a real failure
+    drop_resp = await async_test_client.post(
+        f"/courses/{course_id}/drop_seats",
+        json={"seat_ids": [seat_id]},
+        headers=headers,
+    )
+
+    assert drop_resp.status_code == 200
+    results = drop_resp.json()["results"]
+    assert len(results) == 1
+    assert results[0]["seat_id"] == seat_id
+    assert results[0]["drop_successful"] is False
+    assert results[0]["error"] is not None

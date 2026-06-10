@@ -9,9 +9,14 @@ from uuid import UUID, uuid4
 
 import pytest_asyncio
 from httpx import AsyncClient
-from sqlalchemy import delete, update
+from sqlalchemy import and_, delete, select, update
 
-from virtual_labs.infrastructure.db.models import CourseEnrolment, Seat, VirtualLab
+from virtual_labs.infrastructure.db.models import (
+    CourseEnrolment,
+    Project,
+    Seat,
+    VirtualLab,
+)
 from virtual_labs.infrastructure.settings import settings
 from virtual_labs.tests.utils import (
     cleanup_course,
@@ -30,12 +35,23 @@ SERVICE_ADMIN_HEADERS = get_headers("test-service-admin")
 
 async def cleanup_seats(course_id: str) -> None:
     async with session_context_factory() as session:
-        # Clear seat FK to enrolment first, then delete enrolments and seats
+        # Clear seat FK to enrolment first
         await session.execute(
             update(Seat)
             .where(Seat.course_id == UUID(course_id))
             .values(enrolment_id=None)
         )
+        # Delete any projects linked to enrolments (test-created fake projects)
+        enrolment_project_ids = select(CourseEnrolment.project_id).where(
+            and_(
+                CourseEnrolment.course_id == UUID(course_id),
+                CourseEnrolment.project_id.is_not(None),
+            )
+        )
+        await session.execute(
+            delete(Project).where(Project.id.in_(enrolment_project_ids))
+        )
+        # Delete enrolments and seats
         await session.execute(
             delete(CourseEnrolment).where(CourseEnrolment.course_id == UUID(course_id))
         )
