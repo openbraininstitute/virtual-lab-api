@@ -11,9 +11,8 @@ from virtual_labs.infrastructure.settings import settings
 
 class EnrolmentClaimEmailDetails(BaseModel):
     recipient_email: str
-    student_id: str
     enrolment_id: UUID4
-    course_id: UUID4
+    course_name: str
 
 
 fm_executor = FastMail(email_config)
@@ -27,21 +26,36 @@ async def send_enrolment_claim_email(details: EnrolmentClaimEmailDetails) -> str
     """Send a claim-link email to the student. Returns the claim link on success."""
     claim_link = _generate_claim_link(details.enrolment_id)
     try:
-        html_body = (
-            f"You have been enrolled in a course. "
-            f"Please click the link below to claim your enrolment:<br/>"
-            f'<a href="{claim_link}">{claim_link}</a>'
-        )
-
         message = MessageSchema(
-            subject="Claim your course enrolment",
+            subject="You've been enrolled in a course — Open Brain Platform",
             recipients=[NameEmail("", details.recipient_email)],
-            body=html_body,
+            body="",
             subtype=MessageType.html,
+            attachments=[
+                {
+                    "file": "virtual_labs/infrastructure/email/assets/logo.png",
+                    "headers": {
+                        "Content-ID": "logo",
+                        "Content-Disposition": 'inline; filename="logo.png"',
+                    },
+                    "mime_type": "image",
+                    "mime_subtype": "png",
+                    "Content-Type": "multipart/related",
+                },
+            ],
+            template_body={
+                "course_name": details.course_name,
+                "claim_link": claim_link,
+                "discover_link": f"{settings.LANDING_NAMESPACE}",
+            },
             headers={"X-SES-CONFIGURATION-SET": settings.AWS_SES_CONFIGURATION_SET},
         )
 
-        await fm_executor.send_message(message=message)
+        await fm_executor.send_message(
+            message=message,
+            html_template="course_enrolment_claim.html",
+            plain_template="course_enrolment_claim.txt",
+        )
         logger.debug(
             f"Enrolment claim link emailed to {details.recipient_email} "
             f"(enrolment_id={details.enrolment_id})"

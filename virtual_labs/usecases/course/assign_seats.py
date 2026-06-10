@@ -132,14 +132,14 @@ async def assign_seats(
     await db.commit()
 
     # Best-effort: send claim emails after commit (failures don't roll back assignment)
+    course_name = course.virtual_lab.name
     for result in results:
         try:
             await send_enrolment_claim_email(
                 EnrolmentClaimEmailDetails(
                     recipient_email=result.email,
-                    student_id=result.student_id,
                     enrolment_id=result.enrolment_id,  # type: ignore[arg-type]
-                    course_id=course.id,
+                    course_name=course_name,
                 )
             )
         except Exception as ex:  # noqa: BLE001
