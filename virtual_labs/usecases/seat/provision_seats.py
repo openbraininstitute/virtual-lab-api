@@ -58,7 +58,7 @@ async def provision_seats(
             institution_id=course.institution_id,
             batch_id=batch_id,
             expiry_date=expiry_date,
-            credit_value=credit_value,
+            credit_value=credit_value,  # Store to block transfers to courses of higuer credit value per seat
         )
         db.add(seat)
         seats.append(seat)
@@ -66,6 +66,7 @@ async def provision_seats(
     await db.flush()
 
     # 4. Top up the virtual lab budget
+    # We top-up with value for current course
     total_credits = credit_value * payload.number_of_seats
 
     if settings.ACCOUNTING_BASE_URL is not None:
