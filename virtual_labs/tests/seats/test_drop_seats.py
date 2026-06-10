@@ -149,7 +149,7 @@ async def test_drop_seats_success(
     from unittest.mock import AsyncMock
 
     from virtual_labs.tests.seats.helpers import provision_seats
-    from virtual_labs.tests.seats.test_assign_seats import mock_assign_accounting
+    from virtual_labs.tests.seats.test_assign_seats import mock_claim_email
 
     headers = get_headers()
     course_id = course_for_seats
@@ -162,9 +162,7 @@ async def test_drop_seats_success(
         "student_id": f"stu-{uuid4().hex[:8]}",
         "email": f"{uuid4().hex[:8]}@uni.org",
     }
-    with mock_assign_accounting() as mocks:
-        mocks.balance.return_value = AsyncMock(data=AsyncMock(balance=1000.0))
-        mocks.transfer.return_value = AsyncMock()
+    with mock_claim_email():
         assign_resp = await async_test_client.post(
             f"/courses/{course_id}/assign_seats",
             json={"students": [student]},

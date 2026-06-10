@@ -142,10 +142,9 @@ async def test_list_seats_assigned_first_ordered_by_assignment_time(
     course_for_seats: str,
 ) -> None:
     """Assigned seats appear before unassigned, sorted by project creation asc."""
-    from unittest.mock import AsyncMock
     from uuid import uuid4 as uuid
 
-    from virtual_labs.tests.seats.test_assign_seats import mock_assign_accounting
+    from virtual_labs.tests.seats.test_assign_seats import mock_claim_email
 
     # Provision 3 seats
     await provision_seats(async_test_client, course_for_seats, number_of_seats=3)
@@ -157,9 +156,7 @@ async def test_list_seats_assigned_first_ordered_by_assignment_time(
         {"student_id": f"stu-{uuid().hex[:8]}", "email": f"{uuid().hex[:8]}@uni.org"},
         {"student_id": f"stu-{uuid().hex[:8]}", "email": f"{uuid().hex[:8]}@uni.org"},
     ]
-    with mock_assign_accounting() as mocks:
-        mocks.balance.return_value = AsyncMock(data=AsyncMock(balance=5000.0))
-        mocks.transfer.return_value = AsyncMock()
+    with mock_claim_email():
         assign_resp = await async_test_client.post(
             f"/courses/{course_for_seats}/assign_seats",
             json={"students": students},
