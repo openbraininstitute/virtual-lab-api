@@ -88,10 +88,9 @@ class SeatAssignmentResult(BaseModel):
 
     student_id: str
     email: str
-    assignment_successful: bool
-    seat_id: UUID4 | None = None
-    enrolment_id: UUID4 | None = None
-    error: str | None = None
+    seat_id: UUID4
+    enrolment_id: UUID4
+    email_sent: bool = True
 
 
 class AssignSeatResponse(BaseModel):

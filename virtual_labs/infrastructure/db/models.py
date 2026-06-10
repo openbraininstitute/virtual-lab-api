@@ -1143,6 +1143,9 @@ class CourseEnrolment(Base):
         UniqueConstraint(
             "course_id", "contact_email", name="uq_enrolment_course_email"
         ),
+        UniqueConstraint(
+            "course_id", "student_id", name="uq_enrolment_course_student_id"
+        ),
     )
 
 

@@ -50,21 +50,26 @@ async def get_available_seats(
 
 
 async def _check_duplicate_enrolments(
-    db: AsyncSession, course_id: UUID, emails: list[str]
+    db: AsyncSession, course_id: UUID, students: list[SeatAssignmentEntry]
 ) -> None:
-    """Raise if any email already has an enrolment (active or dropped) in this course."""
+    """Raise if any email or student_id already has an enrolment (active or dropped) in this course."""
+    emails = [s.email for s in students]
+    student_ids = [s.student_id for s in students]
+
     result = await db.execute(
-        select(CourseEnrolment.contact_email).where(
+        select(CourseEnrolment.contact_email, CourseEnrolment.student_id).where(
             CourseEnrolment.course_id == course_id,
-            CourseEnrolment.contact_email.in_(emails),
+            (CourseEnrolment.contact_email.in_(emails))
+            | (CourseEnrolment.student_id.in_(student_ids)),
         )
     )
-    existing = result.scalars().all()
+    existing = result.all()
     if existing:
+        dupes = [f"{row.student_id} ({row.contact_email})" for row in existing]
         raise VliError(
             error_code=VliErrorCode.ENTITY_ALREADY_EXISTS,
             http_status_code=HTTPStatus.CONFLICT,
-            message=f"Students already enrolled in this course: {', '.join(existing)}",
+            message=f"Students already enrolled in this course: {', '.join(dupes)}",
         )
 
 
@@ -99,8 +104,7 @@ async def assign_seats(
         )
 
     # Check for duplicate enrolments
-    emails = [s.email for s in students]
-    await _check_duplicate_enrolments(db, course.id, emails)
+    await _check_duplicate_enrolments(db, course.id, students)
 
     # Lock seats up front
     seats = await get_available_seats(db, course.id, len(students))
@@ -123,7 +127,6 @@ async def assign_seats(
             SeatAssignmentResult(
                 student_id=student.student_id,
                 email=student.email,
-                assignment_successful=True,
                 seat_id=seat.id,
                 enrolment_id=enrolment.id,
             )
@@ -143,6 +146,7 @@ async def assign_seats(
                 )
             )
         except Exception as ex:  # noqa: BLE001
+            result.email_sent = False
             logger.warning(
                 f"Failed to send claim email to {result.email} "
                 f"(enrolment_id={result.enrolment_id}): {ex}"
