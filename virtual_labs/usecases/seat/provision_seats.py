@@ -50,7 +50,7 @@ async def provision_seats(
     # 3. Create seat records
     batch_id = uuid.uuid4()
     expiry_date = datetime.now(timezone.utc) + timedelta(days=settings.SEAT_EXPIRY_DAYS)
-    credit_value = settings.CREDITS_PER_SEAT
+    credit_value = course.credits_per_seat
     seats: list[Seat] = []
     for _ in range(payload.number_of_seats):
         seat = Seat(
@@ -66,7 +66,7 @@ async def provision_seats(
     await db.flush()
 
     # 4. Top up the virtual lab budget
-    total_credits = sum(s.credit_value for s in seats)
+    total_credits = credit_value * payload.number_of_seats
 
     if settings.ACCOUNTING_BASE_URL is not None:
         try:
