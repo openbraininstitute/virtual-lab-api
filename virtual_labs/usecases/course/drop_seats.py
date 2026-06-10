@@ -1,14 +1,12 @@
 """Drop (release) seats for students in a course."""
 
 from datetime import datetime, timezone
-from http import HTTPStatus
 from uuid import UUID
 
 from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.domain.course import DropSeatsBody, SeatDropResult
 from virtual_labs.infrastructure.db.models import Course, CourseEnrolment, Project, Seat
 from virtual_labs.infrastructure.settings import settings
@@ -105,39 +103,52 @@ async def drop_seats(
     """
     # Validate all seats and load enrolments upfront
     seats_with_enrolments: list[tuple[Seat, CourseEnrolment]] = []
+    results: list[SeatDropResult] = []
+
     for seat_id in payload.seat_ids:
         seat = await db.scalar(
             select(Seat).where(Seat.id == seat_id, Seat.course_id == course.id)
         )
         if seat is None:
-            raise VliError(
-                error_code=VliErrorCode.ENTITY_NOT_FOUND,
-                http_status_code=HTTPStatus.NOT_FOUND,
-                message=f"Seat {seat_id} not found in this course",
+            results.append(
+                SeatDropResult(
+                    seat_id=seat_id,
+                    drop_successful=False,
+                    error="Seat not found in this course",
+                )
             )
+            continue
         if seat.enrolment_id is None:
-            raise VliError(
-                error_code=VliErrorCode.INVALID_REQUEST,
-                http_status_code=HTTPStatus.CONFLICT,
-                message=f"Seat {seat_id} has no enrolment (not assigned)",
+            results.append(
+                SeatDropResult(
+                    seat_id=seat_id,
+                    drop_successful=False,
+                    error="Seat has no enrolment (not assigned)",
+                )
             )
+            continue
         enrolment = await db.get(CourseEnrolment, seat.enrolment_id)
         if enrolment is None:
-            raise VliError(
-                error_code=VliErrorCode.ENTITY_NOT_FOUND,
-                http_status_code=HTTPStatus.NOT_FOUND,
-                message=f"Enrolment not found for seat {seat_id}",
+            results.append(
+                SeatDropResult(
+                    seat_id=seat_id,
+                    drop_successful=False,
+                    error="Enrolment not found for seat",
+                )
             )
+            continue
         if enrolment.is_dropped:
-            raise VliError(
-                error_code=VliErrorCode.INVALID_REQUEST,
-                http_status_code=HTTPStatus.CONFLICT,
-                message=f"Enrolment for seat {seat_id} is already dropped",
+            results.append(
+                SeatDropResult(
+                    seat_id=seat_id,
+                    drop_successful=False,
+                    error="Enrolment is already dropped",
+                )
             )
+            continue
         seats_with_enrolments.append((seat, enrolment))
 
-    # All valid — proceed with drops
-    results: list[SeatDropResult] = []
+    # Proceed with drops
     for seat, enrolment in seats_with_enrolments:
         seat_id = seat.id
         try:
