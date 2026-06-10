@@ -1,5 +1,6 @@
 """Tests for missing-student-emails endpoint — now queries CourseEnrolment."""
 
+from collections.abc import AsyncGenerator
 from uuid import UUID, uuid4
 
 import pytest
@@ -26,7 +27,7 @@ SERVICE_ADMIN_HEADERS = get_headers("test-service-admin")
 @pytest_asyncio.fixture
 async def lab_with_enrolment(
     async_test_client: AsyncClient,
-) -> tuple[str, dict[str, str]]:
+) -> AsyncGenerator[tuple[str, dict[str, str]]]:
     """Create a course-enabled vlab with an enrolment via API + DB insert."""
     client = async_test_client
     headers = get_headers()

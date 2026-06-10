@@ -1,11 +1,15 @@
 """Tests for the drop-seats endpoint (POST /courses/{course_id}/drop_seats)."""
 
-from uuid import uuid4
+from unittest.mock import AsyncMock, patch
+from uuid import UUID, uuid4
 
 import pytest
 from httpx import AsyncClient
 
-from virtual_labs.tests.utils import get_headers
+from virtual_labs.infrastructure.db.models import Course, CourseEnrolment, Project
+from virtual_labs.tests.seats.helpers import provision_seats
+from virtual_labs.tests.seats.test_assign_seats import mock_claim_email
+from virtual_labs.tests.utils import get_headers, session_context_factory
 
 
 def _drop_payload(seat_ids: list[str] | None = None) -> dict:
@@ -150,8 +154,6 @@ async def test_drop_seats_success(
     course_for_seats: str,
 ) -> None:
     """Provision seats, assign one, then drop it successfully (pre-activation)."""
-    from virtual_labs.tests.seats.helpers import provision_seats
-    from virtual_labs.tests.seats.test_assign_seats import mock_claim_email
 
     headers = get_headers()
     course_id = course_for_seats
@@ -195,14 +197,6 @@ async def test_drop_seats_post_activation(
     course_for_seats: str,
 ) -> None:
     """Drop a seat after activation: KC groups cleared and budget reversed."""
-    from unittest.mock import AsyncMock, patch
-    from uuid import UUID
-
-    from virtual_labs.infrastructure.db.models import CourseEnrolment, Project
-    from virtual_labs.tests.seats.helpers import provision_seats
-    from virtual_labs.tests.seats.test_assign_seats import mock_claim_email
-    from virtual_labs.tests.utils import session_context_factory
-
     headers = get_headers()
     course_id = course_for_seats
 
@@ -234,15 +228,14 @@ async def test_drop_seats_post_activation(
             virtual_lab_id=UUID(course_id),  # not accurate but FK not enforced in test
         )
         # We need the real vlab_id — get it from the enrolment's course
-
-        from virtual_labs.infrastructure.db.models import Course
-
         course_obj = await session.get(Course, UUID(course_id))
+        assert course_obj is not None
         project.virtual_lab_id = course_obj.virtual_lab_id
         session.add(project)
         await session.flush()
 
         enrolment = await session.get(CourseEnrolment, UUID(enrolment_id))
+        assert enrolment is not None
         enrolment.project_id = project.id
         await session.commit()
 
@@ -281,13 +274,6 @@ async def test_drop_seats_post_activation_kc_failure(
     course_for_seats: str,
 ) -> None:
     """Post-activation drop fails gracefully when KC group cleanup fails."""
-    from uuid import UUID
-
-    from virtual_labs.infrastructure.db.models import CourseEnrolment, Project
-    from virtual_labs.tests.seats.helpers import provision_seats
-    from virtual_labs.tests.seats.test_assign_seats import mock_claim_email
-    from virtual_labs.tests.utils import session_context_factory
-
     headers = get_headers()
     course_id = course_for_seats
 
@@ -310,9 +296,8 @@ async def test_drop_seats_post_activation_kc_failure(
 
     # Simulate activation with a project that has bogus KC group IDs
     async with session_context_factory() as session:
-        from virtual_labs.infrastructure.db.models import Course
-
         course_obj = await session.get(Course, UUID(course_id))
+        assert course_obj is not None
 
         project = Project(
             id=uuid4(),
@@ -326,6 +311,7 @@ async def test_drop_seats_post_activation_kc_failure(
         await session.flush()
 
         enrolment = await session.get(CourseEnrolment, UUID(enrolment_id))
+        assert enrolment is not None
         enrolment.project_id = project.id
         await session.commit()
 
