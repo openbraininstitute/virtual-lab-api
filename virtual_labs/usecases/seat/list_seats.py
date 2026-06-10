@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from virtual_labs.domain.seat import ListSeatsResponse, SeatDetailOut
-from virtual_labs.infrastructure.db.models import Project, Seat
+from virtual_labs.infrastructure.db.models import Seat
 
 
 async def list_seats(
@@ -18,12 +18,11 @@ async def list_seats(
 ) -> ListSeatsResponse:
     result = await db.execute(
         select(Seat)
-        .outerjoin(Project, Seat.active_project_id == Project.id)
         .where(Seat.course_id == course_id)
-        .options(joinedload(Seat.project))
-        .order_by(Project.created_at.asc().nulls_last())
+        .options(joinedload(Seat.enrolment))
+        .order_by(Seat.created_at.asc())
     )
-    seats = result.scalars().all()
+    seats = result.scalars().unique().all()
 
     return ListSeatsResponse(
         seats=[SeatDetailOut.model_validate(s) for s in seats],

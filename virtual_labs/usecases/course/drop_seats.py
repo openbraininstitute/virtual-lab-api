@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.domain.course import DropSeatsBody, SeatDropResult
-from virtual_labs.infrastructure.db.models import Course, Project, Seat
+from virtual_labs.infrastructure.db.models import Course, CourseEnrolment, Project, Seat
 from virtual_labs.infrastructure.settings import settings
 from virtual_labs.repositories.group_repo import GroupQueryRepository
 from virtual_labs.repositories.user_repo import UserMutationRepository
@@ -98,13 +98,13 @@ async def drop_seats(
     course: Course,
     payload: DropSeatsBody,
 ) -> list[SeatDropResult]:
-    """Drop seats by ID: clear KC groups, soft-delete the project, release the seat.
+    """Drop seats by ID: mark enrolment as dropped, handle KC/budget if activated.
 
     Validates all seats upfront — fails fast if any seat is invalid.
     Only KC/infra failures during the actual drop are treated as partial results.
     """
-    # Validate all seats upfront
-    seats_with_projects: list[tuple[Seat, Project]] = []
+    # Validate all seats and load enrolments upfront
+    seats_with_enrolments: list[tuple[Seat, CourseEnrolment]] = []
     for seat_id in payload.seat_ids:
         seat = await db.scalar(
             select(Seat).where(Seat.id == seat_id, Seat.course_id == course.id)
@@ -115,27 +115,33 @@ async def drop_seats(
                 http_status_code=HTTPStatus.NOT_FOUND,
                 message=f"Seat {seat_id} not found in this course",
             )
-        if seat.active_project_id is None:
+        if seat.enrolment_id is None:
             raise VliError(
                 error_code=VliErrorCode.INVALID_REQUEST,
                 http_status_code=HTTPStatus.CONFLICT,
-                message=f"Seat {seat_id} has no active project (not assigned)",
+                message=f"Seat {seat_id} has no enrolment (not assigned)",
             )
-        project = await db.get(Project, seat.active_project_id)
-        if project is None:
+        enrolment = await db.get(CourseEnrolment, seat.enrolment_id)
+        if enrolment is None:
             raise VliError(
                 error_code=VliErrorCode.ENTITY_NOT_FOUND,
                 http_status_code=HTTPStatus.NOT_FOUND,
-                message=f"Project {seat.active_project_id} not found for seat {seat_id}",
+                message=f"Enrolment not found for seat {seat_id}",
             )
-        seats_with_projects.append((seat, project))
+        if enrolment.is_dropped:
+            raise VliError(
+                error_code=VliErrorCode.INVALID_REQUEST,
+                http_status_code=HTTPStatus.CONFLICT,
+                message=f"Enrolment for seat {seat_id} is already dropped",
+            )
+        seats_with_enrolments.append((seat, enrolment))
 
     # All valid — proceed with drops
     results: list[SeatDropResult] = []
-    for seat, project in seats_with_projects:
-        seat_id = seat.id  # capture before potential session expiry
+    for seat, enrolment in seats_with_enrolments:
+        seat_id = seat.id
         try:
-            await _drop_single_seat(db, seat=seat, project=project, course=course)
+            await _drop_single_seat(db, seat=seat, enrolment=enrolment, course=course)
             results.append(SeatDropResult(seat_id=seat_id, drop_successful=True))
         except Exception as ex:  # noqa: BLE001
             logger.error(f"Failed to drop seat {seat_id}: {ex}")
@@ -147,30 +153,32 @@ async def drop_seats(
 
 
 async def _drop_single_seat(
-    db: AsyncSession, *, seat: Seat, project: Project, course: Course
+    db: AsyncSession, *, seat: Seat, enrolment: CourseEnrolment, course: Course
 ) -> None:
-    """Execute the drop: clear KC groups, reverse budget, soft-delete project, release/consume seat."""
-    # 1. Remove all users from the project's member KC group (students + collaborators)
-    await _clear_project_groups(project)
+    """Execute the drop for a single seat.
 
-    # 2. Reverse unspent credits from project → vlab
-    await _reverse_project_budget(
-        virtual_lab_id=course.virtual_lab_id, project_id=project.id
-    )
+    - Pre-activation (project_id IS NULL): just mark dropped, release seat.
+    - Post-activation (project_id IS NOT NULL): also clear KC groups and reverse budget.
+    """
+    # Post-activation: need to clean up KC and budget
+    if enrolment.project_id is not None:
+        project = await db.get(Project, enrolment.project_id)
+        if project:
+            await _clear_project_groups(project)
+            await _reverse_project_budget(
+                virtual_lab_id=course.virtual_lab_id, project_id=project.id
+            )
 
-    # 3. Mark the project as dropped (stays visible for history)
-    project.is_dropped = True
+    # Mark enrolment as dropped
+    enrolment.is_dropped = True
+    enrolment.claimed_by = None
 
-    # 4. Release or consume the seat based on drop date.
-    #    Keep active_project_id as a historical artifact — assignment checks
-    #    both is_consumed=False AND active_project_id IS NULL.
+    # Release or consume the seat based on drop date
     now = datetime.now(timezone.utc)
     if course.last_drop_date and now < course.last_drop_date:
-        # Before last_drop_date: release the seat so it can be re-assigned
-        seat.active_project_id = None
+        seat.enrolment_id = None
         seat.is_consumed = False
     else:
-        # After last_drop_date: seat is spent
         seat.is_consumed = True
 
     await db.commit()

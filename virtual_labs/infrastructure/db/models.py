@@ -134,13 +134,9 @@ class Project(Base):
     admin_group_id: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     member_group_id: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     owner_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
-    contact_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     name: Mapped[str] = mapped_column(String(250), nullable=False, index=True)
     description: Mapped[str | None] = mapped_column(Text)
     deleted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    is_dropped: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False, server_default="false"
-    )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=func.now()
@@ -1104,6 +1100,52 @@ class Course(Base):
         self.status = CourseStatus.ACTIVE
 
 
+class CourseEnrolment(Base):
+    """Tracks the lifecycle of a student's seat assignment through claim and activation."""
+
+    __tablename__ = "course_enrolment"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    course_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("course.id"),
+        nullable=False,
+        index=True,
+    )
+    project_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("project.id"),
+        nullable=True,
+        unique=True,
+    )
+    contact_email: Mapped[str] = mapped_column(String(255), nullable=False)
+    student_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    claimed_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), nullable=True, index=True
+    )
+    is_dropped: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=func.now(), nullable=False
+    )
+
+    # Relationships
+    course = relationship("Course", lazy="joined")
+    project = relationship("Project", lazy="noload")
+
+    __table_args__ = (
+        UniqueConstraint(
+            "course_id", "contact_email", name="uq_enrolment_course_email"
+        ),
+    )
+
+
 class Seat(Base):
     __tablename__ = "seat"
 
@@ -1124,8 +1166,8 @@ class Seat(Base):
     batch_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), nullable=False, index=True
     )
-    active_project_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("project.id"), unique=True
+    enrolment_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("course_enrolment.id"), unique=True
     )
     expiry_date: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
@@ -1137,4 +1179,4 @@ class Seat(Base):
 
     course = relationship("Course")
     institution = relationship("Institution")
-    project = relationship("Project", lazy="noload")
+    enrolment = relationship("CourseEnrolment", lazy="noload")

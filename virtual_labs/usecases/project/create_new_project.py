@@ -306,7 +306,6 @@ async def create_project_record(
                 id=project_id,
                 name=payload.name,
                 description=payload.description,
-                contact_email=payload.contact_email,
                 virtual_lab_id=virtual_lab_id,
                 admin_group_id=admin_group["id"],
                 member_group_id=member_group["id"],

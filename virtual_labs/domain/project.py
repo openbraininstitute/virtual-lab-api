@@ -33,8 +33,6 @@ class ProjectBody(BaseModel):
         None
     )
 
-    contact_email: Optional[EmailStr] = None
-
 
 class ProjectUpdateBody(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
@@ -55,8 +53,6 @@ class Project(BaseModel):
     id: UUID4
     name: str
     description: str | None
-    contact_email: str | None
-    is_dropped: bool = False
     created_at: datetime
     updated_at: datetime | None
 

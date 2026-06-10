@@ -30,7 +30,7 @@ async def get_available_seats(
         .where(
             Seat.course_id == course_id,
             Seat.is_consumed.is_(False),
-            Seat.active_project_id.is_(None),
+            Seat.enrolment_id.is_(None),
             Seat.expiry_date > now,
         )
         .order_by(Seat.expiry_date.asc())
@@ -135,12 +135,13 @@ async def assign_seats(
                 db,
                 virtual_lab_id=virtual_lab_id,
                 payload=ProjectCreationBody(
-                    name=student.student_id, contact_email=student.email
+                    name=student.student_id,
                 ),
                 auth=auth,
             )
             project_id = project_out.id
-            seat.active_project_id = project_out.id
+            # TODO: This will be refactored — assign_seats will create enrolments, not projects
+            seat.enrolment_id = None  # placeholder until refactor
             await db.commit()
             assigned.append((student, project_out.id, seat_credit, seat_id))
         except Exception as ex:  # noqa: BLE001
@@ -151,7 +152,7 @@ async def assign_seats(
                     await db.execute(
                         update(Project)
                         .where(Project.id == project_id)
-                        .values(deleted=True, contact_email=None)
+                        .values(deleted=True)
                     )
                     await db.commit()
                     logger.info(

@@ -62,14 +62,10 @@ def _build_order_clauses(
 ) -> tuple[ColumnElement[Any], ...]:
     asc = direction is OrderDirection.ASC
 
-    # Dropped projects always come last, regardless of the requested ordering.
-    dropped_last = ProjectModel.is_dropped.asc()
-
     if order_by is WorkspaceOrderBy.OWNER:
         owner_expr = case((ProjectModel.owner_id == user_id, 0), else_=1)
         primary = owner_expr.asc() if asc else owner_expr.desc()
         return (
-            dropped_last,
             primary,
             ProjectModel.updated_at.desc(),
             ProjectModel.created_at.desc(),
@@ -77,19 +73,17 @@ def _build_order_clauses(
 
     if order_by is WorkspaceOrderBy.CREATED_AT:
         col = ProjectModel.created_at
-        return (dropped_last, col.asc() if asc else col.desc())
+        return (col.asc() if asc else col.desc(),)
 
     if order_by is WorkspaceOrderBy.NAME:
         col = func.lower(ProjectModel.name)
         return (
-            dropped_last,
             col.asc() if asc else col.desc(),
             ProjectModel.updated_at.desc(),
         )
 
     col = ProjectModel.updated_at
     return (
-        dropped_last,
         col.asc() if asc else col.desc(),
         ProjectModel.created_at.desc(),
     )

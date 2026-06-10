@@ -20,14 +20,18 @@ class ProvisionSeatsBody(BaseModel):
 # ──────────────────────────────────────────────────────────────────────
 
 
-class ProjectSummary(BaseModel):
-    """Lightweight project info nested in seat responses."""
+class EnrolmentSummary(BaseModel):
+    """Enrolment info nested in seat responses."""
 
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID4
-    name: str
-    contact_email: str | None = None
+    course_id: UUID4
+    project_id: UUID4 | None = None
+    contact_email: str
+    student_id: str
+    claimed_by: UUID4 | None = None
+    is_dropped: bool
 
 
 class SeatOut(BaseModel):
@@ -38,16 +42,16 @@ class SeatOut(BaseModel):
     institution_id: UUID4
     batch_id: UUID4
     is_consumed: bool
-    active_project_id: UUID4 | None = None
+    enrolment_id: UUID4 | None = None
     credit_value: int
     expiry_date: datetime
     created_at: datetime
 
 
 class SeatDetailOut(SeatOut):
-    """Seat with nested project summary (used when project is eagerly loaded)."""
+    """Seat with nested enrolment summary."""
 
-    project: ProjectSummary | None = None
+    enrolment: EnrolmentSummary | None = None
 
 
 class ProvisionSeatsResponse(BaseModel):
