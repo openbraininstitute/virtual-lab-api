@@ -11,7 +11,7 @@ import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy import delete, update
 
-from virtual_labs.infrastructure.db.models import Seat, VirtualLab
+from virtual_labs.infrastructure.db.models import CourseEnrolment, Seat, VirtualLab
 from virtual_labs.infrastructure.settings import settings
 from virtual_labs.tests.utils import (
     cleanup_course,
@@ -30,6 +30,15 @@ SERVICE_ADMIN_HEADERS = get_headers("test-service-admin")
 
 async def cleanup_seats(course_id: str) -> None:
     async with session_context_factory() as session:
+        # Clear seat FK to enrolment first, then delete enrolments and seats
+        await session.execute(
+            update(Seat)
+            .where(Seat.course_id == UUID(course_id))
+            .values(enrolment_id=None)
+        )
+        await session.execute(
+            delete(CourseEnrolment).where(CourseEnrolment.course_id == UUID(course_id))
+        )
         await session.execute(delete(Seat).where(Seat.course_id == UUID(course_id)))
         await session.commit()
 

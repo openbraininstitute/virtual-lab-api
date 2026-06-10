@@ -109,6 +109,9 @@ async def assign_seats(
     # Lock seats up front
     seats = await get_available_seats(db, course.id, len(students))
 
+    # Capture course name before commit expires the ORM state
+    course_name = course.virtual_lab.name
+
     # Create enrolments and link to seats
     results: list[SeatAssignmentResult] = []
 
@@ -135,7 +138,6 @@ async def assign_seats(
     await db.commit()
 
     # Best-effort: send claim emails after commit (failures don't roll back assignment)
-    course_name = course.virtual_lab.name
     for result in results:
         try:
             await send_enrolment_claim_email(

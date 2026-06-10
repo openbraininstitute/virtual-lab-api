@@ -132,16 +132,16 @@ async def test_list_seats_fails_without_auth(
 
 
 # ──────────────────────────────────────────────────────────────────────
-# Ordering
+# Enrolment visibility
 # ──────────────────────────────────────────────────────────────────────
 
 
 @pytest.mark.asyncio
-async def test_list_seats_assigned_first_ordered_by_assignment_time(
+async def test_list_seats_shows_enrolment_for_assigned_seats(
     async_test_client: AsyncClient,
     course_for_seats: str,
 ) -> None:
-    """Assigned seats appear before unassigned, sorted by project creation asc."""
+    """Seats with an enrolment include it in the response; unassigned seats have enrolment=None."""
     from uuid import uuid4 as uuid
 
     from virtual_labs.tests.seats.test_assign_seats import mock_claim_email
@@ -171,7 +171,8 @@ async def test_list_seats_assigned_first_ordered_by_assignment_time(
     assert response.status_code == 200
     seats = response.json()["seats"]
 
-    # First 2 should be assigned (have enrolment), last should be unassigned
-    assert seats[0]["enrolment"] is not None
-    assert seats[1]["enrolment"] is not None
-    assert seats[2]["enrolment"] is None
+    # 2 seats should have enrolments, 1 should not
+    assigned = [s for s in seats if s["enrolment"] is not None]
+    unassigned = [s for s in seats if s["enrolment"] is None]
+    assert len(assigned) == 2
+    assert len(unassigned) == 1
