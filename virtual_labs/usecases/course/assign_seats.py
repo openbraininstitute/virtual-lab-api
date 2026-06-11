@@ -206,7 +206,7 @@ async def assign_seats(
             )
         except Exception as ex:  # noqa: BLE001
             logger.error(f"Failed to assign seat for {student.student_id}: {ex}")
-            # Soft-delete the orphan project if it was already created
+            # Soft-delete the orphan project if it was already created, hide it from UI
             if project_id is not None:
                 try:
                     await db.execute(
@@ -228,7 +228,7 @@ async def assign_seats(
                     email=student.email,
                     assignment_successful=False,
                     seat_id=seat_id,
-                    error=str(ex),
+                    error="Failed to create project or enrolment",
                 )
             )
 
