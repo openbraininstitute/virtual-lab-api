@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.domain.course import SeatAssignmentEntry, SeatAssignmentResult
 from virtual_labs.domain.project import ProjectCreationBody
+from virtual_labs.infrastructure.db.config import session_pool
 from virtual_labs.infrastructure.db.models import (
     Course,
     CourseEnrolment,
@@ -169,14 +170,18 @@ async def assign_seats(
     for seat, student, seat_id in zip(seats, students, seat_ids):
         project_id = None
         try:
-            project_out = await create_new_project_use_case(
-                db,
-                virtual_lab_id=virtual_lab_id,
-                payload=ProjectCreationBody(
-                    name=student.student_id,
-                ),
-                auth=auth,
-            )
+            # Use a dedicated session for project creation so the rollback
+            # inside create_new_project_use_case doesn't release the FOR UPDATE
+            # locks held by the outer session on the seats.
+            async with session_pool.session() as project_session:
+                project_out = await create_new_project_use_case(
+                    project_session,
+                    virtual_lab_id=virtual_lab_id,
+                    payload=ProjectCreationBody(
+                        name=student.student_id,
+                    ),
+                    auth=auth,
+                )
             project_id = project_out.id
 
             # Create enrolment linked to the project
