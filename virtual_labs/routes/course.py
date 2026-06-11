@@ -18,7 +18,7 @@ from virtual_labs.domain.course import (
 from virtual_labs.infrastructure.db.config import default_session_factory
 from virtual_labs.infrastructure.db.models import Course
 from virtual_labs.infrastructure.kc.auth import verify_jwt
-from virtual_labs.infrastructure.kc.grant import AuthUserGrants
+from virtual_labs.infrastructure.kc.grant import AuthUserGrants, parse_auth_grants
 from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.shared.groups import VLAB_SERVICE_ADMIN_GROUP
 from virtual_labs.usecases import course as usecases
@@ -127,11 +127,12 @@ async def assign_seats_endpoint(
     course_id: UUID4,
     payload: AssignSeatsBody,
     grant: tuple[AuthUserGrants, Course] = Depends(verify_course_admin),
+    auth: tuple[AuthUserGrants, str] = Depends(parse_auth_grants),
     session: AsyncSession = Depends(default_session_factory),
 ) -> AssignSeatResponse:
     _user, course = grant
     results = await usecases.assign_seats(
-        session, course=course, students=payload.students
+        session, course=course, students=payload.students, auth=auth
     )
     return AssignSeatResponse(results=results)
 
