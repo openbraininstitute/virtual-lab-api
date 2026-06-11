@@ -449,7 +449,7 @@ async def create_new_project_use_case(
             user_id=user_id,
         )
 
-    # post-commit: Only
+    # post-commit
     if not is_course_vlab:
         await seed_initial_project_budget(
             virtual_lab_id=virtual_lab_id,
