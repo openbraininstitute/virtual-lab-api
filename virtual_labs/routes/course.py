@@ -8,6 +8,9 @@ from virtual_labs.core.types import VliAppResponse
 from virtual_labs.domain.course import (
     AssignSeatResponse,
     AssignSeatsBody,
+    ClaimCourseSummary,
+    ClaimEnrolmentBody,
+    ClaimEnrolmentOut,
     CourseCreateBody,
     CourseDetailOut,
     CourseOut,
@@ -152,3 +155,43 @@ async def drop_seats_endpoint(
     _user, course = grant
     results = await usecases.drop_seats(session, course=course, payload=payload)
     return DropSeatResponse(results=results)
+
+
+@router.post(
+    "/{course_id}/claim",
+    operation_id="claim_enrolment",
+    summary="Claim an enrolment — validates the link and records who claimed it",
+    response_model=VliAppResponse[ClaimEnrolmentOut],
+)
+async def claim_enrolment_endpoint(
+    course_id: UUID4,
+    payload: ClaimEnrolmentBody,
+    auth: tuple[AuthUserGrants, str] = Depends(parse_auth_grants),
+    session: AsyncSession = Depends(default_session_factory),
+) -> VliAppResponse[ClaimEnrolmentOut]:
+    user, _ = auth
+    enrolment = await usecases.claim_enrolment(
+        session,
+        course_id=course_id,
+        enrolment_id=payload.enrolment_id,
+        user_id=user.id,
+    )
+    assert enrolment.claimed_by is not None
+    return VliAppResponse[ClaimEnrolmentOut](
+        message="Enrolment claimed successfully",
+        data=ClaimEnrolmentOut(
+            id=enrolment.id,
+            course_id=enrolment.course_id,
+            project_id=enrolment.project_id,
+            contact_email=enrolment.contact_email,
+            student_id=enrolment.student_id,
+            claimed_by=enrolment.claimed_by,
+            course=ClaimCourseSummary(
+                id=enrolment.course.id,
+                virtual_lab_name=enrolment.course.virtual_lab.name,
+                institution_name=enrolment.course.institution.name,
+                start_date=enrolment.course.start_date,
+                end_date=enrolment.course.end_date,
+            ),
+        ),
+    )

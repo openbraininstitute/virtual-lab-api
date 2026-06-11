@@ -128,3 +128,40 @@ class SeatDropResult(BaseModel):
 
 class DropSeatResponse(BaseModel):
     results: list[SeatDropResult]
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Claim enrolment schemas
+# ──────────────────────────────────────────────────────────────────────
+
+
+class ClaimEnrolmentBody(BaseModel):
+    """Payload for claiming an enrolment."""
+
+    enrolment_id: UUID4
+
+
+class ClaimCourseSummary(BaseModel):
+    """Lightweight course info returned alongside a claim."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID4
+    virtual_lab_name: str
+    institution_name: str
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+
+
+class ClaimEnrolmentOut(BaseModel):
+    """Response after successfully claiming an enrolment."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID4
+    course_id: UUID4
+    project_id: UUID4
+    contact_email: str
+    student_id: str
+    claimed_by: UUID4
+    course: ClaimCourseSummary
