@@ -1117,10 +1117,10 @@ class CourseEnrolment(Base):
         nullable=False,
         index=True,
     )
-    project_id: Mapped[uuid.UUID | None] = mapped_column(
+    project_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("project.id"),
-        nullable=True,
+        nullable=False,
         unique=True,
     )
     contact_email: Mapped[str] = mapped_column(String(255), nullable=False)

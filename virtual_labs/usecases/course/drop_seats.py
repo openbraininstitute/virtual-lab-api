@@ -168,17 +168,15 @@ async def _drop_single_seat(
 ) -> None:
     """Execute the drop for a single seat.
 
-    - Pre-activation (project_id IS NULL): just mark dropped, release seat.
-    - Post-activation (project_id IS NOT NULL): also clear KC groups and reverse budget.
+    Clears KC groups and reverses budget for the linked project, then marks
+    the enrolment as dropped and releases or consumes the seat.
     """
-    # Post-activation: need to clean up KC and budget
-    if enrolment.project_id is not None:
-        project = await db.get(Project, enrolment.project_id)
-        if project:
-            await _clear_project_groups(project)
-            await _reverse_project_budget(
-                virtual_lab_id=course.virtual_lab_id, project_id=project.id
-            )
+    project = await db.get(Project, enrolment.project_id)
+    if project:
+        await _clear_project_groups(project)
+        await _reverse_project_budget(
+            virtual_lab_id=course.virtual_lab_id, project_id=project.id
+        )
 
     # Mark enrolment as dropped
     enrolment.is_dropped = True

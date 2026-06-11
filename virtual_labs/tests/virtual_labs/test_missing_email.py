@@ -79,12 +79,13 @@ async def lab_with_enrolment(
     assert course_response.status_code == 200, course_response.json()
     course_id = course_response.json()["data"]["id"]
 
-    # 4. Insert enrolment directly
+    # 4. Insert enrolment directly (project_id is required)
     async with session_pool.session() as session:
         enrolment = CourseEnrolment(
             course_id=UUID(course_id),
             contact_email="existing@test.org",
             student_id="student-001",
+            project_id=UUID(project_id),
         )
         session.add(enrolment)
         await session.commit()
