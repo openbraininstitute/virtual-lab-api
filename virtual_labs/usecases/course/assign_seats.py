@@ -155,7 +155,9 @@ async def assign_seats(
     # Lock seats up front
     seats = await get_available_seats(db, course.id, len(students))
 
-    # Capture values before create_new_project_use_case expires the session
+    # Capture scalar values before the loop — avoids lazy-loading on expired
+    # ORM instances after the separate project-creation session runs.
+    course_id_val = course.id
     virtual_lab_id = course.virtual_lab_id
     course_name = course.virtual_lab.name
     credit_per_seat = float(course.credits_per_seat)
@@ -186,7 +188,7 @@ async def assign_seats(
 
             # Create enrolment linked to the project
             enrolment = CourseEnrolment(
-                course_id=course.id,
+                course_id=course_id_val,
                 contact_email=student.email,
                 student_id=student.student_id,
                 project_id=project_id,
@@ -194,8 +196,11 @@ async def assign_seats(
             db.add(enrolment)
             await db.flush()
 
+            # Capture the generated id before it gets expired
+            enrolment_id = enrolment.id
+
             # Link seat to enrolment
-            seat.enrolment_id = enrolment.id
+            seat.enrolment_id = enrolment_id
             await db.commit()
 
             assigned.append((student, project_id, seat_id))
@@ -205,7 +210,7 @@ async def assign_seats(
                     email=student.email,
                     assignment_successful=True,
                     seat_id=seat_id,
-                    enrolment_id=enrolment.id,
+                    enrolment_id=enrolment_id,
                     project_id=project_id,
                 )
             )
