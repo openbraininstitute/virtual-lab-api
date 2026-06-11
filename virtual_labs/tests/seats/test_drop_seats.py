@@ -8,7 +8,7 @@ from httpx import AsyncClient
 
 from virtual_labs.infrastructure.db.models import Course, CourseEnrolment, Project
 from virtual_labs.tests.seats.helpers import provision_seats
-from virtual_labs.tests.seats.test_assign_seats import mock_claim_email
+from virtual_labs.tests.seats.test_assign_seats import mock_enrolment_email
 from virtual_labs.tests.utils import get_headers, session_context_factory
 
 
@@ -166,7 +166,7 @@ async def test_drop_seats_success(
         "student_id": f"stu-{uuid4().hex[:8]}",
         "email": f"{uuid4().hex[:8]}@uni.org",
     }
-    with mock_claim_email():
+    with mock_enrolment_email():
         assign_resp = await async_test_client.post(
             f"/courses/{course_id}/assign_seats",
             json={"students": [student]},
@@ -207,7 +207,7 @@ async def test_drop_seats_post_activation(
         "student_id": f"stu-{uuid4().hex[:8]}",
         "email": f"{uuid4().hex[:8]}@uni.org",
     }
-    with mock_claim_email():
+    with mock_enrolment_email():
         assign_resp = await async_test_client.post(
             f"/courses/{course_id}/assign_seats",
             json={"students": [student]},
@@ -284,7 +284,7 @@ async def test_drop_seats_post_activation_kc_failure(
         "student_id": f"stu-{uuid4().hex[:8]}",
         "email": f"{uuid4().hex[:8]}@uni.org",
     }
-    with mock_claim_email():
+    with mock_enrolment_email():
         assign_resp = await async_test_client.post(
             f"/courses/{course_id}/assign_seats",
             json={"students": [student]},

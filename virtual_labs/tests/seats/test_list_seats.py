@@ -144,8 +144,6 @@ async def test_list_seats_shows_enrolment_for_assigned_seats(
     """Seats with an enrolment include it in the response; unassigned seats have enrolment=None."""
     from uuid import uuid4 as uuid
 
-    from virtual_labs.tests.seats.test_assign_seats import mock_claim_email
-
     # Provision 3 seats
     await provision_seats(async_test_client, course_for_seats, number_of_seats=3)
 
@@ -156,7 +154,7 @@ async def test_list_seats_shows_enrolment_for_assigned_seats(
         {"student_id": f"stu-{uuid().hex[:8]}", "email": f"{uuid().hex[:8]}@uni.org"},
         {"student_id": f"stu-{uuid().hex[:8]}", "email": f"{uuid().hex[:8]}@uni.org"},
     ]
-    with mock_claim_email():
+    with mock_enrolment_email():
         assign_resp = await async_test_client.post(
             f"/courses/{course_for_seats}/assign_seats",
             json={"students": students},
