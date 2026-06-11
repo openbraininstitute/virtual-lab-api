@@ -157,18 +157,16 @@ async def assign_seats(
     # Capture values before create_new_project_use_case expires the session
     virtual_lab_id = course.virtual_lab_id
     course_name = course.virtual_lab.name
-    seat_credits = [float(s.credit_value) for s in seats]
+    credit_per_seat = float(course.credits_per_seat)
     seat_ids = [s.id for s in seats]
 
     # Create projects, enrolments, and assign seats.
     # create_new_project_use_case issues a session.rollback() internally,
     # so we process each student individually.
-    assigned: list[tuple[SeatAssignmentEntry, UUID4, float, UUID4]] = []
+    assigned: list[tuple[SeatAssignmentEntry, UUID4, UUID4]] = []
     results: list[SeatAssignmentResult] = []
 
-    for seat, student, seat_credit, seat_id in zip(
-        seats, students, seat_credits, seat_ids
-    ):
+    for seat, student, seat_id in zip(seats, students, seat_ids):
         project_id = None
         try:
             project_out = await create_new_project_use_case(
@@ -195,7 +193,7 @@ async def assign_seats(
             seat.enrolment_id = enrolment.id
             await db.commit()
 
-            assigned.append((student, project_id, seat_credit, seat_id))
+            assigned.append((student, project_id, seat_id))
             results.append(
                 SeatAssignmentResult(
                     student_id=student.student_id,
@@ -235,7 +233,7 @@ async def assign_seats(
             )
 
     # Best-effort budget assignments
-    for student, project_id, seat_credit, seat_id in assigned:
+    for student, project_id, seat_id in assigned:
         await asyncio.sleep(0.2)
 
         balance = await _get_vlab_balance(virtual_lab_id)
@@ -260,7 +258,7 @@ async def assign_seats(
             result.credit_transferred_amount = 0
             continue
 
-        transfer_amount = min(seat_credit, balance)
+        transfer_amount = min(credit_per_seat, balance)
         transferred = await _transfer_credits(
             virtual_lab_id=virtual_lab_id,
             project_id=project_id,
@@ -270,8 +268,8 @@ async def assign_seats(
         if transferred:
             result.credit_transferred = True
             result.credit_transferred_amount = transfer_amount
-            if transfer_amount < seat_credit:
-                result.error = f"Partial credit: {transfer_amount}/{seat_credit}"
+            if transfer_amount < credit_per_seat:
+                result.error = f"Partial credit: {transfer_amount}/{credit_per_seat}"
         else:
             result.credit_transferred_amount = 0
 
