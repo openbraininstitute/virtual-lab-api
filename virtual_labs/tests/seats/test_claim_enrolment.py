@@ -322,11 +322,14 @@ async def test_claim_enrolment_unauthenticated(
     async_test_client: AsyncClient,
     course_for_seats: str,
 ) -> None:
-    """A request without an Authorization header is rejected."""
+    """A request without a valid Authorization header is rejected."""
     response = await async_test_client.post(
         f"/courses/{course_for_seats}/claim",
         json={"enrolment_id": str(uuid4())},
-        headers={"Content-Type": "application/json"},
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": "",
+        },
     )
 
     assert response.status_code == 401

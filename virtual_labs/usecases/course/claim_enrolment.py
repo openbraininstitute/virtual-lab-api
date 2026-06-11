@@ -35,7 +35,7 @@ async def claim_enrolment(
             CourseEnrolment.id == enrolment_id,
             CourseEnrolment.course_id == course_id,
         )
-        .with_for_update()
+        .with_for_update(of=CourseEnrolment)
     )
     enrolment = result.scalar_one_or_none()
 
@@ -79,6 +79,7 @@ async def claim_enrolment(
 
     enrolment.claimed_by = user_id
     await db.commit()
+    await db.refresh(enrolment)
 
     logger.info(
         f"Enrolment {enrolment_id} claimed by user {user_id} (course={course_id})"
