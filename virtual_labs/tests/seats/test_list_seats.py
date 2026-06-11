@@ -10,6 +10,7 @@ import pytest
 from httpx import AsyncClient
 
 from virtual_labs.tests.seats.helpers import provision_seats
+from virtual_labs.tests.seats.test_assign_seats import mock_enrolment_email
 from virtual_labs.tests.utils import get_headers
 
 # ──────────────────────────────────────────────────────────────────────
