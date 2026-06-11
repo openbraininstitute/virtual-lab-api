@@ -180,7 +180,6 @@ async def _drop_single_seat(
 
     # Mark enrolment as dropped
     enrolment.is_dropped = True
-    enrolment.claimed_by = None
 
     # Release or consume the seat based on drop date
     now = datetime.now(timezone.utc)
