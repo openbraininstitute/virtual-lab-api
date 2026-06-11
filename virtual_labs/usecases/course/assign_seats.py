@@ -248,6 +248,7 @@ async def assign_seats(
                 f"Accounting unavailable for student {student.student_id}, "
                 f"project {project_id} — seat assigned but unfunded"
             )
+            result.error = "Error funding the student project"
             continue
 
         if balance <= 0:
@@ -255,7 +256,7 @@ async def assign_seats(
                 f"No balance remaining for student {student.student_id}, "
                 f"project {project_id} — seat assigned but unfunded"
             )
-            result.credit_transferred_amount = 0
+            result.error = "Insufficient virtual lab balance"
             continue
 
         transfer_amount = min(credit_per_seat, balance)
@@ -266,12 +267,11 @@ async def assign_seats(
         )
 
         if transferred:
-            result.credit_transferred = True
             result.credit_transferred_amount = transfer_amount
             if transfer_amount < credit_per_seat:
                 result.error = f"Partial credit: {transfer_amount}/{credit_per_seat}"
         else:
-            result.credit_transferred_amount = 0
+            result.error = "Error funding the student project"
 
     # Best-effort: send claim emails after all assignments
     for result in results:
