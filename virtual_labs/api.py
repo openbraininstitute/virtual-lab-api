@@ -40,6 +40,7 @@ from virtual_labs.routes.promotions import router as promotions_router
 from virtual_labs.routes.seat import router as seat_router
 from virtual_labs.routes.subscription import router as subscription_router
 from virtual_labs.routes.user import router as user_router
+from virtual_labs.scheduler import start_scheduler, stop_scheduler
 
 _redis_client: Optional[Redis] = None
 
@@ -48,7 +49,9 @@ _redis_client: Optional[Redis] = None
 async def lifespan(app: FastAPI) -> Generator[None, Any, None]:  # type: ignore
     global _redis_client
     _redis_client = await get_redis()
+    start_scheduler()
     yield
+    stop_scheduler()
     if session_pool._engine is not None:
         await session_pool.close()
     if _redis_client is not None:

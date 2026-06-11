@@ -51,7 +51,6 @@ async def expire_courses(db: AsyncSession) -> dict:
             "enrolments_dropped": 0,
             "enrolments_failed": 0,
         }
-        logger.info(f"expire_courses completed: {summary}")
         return summary
 
     total_dropped = 0
@@ -90,5 +89,4 @@ async def expire_courses(db: AsyncSession) -> dict:
         "enrolments_failed": total_failed,
     }
 
-    logger.info(f"expire_courses completed: {summary}")
     return summary
