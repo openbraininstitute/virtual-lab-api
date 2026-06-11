@@ -165,3 +165,21 @@ class ClaimEnrolmentOut(BaseModel):
     student_id: str
     claimed_by: UUID4
     course: ClaimCourseSummary
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Activate enrolments schemas
+# ──────────────────────────────────────────────────────────────────────
+
+
+class ActivateEnrolmentResult(BaseModel):
+    """Result for a single enrolment activation attempt."""
+
+    enrolment_id: UUID4
+    activated: bool
+    project_id: UUID4 | None = None
+    error: str | None = None
+
+
+class ActivateEnrolmentsResponse(BaseModel):
+    results: list[ActivateEnrolmentResult]

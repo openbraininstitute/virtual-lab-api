@@ -6,6 +6,8 @@ from virtual_labs.core.authorization import verify_service_admin
 from virtual_labs.core.authorization.verify_course_admin import verify_course_admin
 from virtual_labs.core.types import VliAppResponse
 from virtual_labs.domain.course import (
+    ActivateEnrolmentResult,
+    ActivateEnrolmentsResponse,
     AssignSeatResponse,
     AssignSeatsBody,
     ClaimCourseSummary,
@@ -194,4 +196,24 @@ async def claim_enrolment_endpoint(
                 end_date=enrolment.course.end_date,
             ),
         ),
+    )
+
+
+@router.post(
+    "/activate-enrolments",
+    operation_id="activate_enrolments",
+    summary="Activate all pending enrolments for the authenticated user (adds to KC groups)",
+    response_model=ActivateEnrolmentsResponse,
+)
+async def activate_enrolments_endpoint(
+    auth: tuple[AuthUserGrants, str] = Depends(parse_auth_grants),
+    session: AsyncSession = Depends(default_session_factory),
+) -> ActivateEnrolmentsResponse:
+    user, _ = auth
+    results = await usecases.activate_enrolments(
+        session,
+        user_id=user.id,
+    )
+    return ActivateEnrolmentsResponse(
+        results=[ActivateEnrolmentResult(**r) for r in results]
     )
