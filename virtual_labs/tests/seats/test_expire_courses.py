@@ -1,5 +1,6 @@
 """Tests for the expire_courses cron use case."""
 
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, patch
 from uuid import UUID, uuid4
@@ -13,6 +14,21 @@ from virtual_labs.tests.seats.helpers import provision_seats
 from virtual_labs.tests.seats.test_drop_seats import mock_assign_deps, mock_drop_deps
 from virtual_labs.tests.utils import get_headers, session_context_factory
 from virtual_labs.usecases.course.expire_courses import expire_courses
+
+
+@contextmanager
+def mock_expire_deps():
+    """Mock all deps for expire_courses: drop deps + deplete_vlab_budget."""
+    with (
+        mock_drop_deps(),
+        patch(
+            "virtual_labs.usecases.course.expire_courses.accounting_cases.deplete_vlab_budget",
+            new_callable=AsyncMock,
+            return_value=True,
+        ),
+    ):
+        yield
+
 
 # ──────────────────────────────────────────────────────────────────────
 # Helpers
@@ -66,7 +82,7 @@ async def test_expire_courses_drops_enrolments(
 
     await _expire_course(course_id)
 
-    with mock_drop_deps():
+    with mock_expire_deps():
         async with session_context_factory() as session:
             summary = await expire_courses(session)
 
@@ -105,7 +121,7 @@ async def test_expire_courses_idempotent(
     await _assign_seat(async_test_client, course_id)
     await _expire_course(course_id)
 
-    with mock_drop_deps():
+    with mock_expire_deps():
         async with session_context_factory() as session:
             summary1 = await expire_courses(session)
 
@@ -136,7 +152,7 @@ async def test_expire_courses_processes_voided_too(
         )
         await session.commit()
 
-    with mock_drop_deps():
+    with mock_expire_deps():
         async with session_context_factory() as session:
             summary = await expire_courses(session)
 
@@ -189,7 +205,7 @@ async def test_expire_courses_multiple_enrolments(
 
     await _expire_course(course_id)
 
-    with mock_drop_deps():
+    with mock_expire_deps():
         async with session_context_factory() as session:
             summary = await expire_courses(session)
 

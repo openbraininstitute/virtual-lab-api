@@ -1,10 +1,10 @@
-"""Daily cron: drop all enrolments in courses that have ended.
+"""Daily cron: drop enrolments in expired courses, then deplete vlab budgets.
 
-Single-pass logic:
-1. SELECT seats joined to undropped enrolments in active courses WHERE end_date < now.
-2. Run the existing _drop_single_seat flow for each.
-3. Failed drops stay is_dropped = False → next run retries automatically.
-4. Idempotent — safe to re-run.
+Two independent steps:
+1. drop_expired_enrolments — drop all undropped enrolments in courses past end_date.
+2. deplete_expired_courses — deplete vlab budget for courses with no remaining enrolments.
+
+expire_courses runs both in sequence.
 """
 
 from datetime import datetime, timezone
@@ -19,17 +19,14 @@ from virtual_labs.infrastructure.db.models import (
     CourseEnrolment,
     Seat,
 )
+from virtual_labs.usecases import accounting as accounting_cases
 from virtual_labs.usecases.course.drop_seats import _drop_single_seat
 
 
-async def expire_courses(db: AsyncSession) -> dict:
-    """Process all expired active courses: drop their undropped enrolments.
-
-    Returns a summary dict with counts.
-    """
+async def drop_expired_enrolments(db: AsyncSession) -> dict:
+    """Drop all undropped enrolments in courses past end_date."""
     now = datetime.now(timezone.utc)
 
-    # Single query: seats linked to undropped enrolments in expired active courses
     result = await db.execute(
         select(Seat.id, CourseEnrolment.id, Course.id)
         .join(CourseEnrolment, CourseEnrolment.id == Seat.enrolment_id)
@@ -45,22 +42,12 @@ async def expire_courses(db: AsyncSession) -> dict:
     ]
 
     if not work_items:
-        summary = {
-            "expired_courses_found": 0,
-            "courses_with_active_enrolments": 0,
-            "enrolments_dropped": 0,
-            "enrolments_failed": 0,
-        }
-        return summary
+        return {"enrolments_dropped": 0, "enrolments_failed": 0}
 
     total_dropped = 0
     total_failed = 0
-    course_ids: set[UUID] = set()
 
     for seat_id, enrolment_id, course_id in work_items:
-        course_ids.add(course_id)
-
-        # Re-fetch fresh objects (previous _drop_single_seat commits expire them)
         seat = await db.get(Seat, seat_id)
         enrolment = await db.get(CourseEnrolment, enrolment_id)
         course = await db.get(Course, course_id)
@@ -69,7 +56,6 @@ async def expire_courses(db: AsyncSession) -> dict:
             continue
 
         if enrolment.is_dropped:
-            # Already handled (e.g. by a concurrent run)
             continue
 
         try:
@@ -82,11 +68,60 @@ async def expire_courses(db: AsyncSession) -> dict:
             )
             total_failed += 1
 
-    summary = {
-        "expired_courses_found": len(course_ids),
-        "courses_with_active_enrolments": len(course_ids),
-        "enrolments_dropped": total_dropped,
-        "enrolments_failed": total_failed,
-    }
+    return {"enrolments_dropped": total_dropped, "enrolments_failed": total_failed}
 
-    return summary
+
+async def deplete_expired_courses(db: AsyncSession) -> dict:
+    """Deplete vlab budget for expired courses past end_date."""
+    now = datetime.now(timezone.utc)
+
+    result = await db.execute(
+        select(Course.id).where(
+            Course.end_date.is_not(None),
+            Course.end_date < now,
+            Course.budget_depleted.is_(False),
+        )
+    )
+    candidate_ids: list[UUID] = [row[0] for row in result.all()]
+
+    if not candidate_ids:
+        return {"vlabs_depleted": 0}
+
+    vlabs_depleted = 0
+
+    for course_id in candidate_ids:
+        course = await db.get(Course, course_id)
+        if course is None or course.budget_depleted:
+            continue
+
+        success = await accounting_cases.deplete_vlab_budget(
+            virtual_lab_id=course.virtual_lab_id,
+        )
+        if not success:
+            logger.error(f"Failed to deplete vlab budget for course {course_id}")
+            continue
+
+        course.budget_depleted = True
+        await db.commit()
+        vlabs_depleted += 1
+        logger.info(f"Depleted vlab budget for expired course {course_id}")
+
+    return {"vlabs_depleted": vlabs_depleted}
+
+
+async def expire_courses(db: AsyncSession) -> dict:
+    """Run both steps: drop enrolments, then deplete budgets."""
+    drop_result = await drop_expired_enrolments(db)
+    deplete_result = await deplete_expired_courses(db)
+
+    return {
+        "expired_courses_found": (
+            1
+            if drop_result["enrolments_dropped"] > 0
+            or deplete_result["vlabs_depleted"] > 0
+            else 0
+        ),
+        "enrolments_dropped": drop_result["enrolments_dropped"],
+        "enrolments_failed": drop_result["enrolments_failed"],
+        "vlabs_depleted": deplete_result["vlabs_depleted"],
+    }
