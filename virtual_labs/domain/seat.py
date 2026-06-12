@@ -42,6 +42,7 @@ class SeatOut(BaseModel):
     institution_id: UUID4
     batch_id: UUID4
     is_consumed: bool
+    previously_dropped: bool = False
     enrolment_id: UUID4 | None = None
     credit_value: int
     expiry_date: datetime
@@ -56,7 +57,6 @@ class SeatDetailOut(SeatOut):
 
 class ProvisionSeatsResponse(BaseModel):
     seats: list[SeatOut]
-    total_credits_topped_up: float
 
 
 class ListSeatsResponse(BaseModel):

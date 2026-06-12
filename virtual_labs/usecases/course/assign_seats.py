@@ -1,12 +1,10 @@
 """Assign seats to a list of students."""
 
-import asyncio
 from datetime import datetime, timezone
 from http import HTTPStatus
 from uuid import UUID
 
 from loguru import logger
-from pydantic import UUID4
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,7 +24,6 @@ from virtual_labs.infrastructure.email.send_enrolment_claim_email import (
     send_enrolment_claim_email,
 )
 from virtual_labs.infrastructure.kc.grant import AuthUserGrants
-from virtual_labs.infrastructure.settings import settings
 from virtual_labs.usecases import accounting as accounting_cases
 from virtual_labs.usecases.project.create_new_project import create_new_project_use_case
 
@@ -82,41 +79,6 @@ async def _check_duplicate_enrolments(
         )
 
 
-async def _get_vlab_balance(virtual_lab_id: UUID4) -> float | None:
-    """Return current vlab balance or None if accounting is unavailable."""
-    if settings.ACCOUNTING_BASE_URL is None:
-        return None
-    try:
-        resp = await accounting_cases.get_virtual_lab_balance(
-            virtual_lab_id=virtual_lab_id, include_projects=False
-        )
-        return float(resp.data.balance)
-    except Exception as ex:  # noqa: BLE001
-        logger.error(f"Failed to fetch balance for vlab {virtual_lab_id}: {ex}")
-        return None
-
-
-async def _transfer_credits(
-    virtual_lab_id: UUID4, project_id: UUID4, amount: float
-) -> bool:
-    """Best-effort assign_project_budget. Returns True on success."""
-    if settings.ACCOUNTING_BASE_URL is None:
-        return False
-    try:
-        await accounting_cases.assign_project_budget(
-            virtual_lab_id=virtual_lab_id, project_id=project_id, amount=amount
-        )
-        logger.info(
-            f"Transferred {amount} credits to project {project_id} in vlab {virtual_lab_id}"
-        )
-        return True
-    except Exception as ex:  # noqa: BLE001
-        logger.error(
-            f"Failed to transfer credits to project {project_id} in vlab {virtual_lab_id}: {ex}"
-        )
-        return False
-
-
 async def assign_seats(
     db: AsyncSession,
     *,
@@ -124,15 +86,15 @@ async def assign_seats(
     students: list[SeatAssignmentEntry],
     auth: tuple[AuthUserGrants, str],
 ) -> list[SeatAssignmentResult]:
-    """Assign one seat per student: create enrolment, create project, transfer credits, send claim email.
+    """Assign one seat per student: create project, fund it, create enrolment, send claim email.
 
     Flow:
     1. Pre-checks (course active, not past drop date).
     2. Check no duplicate enrolments for the given emails/student_ids.
     3. Lock available seats (FOR UPDATE SKIP LOCKED).
-    4. For each student: create project, create enrolment (linked to project), link seat.
-    5. Best-effort budget transfer for each project.
-    6. Send claim emails (best-effort).
+    4. For each student: create project, fund it, create enrolment, link seat.
+       If funding fails → soft-delete project, report error.
+    5. Send claim emails (best-effort).
     """
     if course.status != CourseStatus.ACTIVE:
         raise VliError(
@@ -166,7 +128,6 @@ async def assign_seats(
     # Create projects, enrolments, and assign seats.
     # create_new_project_use_case issues a session.rollback() internally,
     # so we process each student individually.
-    assigned: list[tuple[SeatAssignmentEntry, UUID4, UUID4]] = []
     results: list[SeatAssignmentResult] = []
 
     for seat, student, seat_id in zip(seats, students, seat_ids):
@@ -186,6 +147,15 @@ async def assign_seats(
                 )
             project_id = project_out.id
 
+            # Fund the project — must succeed before we assign the seat
+            funded = await accounting_cases.fund_project(
+                virtual_lab_id=virtual_lab_id,
+                project_id=project_id,
+                amount=credit_per_seat,
+            )
+            if not funded:
+                raise RuntimeError("Failed to fund project")
+
             # Create enrolment linked to the project
             enrolment = CourseEnrolment(
                 course_id=course_id_val,
@@ -203,7 +173,6 @@ async def assign_seats(
             seat.enrolment_id = enrolment_id
             await db.commit()
 
-            assigned.append((student, project_id, seat_id))
             results.append(
                 SeatAssignmentResult(
                     student_id=student.student_id,
@@ -212,11 +181,12 @@ async def assign_seats(
                     seat_id=seat_id,
                     enrolment_id=enrolment_id,
                     project_id=project_id,
+                    credit_transferred_amount=credit_per_seat,
                 )
             )
         except Exception as ex:  # noqa: BLE001
             logger.error(f"Failed to assign seat for {student.student_id}: {ex}")
-            # Soft-delete the orphan project if it was already created, hide it from UI
+            # Soft-delete the orphan project if it was already created
             if project_id is not None:
                 try:
                     await db.execute(
@@ -238,50 +208,9 @@ async def assign_seats(
                     email=student.email,
                     assignment_successful=False,
                     seat_id=seat_id,
-                    error="Failed to create project or enrolment",
+                    error=str(ex),
                 )
             )
-
-    # Best-effort budget assignments
-    for student, project_id, seat_id in assigned:
-        await asyncio.sleep(0.2)
-
-        balance = await _get_vlab_balance(virtual_lab_id)
-
-        # Find the matching result to update credit fields
-        result = next(
-            r for r in results if r.seat_id == seat_id and r.assignment_successful
-        )
-
-        if balance is None:
-            logger.warning(
-                f"Accounting unavailable for student {student.student_id}, "
-                f"project {project_id} — seat assigned but unfunded"
-            )
-            result.error = "Error funding the student project"
-            continue
-
-        if balance <= 0:
-            logger.warning(
-                f"No balance remaining for student {student.student_id}, "
-                f"project {project_id} — seat assigned but unfunded"
-            )
-            result.error = "Insufficient virtual lab balance"
-            continue
-
-        transfer_amount = min(credit_per_seat, balance)
-        transferred = await _transfer_credits(
-            virtual_lab_id=virtual_lab_id,
-            project_id=project_id,
-            amount=transfer_amount,
-        )
-
-        if transferred:
-            result.credit_transferred_amount = transfer_amount
-            if transfer_amount < credit_per_seat:
-                result.error = f"Partial credit: {transfer_amount}/{credit_per_seat}"
-        else:
-            result.error = "Error funding the student project"
 
     # Best-effort: send claim emails after all assignments
     for result in results:

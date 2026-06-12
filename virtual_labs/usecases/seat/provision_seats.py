@@ -1,7 +1,7 @@
 """Provision seats for a course.
 
-Creates the requested number of seat records and tops up the virtual lab
-budget via the accounting service.
+Creates the requested number of seat records. Credits are granted
+on assignment, not on provisioning.
 """
 
 from __future__ import annotations
@@ -10,7 +10,6 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from http import HTTPStatus
 
-from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,7 +18,6 @@ from virtual_labs.core.types import VliAppResponse
 from virtual_labs.domain.seat import ProvisionSeatsBody, ProvisionSeatsResponse, SeatOut
 from virtual_labs.infrastructure.db.models import Course, CourseStatus, Seat
 from virtual_labs.infrastructure.settings import settings
-from virtual_labs.usecases import accounting as accounting_cases
 
 
 async def provision_seats(
@@ -65,32 +63,6 @@ async def provision_seats(
 
     await db.flush()
 
-    # 4. Top up the virtual lab budget
-    # We top-up with value for current course
-    total_credits = credit_value * payload.number_of_seats
-
-    if settings.ACCOUNTING_BASE_URL is not None:
-        try:
-            await accounting_cases.top_up_virtual_lab_budget(
-                virtual_lab_id=course.virtual_lab_id,
-                amount=total_credits,
-            )
-            logger.info(
-                f"Topped up vlab {course.virtual_lab_id} with {total_credits} credits "
-                f"for {payload.number_of_seats} seats (course {course.id})"
-            )
-        except Exception as ex:
-            logger.error(
-                f"Failed to top up vlab {course.virtual_lab_id} "
-                f"for seat provisioning (course {course.id}): {ex}"
-            )
-            raise VliError(
-                error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
-                http_status_code=HTTPStatus.BAD_GATEWAY,
-                message=f"Failed to top up virtual lab budget for course {course.id}",
-                details=str(ex),
-            ) from ex
-
     await db.commit()
 
     for s in seats:
@@ -102,6 +74,5 @@ async def provision_seats(
         message=f"Successfully provisioned {payload.number_of_seats} seats",
         data=ProvisionSeatsResponse(
             seats=seat_outputs,
-            total_credits_topped_up=total_credits,
         ),
     )

@@ -11,7 +11,6 @@ from http import HTTPStatus
 from uuid import UUID
 
 from loguru import logger
-from pydantic import UUID4
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -66,44 +65,6 @@ async def _validate_project(
     return project
 
 
-async def seed_course_project_budget(
-    virtual_lab: VirtualLab,
-    *,
-    project_id: UUID4,
-) -> bool:
-    """Top-up the course vlab and assign credits to the new project.
-
-    Only applies when the virtual lab is linked to a course. Best-effort:
-    failures are logged but do not roll back project creation.
-    """
-    if settings.ACCOUNTING_BASE_URL is None:
-        return False
-
-    if not virtual_lab.course:
-        return False
-
-    course_project_credits = settings.CREDITS_PER_SEAT
-
-    try:
-        await accounting_cases.top_up_virtual_lab_budget(
-            virtual_lab_id=virtual_lab.id,
-            amount=course_project_credits,
-        )
-        await accounting_cases.assign_project_budget(
-            virtual_lab_id=virtual_lab.id,
-            project_id=project_id,
-            amount=course_project_credits,
-        )
-        logger.info(
-            f"Assigned {course_project_credits} course credits to "
-            f"project {project_id} in vlab {virtual_lab.id}"
-        )
-        return True
-    except Exception as ex:  # noqa: BLE001
-        logger.error(f"Failed to seed course budget for project {project_id}: {ex}")
-        return False
-
-
 async def create_course(
     db: AsyncSession,
     payload: CourseCreateBody,
@@ -145,9 +106,13 @@ async def create_course(
             message="Course creation failed",
         ) from err
 
-    # Post-commit: refresh vlab (now has course relationship) and seed credits
+    # Post-commit: refresh vlab (now has course relationship) and fund template project
     await db.refresh(vlab)
-    await seed_course_project_budget(vlab, project_id=payload.template_project_id)
+    await accounting_cases.fund_project(
+        virtual_lab_id=vlab.id,
+        project_id=payload.template_project_id,
+        amount=settings.CREDITS_PER_SEAT,
+    )
 
     return VliAppResponse[CourseOut](
         message="Course created successfully",

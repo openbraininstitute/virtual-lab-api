@@ -1,4 +1,12 @@
-"""Drop (release) seats for students in a course."""
+"""Drop (release) seats for students in a course.
+
+- On drop, the project's credits are depleted.
+- A seat can only be recovered once:
+  - Early drop: marked previously_dropped, released for reassignment.
+    If already previously_dropped → consumed.
+  - Late drop: consumed.
+- If the student has < CREDITS_PER_SEAT - 50 remaining, seat is consumed regardless.
+"""
 
 from datetime import datetime, timezone
 from uuid import UUID
@@ -15,9 +23,10 @@ from virtual_labs.repositories.group_repo import GroupQueryRepository
 from virtual_labs.repositories.user_repo import UserMutationRepository
 from virtual_labs.usecases import accounting as accounting_cases
 
+_MIN_RECOVERABLE_BALANCE = settings.CREDITS_PER_SEAT - 50
+
 
 async def _remove_all_users_from_group(group_id: str) -> list[str]:
-    """Remove every user from a Keycloak group. Returns list of user IDs that failed."""
     gqr = GroupQueryRepository()
     umr = UserMutationRepository()
 
@@ -35,10 +44,6 @@ async def _remove_all_users_from_group(group_id: str) -> list[str]:
 
 
 async def _clear_project_groups(project: Project) -> None:
-    """Remove all users from the project member KC group (the student).
-
-    Raises if any user could not be removed.
-    """
     failed = await _remove_all_users_from_group(project.member_group_id)
     if failed:
         raise RuntimeError(
@@ -46,49 +51,15 @@ async def _clear_project_groups(project: Project) -> None:
         )
 
 
-async def _reverse_project_budget(virtual_lab_id: UUID, project_id: UUID) -> None:
-    """Reverse all unspent credits from project back to the vlab. Best-effort."""
+async def _get_project_balance(project_id: UUID) -> float | None:
     if settings.ACCOUNTING_BASE_URL is None:
-        return
-
+        return None
     try:
-        # Get the project's current balance
-        balance_resp = await accounting_cases.get_project_balance(project_id)
-        balance = float(balance_resp.data.balance)
-
-        if balance <= 0:
-            return
-
-        # Try reversing the full reported balance first. If it fails due to
-        # rounding (reported > real), retry with 0.01 less.
-        try:
-            await accounting_cases.reverse_project_budget(
-                virtual_lab_id=virtual_lab_id,
-                project_id=project_id,
-                amount=balance,
-            )
-            logger.info(
-                f"Reversed {balance} credits from project {project_id} to vlab {virtual_lab_id}"
-            )
-            return
-        except Exception:  # noqa: BLE001
-            pass
-
-        # Retry with reduced amount
-        reverse_amount = round(balance - 0.01, 2)
-        if reverse_amount <= 0:
-            return
-
-        await accounting_cases.reverse_project_budget(
-            virtual_lab_id=virtual_lab_id,
-            project_id=project_id,
-            amount=reverse_amount,
-        )
-        logger.info(
-            f"Reversed {reverse_amount} credits (reduced) from project {project_id} to vlab {virtual_lab_id}"
-        )
+        resp = await accounting_cases.get_project_balance(project_id)
+        return float(resp.data.balance)
     except Exception as ex:  # noqa: BLE001
-        logger.error(f"Failed to reverse budget for project {project_id}: {ex}")
+        logger.error(f"Failed to get balance for project {project_id}: {ex}")
+        return None
 
 
 async def drop_seats(
@@ -97,12 +68,6 @@ async def drop_seats(
     course: Course,
     payload: DropSeatsBody,
 ) -> list[SeatDropResult]:
-    """Drop seats by ID: mark enrolment as dropped, handle KC/budget if activated.
-
-    Validates all seats upfront — fails fast if any seat is invalid.
-    Only KC/infra failures during the actual drop are treated as partial results.
-    """
-    # Validate all seats in one query with left join to enrolments
     seat_ids = list(payload.seat_ids)
     result = await db.execute(
         select(Seat)
@@ -131,7 +96,7 @@ async def drop_seats(
                 SeatDropResult(
                     seat_id=seat_id,
                     drop_successful=False,
-                    error="Seat has no enrolment (not assigned)",
+                    error="Seat has no enrolment",
                 )
             )
             continue
@@ -146,13 +111,12 @@ async def drop_seats(
             continue
         seats_to_drop.append((seat.id, seat.enrolment.id))
 
-    # Proceed with drops — re-fetch objects each iteration since commit expires them
     course_id = course.id
     for seat_id, enrolment_id in seats_to_drop:
         seat = await db.get(Seat, seat_id)
         enrolment = await db.get(CourseEnrolment, enrolment_id)
-        course: Course | None = await db.get(Course, course_id)
-        if seat is None or enrolment is None or course is None:
+        course_obj: Course | None = await db.get(Course, course_id)
+        if seat is None or enrolment is None or course_obj is None:
             results.append(
                 SeatDropResult(
                     seat_id=seat_id, drop_successful=False, error="Not found"
@@ -160,7 +124,9 @@ async def drop_seats(
             )
             continue
         try:
-            await _drop_single_seat(db, seat=seat, enrolment=enrolment, course=course)
+            await _drop_single_seat(
+                db, seat=seat, enrolment=enrolment, course=course_obj
+            )
             results.append(SeatDropResult(seat_id=seat_id, drop_successful=True))
         except Exception as ex:  # noqa: BLE001
             logger.error(f"Failed to drop seat {seat_id}: {ex}")
@@ -174,24 +140,37 @@ async def drop_seats(
 async def _drop_single_seat(
     db: AsyncSession, *, seat: Seat, enrolment: CourseEnrolment, course: Course
 ) -> None:
-    """Execute the drop for a single seat.
-
-    Clears KC groups and reverses budget for the linked project, then marks
-    the enrolment as dropped and releases or consumes the seat.
-    """
     project = await db.get(Project, enrolment.project_id)
     if project:
         await _clear_project_groups(project)
-        await _reverse_project_budget(
-            virtual_lab_id=course.virtual_lab_id, project_id=project.id
-        )
 
-    # Mark enrolment as dropped
+    now = datetime.now(timezone.utc)
+    is_early_drop = course.last_drop_date is not None and now < course.last_drop_date
+    has_sufficient_balance = True
+
+    if project:
+        balance = await _get_project_balance(project.id)
+        if balance is not None and balance < _MIN_RECOVERABLE_BALANCE:
+            has_sufficient_balance = False
+
+    can_recover = (
+        is_early_drop and not seat.previously_dropped and has_sufficient_balance
+    )
+
+    if project:
+        success = await accounting_cases.deplete_project_budget(
+            virtual_lab_id=course.virtual_lab_id,
+            project_id=project.id,
+        )
+        if not success:
+            raise RuntimeError(
+                f"Failed to deplete credits for project {project.id}, aborting drop"
+            )
+
     enrolment.is_dropped = True
 
-    # Release or consume the seat based on drop date
-    now = datetime.now(timezone.utc)
-    if course.last_drop_date and now < course.last_drop_date:
+    if can_recover:
+        seat.previously_dropped = True
         seat.enrolment_id = None
         seat.is_consumed = False
     else:
