@@ -117,7 +117,7 @@ async def assign_seats(
     # Lock seats up front
     seats = await get_available_seats(db, course.id, len(students))
 
-    course_id_val = course.id
+    course_id = course.id
     virtual_lab_id = course.virtual_lab_id
     course_name = course.virtual_lab.name
     credit_per_seat = float(course.credits_per_seat)
@@ -156,7 +156,7 @@ async def assign_seats(
 
             # Create enrolment linked to the project
             enrolment = CourseEnrolment(
-                course_id=course_id_val,
+                course_id=course_id,
                 contact_email=student.email,
                 student_id=student.student_id,
                 project_id=project_id,
