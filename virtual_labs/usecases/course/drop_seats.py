@@ -6,6 +6,7 @@ from uuid import UUID
 from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 
 from virtual_labs.domain.course import DropSeatsBody, SeatDropResult
 from virtual_labs.infrastructure.db.models import Course, CourseEnrolment, Project, Seat
@@ -101,14 +102,21 @@ async def drop_seats(
     Validates all seats upfront — fails fast if any seat is invalid.
     Only KC/infra failures during the actual drop are treated as partial results.
     """
-    # Validate all seats and load enrolments upfront
-    seats_with_enrolments: list[tuple[UUID, UUID]] = []
+    # Validate all seats in one query with left join to enrolments
+    seat_ids = list(payload.seat_ids)
+    result = await db.execute(
+        select(Seat)
+        .outerjoin(CourseEnrolment, CourseEnrolment.id == Seat.enrolment_id)
+        .options(joinedload(Seat.enrolment))
+        .where(Seat.id.in_(seat_ids), Seat.course_id == course.id)
+    )
+    found_seats = {s.id: s for s in result.scalars().unique().all()}
+
+    seats_to_drop: list[tuple[UUID, UUID]] = []
     results: list[SeatDropResult] = []
 
-    for seat_id in payload.seat_ids:
-        seat = await db.scalar(
-            select(Seat).where(Seat.id == seat_id, Seat.course_id == course.id)
-        )
+    for seat_id in seat_ids:
+        seat = found_seats.get(seat_id)
         if seat is None:
             results.append(
                 SeatDropResult(
@@ -118,7 +126,7 @@ async def drop_seats(
                 )
             )
             continue
-        if seat.enrolment_id is None:
+        if seat.enrolment_id is None or seat.enrolment is None:
             results.append(
                 SeatDropResult(
                     seat_id=seat_id,
@@ -127,17 +135,7 @@ async def drop_seats(
                 )
             )
             continue
-        enrolment = await db.get(CourseEnrolment, seat.enrolment_id)
-        if enrolment is None:
-            results.append(
-                SeatDropResult(
-                    seat_id=seat_id,
-                    drop_successful=False,
-                    error="Enrolment not found for seat",
-                )
-            )
-            continue
-        if enrolment.is_dropped:
+        if seat.enrolment.is_dropped:
             results.append(
                 SeatDropResult(
                     seat_id=seat_id,
@@ -146,11 +144,11 @@ async def drop_seats(
                 )
             )
             continue
-        seats_with_enrolments.append((seat.id, enrolment.id))
+        seats_to_drop.append((seat.id, seat.enrolment.id))
 
     # Proceed with drops — re-fetch objects each iteration since commit expires them
     course_id = course.id
-    for seat_id, enrolment_id in seats_with_enrolments:
+    for seat_id, enrolment_id in seats_to_drop:
         seat = await db.get(Seat, seat_id)
         enrolment = await db.get(CourseEnrolment, enrolment_id)
         course = await db.get(Course, course_id)

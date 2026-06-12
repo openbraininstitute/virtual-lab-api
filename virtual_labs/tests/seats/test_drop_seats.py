@@ -328,3 +328,184 @@ async def test_drop_seats_post_activation_kc_failure(
     assert results[0]["seat_id"] == seat_id
     assert results[0]["drop_successful"] is False
     assert results[0]["error"] is not None
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Multi-seat and edge-case tests
+# ──────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_drop_seats_unassigned_seat(
+    async_test_client: AsyncClient,
+    course_for_seats: str,
+) -> None:
+    """Dropping a provisioned but unassigned seat returns 'no enrolment'."""
+    headers = get_headers()
+    course_id = course_for_seats
+
+    # Provision without assigning
+    prov = await provision_seats(async_test_client, course_id, 1)
+    seat_id = prov["seats"][0]["id"]
+
+    drop_resp = await async_test_client.post(
+        f"/courses/{course_id}/drop_seats",
+        json={"seat_ids": [seat_id]},
+        headers=headers,
+    )
+
+    assert drop_resp.status_code == 200
+    results = drop_resp.json()["results"]
+    assert len(results) == 1
+    assert results[0]["drop_successful"] is False
+    assert "no enrolment" in results[0]["error"].lower()
+
+
+@pytest.mark.asyncio
+async def test_drop_seats_already_dropped(
+    async_test_client: AsyncClient,
+    course_for_seats: str,
+) -> None:
+    """Dropping a seat that was already dropped (early): seat is recycled, shows 'no enrolment'."""
+    headers = get_headers()
+    course_id = course_for_seats
+
+    await provision_seats(async_test_client, course_id, 1)
+
+    student = {
+        "student_id": f"stu-{uuid4().hex[:8]}",
+        "email": f"{uuid4().hex[:8]}@uni.org",
+    }
+    with mock_enrolment_email():
+        assign_resp = await async_test_client.post(
+            f"/courses/{course_id}/assign_seats",
+            json={"students": [student]},
+            headers=headers,
+        )
+    assert assign_resp.status_code == 200
+    seat_id = assign_resp.json()["results"][0]["seat_id"]
+
+    # Drop it once (early drop — seat is recycled, enrolment_id set to None)
+    drop_resp = await async_test_client.post(
+        f"/courses/{course_id}/drop_seats",
+        json={"seat_ids": [seat_id]},
+        headers=headers,
+    )
+    assert drop_resp.status_code == 200
+    assert drop_resp.json()["results"][0]["drop_successful"] is True
+
+    # Drop it again — seat now has no enrolment (recycled)
+    drop_resp2 = await async_test_client.post(
+        f"/courses/{course_id}/drop_seats",
+        json={"seat_ids": [seat_id]},
+        headers=headers,
+    )
+    assert drop_resp2.status_code == 200
+    results = drop_resp2.json()["results"]
+    assert len(results) == 1
+    assert results[0]["drop_successful"] is False
+    assert "no enrolment" in results[0]["error"].lower()
+
+
+@pytest.mark.asyncio
+async def test_drop_multiple_seats_success(
+    async_test_client: AsyncClient,
+    course_for_seats: str,
+) -> None:
+    """Dropping multiple valid seats in one call succeeds for all."""
+    headers = get_headers()
+    course_id = course_for_seats
+
+    await provision_seats(async_test_client, course_id, 3)
+
+    students = [
+        {
+            "student_id": f"stu-{uuid4().hex[:8]}",
+            "email": f"{uuid4().hex[:8]}@uni.org",
+        }
+        for _ in range(3)
+    ]
+    with mock_enrolment_email():
+        assign_resp = await async_test_client.post(
+            f"/courses/{course_id}/assign_seats",
+            json={"students": students},
+            headers=headers,
+        )
+    assert assign_resp.status_code == 200
+    seat_ids = [r["seat_id"] for r in assign_resp.json()["results"]]
+    assert len(seat_ids) == 3
+
+    # Drop all 3 at once
+    drop_resp = await async_test_client.post(
+        f"/courses/{course_id}/drop_seats",
+        json={"seat_ids": seat_ids},
+        headers=headers,
+    )
+
+    assert drop_resp.status_code == 200
+    results = drop_resp.json()["results"]
+    assert len(results) == 3
+    for r in results:
+        assert r["drop_successful"] is True
+        assert r["error"] is None
+
+
+@pytest.mark.asyncio
+async def test_drop_seats_mixed_valid_and_invalid(
+    async_test_client: AsyncClient,
+    course_for_seats: str,
+) -> None:
+    """Mix of valid, unassigned, and nonexistent seats — each gets correct result."""
+    headers = get_headers()
+    course_id = course_for_seats
+
+    await provision_seats(async_test_client, course_id, 2)
+
+    # Assign only 1 of the 2
+    student = {
+        "student_id": f"stu-{uuid4().hex[:8]}",
+        "email": f"{uuid4().hex[:8]}@uni.org",
+    }
+    with mock_enrolment_email():
+        assign_resp = await async_test_client.post(
+            f"/courses/{course_id}/assign_seats",
+            json={"students": [student]},
+            headers=headers,
+        )
+    assert assign_resp.status_code == 200
+    assigned_seat_id = assign_resp.json()["results"][0]["seat_id"]
+
+    # Get the unassigned seat
+    list_resp = await async_test_client.get(
+        f"/seats/courses/{course_id}",
+        headers=headers,
+    )
+    assert list_resp.status_code == 200
+    all_seats = list_resp.json()["seats"]
+    unassigned_seat_id = next(s["id"] for s in all_seats if s["enrolment_id"] is None)
+
+    nonexistent_seat_id = str(uuid4())
+
+    # Drop all 3 in one call
+    drop_resp = await async_test_client.post(
+        f"/courses/{course_id}/drop_seats",
+        json={"seat_ids": [assigned_seat_id, unassigned_seat_id, nonexistent_seat_id]},
+        headers=headers,
+    )
+
+    assert drop_resp.status_code == 200
+    results = drop_resp.json()["results"]
+    assert len(results) == 3
+
+    result_map = {r["seat_id"]: r for r in results}
+
+    # Assigned seat: dropped successfully
+    assert result_map[assigned_seat_id]["drop_successful"] is True
+
+    # Unassigned seat: no enrolment
+    assert result_map[unassigned_seat_id]["drop_successful"] is False
+    assert "no enrolment" in result_map[unassigned_seat_id]["error"].lower()
+
+    # Nonexistent seat: not found
+    assert result_map[nonexistent_seat_id]["drop_successful"] is False
+    assert "not found" in result_map[nonexistent_seat_id]["error"].lower()
