@@ -14,7 +14,7 @@ scheduler = AsyncIOScheduler()
 async def _run_expire_courses() -> None:
     """Scheduled job: expire courses past end_date. Uses Redis lock for single-execution."""
     redis = await get_redis()
-    lock = redis.lock("cron:expire_courses", timeout=300)
+    lock = redis.lock("cron:expire_courses", timeout=3600)
 
     if not await lock.acquire(blocking=False):
         logger.debug("expire_courses already running on another instance — skipping")
@@ -38,13 +38,15 @@ def start_scheduler() -> None:
     """Register jobs and start the scheduler."""
     scheduler.add_job(
         _run_expire_courses,
-        trigger=CronTrigger(minute=0),  # Every hour
+        trigger=CronTrigger(hour=2, minute=0, timezone="Europe/Zurich"),
         id="expire_courses",
         name="Drop enrolments in expired courses",
         replace_existing=True,
     )
     scheduler.start()
-    logger.info("Scheduler started — expire_courses scheduled every hour")
+    logger.info(
+        "Scheduler started — expire_courses scheduled daily at 02:00 Europe/Zurich"
+    )
 
 
 def stop_scheduler() -> None:
