@@ -10,7 +10,7 @@ import pytest
 from httpx import AsyncClient
 
 from virtual_labs.tests.seats.helpers import provision_seats
-from virtual_labs.tests.seats.test_assign_seats import mock_enrolment_email
+from virtual_labs.tests.seats.test_drop_seats import mock_assign_deps
 from virtual_labs.tests.utils import get_headers
 
 # ──────────────────────────────────────────────────────────────────────
@@ -155,7 +155,7 @@ async def test_list_seats_shows_enrolment_for_assigned_seats(
         {"student_id": f"stu-{uuid().hex[:8]}", "email": f"{uuid().hex[:8]}@uni.org"},
         {"student_id": f"stu-{uuid().hex[:8]}", "email": f"{uuid().hex[:8]}@uni.org"},
     ]
-    with mock_enrolment_email():
+    with mock_assign_deps():
         assign_resp = await async_test_client.post(
             f"/courses/{course_for_seats}/assign_seats",
             json={"students": students},

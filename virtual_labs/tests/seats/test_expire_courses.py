@@ -10,7 +10,7 @@ from sqlalchemy import update
 
 from virtual_labs.infrastructure.db.models import Course, CourseEnrolment, CourseStatus
 from virtual_labs.tests.seats.helpers import provision_seats
-from virtual_labs.tests.seats.test_assign_seats import mock_assign_accounting
+from virtual_labs.tests.seats.test_drop_seats import mock_assign_deps, mock_drop_deps
 from virtual_labs.tests.utils import get_headers, session_context_factory
 from virtual_labs.usecases.course.expire_courses import expire_courses
 
@@ -29,9 +29,7 @@ async def _assign_seat(client: AsyncClient, course_id: str) -> str:
     }
     headers = get_headers()
 
-    with mock_assign_accounting() as mocks:
-        mocks.balance.return_value = AsyncMock(data=AsyncMock(balance=1000.0))
-        mocks.transfer.return_value = AsyncMock()
+    with mock_assign_deps():
         resp = await client.post(
             f"/courses/{course_id}/assign_seats",
             json={"students": [student]},
@@ -66,20 +64,9 @@ async def test_expire_courses_drops_enrolments(
     course_id = course_for_seats
     enrolment_id = await _assign_seat(async_test_client, course_id)
 
-    # Expire the course
     await _expire_course(course_id)
 
-    # Mock KC and accounting
-    with (
-        patch(
-            "virtual_labs.usecases.course.drop_seats._clear_project_groups",
-            new_callable=AsyncMock,
-        ),
-        patch(
-            "virtual_labs.usecases.course.drop_seats._reverse_project_budget",
-            new_callable=AsyncMock,
-        ),
-    ):
+    with mock_drop_deps():
         async with session_context_factory() as session:
             summary = await expire_courses(session)
 
@@ -87,7 +74,6 @@ async def test_expire_courses_drops_enrolments(
     assert summary["enrolments_dropped"] >= 1
     assert summary["enrolments_failed"] == 0
 
-    # Verify enrolment is now dropped
     async with session_context_factory() as session:
         enrolment = await session.get(CourseEnrolment, UUID(enrolment_id))
         assert enrolment is not None
@@ -100,7 +86,6 @@ async def test_expire_courses_no_op_when_no_expired(
     course_for_seats: str,
 ) -> None:
     """No drops when no courses have ended."""
-    # course_for_seats has end_date in the future
     await _assign_seat(async_test_client, course_for_seats)
 
     async with session_context_factory() as session:
@@ -120,16 +105,7 @@ async def test_expire_courses_idempotent(
     await _assign_seat(async_test_client, course_id)
     await _expire_course(course_id)
 
-    with (
-        patch(
-            "virtual_labs.usecases.course.drop_seats._clear_project_groups",
-            new_callable=AsyncMock,
-        ),
-        patch(
-            "virtual_labs.usecases.course.drop_seats._reverse_project_budget",
-            new_callable=AsyncMock,
-        ),
-    ):
+    with mock_drop_deps():
         async with session_context_factory() as session:
             summary1 = await expire_courses(session)
 
@@ -137,7 +113,6 @@ async def test_expire_courses_idempotent(
             summary2 = await expire_courses(session)
 
     assert summary1["enrolments_dropped"] >= 1
-    # Second run: already dropped, nothing to do
     assert summary2["enrolments_dropped"] == 0
 
 
@@ -150,7 +125,6 @@ async def test_expire_courses_processes_voided_too(
     course_id = course_for_seats
     enrolment_id = await _assign_seat(async_test_client, course_id)
 
-    # Expire + void the course
     async with session_context_factory() as session:
         await session.execute(
             update(Course)
@@ -162,22 +136,12 @@ async def test_expire_courses_processes_voided_too(
         )
         await session.commit()
 
-    with (
-        patch(
-            "virtual_labs.usecases.course.drop_seats._clear_project_groups",
-            new_callable=AsyncMock,
-        ),
-        patch(
-            "virtual_labs.usecases.course.drop_seats._reverse_project_budget",
-            new_callable=AsyncMock,
-        ),
-    ):
+    with mock_drop_deps():
         async with session_context_factory() as session:
             summary = await expire_courses(session)
 
     assert summary["enrolments_dropped"] >= 1
 
-    # Verify enrolment is dropped
     async with session_context_factory() as session:
         enrolment = await session.get(CourseEnrolment, UUID(enrolment_id))
         assert enrolment is not None
@@ -194,7 +158,6 @@ async def test_expire_courses_handles_kc_failure_gracefully(
     enrolment_id = await _assign_seat(async_test_client, course_id)
     await _expire_course(course_id)
 
-    # Make KC fail
     with patch(
         "virtual_labs.usecases.course.drop_seats._clear_project_groups",
         new_callable=AsyncMock,
@@ -205,7 +168,6 @@ async def test_expire_courses_handles_kc_failure_gracefully(
 
     assert summary["enrolments_failed"] >= 1
 
-    # Enrolment is still NOT dropped — ready for retry
     async with session_context_factory() as session:
         enrolment = await session.get(CourseEnrolment, UUID(enrolment_id))
         assert enrolment is not None
@@ -227,22 +189,12 @@ async def test_expire_courses_multiple_enrolments(
 
     await _expire_course(course_id)
 
-    with (
-        patch(
-            "virtual_labs.usecases.course.drop_seats._clear_project_groups",
-            new_callable=AsyncMock,
-        ),
-        patch(
-            "virtual_labs.usecases.course.drop_seats._reverse_project_budget",
-            new_callable=AsyncMock,
-        ),
-    ):
+    with mock_drop_deps():
         async with session_context_factory() as session:
             summary = await expire_courses(session)
 
     assert summary["enrolments_dropped"] == 3
 
-    # Verify all are dropped
     async with session_context_factory() as session:
         for eid in enrolment_ids:
             enrolment = await session.get(CourseEnrolment, UUID(eid))
