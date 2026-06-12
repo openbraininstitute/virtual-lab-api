@@ -151,7 +151,7 @@ async def drop_seats(
     for seat_id, enrolment_id in seats_to_drop:
         seat = await db.get(Seat, seat_id)
         enrolment = await db.get(CourseEnrolment, enrolment_id)
-        course = await db.get(Course, course_id)
+        course: Course | None = await db.get(Course, course_id)
         if seat is None or enrolment is None or course is None:
             results.append(
                 SeatDropResult(
