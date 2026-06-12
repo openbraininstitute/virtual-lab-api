@@ -3,6 +3,8 @@ from typing import Optional
 
 from pydantic import UUID4, BaseModel, ConfigDict, Field, model_validator
 
+from virtual_labs.domain.seat import SeatOut
+
 
 class CourseCreateBody(BaseModel):
     """Payload for creating a course by assigning an existing virtual lab and project."""
@@ -183,3 +185,29 @@ class ActivateEnrolmentResult(BaseModel):
 
 class ActivateEnrolmentsResponse(BaseModel):
     results: list[ActivateEnrolmentResult]
+
+
+# ──────────────────────────────────────────────────────────────────────
+# List enrolments schemas (teacher/admin view)
+# ──────────────────────────────────────────────────────────────────────
+
+
+class EnrolmentOut(BaseModel):
+    """Enrolment with nested seat — for admin listing."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID4
+    course_id: UUID4
+    project_id: UUID4
+    contact_email: str
+    student_id: str
+    claimed_by: UUID4 | None = None
+    activated_at: Optional[datetime] = None
+    is_dropped: bool
+    created_at: datetime
+    seat: SeatOut | None = None
+
+
+class ListEnrolmentsResponse(BaseModel):
+    enrolments: list[EnrolmentOut]

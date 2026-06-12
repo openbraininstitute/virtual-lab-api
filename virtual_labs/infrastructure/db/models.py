@@ -1141,6 +1141,7 @@ class CourseEnrolment(Base):
     # Relationships
     course = relationship("Course", lazy="joined")
     project = relationship("Project", lazy="noload")
+    seat = relationship("Seat", uselist=False, lazy="noload", viewonly=True)
 
     __table_args__ = (
         UniqueConstraint(

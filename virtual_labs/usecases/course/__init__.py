@@ -8,6 +8,7 @@ from virtual_labs.usecases.course.get_course import (
     get_course_by_id,
     search_courses_by_vlab_name,
 )
+from virtual_labs.usecases.course.list_enrolments import list_enrolments
 from virtual_labs.usecases.course.update_course import update_course
 from virtual_labs.usecases.course.update_course_status import (
     activate_course,
@@ -22,6 +23,7 @@ __all__ = [
     "drop_seats",
     "expire_courses",
     "get_course_by_id",
+    "list_enrolments",
     "search_courses_by_vlab_name",
     "update_course",
     "activate_course",

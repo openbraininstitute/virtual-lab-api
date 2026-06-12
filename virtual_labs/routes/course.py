@@ -19,6 +19,8 @@ from virtual_labs.domain.course import (
     CourseUpdateBody,
     DropSeatResponse,
     DropSeatsBody,
+    EnrolmentOut,
+    ListEnrolmentsResponse,
 )
 from virtual_labs.infrastructure.db.config import default_session_factory
 from virtual_labs.infrastructure.db.models import Course
@@ -216,4 +218,22 @@ async def activate_enrolments_endpoint(
     )
     return ActivateEnrolmentsResponse(
         results=[ActivateEnrolmentResult(**r) for r in results]
+    )
+
+
+@router.get(
+    "/{course_id}/enrolments",
+    operation_id="list_enrolments",
+    summary="List all enrolments for a course (vlab admin)",
+    response_model=ListEnrolmentsResponse,
+)
+async def list_enrolments_endpoint(
+    course_id: UUID4,
+    grant: tuple[AuthUserGrants, Course] = Depends(verify_course_admin),
+    session: AsyncSession = Depends(default_session_factory),
+) -> ListEnrolmentsResponse:
+    _user, course = grant
+    enrolments = await usecases.list_enrolments(session, course_id=course.id)
+    return ListEnrolmentsResponse(
+        enrolments=[EnrolmentOut.model_validate(e) for e in enrolments]
     )
