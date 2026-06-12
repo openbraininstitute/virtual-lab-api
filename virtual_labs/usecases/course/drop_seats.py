@@ -144,6 +144,19 @@ async def _drop_single_seat(
     if project:
         await _clear_project_groups(project)
 
+    # Remove the student from the vlab member group (if they claimed)
+    if enrolment.claimed_by is not None:
+        umr = UserMutationRepository()
+        try:
+            await umr.a_detach_user_from_group(
+                user_id=enrolment.claimed_by,
+                group_id=course.virtual_lab.member_group_id,
+            )
+        except Exception as ex:  # noqa: BLE001
+            logger.warning(
+                f"Failed to remove user {enrolment.claimed_by} from vlab member group: {ex}"
+            )
+
     now = datetime.now(timezone.utc)
     is_early_drop = course.last_drop_date is not None and now < course.last_drop_date
     has_sufficient_balance = True
