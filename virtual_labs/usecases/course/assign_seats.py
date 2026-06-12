@@ -117,8 +117,6 @@ async def assign_seats(
     # Lock seats up front
     seats = await get_available_seats(db, course.id, len(students))
 
-    # Capture scalar values before the loop — avoids lazy-loading on expired
-    # ORM instances after the separate project-creation session runs.
     course_id_val = course.id
     virtual_lab_id = course.virtual_lab_id
     course_name = course.virtual_lab.name

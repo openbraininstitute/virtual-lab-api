@@ -1,17 +1,14 @@
 """Tests for the assign-seats endpoint (POST /courses/{course_id}/assign_seats)."""
 
-from contextlib import contextmanager
-from dataclasses import dataclass
-from unittest.mock import AsyncMock, MagicMock, patch
+from contextlib import ExitStack, contextmanager
+from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
 from httpx import AsyncClient
 
 from virtual_labs.tests.seats.helpers import provision_seats
-from virtual_labs.tests.utils import (
-    get_headers,
-)
+from virtual_labs.tests.utils import get_headers
 
 
 def _assign_payload(students: list[dict] | None = None) -> dict:
@@ -25,44 +22,35 @@ def _assign_payload(students: list[dict] | None = None) -> dict:
     return {"students": students}
 
 
-@dataclass
-class AccountingMocks:
-    """Holds mocks exposed by mock_assign_accounting."""
-
-    balance: MagicMock
-    transfer: MagicMock
-
-
 @contextmanager
-def mock_assign_accounting(
-    accounting_url: str | None = "http://accounting:8000",
-):
-    """Patch accounting dependencies for the assign-seats flow.
+def mock_assign_accounting(fund_succeeds: bool = True, patch_email: bool = True):
+    """Patch accounting + project creation dependencies for the assign-seats flow.
 
-    Yields an AccountingMocks instance with .balance and .transfer mocks
-    (only available when accounting_url is not None).
+    fund_succeeds: whether fund_project returns True or False.
+    patch_email: whether to also patch send_enrolment_claim_email (default: True).
     """
-    with (
+    patches = [
         patch(
             "virtual_labs.usecases.project.create_new_project.ensure_accounting_initialization",
             new_callable=AsyncMock,
         ),
         patch(
-            "virtual_labs.usecases.course.assign_seats.settings.ACCOUNTING_BASE_URL",
-            accounting_url,
-        ),
-        patch(
-            "virtual_labs.usecases.course.assign_seats.accounting_cases.get_virtual_lab_balance"
-        ) as mock_balance,
-        patch(
-            "virtual_labs.usecases.course.assign_seats.accounting_cases.assign_project_budget"
-        ) as mock_transfer,
-        patch(
-            "virtual_labs.usecases.course.assign_seats.send_enrolment_claim_email",
+            "virtual_labs.usecases.course.assign_seats.accounting_cases.fund_project",
             new_callable=AsyncMock,
+            return_value=fund_succeeds,
         ),
-    ):
-        yield AccountingMocks(balance=mock_balance, transfer=mock_transfer)
+    ]
+    if patch_email:
+        patches.append(
+            patch(
+                "virtual_labs.usecases.course.assign_seats.send_enrolment_claim_email",
+                new_callable=AsyncMock,
+            )
+        )
+
+    with ExitStack() as stack:
+        mocks = [stack.enter_context(p) for p in patches]
+        yield mocks[1]  # the fund_project mock
 
 
 @contextmanager
@@ -87,7 +75,7 @@ async def test_assign_seats_success(
     async_test_client: AsyncClient,
     course_for_seats: str,
 ) -> None:
-    """Assign a single seat — project created, enrolment created, credit transfer succeeds."""
+    """Assign a single seat — project created, funded, enrolment created."""
     headers = get_headers()
     course_id = course_for_seats
     await provision_seats(async_test_client, course_id, 2)
@@ -98,9 +86,7 @@ async def test_assign_seats_success(
     }
     body = _assign_payload([student])
 
-    with mock_assign_accounting() as mocks:
-        mocks.balance.return_value = AsyncMock(data=AsyncMock(balance=1000.0))
-        mocks.transfer.return_value = AsyncMock()
+    with mock_assign_accounting(fund_succeeds=True):
         response = await async_test_client.post(
             f"/courses/{course_id}/assign_seats", json=body, headers=headers
         )
@@ -109,7 +95,7 @@ async def test_assign_seats_success(
     results = response.json()["results"]
     assert len(results) == 1
     assert results[0]["assignment_successful"] is True
-    assert results[0]["credit_transferred_amount"] > 0
+    assert results[0]["credit_transferred_amount"] == 200.0
     assert results[0]["project_id"] is not None
     assert results[0]["enrolment_id"] is not None
     assert results[0]["student_id"] == student["student_id"]
@@ -135,9 +121,7 @@ async def test_assign_seats_multiple_students(
     ]
     body = _assign_payload(students)
 
-    with mock_assign_accounting() as mocks:
-        mocks.balance.return_value = AsyncMock(data=AsyncMock(balance=5000.0))
-        mocks.transfer.return_value = AsyncMock()
+    with mock_assign_accounting(fund_succeeds=True):
         response = await async_test_client.post(
             f"/courses/{course_id}/assign_seats", json=body, headers=headers
         )
@@ -146,7 +130,7 @@ async def test_assign_seats_multiple_students(
     results = response.json()["results"]
     assert len(results) == 3
     assert all(r["assignment_successful"] for r in results)
-    assert all(r["credit_transferred_amount"] > 0 for r in results)
+    assert all(r["credit_transferred_amount"] == 200.0 for r in results)
     project_ids = [r["project_id"] for r in results]
     assert len(set(project_ids)) == 3
     enrolment_ids = [r["enrolment_id"] for r in results]
@@ -154,11 +138,11 @@ async def test_assign_seats_multiple_students(
 
 
 @pytest.mark.asyncio
-async def test_assign_seats_credit_transfer_fails_gracefully(
+async def test_assign_seats_funding_fails_rolls_back(
     async_test_client: AsyncClient,
     course_for_seats: str,
 ) -> None:
-    """If credit transfer fails, seat is still assigned but amount is 0."""
+    """If fund_project fails, assignment fails and project is soft-deleted."""
     headers = get_headers()
     course_id = course_for_seats
     await provision_seats(async_test_client, course_id, 1)
@@ -169,9 +153,7 @@ async def test_assign_seats_credit_transfer_fails_gracefully(
     }
     body = _assign_payload([student])
 
-    with mock_assign_accounting() as mocks:
-        mocks.balance.return_value = AsyncMock(data=AsyncMock(balance=1000.0))
-        mocks.transfer.side_effect = Exception("accounting down")
+    with mock_assign_accounting(fund_succeeds=False):
         response = await async_test_client.post(
             f"/courses/{course_id}/assign_seats", json=body, headers=headers
         )
@@ -179,99 +161,8 @@ async def test_assign_seats_credit_transfer_fails_gracefully(
     assert response.status_code == 200
     results = response.json()["results"]
     assert len(results) == 1
-    assert results[0]["assignment_successful"] is True
-    assert results[0]["credit_transferred_amount"] == 0
-    assert results[0]["project_id"] is not None
-    assert results[0]["enrolment_id"] is not None
-    assert results[0]["error"] == "Error funding the student project"
-
-
-@pytest.mark.asyncio
-async def test_assign_seats_no_accounting_url(
-    async_test_client: AsyncClient,
-    course_for_seats: str,
-) -> None:
-    """When ACCOUNTING_BASE_URL is None, assignment succeeds but no transfer."""
-    headers = get_headers()
-    course_id = course_for_seats
-    await provision_seats(async_test_client, course_id, 1)
-
-    student = {
-        "student_id": f"stu-{uuid4().hex[:8]}",
-        "email": f"{uuid4().hex[:8]}@uni.org",
-    }
-    body = _assign_payload([student])
-
-    with mock_assign_accounting(accounting_url=None):
-        response = await async_test_client.post(
-            f"/courses/{course_id}/assign_seats", json=body, headers=headers
-        )
-
-    assert response.status_code == 200
-    results = response.json()["results"]
-    assert results[0]["assignment_successful"] is True
-    assert results[0]["credit_transferred_amount"] == 0
-    assert results[0]["enrolment_id"] is not None
-
-
-@pytest.mark.asyncio
-async def test_assign_seats_partial_credit(
-    async_test_client: AsyncClient,
-    course_for_seats: str,
-) -> None:
-    """When balance < credits_per_seat, transfers what's available (partial)."""
-    headers = get_headers()
-    course_id = course_for_seats
-    await provision_seats(async_test_client, course_id, 1)
-
-    student = {
-        "student_id": f"stu-{uuid4().hex[:8]}",
-        "email": f"{uuid4().hex[:8]}@uni.org",
-    }
-    body = _assign_payload([student])
-
-    with mock_assign_accounting() as mocks:
-        mocks.balance.return_value = AsyncMock(data=AsyncMock(balance=50.0))
-        mocks.transfer.return_value = AsyncMock()
-        response = await async_test_client.post(
-            f"/courses/{course_id}/assign_seats", json=body, headers=headers
-        )
-
-    assert response.status_code == 200
-    results = response.json()["results"]
-    assert results[0]["assignment_successful"] is True
-    assert results[0]["credit_transferred_amount"] == 50.0
-    assert "Partial credit" in results[0]["error"]
-
-
-@pytest.mark.asyncio
-async def test_assign_seats_zero_balance_skips_transfer(
-    async_test_client: AsyncClient,
-    course_for_seats: str,
-) -> None:
-    """When balance is 0, no transfer is attempted."""
-    headers = get_headers()
-    course_id = course_for_seats
-    await provision_seats(async_test_client, course_id, 1)
-
-    student = {
-        "student_id": f"stu-{uuid4().hex[:8]}",
-        "email": f"{uuid4().hex[:8]}@uni.org",
-    }
-    body = _assign_payload([student])
-
-    with mock_assign_accounting() as mocks:
-        mocks.balance.return_value = AsyncMock(data=AsyncMock(balance=0.0))
-        response = await async_test_client.post(
-            f"/courses/{course_id}/assign_seats", json=body, headers=headers
-        )
-
-    assert response.status_code == 200
-    results = response.json()["results"]
-    assert results[0]["assignment_successful"] is True
-    assert results[0]["credit_transferred_amount"] == 0
-    assert results[0]["error"] == "Insufficient virtual lab balance"
-    mocks.transfer.assert_not_awaited()
+    assert results[0]["assignment_successful"] is False
+    assert results[0]["error"] is not None
 
 
 @pytest.mark.asyncio
@@ -290,9 +181,10 @@ async def test_assign_seats_email_failure_does_not_rollback(
     }
     body = _assign_payload([student])
 
-    with mock_assign_accounting() as mocks, mock_enrolment_email(succeed=False):
-        mocks.balance.return_value = AsyncMock(data=AsyncMock(balance=1000.0))
-        mocks.transfer.return_value = AsyncMock()
+    with (
+        mock_assign_accounting(fund_succeeds=True, patch_email=False),
+        mock_enrolment_email(succeed=False),
+    ):
         response = await async_test_client.post(
             f"/courses/{course_id}/assign_seats", json=body, headers=headers
         )
@@ -322,9 +214,10 @@ async def test_assign_seats_claim_email_sent(
     }
     body = _assign_payload([student])
 
-    with mock_assign_accounting() as mocks, mock_enrolment_email() as mock_email:
-        mocks.balance.return_value = AsyncMock(data=AsyncMock(balance=1000.0))
-        mocks.transfer.return_value = AsyncMock()
+    with (
+        mock_assign_accounting(fund_succeeds=True, patch_email=False),
+        mock_enrolment_email() as mock_email,
+    ):
         response = await async_test_client.post(
             f"/courses/{course_id}/assign_seats", json=body, headers=headers
         )
@@ -502,18 +395,14 @@ async def test_assign_seats_duplicate_enrolment_rejected(
     body = _assign_payload([student])
 
     # First assignment succeeds
-    with mock_assign_accounting() as mocks:
-        mocks.balance.return_value = AsyncMock(data=AsyncMock(balance=1000.0))
-        mocks.transfer.return_value = AsyncMock()
+    with mock_assign_accounting(fund_succeeds=True):
         response = await async_test_client.post(
             f"/courses/{course_id}/assign_seats", json=body, headers=headers
         )
     assert response.status_code == 200
 
     # Second assignment with same student fails
-    with mock_assign_accounting() as mocks:
-        mocks.balance.return_value = AsyncMock(data=AsyncMock(balance=1000.0))
-        mocks.transfer.return_value = AsyncMock()
+    with mock_assign_accounting(fund_succeeds=True):
         response = await async_test_client.post(
             f"/courses/{course_id}/assign_seats", json=body, headers=headers
         )
@@ -522,65 +411,12 @@ async def test_assign_seats_duplicate_enrolment_rejected(
 
 
 @pytest.mark.asyncio
-async def test_assign_seats_mixed_outcomes(
-    async_test_client: AsyncClient,
-    course_for_seats: str,
-) -> None:
-    """Multiple students: first gets full credit, second partial, third zero balance."""
-    headers = get_headers()
-    course_id = course_for_seats
-    await provision_seats(async_test_client, course_id, 3)
-
-    students = [
-        {
-            "student_id": f"stu-{uuid4().hex[:8]}",
-            "email": f"{uuid4().hex[:8]}@uni.org",
-        }
-        for _ in range(3)
-    ]
-    body = _assign_payload(students)
-
-    # Simulate decreasing balance: 1000 → 50 → 0
-    balance_responses = [
-        AsyncMock(data=AsyncMock(balance=1000.0)),
-        AsyncMock(data=AsyncMock(balance=50.0)),
-        AsyncMock(data=AsyncMock(balance=0.0)),
-    ]
-
-    with mock_assign_accounting() as mocks:
-        mocks.balance.side_effect = balance_responses
-        mocks.transfer.return_value = AsyncMock()
-        response = await async_test_client.post(
-            f"/courses/{course_id}/assign_seats", json=body, headers=headers
-        )
-
-    assert response.status_code == 200
-    results = response.json()["results"]
-    assert len(results) == 3
-
-    # First: full credit
-    assert results[0]["assignment_successful"] is True
-    assert results[0]["credit_transferred_amount"] > 0
-    assert results[0]["error"] is None
-
-    # Second: partial credit (balance=50 < credits_per_seat)
-    assert results[1]["assignment_successful"] is True
-    assert results[1]["credit_transferred_amount"] == 50.0
-    assert "Partial credit" in results[1]["error"]
-
-    # Third: zero balance — no transfer attempted
-    assert results[2]["assignment_successful"] is True
-    assert results[2]["credit_transferred_amount"] == 0
-    assert results[2]["error"] == "Insufficient virtual lab balance"
-
-
-@pytest.mark.asyncio
 async def test_assign_seats_fails_for_non_admin_user(
     async_test_client: AsyncClient,
     course_for_seats: str,
 ) -> None:
     """A user who is not a vlab admin cannot assign seats."""
-    headers = get_headers("test-1")  # different user, not admin of this lab
+    headers = get_headers("test-1")
     body = _assign_payload()
 
     response = await async_test_client.post(
