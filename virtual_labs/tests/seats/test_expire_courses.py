@@ -216,3 +216,80 @@ async def test_expire_courses_multiple_enrolments(
             enrolment = await session.get(CourseEnrolment, UUID(eid))
             assert enrolment is not None
             assert enrolment.is_dropped is True
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Vlab depletion tests
+# ──────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_expire_courses_depletes_vlab_budget(
+    async_test_client: AsyncClient,
+    course_for_seats: str,
+) -> None:
+    """After dropping enrolments, vlab budget is depleted and flag is set."""
+    course_id = course_for_seats
+    await _assign_seat(async_test_client, course_id)
+    await _expire_course(course_id)
+
+    with mock_expire_deps():
+        async with session_context_factory() as session:
+            summary = await expire_courses(session)
+
+    assert summary["vlabs_depleted"] == 1
+
+    async with session_context_factory() as session:
+        course = await session.get(Course, UUID(course_id))
+        assert course is not None
+        assert course.budget_depleted is True
+
+
+@pytest.mark.asyncio
+async def test_expire_courses_depletion_not_repeated(
+    async_test_client: AsyncClient,
+    course_for_seats: str,
+) -> None:
+    """Once budget_depleted is True, the course is not processed again."""
+    course_id = course_for_seats
+    await _assign_seat(async_test_client, course_id)
+    await _expire_course(course_id)
+
+    with mock_expire_deps():
+        async with session_context_factory() as session:
+            await expire_courses(session)
+
+        # Run again
+        async with session_context_factory() as session:
+            summary2 = await expire_courses(session)
+
+    assert summary2["vlabs_depleted"] == 0
+
+
+@pytest.mark.asyncio
+async def test_expire_courses_depletion_skipped_on_failure(
+    async_test_client: AsyncClient,
+    course_for_seats: str,
+) -> None:
+    """If deplete_vlab_budget fails, budget_depleted stays False for retry."""
+    course_id = course_for_seats
+    await _assign_seat(async_test_client, course_id)
+    await _expire_course(course_id)
+
+    with (
+        mock_drop_deps(),
+        patch(
+            "virtual_labs.usecases.course.expire_courses.accounting_cases.deplete_vlab_budget",
+            new_callable=AsyncMock,
+            return_value=False,
+        ),
+    ):
+        async with session_context_factory() as session:
+            summary = await expire_courses(session)
+
+    assert summary["vlabs_depleted"] == 0
+
+    async with session_context_factory() as session:
+        course = await session.get(Course, UUID(course_id))
+        assert course is not None
+        assert course.budget_depleted is False
