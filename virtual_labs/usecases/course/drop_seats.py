@@ -18,12 +18,9 @@ from sqlalchemy.orm import joinedload
 
 from virtual_labs.domain.course import DropSeatsBody, SeatDropResult
 from virtual_labs.infrastructure.db.models import Course, CourseEnrolment, Project, Seat
-from virtual_labs.infrastructure.settings import settings
 from virtual_labs.repositories.group_repo import GroupQueryRepository
 from virtual_labs.repositories.user_repo import UserMutationRepository
 from virtual_labs.usecases import accounting as accounting_cases
-
-_MIN_RECOVERABLE_BALANCE = settings.CREDITS_PER_SEAT - 50
 
 
 async def _remove_all_users_from_group(group_id: str) -> list[str]:
@@ -161,8 +158,10 @@ async def _drop_single_seat(
                 f"Failed to deplete credits for project {project.id}, aborting drop"
             )
 
+    min_recoverable_balance = course.credits_per_seat - 50
+
     has_sufficient_balance = (
-        depleted_amount is not None and depleted_amount >= _MIN_RECOVERABLE_BALANCE
+        depleted_amount is not None and depleted_amount >= min_recoverable_balance
     )
     can_recover = (
         is_early_drop and not seat.previously_dropped and has_sufficient_balance
