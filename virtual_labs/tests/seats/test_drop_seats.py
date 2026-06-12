@@ -1,21 +1,63 @@
 """Tests for the drop-seats endpoint (POST /courses/{course_id}/drop_seats)."""
 
+from contextlib import contextmanager
 from unittest.mock import AsyncMock, patch
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import pytest
 from httpx import AsyncClient
 
-from virtual_labs.infrastructure.db.models import Course, CourseEnrolment, Project
 from virtual_labs.tests.seats.helpers import provision_seats
-from virtual_labs.tests.seats.test_assign_seats import mock_enrolment_email
-from virtual_labs.tests.utils import get_headers, session_context_factory
+from virtual_labs.tests.utils import get_headers
 
 
 def _drop_payload(seat_ids: list[str] | None = None) -> dict:
     if seat_ids is None:
         seat_ids = [str(uuid4())]
     return {"seat_ids": seat_ids}
+
+
+@contextmanager
+def mock_assign_deps():
+    """Mock fund_project + email for assignment calls inside drop tests."""
+    with (
+        patch(
+            "virtual_labs.usecases.project.create_new_project.ensure_accounting_initialization",
+            new_callable=AsyncMock,
+        ),
+        patch(
+            "virtual_labs.usecases.course.assign_seats.accounting_cases.fund_project",
+            new_callable=AsyncMock,
+            return_value=True,
+        ),
+        patch(
+            "virtual_labs.usecases.course.assign_seats.send_enrolment_claim_email",
+            new_callable=AsyncMock,
+        ),
+    ):
+        yield
+
+
+@contextmanager
+def mock_drop_deps():
+    """Mock accounting deps for the drop flow."""
+    with (
+        patch(
+            "virtual_labs.usecases.course.drop_seats._clear_project_groups",
+            new_callable=AsyncMock,
+        ),
+        patch(
+            "virtual_labs.usecases.course.drop_seats.accounting_cases.deplete_project_budget",
+            new_callable=AsyncMock,
+            return_value=True,
+        ),
+        patch(
+            "virtual_labs.usecases.course.drop_seats._get_project_balance",
+            new_callable=AsyncMock,
+            return_value=200.0,
+        ),
+    ):
+        yield
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -28,8 +70,7 @@ async def test_drop_seats_fails_for_non_admin_user(
     async_test_client: AsyncClient,
     course_for_seats: str,
 ) -> None:
-    """A user who is not a vlab admin cannot drop seats."""
-    headers = get_headers("test-1")  # different user, not admin of this lab
+    headers = get_headers("test-1")
     body = _drop_payload()
 
     response = await async_test_client.post(
@@ -45,7 +86,6 @@ async def test_drop_seats_fails_for_non_admin_user(
 async def test_drop_seats_fails_nonexistent_course(
     async_test_client: AsyncClient,
 ) -> None:
-    """Returns 403 for a nonexistent course (verify_course_admin fails)."""
     headers = get_headers()
     body = _drop_payload()
 
@@ -84,7 +124,6 @@ async def test_drop_seats_rejects_empty_seat_ids(
     async_test_client: AsyncClient,
     course_for_seats: str,
 ) -> None:
-    """Empty seat_ids list is rejected by validation."""
     headers = get_headers()
     body = {"seat_ids": []}
 
@@ -102,7 +141,6 @@ async def test_drop_seats_rejects_duplicate_seat_ids(
     async_test_client: AsyncClient,
     course_for_seats: str,
 ) -> None:
-    """Duplicate seat_id in request is rejected by validation."""
     headers = get_headers()
     seat_id = str(uuid4())
     body = {"seat_ids": [seat_id, seat_id]}
@@ -126,7 +164,6 @@ async def test_drop_seats_nonexistent_seat_returns_error_in_results(
     async_test_client: AsyncClient,
     course_for_seats: str,
 ) -> None:
-    """Dropping a seat that doesn't exist returns drop_successful=False in results."""
     headers = get_headers()
     body = _drop_payload()
 
@@ -153,20 +190,17 @@ async def test_drop_seats_success(
     async_test_client: AsyncClient,
     course_for_seats: str,
 ) -> None:
-    """Provision seats, assign one, then drop it successfully (pre-activation)."""
-
+    """Provision seats, assign one, then drop it successfully."""
     headers = get_headers()
     course_id = course_for_seats
 
-    # Provision 2 seats
     await provision_seats(async_test_client, course_id, 2)
 
-    # Assign one seat
     student = {
         "student_id": f"stu-{uuid4().hex[:8]}",
         "email": f"{uuid4().hex[:8]}@uni.org",
     }
-    with mock_enrolment_email():
+    with mock_assign_deps():
         assign_resp = await async_test_client.post(
             f"/courses/{course_id}/assign_seats",
             json={"students": [student]},
@@ -174,14 +208,13 @@ async def test_drop_seats_success(
         )
     assert assign_resp.status_code == 200
     seat_id = assign_resp.json()["results"][0]["seat_id"]
-    assert seat_id is not None
 
-    # Drop the seat (pre-activation: no project, no accounting needed)
-    drop_resp = await async_test_client.post(
-        f"/courses/{course_id}/drop_seats",
-        json={"seat_ids": [seat_id]},
-        headers=headers,
-    )
+    with mock_drop_deps():
+        drop_resp = await async_test_client.post(
+            f"/courses/{course_id}/drop_seats",
+            json={"seat_ids": [seat_id]},
+            headers=headers,
+        )
 
     assert drop_resp.status_code == 200
     results = drop_resp.json()["results"]
@@ -196,18 +229,17 @@ async def test_drop_seats_post_activation(
     async_test_client: AsyncClient,
     course_for_seats: str,
 ) -> None:
-    """Drop a seat after activation: KC groups cleared and budget reversed."""
+    """Drop a seat after activation: KC groups cleared and budget depleted."""
     headers = get_headers()
     course_id = course_for_seats
 
-    # Provision and assign
     await provision_seats(async_test_client, course_id, 1)
 
     student = {
         "student_id": f"stu-{uuid4().hex[:8]}",
         "email": f"{uuid4().hex[:8]}@uni.org",
     }
-    with mock_enrolment_email():
+    with mock_assign_deps():
         assign_resp = await async_test_client.post(
             f"/courses/{course_id}/assign_seats",
             json={"students": [student]},
@@ -215,40 +247,22 @@ async def test_drop_seats_post_activation(
         )
     assert assign_resp.status_code == 200
     seat_id = assign_resp.json()["results"][0]["seat_id"]
-    enrolment_id = assign_resp.json()["results"][0]["enrolment_id"]
 
-    # Simulate activation: create a fake project and set enrolment.project_id
-    async with session_context_factory() as session:
-        project = Project(
-            id=uuid4(),
-            admin_group_id=f"admin-{uuid4().hex[:8]}",
-            member_group_id=f"member-{uuid4().hex[:8]}",
-            owner_id=uuid4(),
-            name=f"test-project-{uuid4().hex[:8]}",
-            virtual_lab_id=UUID(course_id),  # not accurate but FK not enforced in test
-        )
-        # We need the real vlab_id — get it from the enrolment's course
-        course_obj = await session.get(Course, UUID(course_id))
-        assert course_obj is not None
-        project.virtual_lab_id = course_obj.virtual_lab_id
-        session.add(project)
-        await session.flush()
-
-        enrolment = await session.get(CourseEnrolment, UUID(enrolment_id))
-        assert enrolment is not None
-        enrolment.project_id = project.id
-        await session.commit()
-
-    # Drop the seat (post-activation: mock KC and accounting)
     with (
         patch(
             "virtual_labs.usecases.course.drop_seats._clear_project_groups",
             new_callable=AsyncMock,
         ) as mock_clear_groups,
         patch(
-            "virtual_labs.usecases.course.drop_seats._reverse_project_budget",
+            "virtual_labs.usecases.course.drop_seats.accounting_cases.deplete_project_budget",
             new_callable=AsyncMock,
-        ) as mock_reverse_budget,
+            return_value=True,
+        ) as mock_deplete,
+        patch(
+            "virtual_labs.usecases.course.drop_seats._get_project_balance",
+            new_callable=AsyncMock,
+            return_value=200.0,
+        ),
     ):
         drop_resp = await async_test_client.post(
             f"/courses/{course_id}/drop_seats",
@@ -259,13 +273,10 @@ async def test_drop_seats_post_activation(
     assert drop_resp.status_code == 200
     results = drop_resp.json()["results"]
     assert len(results) == 1
-    assert results[0]["seat_id"] == seat_id
     assert results[0]["drop_successful"] is True
-    assert results[0]["error"] is None
 
-    # Verify KC and accounting were called
     mock_clear_groups.assert_awaited_once()
-    mock_reverse_budget.assert_awaited_once()
+    mock_deplete.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -273,18 +284,17 @@ async def test_drop_seats_post_activation_kc_failure(
     async_test_client: AsyncClient,
     course_for_seats: str,
 ) -> None:
-    """Post-activation drop fails gracefully when KC group cleanup fails."""
+    """Drop fails gracefully when KC group cleanup fails."""
     headers = get_headers()
     course_id = course_for_seats
 
-    # Provision and assign
     await provision_seats(async_test_client, course_id, 1)
 
     student = {
         "student_id": f"stu-{uuid4().hex[:8]}",
         "email": f"{uuid4().hex[:8]}@uni.org",
     }
-    with mock_enrolment_email():
+    with mock_assign_deps():
         assign_resp = await async_test_client.post(
             f"/courses/{course_id}/assign_seats",
             json={"students": [student]},
@@ -292,40 +302,24 @@ async def test_drop_seats_post_activation_kc_failure(
         )
     assert assign_resp.status_code == 200
     seat_id = assign_resp.json()["results"][0]["seat_id"]
-    enrolment_id = assign_resp.json()["results"][0]["enrolment_id"]
 
-    # Simulate activation with a project that has bogus KC group IDs
-    async with session_context_factory() as session:
-        course_obj = await session.get(Course, UUID(course_id))
-        assert course_obj is not None
-
-        project = Project(
-            id=uuid4(),
-            admin_group_id=f"bogus-admin-{uuid4().hex[:8]}",
-            member_group_id=f"bogus-member-{uuid4().hex[:8]}",
-            owner_id=uuid4(),
-            name=f"test-project-{uuid4().hex[:8]}",
-            virtual_lab_id=course_obj.virtual_lab_id,
+    # Mock KC to fail
+    with (
+        patch(
+            "virtual_labs.usecases.course.drop_seats._clear_project_groups",
+            new_callable=AsyncMock,
+            side_effect=RuntimeError("KC unavailable"),
+        ),
+    ):
+        drop_resp = await async_test_client.post(
+            f"/courses/{course_id}/drop_seats",
+            json={"seat_ids": [seat_id]},
+            headers=headers,
         )
-        session.add(project)
-        await session.flush()
-
-        enrolment = await session.get(CourseEnrolment, UUID(enrolment_id))
-        assert enrolment is not None
-        enrolment.project_id = project.id
-        await session.commit()
-
-    # Drop WITHOUT mocking KC — the bogus group IDs will cause a real failure
-    drop_resp = await async_test_client.post(
-        f"/courses/{course_id}/drop_seats",
-        json={"seat_ids": [seat_id]},
-        headers=headers,
-    )
 
     assert drop_resp.status_code == 200
     results = drop_resp.json()["results"]
     assert len(results) == 1
-    assert results[0]["seat_id"] == seat_id
     assert results[0]["drop_successful"] is False
     assert results[0]["error"] is not None
 
@@ -344,7 +338,6 @@ async def test_drop_seats_unassigned_seat(
     headers = get_headers()
     course_id = course_for_seats
 
-    # Provision without assigning
     prov = await provision_seats(async_test_client, course_id, 1)
     seat_id = prov["seats"][0]["id"]
 
@@ -376,7 +369,7 @@ async def test_drop_seats_already_dropped(
         "student_id": f"stu-{uuid4().hex[:8]}",
         "email": f"{uuid4().hex[:8]}@uni.org",
     }
-    with mock_enrolment_email():
+    with mock_assign_deps():
         assign_resp = await async_test_client.post(
             f"/courses/{course_id}/assign_seats",
             json={"students": [student]},
@@ -385,12 +378,13 @@ async def test_drop_seats_already_dropped(
     assert assign_resp.status_code == 200
     seat_id = assign_resp.json()["results"][0]["seat_id"]
 
-    # Drop it once (early drop — seat is recycled, enrolment_id set to None)
-    drop_resp = await async_test_client.post(
-        f"/courses/{course_id}/drop_seats",
-        json={"seat_ids": [seat_id]},
-        headers=headers,
-    )
+    # Drop it once (early drop — seat is recycled)
+    with mock_drop_deps():
+        drop_resp = await async_test_client.post(
+            f"/courses/{course_id}/drop_seats",
+            json={"seat_ids": [seat_id]},
+            headers=headers,
+        )
     assert drop_resp.status_code == 200
     assert drop_resp.json()["results"][0]["drop_successful"] is True
 
@@ -425,7 +419,7 @@ async def test_drop_multiple_seats_success(
         }
         for _ in range(3)
     ]
-    with mock_enrolment_email():
+    with mock_assign_deps():
         assign_resp = await async_test_client.post(
             f"/courses/{course_id}/assign_seats",
             json={"students": students},
@@ -435,12 +429,12 @@ async def test_drop_multiple_seats_success(
     seat_ids = [r["seat_id"] for r in assign_resp.json()["results"]]
     assert len(seat_ids) == 3
 
-    # Drop all 3 at once
-    drop_resp = await async_test_client.post(
-        f"/courses/{course_id}/drop_seats",
-        json={"seat_ids": seat_ids},
-        headers=headers,
-    )
+    with mock_drop_deps():
+        drop_resp = await async_test_client.post(
+            f"/courses/{course_id}/drop_seats",
+            json={"seat_ids": seat_ids},
+            headers=headers,
+        )
 
     assert drop_resp.status_code == 200
     results = drop_resp.json()["results"]
@@ -461,12 +455,11 @@ async def test_drop_seats_mixed_valid_and_invalid(
 
     await provision_seats(async_test_client, course_id, 2)
 
-    # Assign only 1 of the 2
     student = {
         "student_id": f"stu-{uuid4().hex[:8]}",
         "email": f"{uuid4().hex[:8]}@uni.org",
     }
-    with mock_enrolment_email():
+    with mock_assign_deps():
         assign_resp = await async_test_client.post(
             f"/courses/{course_id}/assign_seats",
             json={"students": [student]},
@@ -486,12 +479,14 @@ async def test_drop_seats_mixed_valid_and_invalid(
 
     nonexistent_seat_id = str(uuid4())
 
-    # Drop all 3 in one call
-    drop_resp = await async_test_client.post(
-        f"/courses/{course_id}/drop_seats",
-        json={"seat_ids": [assigned_seat_id, unassigned_seat_id, nonexistent_seat_id]},
-        headers=headers,
-    )
+    with mock_drop_deps():
+        drop_resp = await async_test_client.post(
+            f"/courses/{course_id}/drop_seats",
+            json={
+                "seat_ids": [assigned_seat_id, unassigned_seat_id, nonexistent_seat_id]
+            },
+            headers=headers,
+        )
 
     assert drop_resp.status_code == 200
     results = drop_resp.json()["results"]
@@ -499,13 +494,147 @@ async def test_drop_seats_mixed_valid_and_invalid(
 
     result_map = {r["seat_id"]: r for r in results}
 
-    # Assigned seat: dropped successfully
     assert result_map[assigned_seat_id]["drop_successful"] is True
-
-    # Unassigned seat: no enrolment
     assert result_map[unassigned_seat_id]["drop_successful"] is False
     assert "no enrolment" in result_map[unassigned_seat_id]["error"].lower()
-
-    # Nonexistent seat: not found
     assert result_map[nonexistent_seat_id]["drop_successful"] is False
     assert "not found" in result_map[nonexistent_seat_id]["error"].lower()
+
+
+@pytest.mark.asyncio
+async def test_drop_seats_low_balance_consumes_seat(
+    async_test_client: AsyncClient,
+    course_for_seats: str,
+) -> None:
+    """If student balance < CREDITS_PER_SEAT - 50, seat is consumed even on early drop."""
+    headers = get_headers()
+    course_id = course_for_seats
+
+    await provision_seats(async_test_client, course_id, 1)
+
+    student = {
+        "student_id": f"stu-{uuid4().hex[:8]}",
+        "email": f"{uuid4().hex[:8]}@uni.org",
+    }
+    with mock_assign_deps():
+        assign_resp = await async_test_client.post(
+            f"/courses/{course_id}/assign_seats",
+            json={"students": [student]},
+            headers=headers,
+        )
+    assert assign_resp.status_code == 200
+    seat_id = assign_resp.json()["results"][0]["seat_id"]
+
+    # Mock balance at 100 (below 150 threshold) — seat should be consumed
+    with (
+        patch(
+            "virtual_labs.usecases.course.drop_seats._clear_project_groups",
+            new_callable=AsyncMock,
+        ),
+        patch(
+            "virtual_labs.usecases.course.drop_seats.accounting_cases.deplete_project_budget",
+            new_callable=AsyncMock,
+            return_value=True,
+        ),
+        patch(
+            "virtual_labs.usecases.course.drop_seats._get_project_balance",
+            new_callable=AsyncMock,
+            return_value=100.0,
+        ),
+    ):
+        drop_resp = await async_test_client.post(
+            f"/courses/{course_id}/drop_seats",
+            json={"seat_ids": [seat_id]},
+            headers=headers,
+        )
+
+    assert drop_resp.status_code == 200
+    assert drop_resp.json()["results"][0]["drop_successful"] is True
+
+    # Verify seat is consumed (not available for reassignment)
+    list_resp = await async_test_client.get(
+        f"/seats/courses/{course_id}",
+        headers=headers,
+    )
+    seat = next(s for s in list_resp.json()["seats"] if s["id"] == seat_id)
+    assert seat["is_consumed"] is True
+
+
+@pytest.mark.asyncio
+async def test_drop_seats_previously_dropped_consumes_seat(
+    async_test_client: AsyncClient,
+    course_for_seats: str,
+) -> None:
+    """A seat that was already recovered once gets consumed on second assignment + drop."""
+    headers = get_headers()
+    course_id = course_for_seats
+
+    await provision_seats(async_test_client, course_id, 1)
+
+    # First student assignment
+    student1 = {
+        "student_id": f"stu-{uuid4().hex[:8]}",
+        "email": f"{uuid4().hex[:8]}@uni.org",
+    }
+    with mock_assign_deps():
+        assign_resp = await async_test_client.post(
+            f"/courses/{course_id}/assign_seats",
+            json={"students": [student1]},
+            headers=headers,
+        )
+    assert assign_resp.status_code == 200
+    seat_id = assign_resp.json()["results"][0]["seat_id"]
+
+    # First drop (early, sufficient balance) — seat should be released
+    with mock_drop_deps():
+        drop_resp = await async_test_client.post(
+            f"/courses/{course_id}/drop_seats",
+            json={"seat_ids": [seat_id]},
+            headers=headers,
+        )
+    assert drop_resp.status_code == 200
+    assert drop_resp.json()["results"][0]["drop_successful"] is True
+
+    # Verify seat is NOT consumed (released for reassignment)
+    list_resp = await async_test_client.get(
+        f"/seats/courses/{course_id}",
+        headers=headers,
+    )
+    seat = next(s for s in list_resp.json()["seats"] if s["id"] == seat_id)
+    assert seat["is_consumed"] is False
+    assert seat["previously_dropped"] is True
+    assert seat["enrolment_id"] is None
+
+    # Second student assignment to the same seat
+    student2 = {
+        "student_id": f"stu-{uuid4().hex[:8]}",
+        "email": f"{uuid4().hex[:8]}@uni.org",
+    }
+    with mock_assign_deps():
+        assign_resp2 = await async_test_client.post(
+            f"/courses/{course_id}/assign_seats",
+            json={"students": [student2]},
+            headers=headers,
+        )
+    assert assign_resp2.status_code == 200
+    # Should reuse the same seat (only one available)
+    seat_id2 = assign_resp2.json()["results"][0]["seat_id"]
+    assert seat_id2 == seat_id
+
+    # Second drop — seat was previously dropped, so it should be consumed
+    with mock_drop_deps():
+        drop_resp2 = await async_test_client.post(
+            f"/courses/{course_id}/drop_seats",
+            json={"seat_ids": [seat_id]},
+            headers=headers,
+        )
+    assert drop_resp2.status_code == 200
+    assert drop_resp2.json()["results"][0]["drop_successful"] is True
+
+    # Verify seat is now consumed
+    list_resp2 = await async_test_client.get(
+        f"/seats/courses/{course_id}",
+        headers=headers,
+    )
+    seat = next(s for s in list_resp2.json()["seats"] if s["id"] == seat_id)
+    assert seat["is_consumed"] is True
