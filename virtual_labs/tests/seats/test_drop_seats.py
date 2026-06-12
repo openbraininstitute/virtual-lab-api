@@ -49,11 +49,6 @@ def mock_drop_deps():
         patch(
             "virtual_labs.usecases.course.drop_seats.accounting_cases.deplete_project_budget",
             new_callable=AsyncMock,
-            return_value=True,
-        ),
-        patch(
-            "virtual_labs.usecases.course.drop_seats._get_project_balance",
-            new_callable=AsyncMock,
             return_value=200.0,
         ),
     ):
@@ -256,13 +251,8 @@ async def test_drop_seats_post_activation(
         patch(
             "virtual_labs.usecases.course.drop_seats.accounting_cases.deplete_project_budget",
             new_callable=AsyncMock,
-            return_value=True,
-        ) as mock_deplete,
-        patch(
-            "virtual_labs.usecases.course.drop_seats._get_project_balance",
-            new_callable=AsyncMock,
             return_value=200.0,
-        ),
+        ) as mock_deplete,
     ):
         drop_resp = await async_test_client.post(
             f"/courses/{course_id}/drop_seats",
@@ -525,7 +515,7 @@ async def test_drop_seats_low_balance_consumes_seat(
     assert assign_resp.status_code == 200
     seat_id = assign_resp.json()["results"][0]["seat_id"]
 
-    # Mock balance at 100 (below 150 threshold) — seat should be consumed
+    # Mock deplete returning 100 (below 150 threshold) — seat should be consumed
     with (
         patch(
             "virtual_labs.usecases.course.drop_seats._clear_project_groups",
@@ -533,11 +523,6 @@ async def test_drop_seats_low_balance_consumes_seat(
         ),
         patch(
             "virtual_labs.usecases.course.drop_seats.accounting_cases.deplete_project_budget",
-            new_callable=AsyncMock,
-            return_value=True,
-        ),
-        patch(
-            "virtual_labs.usecases.course.drop_seats._get_project_balance",
             new_callable=AsyncMock,
             return_value=100.0,
         ),

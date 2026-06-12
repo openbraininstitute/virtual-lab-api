@@ -51,17 +51,6 @@ async def _clear_project_groups(project: Project) -> None:
         )
 
 
-async def _get_project_balance(project_id: UUID) -> float | None:
-    if settings.ACCOUNTING_BASE_URL is None:
-        return None
-    try:
-        resp = await accounting_cases.get_project_balance(project_id)
-        return float(resp.data.balance)
-    except Exception as ex:  # noqa: BLE001
-        logger.error(f"Failed to get balance for project {project_id}: {ex}")
-        return None
-
-
 async def drop_seats(
     db: AsyncSession,
     *,
@@ -159,26 +148,25 @@ async def _drop_single_seat(
 
     now = datetime.now(timezone.utc)
     is_early_drop = course.last_drop_date is not None and now < course.last_drop_date
-    has_sufficient_balance = True
 
+    # Deplete project credits — returns the balance that was depleted
+    depleted_amount: float | None = None
     if project:
-        balance = await _get_project_balance(project.id)
-        if balance is not None and balance < _MIN_RECOVERABLE_BALANCE:
-            has_sufficient_balance = False
-
-    can_recover = (
-        is_early_drop and not seat.previously_dropped and has_sufficient_balance
-    )
-
-    if project:
-        success = await accounting_cases.deplete_project_budget(
+        depleted_amount = await accounting_cases.deplete_project_budget(
             virtual_lab_id=course.virtual_lab_id,
             project_id=project.id,
         )
-        if not success:
+        if depleted_amount is None:
             raise RuntimeError(
                 f"Failed to deplete credits for project {project.id}, aborting drop"
             )
+
+    has_sufficient_balance = (
+        depleted_amount is not None and depleted_amount >= _MIN_RECOVERABLE_BALANCE
+    )
+    can_recover = (
+        is_early_drop and not seat.previously_dropped and has_sufficient_balance
+    )
 
     enrolment.is_dropped = True
 
