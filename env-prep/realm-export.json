@@ -808,7 +808,7 @@
       "groups": []
     },
     {
-      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "id": "bf76d5f4-185f-4215-bc9b-90de2141527c",
       "username": "test-service-admin",
       "firstName": "Service",
       "lastName": "Admin",
@@ -1809,7 +1809,7 @@
       ]
     },
     {
-      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "id": "3b886276-3ef7-4977-b586-d264120af5f3",
       "name": "groups",
       "description": "Group membership scope",
       "protocol": "openid-connect",
