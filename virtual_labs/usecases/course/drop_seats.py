@@ -102,7 +102,7 @@ async def drop_seats(
     Only KC/infra failures during the actual drop are treated as partial results.
     """
     # Validate all seats and load enrolments upfront
-    seats_with_enrolments: list[tuple[Seat, CourseEnrolment]] = []
+    seats_with_enrolments: list[tuple[UUID, UUID]] = []
     results: list[SeatDropResult] = []
 
     for seat_id in payload.seat_ids:
@@ -146,11 +146,21 @@ async def drop_seats(
                 )
             )
             continue
-        seats_with_enrolments.append((seat, enrolment))
+        seats_with_enrolments.append((seat.id, enrolment.id))
 
-    # Proceed with drops
-    for seat, enrolment in seats_with_enrolments:
-        seat_id = seat.id
+    # Proceed with drops — re-fetch objects each iteration since commit expires them
+    course_id = course.id
+    for seat_id, enrolment_id in seats_with_enrolments:
+        seat = await db.get(Seat, seat_id)
+        enrolment = await db.get(CourseEnrolment, enrolment_id)
+        course = await db.get(Course, course_id)
+        if seat is None or enrolment is None or course is None:
+            results.append(
+                SeatDropResult(
+                    seat_id=seat_id, drop_successful=False, error="Not found"
+                )
+            )
+            continue
         try:
             await _drop_single_seat(db, seat=seat, enrolment=enrolment, course=course)
             results.append(SeatDropResult(seat_id=seat_id, drop_successful=True))
