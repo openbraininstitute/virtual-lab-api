@@ -1036,7 +1036,7 @@ class Course(Base):
         DateTime(timezone=True), nullable=True
     )
     end_date: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
+        DateTime(timezone=True), nullable=True, index=True
     )
     last_drop_date: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
@@ -1129,7 +1129,7 @@ class CourseEnrolment(Base):
         UUID(as_uuid=True), nullable=True, index=True
     )
     is_dropped: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False, server_default="false"
+        Boolean, nullable=False, default=False, server_default="false", index=True
     )
     activated_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True, default=None
@@ -1163,6 +1163,7 @@ class Seat(Base):
         UUID(as_uuid=True),
         ForeignKey("course.id"),
         nullable=False,
+        index=True,
     )
     institution_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
