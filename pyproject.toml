@@ -62,6 +62,7 @@ dev = [
 scripts = [
     "rich>=13.0,<14",
     "InquirerPy>=0.3.4,<0.4",
+    "tqdm>=4.66,<5",
 ]
 
 [tool.uv]

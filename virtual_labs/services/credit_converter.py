@@ -1,97 +1,97 @@
+"""Credit-to-currency conversion using volume-based pricing.
+
+Resolves the unit price per credit from the `credit_package_rate` table.
+A single catch-all row (min=1, max=NULL) reproduces flat pricing;
+multiple rows with non-overlapping ranges provide volume discounts.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
 from decimal import Decimal
-from typing import Dict, Optional, Union
+from uuid import UUID
 
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.infrastructure.db.config import default_session_factory
-from virtual_labs.repositories.credit_exchange_rate_repo import (
-    CreditExchangeRateQueryRepository as ExchangeRateQueryRepository,
+from virtual_labs.repositories.credit_package_rate_repo import (
+    CreditPackageRateRepository,
 )
 
-# Default exchange rates for fallback
-DEFAULT_EXCHANGE_RATES = {
-    "chf": Decimal("0.05"),
-    "usd": Decimal("0.055"),
-    "eur": Decimal("0.048"),
-}
+
+@dataclass(frozen=True, slots=True)
+class CreditConversionResult:
+    """Result of a credit-to-currency conversion."""
+
+    amount: int  # total in smallest currency unit (cents/rappen)
+    rate: Decimal  # effective rate per credit
+    discount_pct: int  # 0 when flat, 5/10/15… for volume tiers
+    # Rate for the smallest tier, for "Save X%" display. Only populated when
+    # the caller asks for it (`with_base_rate=True`); None otherwise so the
+    # quote/fulfillment paths avoid a second query they never read.
+    base_rate: Decimal | None
+    credit_package_rate_id: UUID | None  # FK to credit_package_rate row used
 
 
 class CreditConverter:
-    """Utility for converting between credits and currency amount (in cents) using database rates."""
+    """Converts between credits and currency amounts using volume-based pricing."""
 
-    def __init__(self, exchange_rate_repo: ExchangeRateQueryRepository):
+    def __init__(self, package_rate_repo: CreditPackageRateRepository) -> None:
+        self.package_rate_repo = package_rate_repo
+
+    async def convert_credits(
+        self, credits: int, currency: str, *, with_base_rate: bool = False
+    ) -> CreditConversionResult:
+        """Convert credits to currency with full tier breakdown.
+
+        ``with_base_rate`` controls whether the list-price ("Save X%") rate is
+        also fetched. The quote-creation and webhook fulfillment paths never
+        read it, so it defaults to False to avoid a second query; only the
+        display endpoint that renders the discount opts in.
+
+        Raises ValueError if no matching tier is found for the currency.
         """
-        Initialize the converter with a repository.
+        currency = currency.lower()
+        tier = await self.package_rate_repo.get_rate_for_credits(credits, currency)
+        if tier is None:
+            raise ValueError(
+                f"No pricing tier found for {credits} credits in {currency}"
+            )
 
-        Args:
-            exchange_rate_repo: Repository for accessing exchange rates
+        amount = int(Decimal(str(credits)) * tier.rate * Decimal("100"))
+
+        base_rate: Decimal | None = None
+        if with_base_rate:
+            base_rate = (
+                await self.package_rate_repo.get_base_rate(currency) or tier.rate
+            )
+
+        return CreditConversionResult(
+            amount=amount,
+            rate=tier.rate,
+            discount_pct=tier.discount_pct,
+            base_rate=base_rate,
+            credit_package_rate_id=tier.id,
+        )
+
+    async def currency_to_credits(self, amount: int, currency: str) -> Decimal:
+        """Convert a currency amount (in cents) to credits using the base rate.
+
+        This is approximate / display-only. The authoritative direction
+        is always credits → currency (via volume tier lookup).
         """
-        self.exchange_rate_repo = exchange_rate_repo
-        self._cached_rates: Optional[Dict[str, Decimal]] = None
-
-    async def _ensure_rates_loaded(self) -> Dict[str, Decimal]:
-        """Ensure exchange rates are loaded from the database."""
-        if self._cached_rates is None:
-            self._cached_rates = await self.exchange_rate_repo.get_all_rates()
-            # If no rates found in DB, use defaults
-            if not self._cached_rates:
-                self._cached_rates = DEFAULT_EXCHANGE_RATES
-        return self._cached_rates
-
-    async def currency_to_credits(
-        self, amount: Union[Decimal, int, str], currency: str
-    ) -> Decimal:
-        """Convert a currency amount (in cents) to credits."""
         currency = currency.lower()
-        rates = await self._ensure_rates_loaded()
-
-        if currency not in rates:
+        base_rate = await self.package_rate_repo.get_base_rate(currency)
+        if base_rate is None:
             raise ValueError(f"Unsupported currency: {currency}")
 
-        amount_decimal = (
-            Decimal(str(amount)) if not isinstance(amount, Decimal) else amount
-        )
-        return amount_decimal / rates[currency] / Decimal("100")
-
-    async def credits_to_currency(
-        self, credits: Union[Decimal, int, str], currency: str
-    ) -> Decimal:
-        """Convert credits to a currency amount."""
-        currency = currency.lower()
-        rates = await self._ensure_rates_loaded()
-
-        if currency not in rates:
-            raise ValueError(f"Unsupported currency: {currency}")
-
-        credits_decimal = (
-            Decimal(str(credits)) if not isinstance(credits, Decimal) else credits
-        )
-        return credits_decimal * rates[currency] * Decimal("100")
-
-    async def get_exchange_rate(self, currency: str) -> Decimal:
-        """Get the exchange rate for a currency."""
-        currency = currency.lower()
-        rates = await self._ensure_rates_loaded()
-
-        if currency not in rates:
-            raise ValueError(f"Unsupported currency: {currency}")
-
-        return rates[currency]
-
-    async def refresh_rates(self) -> None:
-        """Force refresh of exchange rates from the database."""
-        self._cached_rates = None
-        await self._ensure_rates_loaded()
-
-
-async def get_exchange_rate_repo(
-    session: AsyncSession = Depends(default_session_factory),
-) -> ExchangeRateQueryRepository:
-    return ExchangeRateQueryRepository(session=session)
+        return Decimal(str(amount)) / base_rate / Decimal("100")
 
 
 async def get_credit_converter(
-    repo: ExchangeRateQueryRepository = Depends(get_exchange_rate_repo),
+    session: AsyncSession = Depends(default_session_factory),
 ) -> CreditConverter:
-    return CreditConverter(exchange_rate_repo=repo)
+    return CreditConverter(
+        package_rate_repo=CreditPackageRateRepository(session=session),
+    )

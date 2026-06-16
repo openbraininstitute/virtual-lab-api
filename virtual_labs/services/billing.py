@@ -18,8 +18,8 @@ from virtual_labs.domain.billing import (
 from virtual_labs.infrastructure.db.models import BillingQuote
 from virtual_labs.infrastructure.settings import settings
 from virtual_labs.infrastructure.stripe import get_stripe_repository
-from virtual_labs.repositories.credit_exchange_rate_repo import (
-    CreditExchangeRateQueryRepository,
+from virtual_labs.repositories.credit_package_rate_repo import (
+    CreditPackageRateRepository,
 )
 from virtual_labs.repositories.subscription_repo import SubscriptionRepository
 from virtual_labs.repositories.user_repo import (
@@ -166,7 +166,7 @@ class BillingQuoteService:
         self.stripe = get_stripe_repository()
         self.subscription_repo = SubscriptionRepository(db_session=session)
         self.credit_converter = CreditConverter(
-            exchange_rate_repo=CreditExchangeRateQueryRepository(session=session)
+            package_rate_repo=CreditPackageRateRepository(session=session)
         )
 
     async def create_quote(
@@ -174,7 +174,9 @@ class BillingQuoteService:
         payload: CreateBillingQuoteRequest,
         user_id: UUID,
     ) -> BillingQuote:
-        subtotal = await self._resolve_subtotal(payload)
+        subtotal, discount_pct, credit_package_rate_id = await self._resolve_subtotal(
+            payload
+        )
         tax_amount = 0
         total = subtotal
         tax_status = TaxStatus.NOT_APPLICABLE
@@ -211,6 +213,9 @@ class BillingQuoteService:
             tax_status=tax_status,
             billing_address_json=payload.billing_address.model_dump(),
             stripe_tax_calculation_id=stripe_tax_calculation_id,
+            discount_pct=discount_pct,
+            credit_package_rate_id=credit_package_rate_id,
+            credits=payload.credits,
             expires_at=quote_expires_at_end_of_today(),
         )
         self.session.add(quote)
@@ -242,22 +247,29 @@ class BillingQuoteService:
         result = await self.session.execute(stmt)
         return result.scalars().first()
 
-    async def _resolve_subtotal(self, payload: CreateBillingQuoteRequest) -> int:
+    async def _resolve_subtotal(
+        self, payload: CreateBillingQuoteRequest
+    ) -> tuple[int, int, UUID | None]:
+        """Resolve the subtotal amount, discount percentage, and rate tier ID.
+
+        Returns:
+            (subtotal_in_cents, discount_pct, credit_package_rate_id)
+        """
         if payload.flow == BillingFlow.STANDALONE:
             assert payload.credits is not None
-            amount = await self.credit_converter.credits_to_currency(
+            result = await self.credit_converter.convert_credits(
                 payload.credits,
                 payload.currency,
             )
-            return int(amount)
+            return result.amount, result.discount_pct, result.credit_package_rate_id
 
         assert payload.tier_id is not None
         tier = await self.subscription_repo.get_subscription_tier_by_id(payload.tier_id)
         if tier is None:
             raise ValueError("Subscription plan not found")
         if payload.interval == "year":
-            return tier.yearly_amount
-        return tier.monthly_amount
+            return tier.yearly_amount, 0, None
+        return tier.monthly_amount, 0, None
 
 
 def quote_to_response(quote: BillingQuote) -> BillingQuoteResponse:
