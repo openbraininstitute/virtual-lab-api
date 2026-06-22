@@ -34,7 +34,7 @@ async def _create_enrolment(
         mocks.balance.return_value = AsyncMock(data=AsyncMock(balance=1000.0))
         mocks.transfer.return_value = AsyncMock()
         response = await client.post(
-            f"/courses/{course_id}/assign_seats", json=body, headers=headers
+            f"/seats/courses/{course_id}/assign", json=body, headers=headers
         )
 
     assert response.status_code == 200

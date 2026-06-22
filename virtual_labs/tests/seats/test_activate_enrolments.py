@@ -48,7 +48,7 @@ async def _assign_and_claim(
         mocks.balance.return_value = AsyncMock(data=AsyncMock(balance=1000.0))
         mocks.transfer.return_value = AsyncMock()
         assign_resp = await client.post(
-            f"/courses/{course_id}/assign_seats",
+            f"/seats/courses/{course_id}/assign",
             json={"students": [student]},
             headers=headers,
         )

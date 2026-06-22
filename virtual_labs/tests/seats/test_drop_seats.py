@@ -1,4 +1,4 @@
-"""Tests for the drop-seats endpoint (POST /courses/{course_id}/drop_seats)."""
+"""Tests for the drop-seats endpoint (POST /seats/courses/{course_id}/drop)."""
 
 from contextlib import contextmanager
 from unittest.mock import AsyncMock, patch
@@ -69,7 +69,7 @@ async def test_drop_seats_fails_for_non_admin_user(
     body = _drop_payload()
 
     response = await async_test_client.post(
-        f"/courses/{course_for_seats}/drop_seats",
+        f"/seats/courses/{course_for_seats}/drop",
         json=body,
         headers=headers,
     )
@@ -85,7 +85,7 @@ async def test_drop_seats_fails_nonexistent_course(
     body = _drop_payload()
 
     response = await async_test_client.post(
-        f"/courses/{uuid4()}/drop_seats",
+        f"/seats/courses/{uuid4()}/drop",
         json=body,
         headers=headers,
     )
@@ -101,7 +101,7 @@ async def test_drop_seats_fails_without_auth(
     body = _drop_payload()
 
     response = await async_test_client.post(
-        f"/courses/{course_for_seats}/drop_seats",
+        f"/seats/courses/{course_for_seats}/drop",
         json=body,
         headers={"Content-Type": "application/json", "Authorization": ""},
     )
@@ -123,7 +123,7 @@ async def test_drop_seats_rejects_empty_seat_ids(
     body = {"seat_ids": []}
 
     response = await async_test_client.post(
-        f"/courses/{course_for_seats}/drop_seats",
+        f"/seats/courses/{course_for_seats}/drop",
         json=body,
         headers=headers,
     )
@@ -141,7 +141,7 @@ async def test_drop_seats_rejects_duplicate_seat_ids(
     body = {"seat_ids": [seat_id, seat_id]}
 
     response = await async_test_client.post(
-        f"/courses/{course_for_seats}/drop_seats",
+        f"/seats/courses/{course_for_seats}/drop",
         json=body,
         headers=headers,
     )
@@ -163,7 +163,7 @@ async def test_drop_seats_nonexistent_seat_returns_error_in_results(
     body = _drop_payload()
 
     response = await async_test_client.post(
-        f"/courses/{course_for_seats}/drop_seats",
+        f"/seats/courses/{course_for_seats}/drop",
         json=body,
         headers=headers,
     )
@@ -197,7 +197,7 @@ async def test_drop_seats_success(
     }
     with mock_assign_deps():
         assign_resp = await async_test_client.post(
-            f"/courses/{course_id}/assign_seats",
+            f"/seats/courses/{course_id}/assign",
             json={"students": [student]},
             headers=headers,
         )
@@ -206,7 +206,7 @@ async def test_drop_seats_success(
 
     with mock_drop_deps():
         drop_resp = await async_test_client.post(
-            f"/courses/{course_id}/drop_seats",
+            f"/seats/courses/{course_id}/drop",
             json={"seat_ids": [seat_id]},
             headers=headers,
         )
@@ -236,7 +236,7 @@ async def test_drop_seats_post_activation(
     }
     with mock_assign_deps():
         assign_resp = await async_test_client.post(
-            f"/courses/{course_id}/assign_seats",
+            f"/seats/courses/{course_id}/assign",
             json={"students": [student]},
             headers=headers,
         )
@@ -255,7 +255,7 @@ async def test_drop_seats_post_activation(
         ) as mock_deplete,
     ):
         drop_resp = await async_test_client.post(
-            f"/courses/{course_id}/drop_seats",
+            f"/seats/courses/{course_id}/drop",
             json={"seat_ids": [seat_id]},
             headers=headers,
         )
@@ -286,7 +286,7 @@ async def test_drop_seats_post_activation_kc_failure(
     }
     with mock_assign_deps():
         assign_resp = await async_test_client.post(
-            f"/courses/{course_id}/assign_seats",
+            f"/seats/courses/{course_id}/assign",
             json={"students": [student]},
             headers=headers,
         )
@@ -302,7 +302,7 @@ async def test_drop_seats_post_activation_kc_failure(
         ),
     ):
         drop_resp = await async_test_client.post(
-            f"/courses/{course_id}/drop_seats",
+            f"/seats/courses/{course_id}/drop",
             json={"seat_ids": [seat_id]},
             headers=headers,
         )
@@ -332,7 +332,7 @@ async def test_drop_seats_unassigned_seat(
     seat_id = prov["seats"][0]["id"]
 
     drop_resp = await async_test_client.post(
-        f"/courses/{course_id}/drop_seats",
+        f"/seats/courses/{course_id}/drop",
         json={"seat_ids": [seat_id]},
         headers=headers,
     )
@@ -361,7 +361,7 @@ async def test_drop_seats_already_dropped(
     }
     with mock_assign_deps():
         assign_resp = await async_test_client.post(
-            f"/courses/{course_id}/assign_seats",
+            f"/seats/courses/{course_id}/assign",
             json={"students": [student]},
             headers=headers,
         )
@@ -371,7 +371,7 @@ async def test_drop_seats_already_dropped(
     # Drop it once (early drop — seat is recycled)
     with mock_drop_deps():
         drop_resp = await async_test_client.post(
-            f"/courses/{course_id}/drop_seats",
+            f"/seats/courses/{course_id}/drop",
             json={"seat_ids": [seat_id]},
             headers=headers,
         )
@@ -380,7 +380,7 @@ async def test_drop_seats_already_dropped(
 
     # Drop it again — seat now has no enrolment (recycled)
     drop_resp2 = await async_test_client.post(
-        f"/courses/{course_id}/drop_seats",
+        f"/seats/courses/{course_id}/drop",
         json={"seat_ids": [seat_id]},
         headers=headers,
     )
@@ -411,7 +411,7 @@ async def test_drop_multiple_seats_success(
     ]
     with mock_assign_deps():
         assign_resp = await async_test_client.post(
-            f"/courses/{course_id}/assign_seats",
+            f"/seats/courses/{course_id}/assign",
             json={"students": students},
             headers=headers,
         )
@@ -421,7 +421,7 @@ async def test_drop_multiple_seats_success(
 
     with mock_drop_deps():
         drop_resp = await async_test_client.post(
-            f"/courses/{course_id}/drop_seats",
+            f"/seats/courses/{course_id}/drop",
             json={"seat_ids": seat_ids},
             headers=headers,
         )
@@ -451,7 +451,7 @@ async def test_drop_seats_mixed_valid_and_invalid(
     }
     with mock_assign_deps():
         assign_resp = await async_test_client.post(
-            f"/courses/{course_id}/assign_seats",
+            f"/seats/courses/{course_id}/assign",
             json={"students": [student]},
             headers=headers,
         )
@@ -471,7 +471,7 @@ async def test_drop_seats_mixed_valid_and_invalid(
 
     with mock_drop_deps():
         drop_resp = await async_test_client.post(
-            f"/courses/{course_id}/drop_seats",
+            f"/seats/courses/{course_id}/drop",
             json={
                 "seat_ids": [assigned_seat_id, unassigned_seat_id, nonexistent_seat_id]
             },
@@ -508,7 +508,7 @@ async def test_drop_seats_low_balance_consumes_seat(
     }
     with mock_assign_deps():
         assign_resp = await async_test_client.post(
-            f"/courses/{course_id}/assign_seats",
+            f"/seats/courses/{course_id}/assign",
             json={"students": [student]},
             headers=headers,
         )
@@ -528,7 +528,7 @@ async def test_drop_seats_low_balance_consumes_seat(
         ),
     ):
         drop_resp = await async_test_client.post(
-            f"/courses/{course_id}/drop_seats",
+            f"/seats/courses/{course_id}/drop",
             json={"seat_ids": [seat_id]},
             headers=headers,
         )
@@ -563,7 +563,7 @@ async def test_drop_seats_previously_dropped_consumes_seat(
     }
     with mock_assign_deps():
         assign_resp = await async_test_client.post(
-            f"/courses/{course_id}/assign_seats",
+            f"/seats/courses/{course_id}/assign",
             json={"students": [student1]},
             headers=headers,
         )
@@ -573,7 +573,7 @@ async def test_drop_seats_previously_dropped_consumes_seat(
     # First drop (early, sufficient balance) — seat should be released
     with mock_drop_deps():
         drop_resp = await async_test_client.post(
-            f"/courses/{course_id}/drop_seats",
+            f"/seats/courses/{course_id}/drop",
             json={"seat_ids": [seat_id]},
             headers=headers,
         )
@@ -597,7 +597,7 @@ async def test_drop_seats_previously_dropped_consumes_seat(
     }
     with mock_assign_deps():
         assign_resp2 = await async_test_client.post(
-            f"/courses/{course_id}/assign_seats",
+            f"/seats/courses/{course_id}/assign",
             json={"students": [student2]},
             headers=headers,
         )
@@ -609,7 +609,7 @@ async def test_drop_seats_previously_dropped_consumes_seat(
     # Second drop — seat was previously dropped, so it should be consumed
     with mock_drop_deps():
         drop_resp2 = await async_test_client.post(
-            f"/courses/{course_id}/drop_seats",
+            f"/seats/courses/{course_id}/drop",
             json={"seat_ids": [seat_id]},
             headers=headers,
         )

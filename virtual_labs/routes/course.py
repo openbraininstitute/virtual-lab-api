@@ -8,8 +8,6 @@ from virtual_labs.core.types import VliAppResponse
 from virtual_labs.domain.course import (
     ActivateEnrolmentResult,
     ActivateEnrolmentsResponse,
-    AssignSeatResponse,
-    AssignSeatsBody,
     ClaimCourseSummary,
     ClaimEnrolmentBody,
     ClaimEnrolmentOut,
@@ -17,8 +15,6 @@ from virtual_labs.domain.course import (
     CourseDetailOut,
     CourseOut,
     CourseUpdateBody,
-    DropSeatResponse,
-    DropSeatsBody,
     EnrolmentOut,
     ListEnrolmentsResponse,
 )
@@ -122,43 +118,6 @@ async def void_course_endpoint(
     auth: tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> VliAppResponse[CourseOut]:
     return await usecases.void_course(session, course_id, auth)
-
-
-@router.post(
-    "/{course_id}/assign_seats",
-    operation_id="assign_seats",
-    summary="Assign available seats to a list of students (creates an enrolment per seat)",
-    response_model=AssignSeatResponse,
-)
-async def assign_seats_endpoint(
-    course_id: UUID4,
-    payload: AssignSeatsBody,
-    grant: tuple[AuthUserGrants, Course] = Depends(verify_course_admin),
-    auth: tuple[AuthUserGrants, str] = Depends(parse_auth_grants),
-    session: AsyncSession = Depends(default_session_factory),
-) -> AssignSeatResponse:
-    _user, course = grant
-    results = await usecases.assign_seats(
-        session, course=course, students=payload.students, auth=auth
-    )
-    return AssignSeatResponse(results=results)
-
-
-@router.post(
-    "/{course_id}/drop_seats",
-    operation_id="drop_seats",
-    summary="Drop (release) seats for students in a course",
-    response_model=DropSeatResponse,
-)
-async def drop_seats_endpoint(
-    course_id: UUID4,
-    payload: DropSeatsBody,
-    grant: tuple[AuthUserGrants, Course] = Depends(verify_course_admin),
-    session: AsyncSession = Depends(default_session_factory),
-) -> DropSeatResponse:
-    _user, course = grant
-    results = await usecases.drop_seats(session, course=course, payload=payload)
-    return DropSeatResponse(results=results)
 
 
 @router.post(

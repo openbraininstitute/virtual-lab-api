@@ -47,7 +47,7 @@ async def _assign_seat(client: AsyncClient, course_id: str) -> str:
 
     with mock_assign_deps():
         resp = await client.post(
-            f"/courses/{course_id}/assign_seats",
+            f"/seats/courses/{course_id}/assign",
             json={"students": [student]},
             headers=headers,
         )

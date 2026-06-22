@@ -7,6 +7,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.authorization import verify_course_admin, verify_service_admin
 from virtual_labs.core.types import VliAppResponse
+from virtual_labs.domain.course import (
+    AssignSeatResponse,
+    AssignSeatsBody,
+    DropSeatResponse,
+    DropSeatsBody,
+)
 from virtual_labs.domain.seat import (
     ListSeatsResponse,
     ProvisionSeatsBody,
@@ -16,9 +22,10 @@ from virtual_labs.domain.seat import (
 from virtual_labs.infrastructure.db.config import default_session_factory
 from virtual_labs.infrastructure.db.models import Course
 from virtual_labs.infrastructure.kc.auth import verify_jwt
-from virtual_labs.infrastructure.kc.grant import AuthUserGrants
+from virtual_labs.infrastructure.kc.grant import AuthUserGrants, parse_auth_grants
 from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.shared.groups import VLAB_SERVICE_ADMIN_GROUP
+from virtual_labs.usecases import course as course_usecases
 from virtual_labs.usecases import seat as usecases
 
 router = APIRouter(prefix="/seats", tags=["Seat Endpoints"])
@@ -104,3 +111,40 @@ async def list_seats_endpoint(
     session: AsyncSession = Depends(default_session_factory),
 ) -> ListSeatsResponse:
     return await usecases.list_seats(session, course_id)
+
+
+@router.post(
+    "/courses/{course_id}/assign",
+    operation_id="assign_seats",
+    summary="Assign available seats to a list of students (creates an enrolment per seat)",
+    response_model=AssignSeatResponse,
+)
+async def assign_seats_endpoint(
+    course_id: UUID4,
+    payload: AssignSeatsBody,
+    grant: tuple[AuthUserGrants, Course] = Depends(verify_course_admin),
+    auth: tuple[AuthUserGrants, str] = Depends(parse_auth_grants),
+    session: AsyncSession = Depends(default_session_factory),
+) -> AssignSeatResponse:
+    _user, course = grant
+    results = await course_usecases.assign_seats(
+        session, course=course, students=payload.students, auth=auth
+    )
+    return AssignSeatResponse(results=results)
+
+
+@router.post(
+    "/courses/{course_id}/drop",
+    operation_id="drop_seats",
+    summary="Drop (release) seats for students in a course",
+    response_model=DropSeatResponse,
+)
+async def drop_seats_endpoint(
+    course_id: UUID4,
+    payload: DropSeatsBody,
+    grant: tuple[AuthUserGrants, Course] = Depends(verify_course_admin),
+    session: AsyncSession = Depends(default_session_factory),
+) -> DropSeatResponse:
+    _user, course = grant
+    results = await course_usecases.drop_seats(session, course=course, payload=payload)
+    return DropSeatResponse(results=results)

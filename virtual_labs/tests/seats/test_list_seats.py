@@ -157,7 +157,7 @@ async def test_list_seats_shows_enrolment_for_assigned_seats(
     ]
     with mock_assign_deps():
         assign_resp = await async_test_client.post(
-            f"/courses/{course_for_seats}/assign_seats",
+            f"/seats/courses/{course_for_seats}/assign",
             json={"students": students},
             headers=headers,
         )

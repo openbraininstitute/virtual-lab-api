@@ -1,4 +1,4 @@
-"""Tests for the assign-seats endpoint (POST /courses/{course_id}/assign_seats)."""
+"""Tests for the assign-seats endpoint (POST /seats/courses/{course_id}/assign)."""
 
 from contextlib import ExitStack, contextmanager
 from unittest.mock import AsyncMock, patch
@@ -88,7 +88,7 @@ async def test_assign_seats_success(
 
     with mock_assign_accounting(fund_succeeds=True):
         response = await async_test_client.post(
-            f"/courses/{course_id}/assign_seats", json=body, headers=headers
+            f"/seats/courses/{course_id}/assign", json=body, headers=headers
         )
 
     assert response.status_code == 200
@@ -123,7 +123,7 @@ async def test_assign_seats_multiple_students(
 
     with mock_assign_accounting(fund_succeeds=True):
         response = await async_test_client.post(
-            f"/courses/{course_id}/assign_seats", json=body, headers=headers
+            f"/seats/courses/{course_id}/assign", json=body, headers=headers
         )
 
     assert response.status_code == 200
@@ -155,7 +155,7 @@ async def test_assign_seats_funding_fails_rolls_back(
 
     with mock_assign_accounting(fund_succeeds=False):
         response = await async_test_client.post(
-            f"/courses/{course_id}/assign_seats", json=body, headers=headers
+            f"/seats/courses/{course_id}/assign", json=body, headers=headers
         )
 
     assert response.status_code == 200
@@ -186,7 +186,7 @@ async def test_assign_seats_email_failure_does_not_rollback(
         mock_enrolment_email(succeed=False),
     ):
         response = await async_test_client.post(
-            f"/courses/{course_id}/assign_seats", json=body, headers=headers
+            f"/seats/courses/{course_id}/assign", json=body, headers=headers
         )
 
     assert response.status_code == 200
@@ -219,7 +219,7 @@ async def test_assign_seats_claim_email_sent(
         mock_enrolment_email() as mock_email,
     ):
         response = await async_test_client.post(
-            f"/courses/{course_id}/assign_seats", json=body, headers=headers
+            f"/seats/courses/{course_id}/assign", json=body, headers=headers
         )
 
     assert response.status_code == 200
@@ -243,7 +243,7 @@ async def test_assign_seats_fails_for_draft_course(
     body = _assign_payload()
 
     response = await async_test_client.post(
-        f"/courses/{draft_course_for_seats}/assign_seats",
+        f"/seats/courses/{draft_course_for_seats}/assign",
         json=body,
         headers=headers,
     )
@@ -262,7 +262,7 @@ async def test_assign_seats_fails_for_voided_course(
     body = _assign_payload()
 
     response = await async_test_client.post(
-        f"/courses/{voided_course_for_seats}/assign_seats",
+        f"/seats/courses/{voided_course_for_seats}/assign",
         json=body,
         headers=headers,
     )
@@ -288,7 +288,7 @@ async def test_assign_seats_fails_not_enough_seats(
     body = _assign_payload(students)
 
     response = await async_test_client.post(
-        f"/courses/{course_for_seats}/assign_seats",
+        f"/seats/courses/{course_for_seats}/assign",
         json=body,
         headers=headers,
     )
@@ -306,7 +306,7 @@ async def test_assign_seats_fails_nonexistent_course(
     body = _assign_payload()
 
     response = await async_test_client.post(
-        f"/courses/{uuid4()}/assign_seats",
+        f"/seats/courses/{uuid4()}/assign",
         json=body,
         headers=headers,
     )
@@ -329,7 +329,7 @@ async def test_assign_seats_rejects_duplicate_student_ids(
     body = _assign_payload(students)
 
     response = await async_test_client.post(
-        f"/courses/{course_for_seats}/assign_seats",
+        f"/seats/courses/{course_for_seats}/assign",
         json=body,
         headers=headers,
     )
@@ -352,7 +352,7 @@ async def test_assign_seats_rejects_duplicate_emails(
     body = _assign_payload(students)
 
     response = await async_test_client.post(
-        f"/courses/{course_for_seats}/assign_seats",
+        f"/seats/courses/{course_for_seats}/assign",
         json=body,
         headers=headers,
     )
@@ -370,7 +370,7 @@ async def test_assign_seats_rejects_empty_students_list(
     body = {"students": []}
 
     response = await async_test_client.post(
-        f"/courses/{course_for_seats}/assign_seats",
+        f"/seats/courses/{course_for_seats}/assign",
         json=body,
         headers=headers,
     )
@@ -397,14 +397,14 @@ async def test_assign_seats_duplicate_enrolment_rejected(
     # First assignment succeeds
     with mock_assign_accounting(fund_succeeds=True):
         response = await async_test_client.post(
-            f"/courses/{course_id}/assign_seats", json=body, headers=headers
+            f"/seats/courses/{course_id}/assign", json=body, headers=headers
         )
     assert response.status_code == 200
 
     # Second assignment with same student fails
     with mock_assign_accounting(fund_succeeds=True):
         response = await async_test_client.post(
-            f"/courses/{course_id}/assign_seats", json=body, headers=headers
+            f"/seats/courses/{course_id}/assign", json=body, headers=headers
         )
     assert response.status_code == 409
     assert "already enrolled" in response.json()["message"].lower()
@@ -420,7 +420,7 @@ async def test_assign_seats_fails_for_non_admin_user(
     body = _assign_payload()
 
     response = await async_test_client.post(
-        f"/courses/{course_for_seats}/assign_seats",
+        f"/seats/courses/{course_for_seats}/assign",
         json=body,
         headers=headers,
     )
