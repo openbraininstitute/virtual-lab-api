@@ -102,6 +102,14 @@ class BudgetDepleteProjectResponse(BaseAccountingResponse):
     data: BudgetDepleteProjectData
 
 
+class BudgetDepleteVlabData(BaseModel):
+    total_amount: str
+
+
+class BudgetDepleteVlabResponse(BaseAccountingResponse):
+    data: BudgetDepleteVlabData
+
+
 # TODO: Update according to the STORAGE report type
 class ProjectJobReport(BaseModel):
     job_id: UUID4

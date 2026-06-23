@@ -5,6 +5,7 @@ from .create_project_account import create_project_account
 from .create_virtual_lab_account import create_virtual_lab_account
 from .create_virtual_lab_discount import create_virtual_lab_discount
 from .deplete_project_budget import deplete_project_budget
+from .deplete_vlab_budget import deplete_vlab_budget
 from .fund_project_budget import fund_project_budget
 from .get_project_balance import get_project_balance
 from .get_project_reports import get_project_reports
@@ -22,6 +23,7 @@ __all__ = [
     "create_virtual_lab_account",
     "create_virtual_lab_discount",
     "deplete_project_budget",
+    "deplete_vlab_budget",
     "fund_project_budget",
     "get_project_balance",
     "get_project_reports",
