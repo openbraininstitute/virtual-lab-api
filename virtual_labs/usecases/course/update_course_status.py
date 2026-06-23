@@ -89,7 +89,10 @@ async def void_course(
     for seat_id, enrolment_id in work_items:
         seat = await db.get(Seat, seat_id)
         enrolment = await db.get(CourseEnrolment, enrolment_id)
-        if seat is None or enrolment is None:
+        # Re-fetch course each iteration: _drop_single_seat commits, which
+        # expires relationships on the course object (e.g. virtual_lab).
+        course = await db.get(Course, course_id)
+        if seat is None or enrolment is None or course is None:
             continue
         if enrolment.is_dropped:
             continue
@@ -104,6 +107,8 @@ async def void_course(
             failed += 1
 
     # --- Deplete vlab budget ---
+    course = await db.get(Course, course_id)
+    assert course is not None
     if not course.budget_depleted:
         success = await accounting_cases.deplete_vlab_budget(
             virtual_lab_id=course.virtual_lab_id,
