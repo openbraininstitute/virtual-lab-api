@@ -1,12 +1,37 @@
 """Tests for the void-course endpoint (POST /courses/{course_id}/void)."""
 
-from uuid import uuid4
+from contextlib import contextmanager
+from unittest.mock import AsyncMock, patch
+from uuid import UUID, uuid4
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import update
 
+from virtual_labs.infrastructure.db.models import Course, CourseEnrolment, VirtualLab
+from virtual_labs.infrastructure.settings import settings
 from virtual_labs.tests.courses.conftest import SERVICE_ADMIN_HEADERS
-from virtual_labs.tests.utils import get_headers
+from virtual_labs.tests.seats.helpers import provision_seats
+from virtual_labs.tests.seats.test_drop_seats import mock_assign_deps, mock_drop_deps
+from virtual_labs.tests.utils import (
+    get_headers,
+    get_or_create_institution,
+    session_context_factory,
+)
+
+
+@contextmanager
+def mock_void_deps():
+    """Mock all external deps needed by void_course (drop + vlab depletion)."""
+    with (
+        mock_drop_deps(),
+        patch(
+            "virtual_labs.usecases.course.update_course_status.accounting_cases.deplete_vlab_budget",
+            new_callable=AsyncMock,
+            return_value=True,
+        ),
+    ):
+        yield
 
 
 async def _set_course_dates(async_test_client: AsyncClient, course_id: str) -> None:
@@ -35,9 +60,10 @@ async def test_void_draft_course_successfully(
 ) -> None:
     course_id, _ = draft_course
 
-    response = await async_test_client.post(
-        f"/courses/{course_id}/void", headers=SERVICE_ADMIN_HEADERS
-    )
+    with mock_void_deps():
+        response = await async_test_client.post(
+            f"/courses/{course_id}/void", headers=SERVICE_ADMIN_HEADERS
+        )
 
     assert response.status_code == 200
     data = response.json()["data"]
@@ -59,9 +85,10 @@ async def test_void_active_course_successfully(
         f"/courses/{course_id}/activate", headers=SERVICE_ADMIN_HEADERS
     )
     # Then void
-    response = await async_test_client.post(
-        f"/courses/{course_id}/void", headers=SERVICE_ADMIN_HEADERS
-    )
+    with mock_void_deps():
+        response = await async_test_client.post(
+            f"/courses/{course_id}/void", headers=SERVICE_ADMIN_HEADERS
+        )
 
     assert response.status_code == 200
     data = response.json()["data"]
@@ -76,17 +103,167 @@ async def test_void_course_is_idempotent(
     """Voiding an already-voided course succeeds (idempotent)."""
     course_id, _ = draft_course
 
-    # Void first time
-    await async_test_client.post(
-        f"/courses/{course_id}/void", headers=SERVICE_ADMIN_HEADERS
-    )
-    # Void again — should still succeed
-    response = await async_test_client.post(
-        f"/courses/{course_id}/void", headers=SERVICE_ADMIN_HEADERS
-    )
+    with mock_void_deps():
+        # Void first time
+        await async_test_client.post(
+            f"/courses/{course_id}/void", headers=SERVICE_ADMIN_HEADERS
+        )
+        # Void again — should still succeed
+        response = await async_test_client.post(
+            f"/courses/{course_id}/void", headers=SERVICE_ADMIN_HEADERS
+        )
 
     assert response.status_code == 200
     assert response.json()["data"]["status"] == "voided"
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Drop & budget depletion tests
+# ──────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_void_course_drops_all_enrolments(
+    async_test_client: AsyncClient,
+) -> None:
+    """Voiding a course drops every undropped enrolment."""
+    client = async_test_client
+    institution_id = await get_or_create_institution()
+
+    # Setup: create course-enabled vlab + project + course
+    lab_body = {
+        "name": f"Void Lab {uuid4()}",
+        "description": "Test void",
+        "reference_email": "void@test.org",
+        "entity": "EPFL, Switzerland",
+        "is_course": True,
+    }
+    lab_resp = await client.post("/virtual-labs", json=lab_body, headers=get_headers())
+    assert lab_resp.status_code == 200
+    lab_id = lab_resp.json()["id"]
+
+    async with session_context_factory() as session:
+        await session.execute(
+            update(VirtualLab)
+            .where(VirtualLab.id == UUID(lab_id))
+            .values(owner_id=settings.MULTIPLE_VLABS_ALLOWED_USER_ID)
+        )
+        await session.commit()
+
+    proj_resp = await client.post(
+        f"/virtual-labs/{lab_id}/projects",
+        json={"name": f"Template {uuid4()}", "description": "T"},
+        headers=get_headers(),
+    )
+    assert proj_resp.status_code == 200
+    project_id = proj_resp.json()["id"]
+
+    course_resp = await client.post(
+        "/courses",
+        json={
+            "virtual_lab_id": lab_id,
+            "template_project_id": project_id,
+            "institution_id": institution_id,
+        },
+        headers=SERVICE_ADMIN_HEADERS,
+    )
+    assert course_resp.status_code == 200
+    course_id = course_resp.json()["data"]["id"]
+
+    # Activate the course
+    await client.patch(
+        f"/courses/{course_id}",
+        json={
+            "start_date": "2026-09-01T00:00:00Z",
+            "end_date": "2026-12-15T00:00:00Z",
+            "last_drop_date": "2026-09-14T00:00:00Z",
+        },
+        headers=SERVICE_ADMIN_HEADERS,
+    )
+    activate_resp = await client.post(
+        f"/courses/{course_id}/activate", headers=SERVICE_ADMIN_HEADERS
+    )
+    assert activate_resp.status_code == 200
+
+    # Provision and assign seats
+    await provision_seats(client, course_id, 2)
+    students = [
+        {"student_id": f"stu-{uuid4().hex[:8]}", "email": f"{uuid4().hex[:8]}@u.org"},
+        {"student_id": f"stu-{uuid4().hex[:8]}", "email": f"{uuid4().hex[:8]}@u.org"},
+    ]
+    with mock_assign_deps():
+        assign_resp = await client.post(
+            f"/seats/courses/{course_id}/assign",
+            json={"students": students},
+            headers=get_headers(),
+        )
+    assert assign_resp.status_code == 200
+    enrolment_ids = [r["enrolment_id"] for r in assign_resp.json()["results"]]
+
+    # Void the course
+    with mock_void_deps():
+        void_resp = await client.post(
+            f"/courses/{course_id}/void", headers=SERVICE_ADMIN_HEADERS
+        )
+    assert void_resp.status_code == 200
+    assert void_resp.json()["data"]["status"] == "voided"
+
+    # Assert all enrolments are dropped
+    async with session_context_factory() as session:
+        for eid in enrolment_ids:
+            enrolment = await session.get(CourseEnrolment, UUID(eid))
+            assert enrolment is not None
+            assert enrolment.is_dropped is True
+
+
+@pytest.mark.asyncio
+async def test_void_course_depletes_vlab_budget(
+    async_test_client: AsyncClient,
+    draft_course: tuple[str, str],
+) -> None:
+    """Voiding a course sets budget_depleted to True."""
+    course_id, _ = draft_course
+
+    with mock_void_deps():
+        response = await async_test_client.post(
+            f"/courses/{course_id}/void", headers=SERVICE_ADMIN_HEADERS
+        )
+
+    assert response.status_code == 200
+
+    async with session_context_factory() as session:
+        course = await session.get(Course, UUID(course_id))
+        assert course is not None
+        assert course.budget_depleted is True
+
+
+@pytest.mark.asyncio
+async def test_void_course_depletion_failure_still_voids(
+    async_test_client: AsyncClient,
+    draft_course: tuple[str, str],
+) -> None:
+    """If vlab budget depletion fails, course is still voided (budget_depleted stays False)."""
+    course_id, _ = draft_course
+
+    with (
+        mock_drop_deps(),
+        patch(
+            "virtual_labs.usecases.course.update_course_status.accounting_cases.deplete_vlab_budget",
+            new_callable=AsyncMock,
+            return_value=False,
+        ),
+    ):
+        response = await async_test_client.post(
+            f"/courses/{course_id}/void", headers=SERVICE_ADMIN_HEADERS
+        )
+
+    assert response.status_code == 200
+    assert response.json()["data"]["status"] == "voided"
+
+    async with session_context_factory() as session:
+        course = await session.get(Course, UUID(course_id))
+        assert course is not None
+        assert course.budget_depleted is False
 
 
 # ──────────────────────────────────────────────────────────────────────

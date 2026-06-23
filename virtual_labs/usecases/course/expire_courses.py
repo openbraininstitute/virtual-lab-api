@@ -11,12 +11,13 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from loguru import logger
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.infrastructure.db.models import (
     Course,
     CourseEnrolment,
+    CourseStatus,
     Seat,
 )
 from virtual_labs.usecases import accounting as accounting_cases
@@ -24,7 +25,7 @@ from virtual_labs.usecases.course.drop_seats import _drop_single_seat
 
 
 async def drop_expired_enrolments(db: AsyncSession) -> dict:
-    """Drop all undropped enrolments in courses past end_date."""
+    """Drop all undropped enrolments in courses past end_date or voided."""
     now = datetime.now(timezone.utc)
 
     result = await db.execute(
@@ -32,8 +33,12 @@ async def drop_expired_enrolments(db: AsyncSession) -> dict:
         .join(CourseEnrolment, CourseEnrolment.id == Seat.enrolment_id)
         .join(Course, Course.id == CourseEnrolment.course_id)
         .where(
-            Course.end_date.is_not(None),
-            Course.end_date < now,
+            or_(
+                # Expired: past end_date
+                (Course.end_date.is_not(None)) & (Course.end_date < now),
+                # Voided: dates don't matter
+                Course.status == CourseStatus.VOIDED,
+            ),
             CourseEnrolment.is_dropped.is_(False),
         )
     )
@@ -72,13 +77,17 @@ async def drop_expired_enrolments(db: AsyncSession) -> dict:
 
 
 async def deplete_expired_courses(db: AsyncSession) -> dict:
-    """Deplete vlab budget for expired courses past end_date."""
+    """Deplete vlab budget for expired or voided courses."""
     now = datetime.now(timezone.utc)
 
     result = await db.execute(
         select(Course.id).where(
-            Course.end_date.is_not(None),
-            Course.end_date < now,
+            or_(
+                # Expired: past end_date
+                (Course.end_date.is_not(None)) & (Course.end_date < now),
+                # Voided: dates don't matter
+                Course.status == CourseStatus.VOIDED,
+            ),
             Course.budget_depleted.is_(False),
         )
     )

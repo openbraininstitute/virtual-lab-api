@@ -133,22 +133,20 @@ async def test_expire_courses_idempotent(
 
 
 @pytest.mark.asyncio
-async def test_expire_courses_processes_voided_too(
+async def test_expire_courses_processes_voided_regardless_of_end_date(
     async_test_client: AsyncClient,
     course_for_seats: str,
 ) -> None:
-    """Voided courses past end_date still get their enrolments dropped."""
+    """Voided courses are processed even if end_date is in the future (dates don't matter)."""
     course_id = course_for_seats
     enrolment_id = await _assign_seat(async_test_client, course_id)
 
+    # Set status to voided but keep end_date in the future
     async with session_context_factory() as session:
         await session.execute(
             update(Course)
             .where(Course.id == UUID(course_id))
-            .values(
-                end_date=datetime(2020, 1, 1, tzinfo=timezone.utc),
-                status=CourseStatus.VOIDED,
-            )
+            .values(status=CourseStatus.VOIDED)
         )
         await session.commit()
 
@@ -162,6 +160,35 @@ async def test_expire_courses_processes_voided_too(
         enrolment = await session.get(CourseEnrolment, UUID(enrolment_id))
         assert enrolment is not None
         assert enrolment.is_dropped is True
+
+
+@pytest.mark.asyncio
+async def test_expire_courses_depletes_voided_course_budget(
+    async_test_client: AsyncClient,
+    course_for_seats: str,
+) -> None:
+    """Voided course gets its vlab budget depleted even with future end_date."""
+    course_id = course_for_seats
+    await _assign_seat(async_test_client, course_id)
+
+    async with session_context_factory() as session:
+        await session.execute(
+            update(Course)
+            .where(Course.id == UUID(course_id))
+            .values(status=CourseStatus.VOIDED)
+        )
+        await session.commit()
+
+    with mock_expire_deps():
+        async with session_context_factory() as session:
+            summary = await expire_courses(session)
+
+    assert summary["vlabs_depleted"] == 1
+
+    async with session_context_factory() as session:
+        course = await session.get(Course, UUID(course_id))
+        assert course is not None
+        assert course.budget_depleted is True
 
 
 @pytest.mark.asyncio

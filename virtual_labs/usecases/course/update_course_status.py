@@ -12,8 +12,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.types import VliAppResponse
 from virtual_labs.domain.course import CourseOut
-from virtual_labs.infrastructure.db.models import Course
+from virtual_labs.infrastructure.db.models import Course, CourseEnrolment, Seat
 from virtual_labs.infrastructure.kc.models import AuthUser
+from virtual_labs.usecases import accounting as accounting_cases
+from virtual_labs.usecases.course.drop_seats import _drop_single_seat
 
 
 async def _get_course(db: AsyncSession, course_id: UUID) -> Course:
@@ -62,15 +64,65 @@ async def void_course(
     course_id: UUID,
     auth: tuple[AuthUser, str],
 ) -> VliAppResponse[CourseOut]:
-    """Set course status to voided."""
+    """Set course status to voided.
+
+    This also drops every undropped enrolment (depleting each project's budget)
+    and depletes the virtual-lab budget.
+    """
     course = await _get_course(db, course_id)
 
     course.void()
 
+    # --- Drop all undropped enrolments (deplete project budgets) ---
+    result = await db.execute(
+        select(Seat.id, CourseEnrolment.id)
+        .join(CourseEnrolment, CourseEnrolment.id == Seat.enrolment_id)
+        .where(
+            Seat.course_id == course.id,
+            CourseEnrolment.is_dropped.is_(False),
+        )
+    )
+    work_items: list[tuple[UUID, UUID]] = [(row[0], row[1]) for row in result.all()]
+
+    dropped = 0
+    failed = 0
+    for seat_id, enrolment_id in work_items:
+        seat = await db.get(Seat, seat_id)
+        enrolment = await db.get(CourseEnrolment, enrolment_id)
+        if seat is None or enrolment is None:
+            continue
+        if enrolment.is_dropped:
+            continue
+        try:
+            await _drop_single_seat(db, seat=seat, enrolment=enrolment, course=course)
+            dropped += 1
+        except Exception as ex:  # noqa: BLE001
+            logger.error(
+                f"Failed to drop enrolment {enrolment_id} while voiding "
+                f"course {course_id}: {ex}"
+            )
+            failed += 1
+
+    # --- Deplete vlab budget ---
+    if not course.budget_depleted:
+        success = await accounting_cases.deplete_vlab_budget(
+            virtual_lab_id=course.virtual_lab_id,
+        )
+        if success:
+            course.budget_depleted = True
+        else:
+            logger.error(
+                f"Failed to deplete vlab budget for course {course_id} during void"
+            )
+
     await db.commit()
     await db.refresh(course)
 
-    logger.info(f"Course {course_id} voided by user {auth[0].sub}")
+    logger.info(
+        f"Course {course_id} voided by user {auth[0].sub} "
+        f"(enrolments dropped={dropped}, failed={failed}, "
+        f"budget_depleted={course.budget_depleted})"
+    )
 
     return VliAppResponse[CourseOut](
         message="Course voided successfully",
