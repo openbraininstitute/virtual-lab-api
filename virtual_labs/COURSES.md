@@ -1,4 +1,4 @@
-# Courses Provisionig
+# Courses Provisioning
 
 ## Relationships
 
@@ -26,23 +26,49 @@
 └─────────────┘         └─────────────┘
 ```
 
-## Course Lifecycle (status)
 
-DRAFT → ACTIVE → VOIDED
+## Course Lifecycle
 
-- Draft can also be voided directly.
+### Provisioning
 
-## Mutability Rules
+1. OBI admin creates a virtual lab belonging to `obi-virtual-lab`.
+   `POST /virtual-labs`
+2. OBI admin creates a template project for that virtual lab.
+   `POST /virtual-labs/{vlab_id}/projects`
+3. OBI admin creates a course pointing to the virtual lab and template project.
+   `POST /courses`
+4. OBI admin sets `start_date`, `last_drop_date`, and `end_date`.
+   `PATCH /courses/{course_id}`
+5. OBI admin activates the course (all dates must be set).
+   `POST /courses/{course_id}/activate`
+6. OBI admin invites faculty as virtual lab admin.
+   `POST /virtual-labs/{vlab_id}/invites`
+7. OBI admin provisions seats (only active courses can be provisioned).
+   `POST /seats/provision`
 
-- **DRAFT** → fully mutable (fields + status transitions)
-- **ACTIVE** → immutable fields, can only transition to VOIDED
-- **VOIDED** → fully immutable
+### Enrolment
 
-## Business Rules
+1. Faculty assigns available seats to students (identified by student id + email).
+   `POST /seats/courses/{course_id}/assign`
+   This creates an enrolment and a project per student and sends an invite email.
 
-- Only vlab service admins can create courses and institutions.
-- The admin must create the institution (if it doesn't exist) before creating a course that references it.
-- The virtual lab assigned to a course must be owned by the `MULTIPLE_VLABS_ALLOWED_USER_ID` user (configured in settings).
-- The template project must belong to the associated virtual lab.
-- Only active courses can be provisioned with seats.
-- To activate a course, all dates must be set (`start_date < last_drop_date < end_date`).
+2. Student claims the enrolment, storing their `user_id`.
+   `POST /courses/{course_id}/claim`
+
+3. On login (after `start_date`, before `end_date`), the student's enrolment is activated (added to KC groups).
+   `POST /courses/activate-enrolments`
+
+### Dropping
+
+Faculty can drop a student and recover the seat if all conditions are met:
+- `seat.previously_dropped == False`
+- `now < course.last_drop_date`
+- The student's project has spent fewer than 50 credits.
+
+`POST /seats/courses/{course_id}/drop`
+
+When dropped, the student's project budget is depleted and the student is removed from KC groups (vlab and project).
+
+### Course Expiry
+
+A daily cronjob checks courses whose `end_date` has passed, drops every remaining student, and depletes all credits from all projects and the virtual lab.
