@@ -1,16 +1,14 @@
-from typing import Optional
+from typing import Annotated, Optional
 
-from pydantic import UUID4, BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import UUID4, BaseModel, ConfigDict, EmailStr, Field, StringConstraints
 
 
 class InstitutionCreate(BaseModel):
-    name: str = Field(max_length=250)
+    name: Annotated[
+        str,
+        StringConstraints(strip_whitespace=True, max_length=250),
+    ]
     contact_email: EmailStr
-
-    @field_validator("name")
-    @classmethod
-    def strip_name(cls, v: str) -> str:
-        return v.strip()
 
 
 class InstitutionUpdate(BaseModel):
@@ -23,4 +21,4 @@ class InstitutionOut(BaseModel):
 
     id: UUID4
     name: str
-    contact_email: str
+    contact_email: EmailStr
