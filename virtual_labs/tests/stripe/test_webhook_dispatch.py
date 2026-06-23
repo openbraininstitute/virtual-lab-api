@@ -8,6 +8,7 @@ suite that hits the FastAPI route end-to-end.
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock
 
@@ -15,6 +16,7 @@ import pytest
 import stripe
 from stripe import convert_to_stripe_object
 
+from virtual_labs.infrastructure.db.models import SubscriptionPayment
 from virtual_labs.infrastructure.stripe.types import PostCommitActions
 from virtual_labs.infrastructure.stripe.webhook import StripeWebhook
 
@@ -351,3 +353,94 @@ async def test_claim_idempotency_uses_setnx_with_ttl() -> None:
     assert args[1] == "1"
     assert kwargs.get("nx") is True
     assert kwargs.get("ex") == 259_200  # 3-day TTL preserved
+
+
+# standalone fulfillment: credits granted from the authoritative quote
+async def _stage_standalone(
+    webhook: StripeWebhook,
+    *,
+    quote: Any,
+    subtotal: int,
+    monkeypatch: pytest.MonkeyPatch,
+) -> SubscriptionPayment:
+    """Drive `_stage_standalone_payment_record` for a succeeded top-up,
+    stubbing the find/enrich/amount helpers so only the credit-selection
+    branch is exercised."""
+    import virtual_labs.external.accounting as accounting_service
+    from virtual_labs.infrastructure.stripe import helpers
+
+    payment = SubscriptionPayment()
+
+    monkeypatch.setattr(accounting_service, "is_enabled", False)
+    monkeypatch.setattr(
+        webhook,
+        "_find_or_create_standalone_payment",
+        AsyncMock(return_value=(payment, False)),
+    )
+    monkeypatch.setattr(webhook, "_apply_payment_intent_enrichment", MagicMock())
+
+    async def _apply_amounts(p: SubscriptionPayment, *_a: Any, **_k: Any) -> Any:
+        p.currency = "chf"
+        return quote
+
+    monkeypatch.setattr(webhook, "_apply_standalone_amounts_and_tax", _apply_amounts)
+    monkeypatch.setattr(
+        helpers,
+        "get_payment_intent_amounts",
+        lambda *a, **k: SimpleNamespace(
+            subtotal=subtotal, tax=0, total=subtotal, currency="chf"
+        ),
+    )
+
+    await webhook._stage_standalone_payment_record(
+        event_obj=MagicMock(),
+        payment_intent=MagicMock(),
+        payment_intent_id="pi_1",
+        customer_id="cus_1",
+        user_id="u1",
+        virtual_lab_id="00000000-0000-0000-0000-000000000001",
+        event_type="payment_intent.succeeded",
+        metadata={},
+        db_session=MagicMock(),
+        deferred=PostCommitActions(),
+    )
+    return payment
+
+
+@pytest.mark.asyncio
+async def test_standalone_credits_granted_from_quote(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """a discounted top-up grants the quote's authoritative credit count,
+    not the base-rate reverse of the (discounted) subtotal"""
+    webhook = _make_webhook()
+    converter = AsyncMock()
+    webhook.credit_converter = converter
+    # 2000 credits quoted at the 0.09 discount tier → subtotal 18000
+    quote = SimpleNamespace(credits=2000)
+
+    payment = await _stage_standalone(
+        webhook, quote=quote, subtotal=18000, monkeypatch=monkeypatch
+    )
+
+    assert payment.credits_purchased == 2000
+    # base-rate reverse derivation must not be used when the quote is authoritative
+    converter.currency_to_credits.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_standalone_credits_fall_back_to_converter_without_quote(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """with no usable quote, fulfillment falls back to base-rate conversion."""
+    webhook = _make_webhook()
+    converter = AsyncMock()
+    converter.currency_to_credits = AsyncMock(return_value=180)
+    webhook.credit_converter = converter
+
+    payment = await _stage_standalone(
+        webhook, quote=None, subtotal=18000, monkeypatch=monkeypatch
+    )
+
+    assert payment.credits_purchased == 180
+    converter.currency_to_credits.assert_awaited_once()
