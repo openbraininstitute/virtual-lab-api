@@ -2,9 +2,29 @@
 
 ## Relationships
 
-- Institution `1 ──── *` Course: Many courses can belong to one institution.
-- VirtualLab `1 ──── 1` Course: Each vlab has at most one course (unique FK).
-- Project `1 ──── 1` Course: Each course has one template project (unique FK).
+```
+                        ┌─────────────┐
+                        │ Institution │
+                        └──────┬──────┘
+                               │ 1
+                               │
+                               *
+┌─────────────┐         ┌─────────────┐
+│ Virtual Lab │1───────*│   Course    │
+└─────────────┘         └──────┬──────┘
+                               │ 1
+                               │
+                               *
+                        ┌─────────────┐
+                        │    Seat     │
+                        └──────┬──────┘
+                               │ 0..1
+                               │
+                               1
+┌─────────────┐         ┌─────────────┐
+│   Project   │1───────1│  Enrolment  │
+└─────────────┘         └─────────────┘
+```
 
 ## Course Lifecycle (status)
 
