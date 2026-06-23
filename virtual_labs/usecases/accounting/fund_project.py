@@ -9,6 +9,7 @@ the vlab and assigning to the project in a single operation.
 from loguru import logger
 from pydantic import UUID4
 
+import virtual_labs.external.accounting as accounting_service
 from virtual_labs.infrastructure.settings import settings
 
 
@@ -21,15 +22,17 @@ async def fund_project(
     """Top-up vlab and assign credits to project. Returns True on success.
 
     Best-effort: logs errors but does not raise.
-
-    TODO: Implement once the accounting service exposes /grant.
     """
     if settings.ACCOUNTING_BASE_URL is None:
         return False
 
-    # TODO: Call the /grant endpoint here.
-    logger.warning(
-        f"fund_project called for project {project_id} "
-        f"(vlab {virtual_lab_id}, amount {amount}) but /grant endpoint is not yet implemented"
-    )
-    return False
+    try:
+        await accounting_service.fund_project_budget(project_id, amount)
+    except Exception as exc:
+        logger.error(
+            f"fund_project failed for project {project_id} "
+            f"(vlab {virtual_lab_id}, amount {amount}): {exc}"
+        )
+        return False
+
+    return True

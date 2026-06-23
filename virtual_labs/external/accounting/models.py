@@ -90,6 +90,10 @@ class BudgetMoveResponse(BaseAccountingResponse):
     data: None
 
 
+class BudgetGrantResponse(BaseAccountingResponse):
+    data: None
+
+
 # TODO: Update according to the STORAGE report type
 class ProjectJobReport(BaseModel):
     job_id: UUID4
