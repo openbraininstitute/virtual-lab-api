@@ -18,6 +18,9 @@ from virtual_labs.tests.utils import (
     session_context_factory,
 )
 
+# Import the course_for_seats fixture from the seats conftest so it's available here.
+pytest_plugins = ["virtual_labs.tests.seats.conftest"]
+
 SERVICE_ADMIN_HEADERS = get_headers("test-service-admin")
 
 # ──────────────────────────────────────────────────────────────────────

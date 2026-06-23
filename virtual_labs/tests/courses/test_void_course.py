@@ -6,18 +6,12 @@ from uuid import UUID, uuid4
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import update
 
-from virtual_labs.infrastructure.db.models import Course, CourseEnrolment, VirtualLab
-from virtual_labs.infrastructure.settings import settings
+from virtual_labs.infrastructure.db.models import Course, CourseEnrolment
 from virtual_labs.tests.courses.conftest import SERVICE_ADMIN_HEADERS
 from virtual_labs.tests.seats.helpers import provision_seats
 from virtual_labs.tests.seats.test_drop_seats import mock_assign_deps, mock_drop_deps
-from virtual_labs.tests.utils import (
-    get_headers,
-    get_or_create_institution,
-    session_context_factory,
-)
+from virtual_labs.tests.utils import get_headers, session_context_factory
 
 
 @contextmanager
@@ -125,65 +119,11 @@ async def test_void_course_is_idempotent(
 @pytest.mark.asyncio
 async def test_void_course_drops_all_enrolments(
     async_test_client: AsyncClient,
+    course_for_seats: str,
 ) -> None:
     """Voiding a course drops every undropped enrolment."""
     client = async_test_client
-    institution_id = await get_or_create_institution()
-
-    # Setup: create course-enabled vlab + project + course
-    lab_body = {
-        "name": f"Void Lab {uuid4()}",
-        "description": "Test void",
-        "reference_email": "void@test.org",
-        "entity": "EPFL, Switzerland",
-        "is_course": True,
-    }
-    lab_resp = await client.post("/virtual-labs", json=lab_body, headers=get_headers())
-    assert lab_resp.status_code == 200
-    lab_id = lab_resp.json()["id"]
-
-    async with session_context_factory() as session:
-        await session.execute(
-            update(VirtualLab)
-            .where(VirtualLab.id == UUID(lab_id))
-            .values(owner_id=settings.MULTIPLE_VLABS_ALLOWED_USER_ID)
-        )
-        await session.commit()
-
-    proj_resp = await client.post(
-        f"/virtual-labs/{lab_id}/projects",
-        json={"name": f"Template {uuid4()}", "description": "T"},
-        headers=get_headers(),
-    )
-    assert proj_resp.status_code == 200
-    project_id = proj_resp.json()["id"]
-
-    course_resp = await client.post(
-        "/courses",
-        json={
-            "virtual_lab_id": lab_id,
-            "template_project_id": project_id,
-            "institution_id": institution_id,
-        },
-        headers=SERVICE_ADMIN_HEADERS,
-    )
-    assert course_resp.status_code == 200
-    course_id = course_resp.json()["data"]["id"]
-
-    # Activate the course
-    await client.patch(
-        f"/courses/{course_id}",
-        json={
-            "start_date": "2026-09-01T00:00:00Z",
-            "end_date": "2026-12-15T00:00:00Z",
-            "last_drop_date": "2026-09-14T00:00:00Z",
-        },
-        headers=SERVICE_ADMIN_HEADERS,
-    )
-    activate_resp = await client.post(
-        f"/courses/{course_id}/activate", headers=SERVICE_ADMIN_HEADERS
-    )
-    assert activate_resp.status_code == 200
+    course_id = course_for_seats
 
     # Provision and assign seats
     await provision_seats(client, course_id, 2)
