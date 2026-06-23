@@ -3,12 +3,13 @@
 Called on seat drop to zero-out the student's project credits.
 Returns the balance that was depleted, or None on failure.
 
-TODO: Implement once the accounting service exposes /deplete/project.
+Uses the accounting service's /deplete/project endpoint.
 """
 
 from loguru import logger
 from pydantic import UUID4
 
+import virtual_labs.external.accounting as accounting_service
 from virtual_labs.infrastructure.settings import settings
 
 
@@ -20,16 +21,16 @@ async def deplete_project_budget(
     """Deplete all remaining credits from a project.
 
     Returns the balance that was depleted, or None on failure.
-
-    TODO: Implement once the accounting service exposes /deplete/project.
     """
     if settings.ACCOUNTING_BASE_URL is None:
         return None
 
-    # TODO: Call the /deplete/project endpoint here.
-    # It should return the amount that was depleted (i.e. the balance before depletion).
-    logger.warning(
-        f"deplete_project_budget called for project {project_id} "
-        f"(vlab {virtual_lab_id}) but /deplete/project endpoint is not yet implemented"
-    )
-    return None
+    try:
+        response = await accounting_service.deplete_project_budget(project_id)
+        return float(response.data.total_amount)
+    except Exception as exc:
+        logger.error(
+            f"deplete_project_budget failed for project {project_id} "
+            f"(vlab {virtual_lab_id}): {exc}"
+        )
+        return None
