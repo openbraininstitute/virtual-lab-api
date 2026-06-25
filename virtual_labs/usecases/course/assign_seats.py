@@ -154,22 +154,25 @@ async def assign_seats(
             if not funded:
                 raise RuntimeError("Failed to fund project")
 
-            # Create enrolment linked to the project
-            enrolment = CourseEnrolment(
-                course_id=course_id,
-                contact_email=student.email,
-                student_id=student.student_id,
-                project_id=project_id,
-            )
-            db.add(enrolment)
-            await db.flush()
+            # Use a savepoint so a failure only rolls back this student's
+            # DB writes without releasing the FOR UPDATE locks or losing
+            # previously successful assignments.
+            async with db.begin_nested():
+                # Create enrolment linked to the project
+                enrolment = CourseEnrolment(
+                    course_id=course_id,
+                    contact_email=student.email,
+                    student_id=student.student_id,
+                    project_id=project_id,
+                )
+                db.add(enrolment)
+                await db.flush()
 
-            # Capture the generated id before it gets expired
-            enrolment_id = enrolment.id
+                # Capture the generated id before it gets expired
+                enrolment_id = enrolment.id
 
-            # Link seat to enrolment
-            seat.enrolment_id = enrolment_id
-            await db.commit()
+                # Link seat to enrolment
+                seat.enrolment_id = enrolment_id
 
             results.append(
                 SeatAssignmentResult(
@@ -184,15 +187,18 @@ async def assign_seats(
             )
         except Exception as ex:  # noqa: BLE001
             logger.error(f"Failed to assign seat for {student.student_id}: {ex}")
-            # Soft-delete the orphan project if it was already created
+            # Soft-delete the orphan project if it was already created.
+            # Use a separate session to avoid interfering with the outer
+            # transaction's locks.
             if project_id is not None:
                 try:
-                    await db.execute(
-                        update(Project)
-                        .where(Project.id == project_id)
-                        .values(deleted=True)
-                    )
-                    await db.commit()
+                    async with session_pool.session() as cleanup_session:
+                        await cleanup_session.execute(
+                            update(Project)
+                            .where(Project.id == project_id)
+                            .values(deleted=True)
+                        )
+                        await cleanup_session.commit()
                     logger.info(
                         f"Soft-deleted orphan project {project_id} for {student.student_id}"
                     )
@@ -209,6 +215,10 @@ async def assign_seats(
                     error=str(ex),
                 )
             )
+
+    # Single commit at the end — keeps FOR UPDATE locks held for the
+    # entire batch, preventing concurrent requests from stealing seats.
+    await db.commit()
 
     # Best-effort: send claim emails after all assignments
     for result in results:
