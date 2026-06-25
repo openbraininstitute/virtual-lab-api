@@ -24,7 +24,7 @@ def mock_expire_deps():
         patch(
             "virtual_labs.usecases.course.expire_courses.accounting_cases.deplete_vlab_budget",
             new_callable=AsyncMock,
-            return_value=True,
+            return_value=200.0,
         ),
     ):
         yield
@@ -308,7 +308,7 @@ async def test_expire_courses_depletion_skipped_on_failure(
         patch(
             "virtual_labs.usecases.course.expire_courses.accounting_cases.deplete_vlab_budget",
             new_callable=AsyncMock,
-            return_value=False,
+            return_value=None,
         ),
     ):
         async with session_context_factory() as session:

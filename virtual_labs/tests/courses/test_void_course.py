@@ -22,7 +22,7 @@ def mock_void_deps():
         patch(
             "virtual_labs.usecases.course.update_course_status.accounting_cases.deplete_vlab_budget",
             new_callable=AsyncMock,
-            return_value=True,
+            return_value=200.0,
         ),
     ):
         yield
@@ -190,7 +190,7 @@ async def test_void_course_depletion_failure_still_voids(
         patch(
             "virtual_labs.usecases.course.update_course_status.accounting_cases.deplete_vlab_budget",
             new_callable=AsyncMock,
-            return_value=False,
+            return_value=None,
         ),
     ):
         response = await async_test_client.post(
