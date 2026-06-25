@@ -106,7 +106,7 @@ async def deplete_expired_courses(db: AsyncSession) -> dict:
         success = await accounting_cases.deplete_vlab_budget(
             virtual_lab_id=course.virtual_lab_id,
         )
-        if not success:
+        if success is None:
             logger.error(f"Failed to deplete vlab budget for course {course_id}")
             continue
 

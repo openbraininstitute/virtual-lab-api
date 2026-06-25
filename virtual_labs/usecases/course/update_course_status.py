@@ -113,12 +113,12 @@ async def void_course(
         success = await accounting_cases.deplete_vlab_budget(
             virtual_lab_id=course.virtual_lab_id,
         )
-        if success:
-            course.budget_depleted = True
-        else:
+        if success is None:
             logger.error(
                 f"Failed to deplete vlab budget for course {course_id} during void"
             )
+        else:
+            course.budget_depleted = True
 
     await db.commit()
     await db.refresh(course)
