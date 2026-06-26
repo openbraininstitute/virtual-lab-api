@@ -29,6 +29,7 @@ class CourseDetails(BaseModel):
     virtual_lab_id: UUID4
     template_project_id: UUID4
     institution_id: Optional[UUID4] = None
+    credits_per_seat: int
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
     last_drop_date: Optional[datetime] = None

@@ -152,6 +152,7 @@ async def test_get_lab_by_id_with_course(
     assert actual["course"]["start_date"] is None
     assert actual["course"]["end_date"] is None
     assert actual["course"]["last_drop_date"] is None
+    assert actual["course"]["credits_per_seat"] == 100
 
 
 def assert_get_and_delete_body_are_same(
