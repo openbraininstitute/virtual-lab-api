@@ -80,6 +80,12 @@ async def ensure_unique_name_within_virtual_lab(
     virtual_lab_id: UUID4,
     project_name: str,
 ) -> None:
+    vlab = await session.get(VirtualLab, virtual_lab_id, options=[])
+    if vlab:
+        await session.refresh(vlab, ["course"])
+        if vlab.course:
+            return
+
     try:
         name_clash = (
             await session.scalar(
