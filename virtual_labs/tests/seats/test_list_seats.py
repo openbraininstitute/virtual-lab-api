@@ -33,8 +33,9 @@ async def test_list_seats_returns_provisioned_seats(
 
     assert response.status_code == 200
     result = response.json()
-    assert "seats" in result
-    assert len(result["seats"]) == 3
+    assert "data" in result
+    assert len(result["data"]) == 3
+    assert "pagination" in result
 
 
 @pytest.mark.asyncio
@@ -50,7 +51,7 @@ async def test_list_seats_returns_empty_list_when_no_seats(
 
     assert response.status_code == 200
     result = response.json()
-    assert result["seats"] == []
+    assert result["data"] == []
 
 
 @pytest.mark.asyncio
@@ -67,7 +68,7 @@ async def test_list_seats_contains_expected_fields(
     )
 
     assert response.status_code == 200
-    seat = response.json()["seats"][0]
+    seat = response.json()["data"][0]
     assert "id" in seat
     assert "course_id" in seat
     assert "institution_id" in seat
@@ -168,7 +169,7 @@ async def test_list_seats_shows_enrolment_for_assigned_seats(
         f"/seats/courses/{course_for_seats}", headers=headers
     )
     assert response.status_code == 200
-    seats = response.json()["seats"]
+    seats = response.json()["data"]
 
     # 2 seats should have enrolments, 1 should not
     assigned = [s for s in seats if s["enrolment"] is not None]

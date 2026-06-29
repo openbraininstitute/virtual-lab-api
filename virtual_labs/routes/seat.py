@@ -13,11 +13,12 @@ from virtual_labs.domain.course import (
     DropSeatResponse,
     DropSeatsBody,
 )
+from virtual_labs.domain.common import ListResponse
 from virtual_labs.domain.seat import (
-    ListSeatsResponse,
     ProvisionSeatsBody,
     ProvisionSeatsResponse,
     SeatBatchSearchResponse,
+    SeatDetailOut,
 )
 from virtual_labs.infrastructure.db.config import default_session_factory
 from virtual_labs.infrastructure.db.models import Course
@@ -103,13 +104,13 @@ async def search_seat_batches_endpoint(
     "/courses/{course_id}",
     operation_id="list_seats_for_course",
     summary="List seats for a course (vlab admin)",
-    response_model=ListSeatsResponse,
+    response_model=ListResponse[SeatDetailOut],
 )
 async def list_seats_endpoint(
     course_id: UUID4,
     grant: tuple[AuthUserGrants, Course] = Depends(verify_course_admin),
     session: AsyncSession = Depends(default_session_factory),
-) -> ListSeatsResponse:
+) -> ListResponse[SeatDetailOut]:
     return await usecases.list_seats(session, course_id)
 
 
