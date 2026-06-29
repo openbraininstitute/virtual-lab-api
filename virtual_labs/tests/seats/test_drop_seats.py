@@ -464,7 +464,7 @@ async def test_drop_seats_mixed_valid_and_invalid(
         headers=headers,
     )
     assert list_resp.status_code == 200
-    all_seats = list_resp.json()["seats"]
+    all_seats = list_resp.json()["data"]
     unassigned_seat_id = next(s["id"] for s in all_seats if s["enrolment_id"] is None)
 
     nonexistent_seat_id = str(uuid4())
@@ -541,7 +541,7 @@ async def test_drop_seats_low_balance_consumes_seat(
         f"/seats/courses/{course_id}",
         headers=headers,
     )
-    seat = next(s for s in list_resp.json()["seats"] if s["id"] == seat_id)
+    seat = next(s for s in list_resp.json()["data"] if s["id"] == seat_id)
     assert seat["is_consumed"] is True
 
 
@@ -585,7 +585,7 @@ async def test_drop_seats_previously_dropped_consumes_seat(
         f"/seats/courses/{course_id}",
         headers=headers,
     )
-    seat = next(s for s in list_resp.json()["seats"] if s["id"] == seat_id)
+    seat = next(s for s in list_resp.json()["data"] if s["id"] == seat_id)
     assert seat["is_consumed"] is False
     assert seat["previously_dropped"] is True
     assert seat["enrolment_id"] is None
@@ -621,5 +621,5 @@ async def test_drop_seats_previously_dropped_consumes_seat(
         f"/seats/courses/{course_id}",
         headers=headers,
     )
-    seat = next(s for s in list_resp2.json()["seats"] if s["id"] == seat_id)
+    seat = next(s for s in list_resp2.json()["data"] if s["id"] == seat_id)
     assert seat["is_consumed"] is True
