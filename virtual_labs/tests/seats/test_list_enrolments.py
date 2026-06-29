@@ -142,7 +142,7 @@ async def test_list_enrolments_includes_claimed_status(
     # Claim it
     headers = get_headers()
     claim_resp = await async_test_client.post(
-        f"/courses/{course_id}/claim",
+        "/courses/claim",
         json={"enrolment_id": enrolment_id},
         headers=headers,
     )
