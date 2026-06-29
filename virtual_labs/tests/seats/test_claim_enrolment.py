@@ -1,4 +1,4 @@
-"""Tests for the claim-enrolment endpoint (POST /courses/{course_id}/claim)."""
+"""Tests for the claim-enrolment endpoint (POST /courses/claim)."""
 
 from unittest.mock import AsyncMock
 from uuid import uuid4
@@ -59,7 +59,7 @@ async def test_claim_enrolment_success(
 
     headers = get_headers()
     response = await async_test_client.post(
-        f"/courses/{course_id}/claim",
+        "/courses/claim",
         json={"enrolment_id": enrolment_id},
         headers=headers,
     )
@@ -89,7 +89,7 @@ async def test_claim_enrolment_by_different_user(
 
     headers = get_headers("test-1")
     response = await async_test_client.post(
-        f"/courses/{course_id}/claim",
+        "/courses/claim",
         json={"enrolment_id": enrolment_id},
         headers=headers,
     )
@@ -112,28 +112,8 @@ async def test_claim_enrolment_not_found(
     """Claiming a non-existent enrolment returns 404."""
     headers = get_headers()
     response = await async_test_client.post(
-        f"/courses/{course_for_seats}/claim",
+        "/courses/claim",
         json={"enrolment_id": str(uuid4())},
-        headers=headers,
-    )
-
-    assert response.status_code == 404
-    assert "not found" in response.json()["message"].lower()
-
-
-@pytest.mark.asyncio
-async def test_claim_enrolment_wrong_course(
-    async_test_client: AsyncClient,
-    course_for_seats: str,
-) -> None:
-    """Claiming with a valid enrolment_id but wrong course_id returns 404."""
-    course_id = course_for_seats
-    enrolment_id = await _create_enrolment(async_test_client, course_id)
-
-    headers = get_headers()
-    response = await async_test_client.post(
-        f"/courses/{uuid4()}/claim",
-        json={"enrolment_id": enrolment_id},
         headers=headers,
     )
 
@@ -153,7 +133,7 @@ async def test_claim_enrolment_already_claimed(
 
     # First claim succeeds
     response = await async_test_client.post(
-        f"/courses/{course_id}/claim",
+        "/courses/claim",
         json={"enrolment_id": enrolment_id},
         headers=headers,
     )
@@ -161,7 +141,7 @@ async def test_claim_enrolment_already_claimed(
 
     # Second claim fails
     response = await async_test_client.post(
-        f"/courses/{course_id}/claim",
+        "/courses/claim",
         json={"enrolment_id": enrolment_id},
         headers=headers,
     )
@@ -192,7 +172,7 @@ async def test_claim_enrolment_dropped(
 
     headers = get_headers()
     response = await async_test_client.post(
-        f"/courses/{course_id}/claim",
+        "/courses/claim",
         json={"enrolment_id": enrolment_id},
         headers=headers,
     )
@@ -225,7 +205,7 @@ async def test_claim_enrolment_voided_course(
 
     headers = get_headers()
     response = await async_test_client.post(
-        f"/courses/{course_id}/claim",
+        "/courses/claim",
         json={"enrolment_id": enrolment_id},
         headers=headers,
     )
@@ -258,7 +238,7 @@ async def test_claim_enrolment_draft_course(
 
     headers = get_headers()
     response = await async_test_client.post(
-        f"/courses/{course_id}/claim",
+        "/courses/claim",
         json={"enrolment_id": enrolment_id},
         headers=headers,
     )
@@ -292,7 +272,7 @@ async def test_claim_enrolment_course_ended(
 
     headers = get_headers()
     response = await async_test_client.post(
-        f"/courses/{course_id}/claim",
+        "/courses/claim",
         json={"enrolment_id": enrolment_id},
         headers=headers,
     )
@@ -309,7 +289,7 @@ async def test_claim_enrolment_invalid_enrolment_id_format(
     """A malformed enrolment_id returns 422 (validation error)."""
     headers = get_headers()
     response = await async_test_client.post(
-        f"/courses/{course_for_seats}/claim",
+        "/courses/claim",
         json={"enrolment_id": "not-a-uuid"},
         headers=headers,
     )
@@ -324,7 +304,7 @@ async def test_claim_enrolment_unauthenticated(
 ) -> None:
     """A request without a valid Authorization header is rejected."""
     response = await async_test_client.post(
-        f"/courses/{course_for_seats}/claim",
+        "/courses/claim",
         json={"enrolment_id": str(uuid4())},
         headers={
             "Content-Type": "application/json",

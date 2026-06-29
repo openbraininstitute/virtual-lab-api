@@ -121,13 +121,12 @@ async def void_course_endpoint(
 
 
 @router.post(
-    "/{course_id}/claim",
+    "/claim",
     operation_id="claim_enrolment",
     summary="Claim an enrolment — validates the link and records who claimed it",
     response_model=VliAppResponse[ClaimEnrolmentOut],
 )
 async def claim_enrolment_endpoint(
-    course_id: UUID4,
     payload: ClaimEnrolmentBody,
     auth: tuple[AuthUserGrants, str] = Depends(parse_auth_grants),
     session: AsyncSession = Depends(default_session_factory),
@@ -135,7 +134,6 @@ async def claim_enrolment_endpoint(
     user, _ = auth
     enrolment = await usecases.claim_enrolment(
         session,
-        course_id=course_id,
         enrolment_id=payload.enrolment_id,
         user_id=user.id,
     )

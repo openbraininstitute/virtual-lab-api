@@ -15,14 +15,13 @@ from virtual_labs.infrastructure.db.models import CourseEnrolment, CourseStatus
 async def claim_enrolment(
     db: AsyncSession,
     *,
-    course_id: UUID,
     enrolment_id: UUID,
     user_id: UUID,
 ) -> CourseEnrolment:
     """Validate the claim link and set `claimed_by` on the enrolment.
 
     Checks:
-    1. Enrolment exists and belongs to this course.
+    1. Enrolment exists.
     2. Enrolment is not dropped.
     3. Enrolment is not already claimed.
     4. Course is active.
@@ -31,10 +30,7 @@ async def claim_enrolment(
     """
     result = await db.execute(
         select(CourseEnrolment)
-        .where(
-            CourseEnrolment.id == enrolment_id,
-            CourseEnrolment.course_id == course_id,
-        )
+        .where(CourseEnrolment.id == enrolment_id)
         .with_for_update(of=CourseEnrolment)
     )
     enrolment = result.scalar_one_or_none()
@@ -43,7 +39,7 @@ async def claim_enrolment(
         raise VliError(
             error_code=VliErrorCode.ENTITY_NOT_FOUND,
             http_status_code=HTTPStatus.NOT_FOUND,
-            message="Enrolment not found for this course",
+            message="Enrolment not found",
         )
 
     if enrolment.is_dropped:
@@ -82,7 +78,7 @@ async def claim_enrolment(
     await db.refresh(enrolment)
 
     logger.info(
-        f"Enrolment {enrolment_id} claimed by user {user_id} (course={course_id})"
+        f"Enrolment {enrolment_id} claimed by user {user_id} (course={enrolment.course_id})"
     )
 
     return enrolment
