@@ -26,6 +26,7 @@ from virtual_labs.infrastructure.db.models import (
 )
 from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.infrastructure.settings import settings
+from virtual_labs.usecases import accounting as accounting_cases
 from virtual_labs.usecases.labs.get_virtual_lab_or_raise import (
     get_virtual_lab_or_raise,
 )
@@ -70,7 +71,7 @@ async def create_course(
     auth: tuple[AuthUser, str],
 ) -> VliAppResponse[CourseOut]:
     # Validate that the referenced virtual lab and project exist
-    await _validate_virtual_lab(db, payload.virtual_lab_id)
+    vlab = await _validate_virtual_lab(db, payload.virtual_lab_id)
     await _validate_project(db, payload.template_project_id, payload.virtual_lab_id)
 
     db_course = Course(
@@ -104,6 +105,14 @@ async def create_course(
             http_status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
             message="Course creation failed",
         ) from err
+
+    # Post-commit: refresh vlab (now has course relationship) and fund template project
+    await db.refresh(vlab)
+    await accounting_cases.fund_project(
+        virtual_lab_id=vlab.id,
+        project_id=payload.template_project_id,
+        amount=settings.CREDITS_PER_SEAT,
+    )
 
     return VliAppResponse[CourseOut](
         message="Course created successfully",
