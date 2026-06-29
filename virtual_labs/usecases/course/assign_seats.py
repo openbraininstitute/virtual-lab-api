@@ -238,18 +238,19 @@ async def assign_seats(
 
     for seat, student, seat_id in zip(seats, students, seat_ids):
         try:
-            result = await _assign_seat(
-                db,
-                virtual_lab_id=virtual_lab_id,
-                course_id=course_id,
-                student_email=student.email,
-                student_id=student.student_id,
-                seat=seat,
-                payload=ProjectCreationBody(
-                    name=student.student_id,
-                ),
-                auth=auth,
-            )
+            async with db.begin_nested():
+                result = await _assign_seat(
+                    db,
+                    virtual_lab_id=virtual_lab_id,
+                    course_id=course_id,
+                    student_email=student.email,
+                    student_id=student.student_id,
+                    seat=seat,
+                    payload=ProjectCreationBody(
+                        name=student.student_id,
+                    ),
+                    auth=auth,
+                )
 
             results.append(result)
         except Exception as ex:  # noqa: BLE001
