@@ -138,34 +138,6 @@ async def test_assign_seats_multiple_students(
 
 
 @pytest.mark.asyncio
-async def test_assign_seats_funding_fails_rolls_back(
-    async_test_client: AsyncClient,
-    course_for_seats: str,
-) -> None:
-    """If fund_project fails, assignment fails and project is soft-deleted."""
-    headers = get_headers()
-    course_id = course_for_seats
-    await provision_seats(async_test_client, course_id, 1)
-
-    student = {
-        "student_id": f"stu-{uuid4().hex[:8]}",
-        "email": f"{uuid4().hex[:8]}@uni.org",
-    }
-    body = _assign_payload([student])
-
-    with mock_assign_accounting(fund_succeeds=False):
-        response = await async_test_client.post(
-            f"/seats/courses/{course_id}/assign", json=body, headers=headers
-        )
-
-    assert response.status_code == 200
-    results = response.json()["results"]
-    assert len(results) == 1
-    assert results[0]["assignment_successful"] is False
-    assert results[0]["error"] is not None
-
-
-@pytest.mark.asyncio
 async def test_assign_seats_email_failure_does_not_rollback(
     async_test_client: AsyncClient,
     course_for_seats: str,

@@ -79,7 +79,7 @@ async def _assign_seat(
     credits_per_seat = virtual_lab.course.credits_per_seat
 
     async with ledger_container() as comp:
-        admin_group, member_group, vlab_admin_users = await ensure_group_creation(
+        admin_group, member_group, _ = await ensure_group_creation(
             vlab_admin_group_id=vlab_admin_group_id,
             vlab_member_group_id=vlab_member_group_id,
             virtual_lab_id=virtual_lab_id,
