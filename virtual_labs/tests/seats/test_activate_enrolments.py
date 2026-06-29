@@ -57,7 +57,7 @@ async def _assign_and_claim(
 
     # Claim the enrolment
     claim_resp = await client.post(
-        f"/courses/{course_id}/claim",
+        "/courses/claim",
         json={"enrolment_id": enrolment_id},
         headers=get_headers(claim_user),
     )
