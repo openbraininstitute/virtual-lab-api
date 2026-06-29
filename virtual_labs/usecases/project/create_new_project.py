@@ -407,6 +407,7 @@ async def create_new_project_use_case(
     payload: ProjectCreationBody,
     auth: tuple[AuthUserGrants, str],
     expand: list[ProjectCreateExpand] | None = None,
+    seed_budget: bool = True,
 ) -> ProjectCreateOut:
     user_id = auth[0].id
     requested = set(expand or [])
@@ -474,7 +475,7 @@ async def create_new_project_use_case(
         )
 
     # post-commit
-    if not is_course_vlab:
+    if not is_course_vlab and seed_budget:
         await seed_initial_project_budget(
             virtual_lab_id=virtual_lab_id,
             project_id=project_draft_id,
