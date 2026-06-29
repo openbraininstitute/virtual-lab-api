@@ -124,7 +124,7 @@ class SeatDropResult(BaseModel):
     """Result for a single seat drop attempt."""
 
     seat_id: UUID4
-    drop_successful: bool
+    is_dropped: bool
     error: str | None = None
 
 

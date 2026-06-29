@@ -2,7 +2,7 @@
 
 from fastapi_mail import FastMail, MessageSchema, MessageType
 from loguru import logger
-from pydantic import UUID4, BaseModel, NameEmail
+from pydantic import UUID4, BaseModel, EmailStr, NameEmail
 
 from virtual_labs.core.exceptions.email_error import EmailError
 from virtual_labs.infrastructure.email.config import email_config
@@ -10,7 +10,7 @@ from virtual_labs.infrastructure.settings import settings
 
 
 class EnrolmentClaimEmailDetails(BaseModel):
-    recipient_email: str
+    recipient_email: EmailStr
     enrolment_id: UUID4
     course_name: str
 

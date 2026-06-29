@@ -72,7 +72,7 @@ async def drop_seats(
             results.append(
                 SeatDropResult(
                     seat_id=seat_id,
-                    drop_successful=False,
+                    is_dropped=False,
                     error="Seat not found in this course",
                 )
             )
@@ -81,7 +81,7 @@ async def drop_seats(
             results.append(
                 SeatDropResult(
                     seat_id=seat_id,
-                    drop_successful=False,
+                    is_dropped=False,
                     error="Seat has no enrolment",
                 )
             )
@@ -90,7 +90,7 @@ async def drop_seats(
             results.append(
                 SeatDropResult(
                     seat_id=seat_id,
-                    drop_successful=False,
+                    is_dropped=False,
                     error="Enrolment is already dropped",
                 )
             )
@@ -104,20 +104,18 @@ async def drop_seats(
         course_obj: Course | None = await db.get(Course, course_id)
         if seat is None or enrolment is None or course_obj is None:
             results.append(
-                SeatDropResult(
-                    seat_id=seat_id, drop_successful=False, error="Not found"
-                )
+                SeatDropResult(seat_id=seat_id, is_dropped=False, error="Not found")
             )
             continue
         try:
             await _drop_single_seat(
                 db, seat=seat, enrolment=enrolment, course=course_obj
             )
-            results.append(SeatDropResult(seat_id=seat_id, drop_successful=True))
+            results.append(SeatDropResult(seat_id=seat_id, is_dropped=True))
         except Exception as ex:  # noqa: BLE001
             logger.error(f"Failed to drop seat {seat_id}: {ex}")
             results.append(
-                SeatDropResult(seat_id=seat_id, drop_successful=False, error=str(ex))
+                SeatDropResult(seat_id=seat_id, is_dropped=False, error=str(ex))
             )
 
     return results

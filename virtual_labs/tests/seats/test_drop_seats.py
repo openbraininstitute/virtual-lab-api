@@ -171,7 +171,7 @@ async def test_drop_seats_nonexistent_seat_returns_error_in_results(
     assert response.status_code == 200
     results = response.json()["results"]
     assert len(results) == 1
-    assert results[0]["drop_successful"] is False
+    assert results[0]["is_dropped"] is False
     assert "not found" in results[0]["error"].lower()
 
 
@@ -215,7 +215,7 @@ async def test_drop_seats_success(
     results = drop_resp.json()["results"]
     assert len(results) == 1
     assert results[0]["seat_id"] == seat_id
-    assert results[0]["drop_successful"] is True
+    assert results[0]["is_dropped"] is True
     assert results[0]["error"] is None
 
 
@@ -263,7 +263,7 @@ async def test_drop_seats_post_activation(
     assert drop_resp.status_code == 200
     results = drop_resp.json()["results"]
     assert len(results) == 1
-    assert results[0]["drop_successful"] is True
+    assert results[0]["is_dropped"] is True
 
     mock_clear_groups.assert_awaited_once()
     mock_deplete.assert_awaited_once()
@@ -310,7 +310,7 @@ async def test_drop_seats_post_activation_kc_failure(
     assert drop_resp.status_code == 200
     results = drop_resp.json()["results"]
     assert len(results) == 1
-    assert results[0]["drop_successful"] is False
+    assert results[0]["is_dropped"] is False
     assert results[0]["error"] is not None
 
 
@@ -340,7 +340,7 @@ async def test_drop_seats_unassigned_seat(
     assert drop_resp.status_code == 200
     results = drop_resp.json()["results"]
     assert len(results) == 1
-    assert results[0]["drop_successful"] is False
+    assert results[0]["is_dropped"] is False
     assert "no enrolment" in results[0]["error"].lower()
 
 
@@ -376,7 +376,7 @@ async def test_drop_seats_already_dropped(
             headers=headers,
         )
     assert drop_resp.status_code == 200
-    assert drop_resp.json()["results"][0]["drop_successful"] is True
+    assert drop_resp.json()["results"][0]["is_dropped"] is True
 
     # Drop it again — seat now has no enrolment (recycled)
     drop_resp2 = await async_test_client.post(
@@ -387,7 +387,7 @@ async def test_drop_seats_already_dropped(
     assert drop_resp2.status_code == 200
     results = drop_resp2.json()["results"]
     assert len(results) == 1
-    assert results[0]["drop_successful"] is False
+    assert results[0]["is_dropped"] is False
     assert "no enrolment" in results[0]["error"].lower()
 
 
@@ -430,7 +430,7 @@ async def test_drop_multiple_seats_success(
     results = drop_resp.json()["results"]
     assert len(results) == 3
     for r in results:
-        assert r["drop_successful"] is True
+        assert r["is_dropped"] is True
         assert r["error"] is None
 
 
@@ -484,10 +484,10 @@ async def test_drop_seats_mixed_valid_and_invalid(
 
     result_map = {r["seat_id"]: r for r in results}
 
-    assert result_map[assigned_seat_id]["drop_successful"] is True
-    assert result_map[unassigned_seat_id]["drop_successful"] is False
+    assert result_map[assigned_seat_id]["is_dropped"] is True
+    assert result_map[unassigned_seat_id]["is_dropped"] is False
     assert "no enrolment" in result_map[unassigned_seat_id]["error"].lower()
-    assert result_map[nonexistent_seat_id]["drop_successful"] is False
+    assert result_map[nonexistent_seat_id]["is_dropped"] is False
     assert "not found" in result_map[nonexistent_seat_id]["error"].lower()
 
 
@@ -534,7 +534,7 @@ async def test_drop_seats_low_balance_consumes_seat(
         )
 
     assert drop_resp.status_code == 200
-    assert drop_resp.json()["results"][0]["drop_successful"] is True
+    assert drop_resp.json()["results"][0]["is_dropped"] is True
 
     # Verify seat is consumed (not available for reassignment)
     list_resp = await async_test_client.get(
@@ -578,7 +578,7 @@ async def test_drop_seats_previously_dropped_consumes_seat(
             headers=headers,
         )
     assert drop_resp.status_code == 200
-    assert drop_resp.json()["results"][0]["drop_successful"] is True
+    assert drop_resp.json()["results"][0]["is_dropped"] is True
 
     # Verify seat is NOT consumed (released for reassignment)
     list_resp = await async_test_client.get(
@@ -614,7 +614,7 @@ async def test_drop_seats_previously_dropped_consumes_seat(
             headers=headers,
         )
     assert drop_resp2.status_code == 200
-    assert drop_resp2.json()["results"][0]["drop_successful"] is True
+    assert drop_resp2.json()["results"][0]["is_dropped"] is True
 
     # Verify seat is now consumed
     list_resp2 = await async_test_client.get(
