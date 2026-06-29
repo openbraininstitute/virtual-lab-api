@@ -2,21 +2,21 @@
 
 from datetime import datetime, timezone
 from http import HTTPStatus
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from loguru import logger
-from sqlalchemy import select, update
+from pydantic import UUID4
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
+from virtual_labs.core.ledger import ledger_container
 from virtual_labs.domain.course import SeatAssignmentEntry, SeatAssignmentResult
 from virtual_labs.domain.project import ProjectCreationBody
-from virtual_labs.infrastructure.db.config import session_pool
 from virtual_labs.infrastructure.db.models import (
     Course,
     CourseEnrolment,
     CourseStatus,
-    Project,
     Seat,
 )
 from virtual_labs.infrastructure.email.send_enrolment_claim_email import (
@@ -25,7 +25,118 @@ from virtual_labs.infrastructure.email.send_enrolment_claim_email import (
 )
 from virtual_labs.infrastructure.kc.grant import AuthUserGrants
 from virtual_labs.usecases import accounting as accounting_cases
-from virtual_labs.usecases.project.create_new_project import create_new_project_use_case
+from virtual_labs.usecases.project.create_new_project import (
+    _make_deplete_compensation,
+    create_project_record,
+    ensure_accounting_initialization,
+    ensure_group_creation,
+    ensure_unique_name_within_virtual_lab,
+    ensure_virtual_lab_exists,
+)
+
+
+async def _assign_seat(
+    session: AsyncSession,
+    *,
+    virtual_lab_id: UUID4,
+    course_id: UUID4,
+    student_email: str,
+    student_id: str,
+    seat: Seat,
+    payload: ProjectCreationBody,
+    auth: tuple[AuthUserGrants, str],
+) -> SeatAssignmentResult:
+    """Assign a single seat to a student.
+
+    Orchestrates the full seat-assignment flow for one student:
+    1. Creates a dedicated project inside the virtual lab.
+    2. Initialises the project's accounting ledger.
+    3. Funds the project with the course's credits_per_seat.
+    4. Creates a CourseEnrolment record linking the student to the project.
+    5. Links the seat to the enrolment.
+
+    All steps run inside a compensation ledger; if any step fails, previous
+    side-effects (KC groups, accounting top-up) are automatically rolled back.
+    """
+    user_id = auth[0].id
+    await ensure_unique_name_within_virtual_lab(
+        session,
+        virtual_lab_id=virtual_lab_id,
+        project_name=payload.name,
+    )
+
+    virtual_lab = await ensure_virtual_lab_exists(
+        session,
+        virtual_lab_id=virtual_lab_id,
+    )
+    project_draft_id: UUID4 = uuid4()
+
+    vlab_admin_group_id = str(virtual_lab.admin_group_id)
+    vlab_member_group_id = str(virtual_lab.member_group_id)
+    await session.refresh(virtual_lab, ["course"])
+    is_course_vlab = bool(virtual_lab.course)
+    assert is_course_vlab
+    credits_per_seat = virtual_lab.course.credits_per_seat
+
+    async with ledger_container() as comp:
+        admin_group, member_group, vlab_admin_users = await ensure_group_creation(
+            vlab_admin_group_id=vlab_admin_group_id,
+            vlab_member_group_id=vlab_member_group_id,
+            virtual_lab_id=virtual_lab_id,
+            project_id=project_draft_id,
+            user_id=user_id,
+            comp=comp,
+        )
+
+        await ensure_accounting_initialization(
+            virtual_lab_id=virtual_lab_id,
+            project_id=project_draft_id,
+            project_name=payload.name,
+            comp=comp,
+        )
+
+        await create_project_record(
+            session,
+            project_id=project_draft_id,
+            virtual_lab_id=virtual_lab_id,
+            payload=payload,
+            admin_group=admin_group,
+            member_group=member_group,
+            user_id=user_id,
+            commit=False,
+        )
+
+        funded = await accounting_cases.fund_project(
+            virtual_lab_id=virtual_lab_id,
+            project_id=project_draft_id,
+            amount=float(credits_per_seat),
+        )
+        if not funded:
+            raise RuntimeError("Failed to fund project")
+
+        comp.push(_make_deplete_compensation(virtual_lab_id, project_draft_id))
+
+        enrolment = CourseEnrolment(
+            course_id=course_id,
+            contact_email=student_email,
+            student_id=student_id,
+            project_id=project_draft_id,
+        )
+        session.add(enrolment)
+        await session.flush()
+
+        enrolment_id = enrolment.id
+        seat.enrolment_id = enrolment_id
+
+        return SeatAssignmentResult(
+            student_id=student_id,
+            email=student_email,
+            assignment_successful=True,
+            seat_id=seat.id,
+            enrolment_id=enrolment_id,
+            project_id=project_draft_id,
+            credit_transferred_amount=float(credits_per_seat),
+        )
 
 
 async def get_available_seats(
@@ -120,92 +231,29 @@ async def assign_seats(
     course_id = course.id
     virtual_lab_id = course.virtual_lab_id
     course_name = course.virtual_lab.name
-    credit_per_seat = float(course.credits_per_seat)
     seat_ids = [s.id for s in seats]
 
     # Create projects, enrolments, and assign seats.
-    # create_new_project_use_case issues a session.rollback() internally,
-    # so we process each student individually.
     results: list[SeatAssignmentResult] = []
 
     for seat, student, seat_id in zip(seats, students, seat_ids):
-        project_id = None
         try:
-            # Use a dedicated session for project creation so the rollback
-            # inside create_new_project_use_case doesn't release the FOR UPDATE
-            # locks held by the outer session on the seats.
-            async with session_pool.session() as project_session:
-                project_out = await create_new_project_use_case(
-                    project_session,
-                    virtual_lab_id=virtual_lab_id,
-                    payload=ProjectCreationBody(
-                        name=student.student_id,
-                    ),
-                    auth=auth,
-                )
-            project_id = project_out.id
-
-            # Fund the project — must succeed before we assign the seat
-            funded = await accounting_cases.fund_project(
+            result = await _assign_seat(
+                db,
                 virtual_lab_id=virtual_lab_id,
-                project_id=project_id,
-                amount=credit_per_seat,
+                course_id=course_id,
+                student_email=student.email,
+                student_id=student.student_id,
+                seat=seat,
+                payload=ProjectCreationBody(
+                    name=student.student_id,
+                ),
+                auth=auth,
             )
-            if not funded:
-                raise RuntimeError("Failed to fund project")
 
-            # Use a savepoint so a failure only rolls back this student's
-            # DB writes without releasing the FOR UPDATE locks or losing
-            # previously successful assignments.
-            async with db.begin_nested():
-                # Create enrolment linked to the project
-                enrolment = CourseEnrolment(
-                    course_id=course_id,
-                    contact_email=student.email,
-                    student_id=student.student_id,
-                    project_id=project_id,
-                )
-                db.add(enrolment)
-                await db.flush()
-
-                # Capture the generated id before it gets expired
-                enrolment_id = enrolment.id
-
-                # Link seat to enrolment
-                seat.enrolment_id = enrolment_id
-
-            results.append(
-                SeatAssignmentResult(
-                    student_id=student.student_id,
-                    email=student.email,
-                    assignment_successful=True,
-                    seat_id=seat_id,
-                    enrolment_id=enrolment_id,
-                    project_id=project_id,
-                    credit_transferred_amount=credit_per_seat,
-                )
-            )
+            results.append(result)
         except Exception as ex:  # noqa: BLE001
             logger.error(f"Failed to assign seat for {student.student_id}: {ex}")
-            # Soft-delete the orphan project if it was already created.
-            # Use a separate session to avoid interfering with the outer
-            # transaction's locks.
-            if project_id is not None:
-                try:
-                    async with session_pool.session() as cleanup_session:
-                        await cleanup_session.execute(
-                            update(Project)
-                            .where(Project.id == project_id)
-                            .values(deleted=True)
-                        )
-                        await cleanup_session.commit()
-                    logger.info(
-                        f"Soft-deleted orphan project {project_id} for {student.student_id}"
-                    )
-                except Exception as cleanup_ex:  # noqa: BLE001
-                    logger.error(
-                        f"Failed to soft-delete orphan project {project_id}: {cleanup_ex}"
-                    )
             results.append(
                 SeatAssignmentResult(
                     student_id=student.student_id,

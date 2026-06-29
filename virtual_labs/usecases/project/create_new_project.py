@@ -26,7 +26,10 @@ from virtual_labs.domain.project import (
     ProjectCreateOut,
     ProjectCreationBody,
 )
-from virtual_labs.infrastructure.db.models import Project, VirtualLab
+from virtual_labs.infrastructure.db.models import (
+    Project,
+    VirtualLab,
+)
 from virtual_labs.infrastructure.kc.config import KeycloakRealm
 from virtual_labs.infrastructure.kc.grant import AuthUserGrants
 from virtual_labs.infrastructure.kc.models import (
@@ -64,6 +67,18 @@ def _log_orphan_project_account(
         logger.warning(
             f"Orphan accounting project account for vlab {virtual_lab_id} "
             f"project {project_id}; no delete endpoint — reconcile manually."
+        )
+
+    return _undo
+
+
+def _make_deplete_compensation(
+    virtual_lab_id: UUID4, project_id: UUID4
+) -> Callable[[], Awaitable[None]]:
+    async def _undo() -> None:
+        await accounting_cases.deplete_project_budget(
+            virtual_lab_id=virtual_lab_id,
+            project_id=project_id,
         )
 
     return _undo
@@ -305,24 +320,27 @@ async def create_project_record(
     admin_group: CreatedGroup,
     member_group: CreatedGroup,
     user_id: UUID,
+    commit: bool = True,
 ) -> dict[str, object]:
     try:
-        async with session.begin():
-            project = Project(
-                id=project_id,
-                name=payload.name,
-                description=payload.description,
-                virtual_lab_id=virtual_lab_id,
-                admin_group_id=admin_group["id"],
-                member_group_id=member_group["id"],
-                owner_id=user_id,
-            )
-            session.add(project)
-            await session.flush()
-            return {
-                **ProjectSchema.model_validate(project).model_dump(),
-                "virtual_lab_id": virtual_lab_id,
-            }
+        project = Project(
+            id=project_id,
+            name=payload.name,
+            description=payload.description,
+            virtual_lab_id=virtual_lab_id,
+            admin_group_id=admin_group["id"],
+            member_group_id=member_group["id"],
+            owner_id=user_id,
+        )
+        session.add(project)
+        await session.flush()
+        result = {
+            **ProjectSchema.model_validate(project).model_dump(),
+            "virtual_lab_id": virtual_lab_id,
+        }
+        if commit:
+            await session.commit()
+        return result
     except IntegrityError:
         raise VliError(
             error_code=VliErrorCode.ENTITY_ALREADY_EXISTS,
@@ -419,6 +437,7 @@ async def create_new_project_use_case(
     # Resolve the course relationship before rollback expires the instance
     await session.refresh(virtual_lab, ["course"])
     is_course_vlab = bool(virtual_lab.course)
+    assert not is_course_vlab
 
     # release the read-only transaction held by the pre-checks above before
     # opening the write transaction inside `create_project_record`, we roll
@@ -455,13 +474,11 @@ async def create_new_project_use_case(
             user_id=user_id,
         )
 
-    # post-commit
-    if not is_course_vlab:
-        await seed_initial_project_budget(
-            virtual_lab_id=virtual_lab_id,
-            project_id=project_draft_id,
-            owned_count=owned_count,
-        )
+    await seed_initial_project_budget(
+        virtual_lab_id=virtual_lab_id,
+        project_id=project_draft_id,
+        owned_count=owned_count,
+    )
 
     project_admins = list({*(vlab_admin_users or []), str(user_id)})
 
