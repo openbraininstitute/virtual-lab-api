@@ -3,7 +3,10 @@ from decimal import Decimal
 from typing import Generic, Self, TypeVar
 from uuid import UUID
 
-from obp_accounting_sdk.constants import ServiceSubtype, ServiceType  # type: ignore[import-untyped]
+from obp_accounting_sdk.constants import (  # type: ignore[import-untyped]
+    ServiceSubtype,
+    ServiceType,
+)
 from pydantic import (
     UUID4,
     AwareDatetime,
@@ -63,6 +66,10 @@ class BudgetTopUpResponse(BaseAccountingResponse):
     data: None
 
 
+class BudgetTopUpRequest(BaseModel):
+    amount: float
+
+
 class BudgetAssignRequest(BaseModel):
     amount: float
 
@@ -81,6 +88,26 @@ class BudgetReverseResponse(BaseAccountingResponse):
 
 class BudgetMoveResponse(BaseAccountingResponse):
     data: None
+
+
+class BudgetGrantResponse(BaseAccountingResponse):
+    data: None
+
+
+class BudgetDepleteProjectData(BaseModel):
+    total_amount: str
+
+
+class BudgetDepleteProjectResponse(BaseAccountingResponse):
+    data: BudgetDepleteProjectData
+
+
+class BudgetDepleteVlabData(BaseModel):
+    total_amount: str
+
+
+class BudgetDepleteVlabResponse(BaseAccountingResponse):
+    data: BudgetDepleteVlabData
 
 
 # TODO: Update according to the STORAGE report type

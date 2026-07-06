@@ -11,6 +11,9 @@ from virtual_labs.core.exceptions.accounting_error import (
 )
 from virtual_labs.external.accounting.models import (
     BudgetAssignResponse,
+    BudgetDepleteProjectResponse,
+    BudgetDepleteVlabResponse,
+    BudgetGrantResponse,
     BudgetMoveResponse,
     BudgetReverseResponse,
     BudgetTopUpResponse,
@@ -193,4 +196,105 @@ class BudgetInterface:
             raise AccountingError(
                 message=f"Could not move project budget. Exception: {error}",
                 type=AccountingErrorValue.MOVE_PROJECT_BUDGET_ERROR,
+            )
+
+    async def grant(
+        self,
+        project_id: UUID4,
+        amount: float,
+    ) -> BudgetGrantResponse:
+        """Top-up and assign budget to a project in one transaction."""
+        try:
+            response = await self.httpx_client.post(
+                f"{self._api_url}/grant",
+                headers=self.headers,
+                json={
+                    "proj_id": str(project_id),
+                    "amount": amount,
+                },
+            )
+            response.raise_for_status()
+            return BudgetGrantResponse.model_validate(response.json())
+        except HTTPStatusError as error:
+            upstream = _response_message(error.response)
+            logger.error(
+                f"HTTP Error when granting project budget. Error {error}. "
+                f"Accounting message: {upstream}"
+            )
+            raise AccountingError(
+                message=upstream or "Could not grant project budget",
+                type=AccountingErrorValue.FUND_PROJECT_ERROR,
+                http_status_code=HTTPStatus(error.response.status_code),
+            )
+        except Exception as error:
+            logger.error(f"Could not grant project budget. Exception: {error}")
+            raise AccountingError(
+                message=f"Could not grant project budget. Exception: {error}",
+                type=AccountingErrorValue.FUND_PROJECT_ERROR,
+            )
+
+    async def deplete_project(
+        self,
+        project_id: UUID4,
+    ) -> BudgetDepleteProjectResponse:
+        """Deplete all credits from a project."""
+        try:
+            response = await self.httpx_client.post(
+                f"{self._api_url}/deplete/project",
+                headers=self.headers,
+                json={
+                    "proj_id": str(project_id),
+                },
+            )
+            response.raise_for_status()
+            return BudgetDepleteProjectResponse.model_validate(response.json())
+        except HTTPStatusError as error:
+            upstream = _response_message(error.response)
+            logger.error(
+                f"HTTP Error when depleting project budget. Error {error}. "
+                f"Accounting message: {upstream}"
+            )
+            raise AccountingError(
+                message=upstream or "Could not deplete project budget",
+                type=AccountingErrorValue.DEPLETE_PROJECT_BUDGET_ERROR,
+                http_status_code=HTTPStatus(error.response.status_code),
+            )
+        except Exception as error:
+            logger.error(f"Could not deplete project budget. Exception: {error}")
+            raise AccountingError(
+                message=f"Could not deplete project budget. Exception: {error}",
+                type=AccountingErrorValue.DEPLETE_PROJECT_BUDGET_ERROR,
+            )
+
+    async def deplete_virtual_lab(
+        self,
+        virtual_lab_id: UUID4,
+    ) -> BudgetDepleteVlabResponse:
+        """Deplete all credits from all projects and the virtual lab."""
+        try:
+            response = await self.httpx_client.post(
+                f"{self._api_url}/deplete/virtual-lab",
+                headers=self.headers,
+                json={
+                    "vlab_id": str(virtual_lab_id),
+                },
+            )
+            response.raise_for_status()
+            return BudgetDepleteVlabResponse.model_validate(response.json())
+        except HTTPStatusError as error:
+            upstream = _response_message(error.response)
+            logger.error(
+                f"HTTP Error when depleting virtual lab budget. Error {error}. "
+                f"Accounting message: {upstream}"
+            )
+            raise AccountingError(
+                message=upstream or "Could not deplete virtual lab budget",
+                type=AccountingErrorValue.DEPLETE_VLAB_BUDGET_ERROR,
+                http_status_code=HTTPStatus(error.response.status_code),
+            )
+        except Exception as error:
+            logger.error(f"Could not deplete virtual lab budget. Exception: {error}")
+            raise AccountingError(
+                message=f"Could not deplete virtual lab budget. Exception: {error}",
+                type=AccountingErrorValue.DEPLETE_VLAB_BUDGET_ERROR,
             )

@@ -8,7 +8,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.domain.labs import (
-    Course,
     VirtualLabDetailExpand,
     VirtualLabWithAdmins,
 )
@@ -52,10 +51,6 @@ async def get_virtual_lab(
         return VirtualLabWithAdmins.model_validate(virtual_lab).model_copy(
             update={
                 "created_by": virtual_lab.created_by,
-                "course": Course(
-                    template_project_id=virtual_lab.course_template_project_id,
-                    is_initialized=virtual_lab.is_course_initialized,
-                ),
                 "admins": admins,
                 "owner": owner,
             }

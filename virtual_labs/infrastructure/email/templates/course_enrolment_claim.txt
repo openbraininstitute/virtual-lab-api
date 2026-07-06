@@ -1,0 +1,23 @@
+Course Enrolment — Open Brain Platform
+
+You've been enrolled in a course on the Open Brain Platform.
+
+Course: {{course_name}}
+
+Click the link below to claim your seat and get started:
+{{claim_link}}
+
+This link expires in 7 days. If you did not expect this email, you can safely ignore it.
+
+---
+
+What is Open Brain Institute?
+
+OBI is the next generation platform that connects explorative features
+with a powerful set of model-building tools for conducting simulation
+experiments. From ion channel to whole-brain modeling, OBI supports
+neuroscientists in their research efforts. Explore, collect, and use
+real biological data to digitally simulate neurons.
+
+To discover more, visit:
+{{discover_link}}

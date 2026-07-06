@@ -18,13 +18,16 @@ from virtual_labs.infrastructure.db.config import session_pool
 from virtual_labs.infrastructure.db.models import (
     BillingQuote,
     Bookmark,
+    Course,
     FreeSubscription,
+    Institution,
     PaidSubscription,
     PaymentMethod,
     Project,
     ProjectInvite,
     ProjectStar,
     PromotionCodeUsage,
+    Seat,
     Subscription,
     SubscriptionPayment,
     SubscriptionStatus,
@@ -223,6 +226,20 @@ async def cleanup_resources(
                 delete(UserPreference).where(UserPreference.project_id == project_id)
             )
 
+        # Delete seats before course (seat has FK to course)
+        await session.execute(
+            statement=delete(Seat).where(
+                Seat.course_id.in_(
+                    select(Course.id).where(Course.virtual_lab_id == lab_id)
+                )
+            )
+        )
+
+        # Delete course before projects (course has FK to project via template_project_id)
+        await session.execute(
+            statement=delete(Course).where(Course.virtual_lab_id == lab_id)
+        )
+
         for project_id in project_ids:
             await session.execute(
                 statement=delete(ProjectInvite).where(
@@ -407,3 +424,33 @@ async def get_user_id_from_test_auth(auth_header: str) -> UUID:
         token=auth_header.replace("Bearer ", ""), validate=False
     )
     return UUID(auth_user["sub"])
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Shared course/institution helpers
+# ──────────────────────────────────────────────────────────────────────
+
+
+async def cleanup_course(course_id: str) -> None:
+    async with session_context_factory() as session:
+        await session.execute(delete(Course).where(Course.id == UUID(course_id)))
+        await session.commit()
+
+
+async def get_or_create_institution() -> str:
+    """Return the ID of the 'Open Brain Institute' institution, creating it if needed."""
+    async with session_context_factory() as session:
+        result = await session.scalar(
+            select(Institution.id).where(Institution.name == "Open Brain Institute")
+        )
+        if result:
+            return str(result)
+
+        institution = Institution(
+            name="Open Brain Institute",
+            contact_email="obi-virtual-lab@openbraininstitute.org",
+        )
+        session.add(institution)
+        await session.commit()
+        await session.refresh(institution)
+        return str(institution.id)

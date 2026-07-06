@@ -24,7 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import ColumnElement
 
 from virtual_labs.domain.common import PaginationRequest
-from virtual_labs.domain.labs import Course, VirtualLabDetails
+from virtual_labs.domain.labs import VirtualLabDetails
 from virtual_labs.infrastructure.db.models import Project, VirtualLab
 
 
@@ -39,10 +39,6 @@ async def enrich_vlab(
     return VirtualLabDetails.model_validate(vlab).model_copy(
         update={
             "projects_count": projects_count,
-            "course": Course(
-                template_project_id=vlab.course_template_project_id,
-                is_initialized=vlab.is_course_initialized,
-            ),
         },
     )
 

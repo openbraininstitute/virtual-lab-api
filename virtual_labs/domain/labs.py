@@ -1,8 +1,9 @@
 from datetime import datetime
 from enum import Enum, StrEnum, auto
-from typing import Generic, TypeVar
+from typing import Generic, Optional, TypeVar
 
 from pydantic import UUID4, BaseModel, ConfigDict, EmailStr, Field, JsonValue
+from pydantic.functional_serializers import model_serializer
 
 from virtual_labs.domain.user import ShortenedUser, UserWithInviteStatus
 
@@ -21,9 +22,17 @@ class LabResponse(BaseModel, Generic[T]):
     data: T
 
 
-class Course(BaseModel):
-    template_project_id: UUID4 | None = None
-    is_initialized: bool = False
+class CourseDetails(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID4
+    virtual_lab_id: UUID4
+    template_project_id: UUID4
+    institution_id: Optional[UUID4] = None
+    credits_per_seat: int
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    last_drop_date: Optional[datetime] = None
 
 
 class VirtualLabBase(BaseModel):
@@ -40,7 +49,6 @@ class VirtualLabUpdate(BaseModel):
     description: str | None = None
     reference_email: EmailStr | None = None
     entity: str | None = None
-    course: Course | None = None
 
 
 class VirtualLabComputeCellUpdate(BaseModel):
@@ -65,7 +73,7 @@ class VirtualLabDetails(VirtualLabBase):
     created_at: datetime
     updated_at: datetime | None = None
     projects_count: int | None = None
-    course: Course | None = None
+    course: CourseDetails | None = None
 
 
 class VirtualLab(VirtualLabBase):
@@ -79,7 +87,7 @@ class VirtualLab(VirtualLabBase):
     projects_count: int | None = None
     created_by: UUID4
     email_verified: bool
-    course: Course | None = None
+    course: CourseDetails | None = None
 
 
 class VirtualLabWithInviteDetails(VirtualLabDetails):
@@ -123,6 +131,15 @@ class VirtualLabWithAdmins(VirtualLab):
     admins: list[UUID4] | None = None
     owner: ShortenedUser | None = None
 
+    @model_serializer(mode="wrap")
+    def _serialize(self, handler):
+        data = handler(self)
+        if data.get("admins") is None:
+            data.pop("admins", None)
+        if data.get("owner") is None:
+            data.pop("owner", None)
+        return data
+
 
 class VirtualLabDetailExpand(StrEnum):
     admins = auto()
@@ -130,7 +147,7 @@ class VirtualLabDetailExpand(StrEnum):
 
 
 class VirtualLabCreate(VirtualLabBase):
-    course: Course | None = None
+    is_course: bool = False
 
 
 class CreateLabOut(BaseModel):

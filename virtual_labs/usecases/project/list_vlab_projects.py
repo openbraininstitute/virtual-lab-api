@@ -65,7 +65,11 @@ def _build_order_clauses(
     if order_by is WorkspaceOrderBy.OWNER:
         owner_expr = case((ProjectModel.owner_id == user_id, 0), else_=1)
         primary = owner_expr.asc() if asc else owner_expr.desc()
-        return primary, ProjectModel.updated_at.desc(), ProjectModel.created_at.desc()
+        return (
+            primary,
+            ProjectModel.updated_at.desc(),
+            ProjectModel.created_at.desc(),
+        )
 
     if order_by is WorkspaceOrderBy.CREATED_AT:
         col = ProjectModel.created_at
@@ -73,10 +77,16 @@ def _build_order_clauses(
 
     if order_by is WorkspaceOrderBy.NAME:
         col = func.lower(ProjectModel.name)
-        return (col.asc() if asc else col.desc(), ProjectModel.updated_at.desc())
+        return (
+            col.asc() if asc else col.desc(),
+            ProjectModel.updated_at.desc(),
+        )
 
     col = ProjectModel.updated_at
-    return (col.asc() if asc else col.desc(), ProjectModel.created_at.desc())
+    return (
+        col.asc() if asc else col.desc(),
+        ProjectModel.created_at.desc(),
+    )
 
 
 async def list_vlab_projects_use_case(

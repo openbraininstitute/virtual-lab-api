@@ -224,6 +224,7 @@ async def create_new_project(
     virtual_lab_id: UUID4,
     payload: ProjectCreationBody,
     expand: Annotated[list[ProjectCreateExpand] | None, Query()] = None,
+    seed_budget: bool = True,
     session: AsyncSession = Depends(default_session_factory),
     auth: tuple[AuthUserGrants, str] = Depends(parse_auth_grants),
     _: AuthUserGrants = Depends(virtuallab_admin),
@@ -234,6 +235,7 @@ async def create_new_project(
         payload=payload,
         auth=auth,
         expand=expand,
+        seed_budget=seed_budget,
     )
 
 

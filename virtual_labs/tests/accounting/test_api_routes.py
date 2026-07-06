@@ -1,12 +1,15 @@
 from typing import AsyncGenerator
-from unittest.mock import patch
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
 
-from virtual_labs.tests.utils import cleanup_resources, get_headers
+from virtual_labs.tests.utils import (
+    cleanup_resources,
+    get_headers,
+)
 
 
 @pytest_asyncio.fixture
@@ -197,3 +200,154 @@ async def test_reverse_project_budget(
 
         assert response.status_code == 200
         assert response.json() == mock_reverse_response
+
+
+@pytest.fixture
+def vlab_with_course():
+    """Patch get_undeleted_virtual_lab to return a vlab that has a course."""
+    mock_vlab = MagicMock()
+    mock_vlab.course = MagicMock()  # truthy → vlab has a course
+    with patch(
+        "virtual_labs.routes.accounting.get_undeleted_virtual_lab",
+        new_callable=AsyncMock,
+        return_value=mock_vlab,
+    ):
+        yield mock_vlab
+
+
+@pytest.fixture
+def service_admin_auth(vlab_with_course):
+    """Activates vlab_with_course and provides service admin headers."""
+    yield get_headers("test-service-admin")
+
+
+@pytest.mark.asyncio
+async def test_reverse_project_budget_fails_if_vlab_has_course(
+    mock_lab_with_project: tuple[AsyncClient, str, str, dict[str, str]],
+    vlab_with_course,
+) -> None:
+    """Caller IS a vlab admin (owns the lab) but is NOT a service admin.
+    Course restriction must still block the operation."""
+    client, lab_id, project_id, headers = mock_lab_with_project
+
+    response = await client.post(
+        f"/virtual-labs/{lab_id}/projects/{project_id}/accounting/budget/reverse",
+        headers=headers,
+        json={"amount": 500.00},
+    )
+
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_reverse_project_budget_works_if_vlab_has_course_and_caller_is_service_admin(
+    mock_lab_with_project: tuple[AsyncClient, str, str, dict[str, str]],
+    service_admin_auth,
+) -> None:
+    client, lab_id, project_id, _ = mock_lab_with_project
+    headers = service_admin_auth
+
+    mock_reverse_response = {
+        "message": "Reverse budget operation executed",
+        "data": None,
+    }
+
+    with patch(
+        "virtual_labs.usecases.accounting.reverse_project_budget"
+    ) as mock_reverse:
+        mock_reverse.return_value = mock_reverse_response
+
+        response = await client.post(
+            f"/virtual-labs/{lab_id}/projects/{project_id}/accounting/budget/reverse",
+            headers=headers,
+            json={"amount": 500.00},
+        )
+
+        assert response.status_code == 200
+        assert response.json() == mock_reverse_response
+
+
+@pytest.mark.asyncio
+async def test_assign_project_budget_fails_if_vlab_has_course(
+    mock_lab_with_project: tuple[AsyncClient, str, str, dict[str, str]],
+    vlab_with_course,
+) -> None:
+    """Caller IS a vlab admin (owns the lab) but is NOT a service admin.
+    Course restriction must still block the operation."""
+    client, lab_id, project_id, headers = mock_lab_with_project
+
+    response = await client.post(
+        f"/virtual-labs/{lab_id}/projects/{project_id}/accounting/budget/assign",
+        headers=headers,
+        json={"amount": 200.00},
+    )
+
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_assign_project_budget_works_if_vlab_has_course_and_caller_is_service_admin(
+    mock_lab_with_project: tuple[AsyncClient, str, str, dict[str, str]],
+    service_admin_auth,
+) -> None:
+    client, lab_id, project_id, _ = mock_lab_with_project
+    headers = service_admin_auth
+
+    mock_assign_response = {"message": "Assign budget operation executed", "data": None}
+
+    with patch("virtual_labs.usecases.accounting.assign_project_budget") as mock_assign:
+        mock_assign.return_value = mock_assign_response
+
+        response = await client.post(
+            f"/virtual-labs/{lab_id}/projects/{project_id}/accounting/budget/assign",
+            headers=headers,
+            json={"amount": 200.00},
+        )
+
+        assert response.status_code == 200
+        assert response.json() == mock_assign_response
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Top-up endpoint tests
+# ──────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_top_up_virtual_lab_budget_fails_if_not_service_admin(
+    mock_lab_with_project: tuple[AsyncClient, str, str, dict[str, str]],
+) -> None:
+    """Regular vlab admin cannot top up — only service admins can."""
+    client, lab_id, _, headers = mock_lab_with_project
+
+    response = await client.post(
+        f"/virtual-labs/{lab_id}/accounting/budget/top-up",
+        headers=headers,
+        json={"amount": 1000.00},
+    )
+
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_top_up_virtual_lab_budget_works_for_service_admin(
+    mock_lab_with_project: tuple[AsyncClient, str, str, dict[str, str]],
+) -> None:
+    client, lab_id, _, _ = mock_lab_with_project
+    headers = get_headers("test-service-admin")
+
+    mock_top_up_response = {"message": "Top up operation executed", "data": None}
+
+    with patch(
+        "virtual_labs.usecases.accounting.top_up_virtual_lab_budget"
+    ) as mock_top_up:
+        mock_top_up.return_value = mock_top_up_response
+
+        response = await client.post(
+            f"/virtual-labs/{lab_id}/accounting/budget/top-up",
+            headers=headers,
+            json={"amount": 1000.00},
+        )
+
+        assert response.status_code == 200
+        assert response.json() == mock_top_up_response

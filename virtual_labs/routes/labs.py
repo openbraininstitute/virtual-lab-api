@@ -134,7 +134,6 @@ async def search_virtual_lab_by_name(
 @router.get(
     "/{virtual_lab_id}",
     response_model=VirtualLabWithAdmins,
-    response_model_exclude_none=True,
     summary="Get non deleted virtual lab by id",
 )
 @verify_vlab_read
@@ -188,7 +187,7 @@ async def create_virtual_lab(
     session: AsyncSession = Depends(default_session_factory),
     auth: tuple[AuthUserGrants, str] = Depends(parse_auth_grants),
 ) -> VirtualLabDetails:
-    policy = COURSE_LAB_POLICY if lab.course else REGULAR_LAB_POLICY
+    policy = COURSE_LAB_POLICY if lab.is_course else REGULAR_LAB_POLICY
     return await usecases.create_virtual_lab(session, lab, auth, policy=policy)
 
 

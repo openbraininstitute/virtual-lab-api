@@ -7,7 +7,7 @@ KC_REALM_NAME="obp-realm"
 CLIENT_ID="obpapp"
 CLIENT_SECRET="obp-secret"
 
-echo "Enter username (test, test-1 or test-2)"
+echo "Enter username (test, test-1, test-2 or test-service-admin)"
 read  -r fullname
 
 TOKEN_RESPONSE=$(curl -s -X POST \

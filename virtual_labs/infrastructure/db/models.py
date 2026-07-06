@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 from enum import Enum
 from typing import Any, Dict, Literal, Optional, TypedDict
@@ -107,12 +107,8 @@ class VirtualLab(Base):
     invites = relationship("VirtualLabInvite", back_populates="virtual_lab")
     payment_methods = relationship("PaymentMethod", back_populates="virtual_lab")
     payments = relationship("SubscriptionPayment", back_populates="virtual_lab")
-
-    course_template_project_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True)
-    )
-    is_course_initialized: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False
+    course = relationship(
+        "Course", back_populates="virtual_lab", uselist=False, lazy="joined"
     )
 
     __table_args__ = (
@@ -139,7 +135,6 @@ class Project(Base):
     admin_group_id: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     member_group_id: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     owner_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
-    contact_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     name: Mapped[str] = mapped_column(String(250), nullable=False, index=True)
     description: Mapped[str | None] = mapped_column(Text)
     deleted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
@@ -1008,3 +1003,236 @@ class EmailVerification(Base):
         Index("ix_email_verif_user_lab", "user_id", "virtual_lab_id"),
         Index("ix_email_verif_user_email", "user_id", "email", "verified"),
     )
+
+
+class Institution(Base):
+    """
+    Represents an institution entity.
+    """
+
+    __tablename__ = "institution"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    name: Mapped[str] = mapped_column(
+        String(250), nullable=False, unique=True, index=True
+    )
+    contact_email: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+
+class CourseStatus(str, Enum):
+    """Enum representing course lifecycle statuses."""
+
+    DRAFT = "draft"
+    ACTIVE = "active"
+    VOIDED = "voided"
+
+
+class Course(Base):
+    """
+    Represents a course linked to a virtual lab and optionally to an institution.
+
+    Mutability rules:
+    - Draft: fully mutable (fields + status)
+    - Active: immutable fields, can only be voided
+    - Voided: fully immutable
+    """
+
+    __tablename__ = "course"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    virtual_lab_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("virtual_lab.id"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    institution_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("institution.id"), nullable=False, index=True
+    )
+    template_project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("project.id"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    start_date: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    end_date: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, index=True
+    )
+    last_drop_date: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    status: Mapped[CourseStatus] = mapped_column(
+        SAEnum(CourseStatus), nullable=False, default=CourseStatus.DRAFT, index=True
+    )
+    credits_per_seat: Mapped[int] = mapped_column(Integer, nullable=False)
+    budget_depleted: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    virtual_lab = relationship("VirtualLab", back_populates="course", lazy="joined")
+    template_project = relationship("Project")
+    institution = relationship("Institution", lazy="joined")
+
+    def ensure_mutable(self) -> None:
+        """Raise if the course is not in draft status."""
+        if self.status != CourseStatus.DRAFT:
+            raise ValueError("Only draft courses can be modified")
+
+    def void(self) -> None:
+        """Transition to voided. Always allowed (idempotent)."""
+        self.status = CourseStatus.VOIDED
+
+    def activate(self) -> None:
+        """Transition from draft to active. Requires all dates to be set and ordered."""
+
+        self.ensure_mutable()
+        missing = [
+            name
+            for name, value in [
+                ("start_date", self.start_date),
+                ("end_date", self.end_date),
+                ("last_drop_date", self.last_drop_date),
+            ]
+            if value is None
+        ]
+        if missing:
+            raise ValueError(
+                f"Cannot activate: the following fields are not set: {', '.join(missing)}"
+            )
+        assert self.start_date is not None
+        assert self.end_date is not None
+        assert self.last_drop_date is not None
+        if not (self.start_date < self.last_drop_date < self.end_date):
+            raise ValueError(
+                f"Cannot activate: dates must satisfy start_date < last_drop_date < end_date, "
+                f"got {self.start_date} / {self.last_drop_date} / {self.end_date}"
+            )
+        max_drop = self.start_date + timedelta(weeks=2)
+        if self.last_drop_date > max_drop:
+            raise ValueError(
+                f"Cannot activate: last_drop_date must be within 2 weeks of start_date, "
+                f"got {self.last_drop_date} but max allowed is {max_drop}"
+            )
+        self.status = CourseStatus.ACTIVE
+
+
+class CourseEnrolment(Base):
+    """Tracks the lifecycle of a student's seat assignment through claim and activation."""
+
+    __tablename__ = "course_enrolment"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    course_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("course.id"),
+        nullable=False,
+        index=True,
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("project.id"),
+        nullable=False,
+        unique=True,
+    )
+    contact_email: Mapped[str] = mapped_column(String(255), nullable=False)
+    student_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    claimed_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), nullable=True, index=True
+    )
+    is_dropped: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false", index=True
+    )
+    activated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=func.now(), nullable=False
+    )
+
+    # Relationships
+    course = relationship("Course", lazy="joined")
+    project = relationship("Project", lazy="noload")
+    seat = relationship("Seat", uselist=False, lazy="noload", viewonly=True)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "course_id", "contact_email", name="uq_enrolment_course_email"
+        ),
+        UniqueConstraint(
+            "course_id", "student_id", name="uq_enrolment_course_student_id"
+        ),
+    )
+
+
+class Seat(Base):
+    __tablename__ = "seat"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    course_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("course.id"),
+        nullable=False,
+        index=True,
+    )
+    institution_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("institution.id"),
+        nullable=False,
+    )
+    is_consumed: Mapped[bool] = mapped_column(Boolean, default=False)
+    previously_dropped: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    batch_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, index=True
+    )
+    enrolment_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("course_enrolment.id"), unique=True
+    )
+    expiry_date: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    credit_value: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=func.now(), nullable=False
+    )
+
+    course = relationship("Course")
+    institution = relationship("Institution")
+    enrolment = relationship("CourseEnrolment", lazy="noload")

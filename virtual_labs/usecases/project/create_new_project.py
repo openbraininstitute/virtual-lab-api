@@ -26,7 +26,10 @@ from virtual_labs.domain.project import (
     ProjectCreateOut,
     ProjectCreationBody,
 )
-from virtual_labs.infrastructure.db.models import Project, VirtualLab
+from virtual_labs.infrastructure.db.models import (
+    Project,
+    VirtualLab,
+)
 from virtual_labs.infrastructure.kc.config import KeycloakRealm
 from virtual_labs.infrastructure.kc.grant import AuthUserGrants
 from virtual_labs.infrastructure.kc.models import (
@@ -69,6 +72,18 @@ def _log_orphan_project_account(
     return _undo
 
 
+def _make_deplete_compensation(
+    virtual_lab_id: UUID4, project_id: UUID4
+) -> Callable[[], Awaitable[None]]:
+    async def _undo() -> None:
+        await accounting_cases.deplete_project_budget(
+            virtual_lab_id=virtual_lab_id,
+            project_id=project_id,
+        )
+
+    return _undo
+
+
 async def _retrieve_group_user_ids(group_id: str) -> list[str]:
     members = await KeycloakRealm.a_get_group_members(group_id=group_id)
     return [UserRepresentation(**member).id for member in members]
@@ -80,6 +95,12 @@ async def ensure_unique_name_within_virtual_lab(
     virtual_lab_id: UUID4,
     project_name: str,
 ) -> None:
+    vlab = await session.get(VirtualLab, virtual_lab_id, options=[])
+    if vlab:
+        await session.refresh(vlab, ["course"])
+        if vlab.course:
+            return
+
     try:
         name_clash = (
             await session.scalar(
@@ -157,10 +178,7 @@ async def ensure_allow_creation_by_count_restriction(
             message="Could not load virtual lab context",
         )
 
-    if (
-        not virtual_lab.course_template_project_id
-        and owned_count >= settings.MAX_PROJECTS_NUMBER
-    ):
+    if not virtual_lab.course and owned_count >= settings.MAX_PROJECTS_NUMBER:
         raise VliError(
             error_code=VliErrorCode.LIMIT_EXCEEDED,
             http_status_code=status.BAD_REQUEST,
@@ -302,25 +320,27 @@ async def create_project_record(
     admin_group: CreatedGroup,
     member_group: CreatedGroup,
     user_id: UUID,
+    commit: bool = True,
 ) -> dict[str, object]:
     try:
-        async with session.begin():
-            project = Project(
-                id=project_id,
-                name=payload.name,
-                description=payload.description,
-                contact_email=payload.contact_email,
-                virtual_lab_id=virtual_lab_id,
-                admin_group_id=admin_group["id"],
-                member_group_id=member_group["id"],
-                owner_id=user_id,
-            )
-            session.add(project)
-            await session.flush()
-            return {
-                **ProjectSchema.model_validate(project).model_dump(),
-                "virtual_lab_id": virtual_lab_id,
-            }
+        project = Project(
+            id=project_id,
+            name=payload.name,
+            description=payload.description,
+            virtual_lab_id=virtual_lab_id,
+            admin_group_id=admin_group["id"],
+            member_group_id=member_group["id"],
+            owner_id=user_id,
+        )
+        session.add(project)
+        await session.flush()
+        result = {
+            **ProjectSchema.model_validate(project).model_dump(),
+            "virtual_lab_id": virtual_lab_id,
+        }
+        if commit:
+            await session.commit()
+        return result
     except IntegrityError:
         raise VliError(
             error_code=VliErrorCode.ENTITY_ALREADY_EXISTS,
@@ -387,6 +407,7 @@ async def create_new_project_use_case(
     payload: ProjectCreationBody,
     auth: tuple[AuthUserGrants, str],
     expand: list[ProjectCreateExpand] | None = None,
+    seed_budget: bool = True,
 ) -> ProjectCreateOut:
     user_id = auth[0].id
     requested = set(expand or [])
@@ -414,6 +435,9 @@ async def create_new_project_use_case(
 
     vlab_admin_group_id = str(virtual_lab.admin_group_id)
     vlab_member_group_id = str(virtual_lab.member_group_id)
+    # Resolve the course relationship before rollback expires the instance
+    await session.refresh(virtual_lab, ["course"])
+    is_course_vlab = bool(virtual_lab.course)
 
     # release the read-only transaction held by the pre-checks above before
     # opening the write transaction inside `create_project_record`, we roll
@@ -451,11 +475,12 @@ async def create_new_project_use_case(
         )
 
     # post-commit
-    await seed_initial_project_budget(
-        virtual_lab_id=virtual_lab_id,
-        project_id=project_draft_id,
-        owned_count=owned_count,
-    )
+    if not is_course_vlab and seed_budget:
+        await seed_initial_project_budget(
+            virtual_lab_id=virtual_lab_id,
+            project_id=project_draft_id,
+            owned_count=owned_count,
+        )
 
     project_admins = list({*(vlab_admin_users or []), str(user_id)})
 
