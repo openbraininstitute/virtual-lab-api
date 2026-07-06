@@ -149,6 +149,7 @@ async def claim_enrolment_endpoint(
             claimed_by=enrolment.claimed_by,
             course=ClaimCourseSummary(
                 id=enrolment.course.id,
+                virtual_lab_id=enrolment.course.virtual_lab_id,
                 virtual_lab_name=enrolment.course.virtual_lab.name,
                 institution_name=enrolment.course.institution.name,
                 start_date=enrolment.course.start_date,
