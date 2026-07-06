@@ -149,6 +149,7 @@ class ClaimCourseSummary(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID4
+    virtual_lab_id: UUID4
     virtual_lab_name: str
     institution_name: str
     start_date: Optional[datetime] = None

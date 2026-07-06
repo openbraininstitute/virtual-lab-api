@@ -74,6 +74,7 @@ async def test_claim_enrolment_success(
     assert data["student_id"] is not None
     # Course summary
     assert data["course"]["id"] == course_id
+    assert data["course"]["virtual_lab_id"] is not None
     assert data["course"]["virtual_lab_name"] is not None
     assert data["course"]["institution_name"] is not None
 
