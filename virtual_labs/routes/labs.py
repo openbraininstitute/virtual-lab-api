@@ -338,5 +338,3 @@ async def get_user_groups_for_virtual_lab(
     return await usecases.get_user_virtual_lab_groups(
         session=session, virtual_lab_id=virtual_lab_id, auth=auth
     )
-
-
