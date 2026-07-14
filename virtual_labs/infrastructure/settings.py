@@ -125,7 +125,9 @@ class Settings(BaseSettings):
     PAGINATION_DEFAULT_PAGE_SIZE: int = 20
     PAGINATION_MAX_PAGE_SIZE: int = 100
 
+    VLAB_SERVICE_NAME: str = "virtual-lab-svc"
     VLAB_SERVICE_ADMIN_GROUP: str = "/service/virtual-lab-svc/admin"
+    VLAB_SERVICE_MAINTAINER_GROUP: str = "/service/virtual-lab-svc/maintainer"
     ENTITYCORE_SERVICE_ADMIN_GROUP: str = "/service/entitycore/admin"
 
     # There's a single configuration set in staging and production with a static name

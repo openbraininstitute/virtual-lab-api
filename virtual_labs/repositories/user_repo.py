@@ -101,6 +101,35 @@ class UserQueryRepository:
     def get_all_users_count(self) -> int:
         return len(self.Kc.get_users())
 
+    async def a_list_users(
+        self, *, search: str | None, offset: int, limit: int
+    ) -> List[UserRepresentation]:
+        """Paginated realm-user listing. `search` matches username,
+        email, first and last name with Keycloak's own semantics."""
+        query: Dict[str, Any] = {"first": offset, "max": limit}
+        if search:
+            query["search"] = search
+        users = await self.Kc.a_get_users(query)
+        return [UserRepresentation(**user) for user in users]
+
+    async def a_count_users(self, *, search: str | None) -> int:
+        """Realm-user count over the same `search` semantics as
+        `a_list_users` so listing totals stay consistent."""
+        query: Dict[str, Any] = {"search": search} if search else {}
+        count = await self.Kc.a_users_count(query)
+        return cast(int, count)
+
+    async def a_retrieve_user_groups(self, user_id: UUID4) -> List[GroupRepresentation]:
+        try:
+            groups = await self.Kc.a_get_user_groups(user_id=user_id)
+            return [GroupRepresentation(**group) for group in groups]
+        except Exception as error:
+            logger.error(f"Error when retrieving groups for user {user_id}: {error}")
+            raise IdentityError(
+                message=f"Permissions for user {user_id} could not be retrieved.",
+                detail=str(error),
+            )
+
     async def get_group_user_count(self, group_id: str) -> int:
         members = await self.Kc.a_get_group_members(group_id=group_id)
         return len(members)
