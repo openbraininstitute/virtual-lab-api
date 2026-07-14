@@ -2,7 +2,6 @@ from contextlib import asynccontextmanager
 from http import HTTPStatus
 from typing import Any, Generator, Optional
 
-import sentry_sdk
 from fastapi import FastAPI, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
@@ -13,7 +12,6 @@ from fastapi.responses import JSONResponse
 from fastapi.routing import APIRouter
 from loguru import logger
 from redis.asyncio import Redis
-from sentry_sdk.integrations.asgi import SentryAsgiMiddleware
 
 from virtual_labs.core.exceptions.api_error import (
     VliError,
@@ -23,6 +21,7 @@ from virtual_labs.core.exceptions.api_error import (
 from virtual_labs.core.schemas import api
 from virtual_labs.infrastructure.db.config import session_pool
 from virtual_labs.infrastructure.redis import get_redis
+from virtual_labs.infrastructure.sentry import init_sentry
 from virtual_labs.infrastructure.settings import settings
 from virtual_labs.routes.accounting import router as accounting_router
 from virtual_labs.routes.billing import router as billing_router
@@ -58,12 +57,7 @@ async def lifespan(app: FastAPI) -> Generator[None, Any, None]:  # type: ignore
         await _redis_client.close()
 
 
-sentry_sdk.init(
-    dsn=settings.SENTRY_DSN,
-    traces_sample_rate=settings.SENTRY_TRACES_SAMPLE_RATE,
-    profiles_sample_rate=settings.SENTRY_PROFILES_SAMPLE_RATE,
-    environment=settings.DEPLOYMENT_ENV,
-)
+init_sentry()
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -73,7 +67,6 @@ app = FastAPI(
     docs_url=f"{settings.BASE_PATH}/docs",
 )
 
-app.add_middleware(SentryAsgiMiddleware)  # ty: ignore[invalid-argument-type]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
@@ -91,7 +84,7 @@ def custom_openapi() -> dict[str, Any]:
         return app.openapi_schema
     openapi_schema = get_openapi(
         title=settings.APP_NAME,
-        version="0.0.9",
+        version=settings.APP_VERSION or "0.0.9",
         description="API description",
         routes=app.routes,
     )
