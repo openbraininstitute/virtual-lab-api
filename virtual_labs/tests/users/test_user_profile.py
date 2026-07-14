@@ -1,7 +1,19 @@
 from http import HTTPStatus
+from typing import Generator
 
 import pytest
 from httpx import AsyncClient
+
+from virtual_labs.infrastructure.kc.config import KeycloakRealm
+
+
+@pytest.fixture(scope="module", autouse=True)
+def restore_test_user_name() -> Generator[None, None, None]:
+    # the update tests below rename the shared `test` user in Keycloak;
+    # other tests assert the seeded "test test" name
+    yield
+    user_id = KeycloakRealm.get_user_id("test")
+    KeycloakRealm.update_user(user_id, {"firstName": "test", "lastName": "test"})
 
 
 class TestGetUserProfile:
