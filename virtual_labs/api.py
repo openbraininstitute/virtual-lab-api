@@ -26,6 +26,7 @@ from virtual_labs.infrastructure.redis import get_redis
 from virtual_labs.infrastructure.settings import settings
 from virtual_labs.routes.accounting import router as accounting_router
 from virtual_labs.routes.admin import router as admin_router
+from virtual_labs.routes.admin.deps import PLATFORM_ADMIN_TAG_PREFIX
 from virtual_labs.routes.billing import router as billing_router
 from virtual_labs.routes.bookmarks import router as bookmarks_router
 from virtual_labs.routes.common import router as common_router
@@ -104,14 +105,13 @@ def custom_openapi() -> dict[str, Any]:
     # platform-admin namespace from Swagger in production
     if settings.DEPLOYMENT_ENV == "production":
         hidden_tags = {"Subscriptions", "Accounting Endpoints"}
-        hidden_tag_prefix = "Platform Admin"
         for path_key, path_item in list(openapi_schema.get("paths", {}).items()):
             path_item.pop("delete", None)
             # Remove operations tagged with hidden tags
             for method in list(path_item.keys()):
                 op_tags = set(path_item[method].get("tags", []))
                 if op_tags & hidden_tags or any(
-                    tag.startswith(hidden_tag_prefix) for tag in op_tags
+                    tag.startswith(PLATFORM_ADMIN_TAG_PREFIX) for tag in op_tags
                 ):
                     path_item.pop(method)
             # Remove empty paths

@@ -6,13 +6,13 @@ lab usecases and add an audit log line.
 """
 
 from http import HTTPStatus
-from uuid import UUID
 
 from pydantic import UUID4
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
+from virtual_labs.core.ordering import order_clauses
 from virtual_labs.core.types import UserRoleEnum
 from virtual_labs.domain.admin import (
     AdminLabInviteDetails,
@@ -33,17 +33,16 @@ from virtual_labs.repositories import labs as labs_repo
 from virtual_labs.repositories.invite_repo import InviteQueryRepository
 from virtual_labs.usecases import labs as labs_usecases
 from virtual_labs.usecases.admin._audit import log_admin_action
-from virtual_labs.usecases.admin._ordering import order_clauses
-from virtual_labs.usecases.labs._user_labs_helpers import _project_counts_by_vlab
+from virtual_labs.usecases.labs._user_labs_helpers import project_counts_by_vlab
 
 
 async def _enrich(
     session: AsyncSession, rows: list[VirtualLab]
 ) -> list[AdminVirtualLabDetails]:
-    counts = await _project_counts_by_vlab(session, [UUID(str(r.id)) for r in rows])
+    counts = await project_counts_by_vlab(session, [row.id for row in rows])
     return [
         AdminVirtualLabDetails.model_validate(row).model_copy(
-            update={"projects_count": counts.get(UUID(str(row.id)), 0)}
+            update={"projects_count": counts.get(row.id, 0)}
         )
         for row in rows
     ]
@@ -159,7 +158,7 @@ async def cancel_lab_invite(
             http_status_code=HTTPStatus.NOT_FOUND,
             message="Invite not found",
         )
-    if UUID(str(invite.virtual_lab_id)) != UUID(str(lab_id)):
+    if invite.virtual_lab_id != lab_id:
         raise VliError(
             error_code=VliErrorCode.ENTITY_NOT_FOUND,
             http_status_code=HTTPStatus.NOT_FOUND,

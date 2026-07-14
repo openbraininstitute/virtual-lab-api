@@ -33,29 +33,19 @@ async def list_payments(
         ).get_by_user_id(user_id=user_id)
         if stripe_user is None or not stripe_user.stripe_customer_id:
             # user never reached Stripe — no payments by definition
-            return PaymentListResponse(
-                total_count=0,
-                total_pages=0,
-                current_page=filters.page,
-                page_size=filters.page_size,
-                has_next=False,
-                has_previous=filters.page > 1,
-                payments=[],
+            return PaymentListResponse.build(
+                [], total=0, page=filters.page, page_size=filters.page_size
             )
         customer_id = str(stripe_user.stripe_customer_id)
 
     payments, total = await PaymentRepository(session).admin_list_payments(
         filters, customer_id
     )
-    total_pages = (total + filters.page_size - 1) // filters.page_size
-    return PaymentListResponse(
-        total_count=total,
-        total_pages=total_pages,
-        current_page=filters.page,
+    return PaymentListResponse.build(
+        [payment_to_details(payment) for payment in payments],
+        total=total,
+        page=filters.page,
         page_size=filters.page_size,
-        has_next=filters.page < total_pages,
-        has_previous=filters.page > 1,
-        payments=[payment_to_details(payment) for payment in payments],
     )
 
 

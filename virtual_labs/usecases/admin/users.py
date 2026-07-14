@@ -8,7 +8,6 @@ parser the JWT flow uses, then resolve lab/project names from the DB.
 
 import asyncio
 from http import HTTPStatus
-from uuid import UUID
 
 from pydantic import UUID4
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -62,33 +61,33 @@ async def get_user(session: AsyncSession, user_id: UUID4) -> AdminUserDetails:
     paths = [group.path for group in groups]
     grants = Grants.from_groups(paths)
 
-    lab_names = await get_virtual_lab_names(session, list(grants.virtual_labs.all))
+    lab_ids = sorted(grants.virtual_labs.all)
+    lab_names = await get_virtual_lab_names(session, lab_ids)
     virtual_labs = [
         AdminUserVlabMembership(
             id=lab_id,
             name=lab_names.get(lab_id),
             role=grants.virtual_labs.role_for(lab_id) or "member",
         )
-        for lab_id in sorted(grants.virtual_labs.all)
+        for lab_id in lab_ids
     ]
 
-    project_rows = await ProjectQueryRepository(session).get_project_names(
-        list(grants.projects.all)
-    )
+    project_ids = sorted(grants.projects.all)
+    project_rows = await ProjectQueryRepository(session).get_project_names(project_ids)
     project_names = {
-        UUID(str(project_id)): (name, UUID(str(vlab_id)))
-        for project_id, name, vlab_id in project_rows
+        project_id: (name, vlab_id) for project_id, name, vlab_id in project_rows
     }
-    projects = [
-        AdminUserProjectMembership(
-            id=project_id,
-            name=project_names.get(project_id, (None, None))[0],
-            virtual_lab_id=grants.projects.vlab_of(project_id)
-            or project_names.get(project_id, (None, None))[1],
-            role=grants.projects.role_for(project_id) or "member",
+    projects = []
+    for project_id in project_ids:
+        name, vlab_from_db = project_names.get(project_id, (None, None))
+        projects.append(
+            AdminUserProjectMembership(
+                id=project_id,
+                name=name,
+                virtual_lab_id=grants.projects.vlab_of(project_id) or vlab_from_db,
+                role=grants.projects.role_for(project_id) or "member",
+            )
         )
-        for project_id in sorted(grants.projects.all)
-    ]
 
     return AdminUserDetails(
         user=user,

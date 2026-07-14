@@ -7,9 +7,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from virtual_labs.domain.admin import AdminPaymentsListQuery
 from virtual_labs.domain.payment import PaymentDetails, PaymentListResponse
 from virtual_labs.infrastructure.db.config import default_session_factory
+from virtual_labs.routes.admin.deps import PLATFORM_ADMIN_TAG_PREFIX
 from virtual_labs.usecases.admin import payments as admin_payments
 
-router = APIRouter(tags=["Platform Admin | Payments"])
+router = APIRouter(tags=[f"{PLATFORM_ADMIN_TAG_PREFIX} | Payments"])
 
 
 @router.get(

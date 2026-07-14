@@ -13,10 +13,11 @@ from virtual_labs.domain.admin import (
 from virtual_labs.domain.common import PaginatedResponse
 from virtual_labs.infrastructure.db.config import default_session_factory
 from virtual_labs.infrastructure.kc.models import UserRepresentation
+from virtual_labs.routes.admin.deps import PLATFORM_ADMIN_TAG_PREFIX
 from virtual_labs.usecases.admin import subscriptions as admin_subscriptions
 from virtual_labs.usecases.admin import users as admin_users
 
-router = APIRouter(tags=["Platform Admin | Users"])
+router = APIRouter(tags=[f"{PLATFORM_ADMIN_TAG_PREFIX} | Users"])
 
 
 @router.get(

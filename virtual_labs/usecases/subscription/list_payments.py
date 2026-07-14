@@ -107,20 +107,11 @@ async def list_payments(
             filters=filters,
         )
 
-        total_pages = (total_count + filters.page_size - 1) // filters.page_size
-        has_next = filters.page < total_pages
-        has_previous = filters.page > 1
-
-        payment_details = [payment_to_details(payment) for payment in payments]
-
-        response = PaymentListResponse(
-            total_count=total_count,
-            total_pages=total_pages,
-            current_page=filters.page,
+        response = PaymentListResponse.build(
+            [payment_to_details(payment) for payment in payments],
+            total=total_count,
+            page=filters.page,
             page_size=filters.page_size,
-            has_next=has_next,
-            has_previous=has_previous,
-            payments=payment_details,
         )
 
         return VliResponse.new(

@@ -45,6 +45,6 @@ class ServiceGate:
         auth: tuple[AuthUserGrants, str] = Depends(parse_auth_grants),
     ) -> AuthUserGrants:
         user, _token = auth
-        if not (user.grants.services.roles_for(self._service) & self._roles):
+        if not user.grants.services.has_any(self._service, self._roles):
             raise forbidden(f"service:{self._service}:{'|'.join(sorted(self._roles))}")
         return user

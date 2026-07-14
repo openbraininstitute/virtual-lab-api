@@ -6,10 +6,11 @@ Mutating routes additionally declare `Depends(platform_admin)`
 (admin only) themselves. `parse_auth_grants` is dependency-cached per
 request, so the stacked gates cost a single Keycloak round-trip.
 
-All tags start with "Platform Admin" — `custom_openapi` uses that
-prefix to hide the namespace from the production schema. The
-pre-existing `/admin/promotions` router lives in
-`routes/promotions.py` and keeps its own legacy gating.
+All tags are built from `deps.PLATFORM_ADMIN_TAG_PREFIX` —
+`custom_openapi` matches on the same constant to hide the namespace
+from the production schema. The pre-existing `/admin/promotions`
+router lives in `routes/promotions.py` and keeps its own legacy
+gating.
 """
 
 from fastapi import APIRouter, Depends

@@ -26,8 +26,8 @@ from virtual_labs.repositories.project_repo import (
     ProjectMutationRepository,
     ProjectQueryRepository,
 )
+from virtual_labs.core.ordering import order_clauses
 from virtual_labs.usecases.admin._audit import log_admin_action
-from virtual_labs.usecases.admin._ordering import order_clauses
 from virtual_labs.usecases.project import (
     delete_project_use_case,
     detach_user_from_project,

@@ -20,10 +20,10 @@ from virtual_labs.domain.labs import (
 )
 from virtual_labs.infrastructure.db.config import default_session_factory
 from virtual_labs.infrastructure.kc.grant import AuthUserGrants, parse_auth_grants
-from virtual_labs.routes.admin.deps import platform_admin
+from virtual_labs.routes.admin.deps import PLATFORM_ADMIN_TAG_PREFIX, platform_admin
 from virtual_labs.usecases.admin import labs as admin_labs
 
-router = APIRouter(tags=["Platform Admin | Labs"])
+router = APIRouter(tags=[f"{PLATFORM_ADMIN_TAG_PREFIX} | Labs"])
 
 
 @router.get(

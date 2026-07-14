@@ -30,12 +30,13 @@ from uuid import UUID
 
 from loguru import logger
 from pydantic import Field
-from sqlalchemy import case, func, select
+from sqlalchemy import case, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import ColumnElement
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
+from virtual_labs.core.ordering import order_clauses
 from virtual_labs.domain.common import (
     ListResponse,
     OrderDirection,
@@ -83,28 +84,16 @@ def _build_order_clauses(
 
     For ``OWNER`` we sort on a synthetic 0/1 column (0 = self-owned,
     1 = external) so ``ASC`` puts the user's own labs first. The
-    timestamp orderings cascade into ``created_at`` as a secondary
-    key to avoid swapping rows with identical updated/created
-    timestamps.
+    other dimensions share the stable cascade in `core.ordering`.
     """
-    asc = direction is OrderDirection.ASC
-
     if order_by is WorkspaceOrderBy.OWNER:
         owner_expr = case((VirtualLab.owner_id == user_id, 0), else_=1)
-        primary = owner_expr.asc() if asc else owner_expr.desc()
+        primary = (
+            owner_expr.asc() if direction is OrderDirection.ASC else owner_expr.desc()
+        )
         return primary, VirtualLab.updated_at.desc(), VirtualLab.created_at.desc()
 
-    if order_by is WorkspaceOrderBy.CREATED_AT:
-        col = VirtualLab.created_at
-        return (col.asc() if asc else col.desc(),)
-
-    if order_by is WorkspaceOrderBy.NAME:
-        col = func.lower(VirtualLab.name)
-        return (col.asc() if asc else col.desc(), VirtualLab.updated_at.desc())
-
-    # UPDATED_AT (default)
-    col = VirtualLab.updated_at
-    return (col.asc() if asc else col.desc(), VirtualLab.created_at.desc())
+    return order_clauses(VirtualLab, order_by, direction)
 
 
 def _scope_condition(scope: Scope, user_id: object) -> ColumnElement[bool] | None:
@@ -200,7 +189,7 @@ async def list_virtual_labs_use_case(
     if ownership is not None:
         extra.append(ownership)
 
-    order_clauses = _build_order_clauses(order_by, order_direction, user.id)
+    ordering = _build_order_clauses(order_by, order_direction, user.id)
 
     try:
         rows, total = await list_vlabs_by_id(
@@ -209,7 +198,7 @@ async def list_virtual_labs_use_case(
             query=query,
             pagination=pagination,
             extra_conditions=extra,
-            order_by=order_clauses,
+            order_by=ordering,
         )
     except SQLAlchemyError as exc:
         logger.exception(f"DB error listing tenant vlabs for {user.id}: {exc}")

@@ -88,6 +88,27 @@ class PaymentListResponse(BaseModel):
     has_previous: bool
     payments: List[PaymentDetails]
 
+    @classmethod
+    def build(
+        cls,
+        payments: List[PaymentDetails],
+        *,
+        total: int,
+        page: int,
+        page_size: int,
+    ) -> "PaymentListResponse":
+        """Derive the pagination envelope from one page of items."""
+        total_pages = (total + page_size - 1) // page_size
+        return cls(
+            total_count=total,
+            total_pages=total_pages,
+            current_page=page,
+            page_size=page_size,
+            has_next=page < total_pages,
+            has_previous=page > 1,
+            payments=payments,
+        )
+
 
 class CreateStandalonePaymentRequest(BaseModel):
     """

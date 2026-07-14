@@ -5,7 +5,6 @@ import pytest_asyncio
 from httpx import AsyncClient
 from requests import get
 
-from virtual_labs.infrastructure.kc.config import KeycloakRealm
 from virtual_labs.tests.utils import (
     cleanup_resources,
     create_mock_lab,
@@ -14,6 +13,7 @@ from virtual_labs.tests.utils import (
     get_headers,
     get_invite_token_from_email_body,
     get_user_id_from_test_auth,
+    restore_seeded_user_name,
 )
 
 
@@ -23,8 +23,7 @@ async def mock_lab_invite(
 ) -> AsyncGenerator[tuple[AsyncClient, str, str, str], None]:
     # a previous run may have left the shared `test` user renamed by the
     # profile tests; the test asserts the seeded "test test" inviter name
-    inviter_kc_id = KeycloakRealm.get_user_id("test")
-    KeycloakRealm.update_user(inviter_kc_id, {"firstName": "test", "lastName": "test"})
+    restore_seeded_user_name("test")
 
     lab_response = await create_mock_lab(async_test_client)
     lab_id = lab_response.json()["id"]
