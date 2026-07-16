@@ -42,14 +42,6 @@ async def _create_active_course(
     assert lab_response.status_code == 200
     lab_id = lab_response.json()["id"]
 
-    async with session_context_factory() as session:
-        await session.execute(
-            update(VirtualLab)
-            .where(VirtualLab.id == UUID(lab_id))
-            .values(owner_id=settings.MULTIPLE_VLABS_ALLOWED_USER_ID)
-        )
-        await session.commit()
-
     project_body = {
         "name": f"Template Project {uuid4()}",
         "description": "Template",
@@ -59,6 +51,14 @@ async def _create_active_course(
     )
     assert project_response.status_code == 200
     project_id = project_response.json()["id"]
+
+    async with session_context_factory() as session:
+        await session.execute(
+            update(VirtualLab)
+            .where(VirtualLab.id == UUID(lab_id))
+            .values(owner_id=settings.MULTIPLE_VLABS_ALLOWED_USER_ID)
+        )
+        await session.commit()
 
     course_body = {
         "virtual_lab_id": lab_id,
