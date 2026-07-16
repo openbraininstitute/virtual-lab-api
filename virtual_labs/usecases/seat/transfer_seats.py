@@ -64,16 +64,12 @@ async def transfer_seats(
             message="Source course must be past its last drop date",
         )
 
-    if target_course.last_drop_date is None or now >= target_course.last_drop_date:
+    if target_course.last_drop_date is None or now > target_course.last_drop_date:
         raise VliError(
             error_code=VliErrorCode.INVALID_REQUEST,
             http_status_code=HTTPStatus.CONFLICT,
             message="Target course must be before its last drop date",
         )
-
-    requested_count = payload.amount if isinstance(payload.amount, int) else None
-    if requested_count is None:
-        requested_count = 0
 
     available_seats_result = await db.execute(
         select(Seat)
@@ -85,35 +81,24 @@ async def transfer_seats(
             Seat.credit_value <= target_course.credits_per_seat,
         )
         .order_by(Seat.expiry_date.asc())
+        .with_for_update()
     )
     available_seats = list(available_seats_result.scalars().all())
 
-    if payload.amount == "all":
-        requested_count = len(available_seats)
+    requested_count = (
+        len(available_seats) if payload.amount == "all" else payload.amount
+    )
 
     if requested_count > len(available_seats):
         raise VliError(
             error_code=VliErrorCode.INVALID_REQUEST,
             http_status_code=HTTPStatus.CONFLICT,
-            message="Requested amount exceeds available seats",
-        )
-
-    if not available_seats:
-        raise VliError(
-            error_code=VliErrorCode.INVALID_REQUEST,
-            http_status_code=HTTPStatus.CONFLICT,
-            message="No transferable seats available",
+            message=f"Requested {requested_count} seats but only {len(available_seats)} available",
         )
 
     seats_to_transfer = available_seats[:requested_count]
-    if not seats_to_transfer:
-        raise VliError(
-            error_code=VliErrorCode.INVALID_REQUEST,
-            http_status_code=HTTPStatus.CONFLICT,
-            message="No transferable seats available",
-        )
-
     seat_ids = [seat.id for seat in seats_to_transfer]
+
     await db.execute(
         update(Seat)
         .where(Seat.id.in_(seat_ids))
