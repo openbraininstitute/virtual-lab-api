@@ -7,18 +7,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.authorization import verify_course_admin, verify_service_admin
 from virtual_labs.core.types import VliAppResponse
+from virtual_labs.domain.common import ListResponse
 from virtual_labs.domain.course import (
     AssignSeatResponse,
     AssignSeatsBody,
     DropSeatResponse,
     DropSeatsBody,
 )
-from virtual_labs.domain.common import ListResponse
 from virtual_labs.domain.seat import (
     ProvisionSeatsBody,
     ProvisionSeatsResponse,
     SeatBatchSearchResponse,
     SeatDetailOut,
+    TransferSeatsBody,
+    TransferSeatsResponse,
 )
 from virtual_labs.infrastructure.db.config import default_session_factory
 from virtual_labs.infrastructure.db.models import Course
@@ -112,6 +114,21 @@ async def list_seats_endpoint(
     session: AsyncSession = Depends(default_session_factory),
 ) -> ListResponse[SeatDetailOut]:
     return await usecases.list_seats(session, course_id)
+
+
+@router.post(
+    "/transfer",
+    operation_id="transfer_seats",
+    summary="Transfer available seats from one course to another",
+    response_model=VliAppResponse[TransferSeatsResponse],
+)
+@verify_service_admin([VLAB_SERVICE_ADMIN_GROUP])
+async def transfer_seats_endpoint(
+    payload: TransferSeatsBody,
+    session: AsyncSession = Depends(default_session_factory),
+    auth: tuple[AuthUser, str] = Depends(verify_jwt),
+) -> VliAppResponse[TransferSeatsResponse]:
+    return await usecases.transfer_seats(session, payload)
 
 
 @router.post(

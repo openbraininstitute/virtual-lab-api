@@ -1,7 +1,7 @@
 from datetime import datetime
-from typing import Optional
+from typing import Annotated, Literal, Optional
 
-from pydantic import UUID4, BaseModel, ConfigDict, Field
+from pydantic import UUID4, BaseModel, ConfigDict, Field, PositiveInt
 
 # ──────────────────────────────────────────────────────────────────────
 # Request schemas
@@ -13,6 +13,18 @@ class ProvisionSeatsBody(BaseModel):
 
     course_id: UUID4
     number_of_seats: int = Field(..., gt=0, le=100)
+
+
+class TransferSeatsBody(BaseModel):
+    """Payload for transferring available seats from one course to another."""
+
+    source_course_id: UUID4
+    target_course_id: UUID4
+    amount: PositiveInt | Literal["all"] = Field(
+        ...,
+        description="Number of seats to transfer or 'all'",
+        json_schema_extra={"examples": ["all", 3]},
+    )
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -57,6 +69,11 @@ class SeatDetailOut(SeatOut):
 
 class ProvisionSeatsResponse(BaseModel):
     seats: list[SeatOut]
+
+
+class TransferSeatsResponse(BaseModel):
+    transferred_count: int
+    transferred_seats: list[SeatOut]
 
 
 class ListSeatsResponse(BaseModel):
