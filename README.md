@@ -103,12 +103,12 @@ The service reads configuration from `.env.local` (loaded by `dev-init.sh` and `
 
 The authoritative list of supported settings (with defaults and types) lives in [virtual_labs/infrastructure/settings.py](virtual_labs/infrastructure/settings.py). Common groups:
 
-- **App**: `APP_NAME`, `APP_DEBUG`, `DEPLOYMENT_ENV`, `BASE_PATH`, `CORS_ORIGINS`, `CORS_ORIGIN_REGEX`
+- **App**: `APP_NAME`, `APP_VERSION`, `APP_DEBUG`, `DEPLOYMENT_ENV`, `BASE_PATH`, `CORS_ORIGINS`, `CORS_ORIGIN_REGEX`
 - **Database**: async SQLAlchemy URI (`postgresql+asyncpg://…`)
 - **Keycloak**: `KC_SERVER_URI`, `KC_REALM_NAME`, `KC_CLIENT_ID`, `KC_CLIENT_SECRET`
 - **Redis**: host / port / credentials
 - **Stripe**: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_DEVICE_NAME`, `STRIPE_API_VERSION`, tax-billing flags (`BILLING_TAX_ENABLED`, `BILLING_TAX_ENABLED_COUNTRIES`, `BILLING_TAX_BEHAVIOR`, `BILLING_TAX_MISSING_COUNTRY_MODE`)
-- **Sentry**: `SENTRY_DSN`, `SENTRY_TRACES_SAMPLE_RATE`, `SENTRY_PROFILES_SAMPLE_RATE`
+- **Sentry**: `SENTRY_DSN`, `SENTRY_TRACES_SAMPLE_RATE`, `SENTRY_PROFILE_SESSION_SAMPLE_RATE`
 
 ---
 

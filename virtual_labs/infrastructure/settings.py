@@ -1,12 +1,13 @@
 from decimal import Decimal
 from os import getenv
-from typing import Any, Literal, Optional, TypeGuard, get_args
+from typing import Annotated, Any, Literal, Optional, TypeGuard, get_args
 from uuid import UUID
 
 from dotenv import load_dotenv
 from pydantic import (
     UUID4,
     EmailStr,
+    Field,
     PostgresDsn,
     SecretStr,
     ValidationInfo,
@@ -38,6 +39,7 @@ class Settings(BaseSettings):
     )
 
     APP_NAME: str = "virtual-lab-manager service"
+    APP_VERSION: str | None = None
     APP_DEBUG: bool = False
     DEPLOYMENT_ENV: _ENVS = _DEPLOYMENT_ENV
     BASE_PATH: str = ""
@@ -102,8 +104,8 @@ class Settings(BaseSettings):
     SEAT_EXPIRY_DAYS: int = 365
 
     SENTRY_DSN: str | None = None
-    SENTRY_TRACES_SAMPLE_RATE: float = 1.0
-    SENTRY_PROFILES_SAMPLE_RATE: float = 1.0
+    SENTRY_TRACES_SAMPLE_RATE: Annotated[float, Field(ge=0, le=1)] = 0.1
+    SENTRY_PROFILE_SESSION_SAMPLE_RATE: Annotated[float, Field(ge=0, le=1)] = 1.0
 
     REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379
