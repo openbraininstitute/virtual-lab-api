@@ -114,15 +114,15 @@ async def transfer_seats(
     )
     await db.commit()
 
-    for seat in seats_to_transfer:
-        seat.course_id = payload.target_course_id
+    refreshed_result = await db.execute(select(Seat).where(Seat.id.in_(seat_ids)))
+    transferred_seats = list(refreshed_result.scalars().all())
 
     return VliAppResponse(
         message="Successfully transferred seats",
         data=TransferSeatsResponse(
-            transferred_count=len(seats_to_transfer),
+            transferred_count=len(transferred_seats),
             transferred_seats=[
-                SeatOut.model_validate(seat) for seat in seats_to_transfer
+                SeatOut.model_validate(seat) for seat in transferred_seats
             ],
         ),
     )
