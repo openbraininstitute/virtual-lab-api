@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Literal, Optional
 
-from pydantic import UUID4, BaseModel, ConfigDict, Field, PositiveInt
+from pydantic import UUID4, BaseModel, ConfigDict, Field, PositiveInt, model_validator
 
 # ──────────────────────────────────────────────────────────────────────
 # Request schemas
@@ -25,6 +25,12 @@ class TransferSeatsBody(BaseModel):
         description="Number of seats to transfer or 'all'",
         json_schema_extra={"examples": ["all", 3]},
     )
+
+    @model_validator(mode="after")
+    def source_and_target_must_differ(self) -> "TransferSeatsBody":
+        if self.source_course_id == self.target_course_id:
+            raise ValueError("source_course_id and target_course_id must be different")
+        return self
 
 
 # ──────────────────────────────────────────────────────────────────────

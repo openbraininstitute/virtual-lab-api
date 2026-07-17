@@ -16,13 +16,6 @@ async def transfer_seats(
     db: AsyncSession,
     payload: TransferSeatsBody,
 ) -> VliAppResponse[TransferSeatsResponse]:
-    if payload.source_course_id == payload.target_course_id:
-        raise VliError(
-            error_code=VliErrorCode.INVALID_REQUEST,
-            http_status_code=HTTPStatus.CONFLICT,
-            message="Source and target courses must be different",
-        )
-
     result = await db.execute(
         select(Course).where(
             Course.id.in_([payload.source_course_id, payload.target_course_id])

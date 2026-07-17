@@ -227,7 +227,7 @@ async def test_transfer_seats_same_course_fails(
         },
         headers=SERVICE_ADMIN_HEADERS,
     )
-    assert response.status_code == 409
+    assert response.status_code == 422
 
 
 @pytest.mark.asyncio
