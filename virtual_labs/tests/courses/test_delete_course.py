@@ -79,16 +79,35 @@ async def test_delete_course_not_found(
 
 
 # ──────────────────────────────────────────────────────────────────────
-# Happy path — no enrolments
+# Status restriction — only draft and voided courses can be deleted
 # ──────────────────────────────────────────────────────────────────────
 
 
 @pytest.mark.asyncio
-async def test_delete_active_course_successfully(
+async def test_delete_active_course_fails_with_conflict(
     async_test_client: AsyncClient,
     course_for_seats: str,
 ) -> None:
+    """Active courses cannot be deleted — must be voided first."""
     course_id = course_for_seats
+
+    with mock_delete_deps():
+        response = await async_test_client.delete(
+            f"/courses/{course_id}", headers=SERVICE_ADMIN_HEADERS
+        )
+
+    assert response.status_code == 409
+
+    async with session_context_factory() as session:
+        assert await session.get(Course, UUID(course_id)) is not None
+
+
+@pytest.mark.asyncio
+async def test_delete_draft_course_successfully(
+    async_test_client: AsyncClient,
+    draft_course_for_seats: str,
+) -> None:
+    course_id = draft_course_for_seats
 
     with mock_delete_deps():
         response = await async_test_client.delete(
@@ -100,6 +119,30 @@ async def test_delete_active_course_successfully(
 
     async with session_context_factory() as session:
         assert await session.get(Course, UUID(course_id)) is None
+
+
+@pytest.mark.asyncio
+async def test_delete_voided_course_successfully(
+    async_test_client: AsyncClient,
+    voided_course_for_seats: str,
+) -> None:
+    course_id = voided_course_for_seats
+
+    with mock_delete_deps():
+        response = await async_test_client.delete(
+            f"/courses/{course_id}", headers=SERVICE_ADMIN_HEADERS
+        )
+
+    assert response.status_code == 200
+    assert response.json()["message"] == "Course deleted successfully"
+
+    async with session_context_factory() as session:
+        assert await session.get(Course, UUID(course_id)) is None
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Happy path — no enrolments
+# ──────────────────────────────────────────────────────────────────────
 
 
 @pytest.mark.asyncio

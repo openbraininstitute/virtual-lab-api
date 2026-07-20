@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.types import VliAppResponse
-from virtual_labs.infrastructure.db.models import Course, CourseEnrolment, Seat
+from virtual_labs.infrastructure.db.models import Course, CourseEnrolment, CourseStatus, Seat
 from virtual_labs.usecases import accounting as accounting_cases
 from virtual_labs.usecases.course.drop_seats import _drop_single_seat
 from virtual_labs.usecases.course.update_course_status import _get_course
@@ -21,6 +21,14 @@ async def delete_course(
     Raises on any failure — course isn't deleted unless everything succeeds.
     """
     course = await _get_course(db, course_id)
+
+    if course.status == CourseStatus.ACTIVE:
+        raise VliError(
+            error_code=VliErrorCode.FORBIDDEN_OPERATION,
+            http_status_code=HTTPStatus.CONFLICT,
+            message="Active courses cannot be deleted. Void the course first.",
+        )
+
     course.void()
 
     # Lock all seats for this course upfront — blocks concurrent assign_seats
