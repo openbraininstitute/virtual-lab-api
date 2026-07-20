@@ -15,6 +15,20 @@ from virtual_labs.tests.utils import get_headers, session_context_factory
 
 
 @contextmanager
+def patch_void_externals():
+    """Patch external services called by void_course (drop seats + vlab budget depletion)."""
+    with (
+        mock_drop_deps(),
+        patch(
+            "virtual_labs.usecases.course.update_course_status.accounting_cases.deplete_vlab_budget",
+            new_callable=AsyncMock,
+            return_value=200.0,
+        ),
+    ):
+        yield
+
+
+@contextmanager
 def mock_delete_deps():
     """Mock all external deps needed by delete_course (drop + vlab depletion)."""
     with (
@@ -156,6 +170,12 @@ async def test_delete_course_removes_seats(
     prov = await provision_seats(async_test_client, course_id, 3)
     seat_ids = [UUID(s["id"]) for s in prov["seats"]]
 
+    with patch_void_externals():
+        void_resp = await async_test_client.post(
+            f"/courses/{course_id}/void", headers=SERVICE_ADMIN_HEADERS
+        )
+    assert void_resp.status_code == 200
+
     with mock_delete_deps():
         response = await async_test_client.delete(
             f"/courses/{course_id}", headers=SERVICE_ADMIN_HEADERS
@@ -197,6 +217,12 @@ async def test_delete_course_drops_enrolments_and_removes_rows(
     assert assign_resp.status_code == 200
     enrolment_ids = [UUID(r["enrolment_id"]) for r in assign_resp.json()["results"]]
 
+    with patch_void_externals():
+        void_resp = await client.post(
+            f"/courses/{course_id}/void", headers=SERVICE_ADMIN_HEADERS
+        )
+    assert void_resp.status_code == 200
+
     with mock_delete_deps():
         response = await client.delete(
             f"/courses/{course_id}", headers=SERVICE_ADMIN_HEADERS
@@ -222,6 +248,20 @@ async def test_delete_course_aborts_if_budget_depletion_fails(
 ) -> None:
     """If vlab budget depletion fails, the course must NOT be deleted."""
     course_id = course_for_seats
+
+    # Void first (budget depletion intentionally fails → budget_depleted stays False)
+    with (
+        mock_drop_deps(),
+        patch(
+            "virtual_labs.usecases.course.update_course_status.accounting_cases.deplete_vlab_budget",
+            new_callable=AsyncMock,
+            return_value=None,
+        ),
+    ):
+        void_resp = await async_test_client.post(
+            f"/courses/{course_id}/void", headers=SERVICE_ADMIN_HEADERS
+        )
+    assert void_resp.status_code == 200
 
     with (
         mock_drop_deps(),
