@@ -122,7 +122,12 @@ async def drop_seats(
 
 
 async def _drop_single_seat(
-    db: AsyncSession, *, seat: Seat, enrolment: CourseEnrolment, course: Course, commit: bool = True
+    db: AsyncSession,
+    *,
+    seat: Seat,
+    enrolment: CourseEnrolment,
+    course: Course,
+    commit: bool = True,
 ) -> None:
     project = await db.get(Project, enrolment.project_id)
     if project:
