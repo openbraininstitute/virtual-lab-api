@@ -6,7 +6,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.types import VliAppResponse
-from virtual_labs.infrastructure.db.models import Course, CourseEnrolment, CourseStatus, Seat
+from virtual_labs.infrastructure.db.models import (
+    Course,
+    CourseEnrolment,
+    CourseStatus,
+    Seat,
+)
 from virtual_labs.usecases import accounting as accounting_cases
 from virtual_labs.usecases.course.drop_seats import _drop_single_seat
 from virtual_labs.usecases.course.update_course_status import _get_course
