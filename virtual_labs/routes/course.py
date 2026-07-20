@@ -179,6 +179,20 @@ async def activate_enrolments_endpoint(
     )
 
 
+@router.delete(
+    "/{course_id}",
+    operation_id="delete_course",
+    summary="Delete a course — drops all students, depletes budget, removes course and seats (vlab admin only)",
+    response_model=VliAppResponse[None],
+)
+async def delete_course_endpoint(
+    grant: tuple[AuthUserGrants, Course] = Depends(verify_course_admin),
+    session: AsyncSession = Depends(default_session_factory),
+) -> VliAppResponse[None]:
+    _user, course = grant
+    return await usecases.delete_course(session, course.id)
+
+
 @router.get(
     "/{course_id}/enrolments",
     operation_id="list_enrolments",
