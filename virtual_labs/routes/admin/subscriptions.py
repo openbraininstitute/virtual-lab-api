@@ -5,12 +5,16 @@ from fastapi.responses import Response
 from pydantic import UUID4
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from virtual_labs.core.types import VliAppResponse
 from virtual_labs.domain.admin import (
     AdminSubscriptionDetails,
     AdminSubscriptionsListQuery,
 )
 from virtual_labs.domain.common import PaginatedResponse
-from virtual_labs.domain.subscription import CancelSubscriptionRequest
+from virtual_labs.domain.subscription import (
+    CancelSubscriptionRequest,
+    SubscriptionDetails,
+)
 from virtual_labs.infrastructure.db.config import default_session_factory
 from virtual_labs.infrastructure.kc.grant import AuthUserGrants, parse_auth_grants
 from virtual_labs.routes.admin.deps import PLATFORM_ADMIN_TAG_PREFIX, platform_admin
@@ -45,6 +49,7 @@ async def get_subscription(
 
 @router.post(
     "/subscriptions/{subscription_id}/cancel",
+    response_model=VliAppResponse[SubscriptionDetails],
     summary="Cancel any active paid subscription at period end",
     dependencies=[Depends(platform_admin)],
 )

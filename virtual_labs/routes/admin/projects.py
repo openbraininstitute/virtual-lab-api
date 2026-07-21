@@ -6,10 +6,17 @@ from httpx import AsyncClient
 from pydantic import UUID4
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from virtual_labs.core.types import UserRoleEnum
+from virtual_labs.core.types import UserRoleEnum, VliAppResponse
 from virtual_labs.domain.admin import AdminProjectDetails, AdminProjectsListQuery
 from virtual_labs.domain.common import PaginatedResponse
-from virtual_labs.domain.project import ProjectUpdateBody
+from virtual_labs.domain.project import (
+    ProjectDeletionOut,
+    ProjectUpdateBody,
+    ProjectUpdateRoleOut,
+    ProjectUserDeleteOut,
+    ProjectUsersOut,
+    ProjectVlOut,
+)
 from virtual_labs.infrastructure.db.config import default_session_factory
 from virtual_labs.infrastructure.kc.grant import AuthUserGrants, parse_auth_grants
 from virtual_labs.infrastructure.transport.httpx import httpx_factory
@@ -45,6 +52,7 @@ async def get_project(
 
 @router.get(
     "/projects/{project_id}/users",
+    response_model=VliAppResponse[ProjectUsersOut],
     summary="List members of any project",
 )
 async def get_project_users(
@@ -56,6 +64,7 @@ async def get_project_users(
 
 @router.patch(
     "/projects/{project_id}",
+    response_model=VliAppResponse[ProjectVlOut],
     summary="Update any project",
     dependencies=[Depends(platform_admin)],
 )
@@ -73,6 +82,7 @@ async def update_project(
 
 @router.delete(
     "/projects/{project_id}",
+    response_model=VliAppResponse[ProjectDeletionOut],
     summary="Soft-delete any project",
     dependencies=[Depends(platform_admin)],
 )
@@ -102,6 +112,7 @@ async def restore_project(
 
 @router.patch(
     "/projects/{project_id}/users/{user_id}/role",
+    response_model=VliAppResponse[ProjectUpdateRoleOut],
     summary="Change a member's role in any project",
     dependencies=[Depends(platform_admin)],
 )
@@ -119,6 +130,7 @@ async def change_project_user_role(
 
 @router.delete(
     "/projects/{project_id}/users/{user_id}",
+    response_model=VliAppResponse[ProjectUserDeleteOut],
     summary="Remove a member from any project",
     dependencies=[Depends(platform_admin)],
 )

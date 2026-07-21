@@ -567,7 +567,7 @@ class ProjectMutationRepository:
             .where(
                 and_(Project.id == project_id, Project.virtual_lab_id == virtual_lab_id)
             )
-            .values(deleted=False, deleted_at=None)
+            .values(deleted=False, deleted_at=None, deleted_by=None)
             .returning(
                 Project.id,
                 Project.admin_group_id,

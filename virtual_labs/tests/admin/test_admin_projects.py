@@ -68,6 +68,8 @@ async def test_soft_delete_and_restore_project(
     )
     assert restored.status_code == 200
     assert restored.json()["deleted"] is False
+    # restore must clear the soft-delete attribution too
+    assert restored.json()["deleted_by"] is None
 
     # restoring a live project is rejected
     again = await async_test_client.post(
