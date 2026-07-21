@@ -39,6 +39,7 @@ from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.ordering import order_clauses
 from virtual_labs.domain.common import (
     ListResponse,
+    OrderBy,
     OrderDirection,
     PaginationRequest,
     PaginationResponse,
@@ -93,7 +94,7 @@ def _build_order_clauses(
         )
         return primary, VirtualLab.updated_at.desc(), VirtualLab.created_at.desc()
 
-    return order_clauses(VirtualLab, order_by, direction)
+    return order_clauses(VirtualLab, OrderBy(order_by.value), direction)
 
 
 def _scope_condition(scope: Scope, user_id: object) -> ColumnElement[bool] | None:

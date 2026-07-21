@@ -8,13 +8,12 @@ soft-delete state) that member-scoped endpoints deliberately omit.
 
 from datetime import datetime
 from decimal import Decimal
-from enum import Enum
 from typing import Any
 from uuid import UUID
 
 from pydantic import UUID4, BaseModel, ConfigDict, Field
 
-from virtual_labs.domain.common import OrderDirection, PaginationRequest
+from virtual_labs.domain.common import OrderBy, OrderDirection, PaginationRequest
 from virtual_labs.domain.labs import VirtualLabDetails
 from virtual_labs.domain.payment import PaymentFilter
 from virtual_labs.domain.project import Project
@@ -28,12 +27,6 @@ from virtual_labs.infrastructure.kc.models import UserRepresentation
 # ---------------------------------------------------------------------------
 # Shared query axes
 # ---------------------------------------------------------------------------
-
-
-class AdminOrderBy(str, Enum):
-    CREATED_AT = "created_at"
-    UPDATED_AT = "updated_at"
-    NAME = "name"
 
 
 class DeletedScopedQuery(PaginationRequest):
@@ -55,7 +48,7 @@ class DeletedScopedQuery(PaginationRequest):
 
 class AdminLabsListQuery(DeletedScopedQuery):
     query: str | None = Field(default=None, min_length=1, max_length=200)
-    order_by: AdminOrderBy = AdminOrderBy.UPDATED_AT
+    order_by: OrderBy = OrderBy.UPDATED_AT
     order_direction: OrderDirection = OrderDirection.DESC
 
 
@@ -87,7 +80,7 @@ class AdminLabInviteDetails(BaseModel):
 class AdminProjectsListQuery(DeletedScopedQuery):
     query: str | None = Field(default=None, min_length=1, max_length=200)
     virtual_lab_id: UUID4 | None = None
-    order_by: AdminOrderBy = AdminOrderBy.UPDATED_AT
+    order_by: OrderBy = OrderBy.UPDATED_AT
     order_direction: OrderDirection = OrderDirection.DESC
 
 

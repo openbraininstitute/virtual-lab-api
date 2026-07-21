@@ -12,27 +12,26 @@ from typing import Any
 from sqlalchemy import func
 from sqlalchemy.sql import ColumnElement
 
-from virtual_labs.domain.common import OrderDirection
+from virtual_labs.domain.common import OrderBy, OrderDirection
 
 
 def order_clauses(
     model: Any,
-    order_by: str,
+    order_by: OrderBy,
     direction: OrderDirection,
 ) -> tuple[ColumnElement[Any], ...]:
     """`model` is any mapped class with `created_at`, `updated_at` and
-    `name` columns (`VirtualLab`, `Project`). `order_by` is the value
-    of a str-enum member: `created_at`, `updated_at` or `name`."""
+    `name` columns (`VirtualLab`, `Project`)."""
     asc = direction is OrderDirection.ASC
 
-    if order_by == "created_at":
+    if order_by is OrderBy.CREATED_AT:
         col = model.created_at
         return (col.asc() if asc else col.desc(),)
 
-    if order_by == "name":
+    if order_by is OrderBy.NAME:
         col = func.lower(model.name)
         return (col.asc() if asc else col.desc(), model.updated_at.desc())
 
-    # updated_at (default)
+    # OrderBy.UPDATED_AT (default)
     col = model.updated_at
     return (col.asc() if asc else col.desc(), model.created_at.desc())
