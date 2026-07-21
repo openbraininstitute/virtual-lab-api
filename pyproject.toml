@@ -46,6 +46,8 @@ send_emails = "scripts.send_emails:run_async"
 manage-coupons = "scripts.manage_stripe_coupons:run_async"
 bulk-invite = "scripts.bulk_invite_to_project:run_async"
 migrate-tax-billing = "scripts.migrate_to_tax_billing:run"
+delete-projects = "scripts.delete_projects:run"
+vlab-manager = "scripts.vlab_manager:run"
 
 [dependency-groups]
 dev = [
