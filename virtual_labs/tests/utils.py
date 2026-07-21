@@ -262,7 +262,7 @@ async def cleanup_resources(
                 await session.execute(
                     statement=delete(Project)
                     .where(Project.id == project_id)
-                    .returning(Project.admin_group_id, Project.member_group_id)
+                    .returning(Project.admin_group_id, Project.member_group_id, Project.waitlisted_group_id)
                 )
             ).first()
 
@@ -315,6 +315,8 @@ async def cleanup_resources(
     for project_group_id in project_group_ids:
         group_repo.delete_group(group_id=project_group_id[0])
         group_repo.delete_group(group_id=project_group_id[1])
+        if project_group_id[2] is not None:
+            group_repo.delete_group(group_id=project_group_id[2])
     group_repo.delete_group(group_id=lab_data[0])
     group_repo.delete_group(group_id=lab_data[1])
 

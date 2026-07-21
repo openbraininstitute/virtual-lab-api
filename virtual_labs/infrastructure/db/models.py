@@ -134,6 +134,7 @@ class Project(Base):
     )
     admin_group_id: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     member_group_id: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    waitlisted_group_id: Mapped[str | None] = mapped_column(String, nullable=True, unique=True)
     owner_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     name: Mapped[str] = mapped_column(String(250), nullable=False, index=True)
     description: Mapped[str | None] = mapped_column(Text)

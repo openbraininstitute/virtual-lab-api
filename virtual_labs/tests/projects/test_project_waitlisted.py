@@ -1,12 +1,18 @@
 from typing import AsyncGenerator
+from uuid import UUID
 
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient, Response
+from sqlalchemy import update
 
+from virtual_labs.infrastructure.db.models import Project
 from virtual_labs.infrastructure.kc.config import KeycloakRealm
-from virtual_labs.repositories.group_repo import GroupMutationRepository
-from virtual_labs.tests.utils import get_headers, get_user_id_from_test_auth
+from virtual_labs.tests.utils import (
+    get_headers,
+    get_user_id_from_test_auth,
+    session_context_factory,
+)
 
 
 @pytest.mark.asyncio
@@ -31,8 +37,8 @@ async def mock_waitlisted_project(
     async_test_client: AsyncClient,
     mock_create_project: tuple[Response, dict[str, str], dict[str, str]],
 ) -> AsyncGenerator[tuple[str, str, dict[str, str]], None]:
-    """Creates a project as 'test', then adds 'test-1' only to the waitlisted
-    group — ensuring test-1 has no admin/member membership on the project."""
+    """Creates a project as 'test', creates the waitlisted KC group, stores it
+    on the project row, then adds 'test-1' (no other membership) to that group."""
     response, _, _ = mock_create_project
     assert response.status_code == 200
 
@@ -40,20 +46,27 @@ async def mock_waitlisted_project(
     virtual_lab_id = response.json()["virtual_lab_id"]
     group_name = f"proj/{virtual_lab_id}/{project_id}/waitlisted"
 
-    # test-1 has no other membership in this project
-    waitlisted_headers = get_headers("test-1")
-    user_id = str(await get_user_id_from_test_auth(waitlisted_headers["Authorization"]))
-    group_repo = GroupMutationRepository()
     group_id_or_none = KeycloakRealm.create_group({"name": group_name})
     assert group_id_or_none is not None
     group_id: str = group_id_or_none
 
+    # Store the waitlisted_group_id on the project so the repo query picks it up
+    async with session_context_factory() as session:
+        await session.execute(
+            update(Project)
+            .where(Project.id == UUID(project_id))
+            .values(waitlisted_group_id=group_id)
+        )
+        await session.commit()
+
+    # test-1 has no admin/member membership — only waitlisted
+    waitlisted_headers = get_headers("test-1")
+    user_id = str(await get_user_id_from_test_auth(waitlisted_headers["Authorization"]))
     KeycloakRealm.group_user_add(user_id=user_id, group_id=group_id)
 
     yield project_id, virtual_lab_id, waitlisted_headers
 
     KeycloakRealm.group_user_remove(user_id=user_id, group_id=group_id)
-    group_repo.delete_group(group_id=group_id)
 
 
 @pytest.mark.asyncio
