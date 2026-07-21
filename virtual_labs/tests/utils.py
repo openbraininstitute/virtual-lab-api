@@ -219,7 +219,7 @@ async def cleanup_resources(
         assert lab_delete_response.status_code == HTTPStatus.NOT_FOUND
 
     # 3. Delete database rows
-    project_group_ids: list[tuple[str, str]] = []
+    project_group_ids: list[tuple[str, str, str | None]] = []
     async with session_context_factory() as session:
         for project_id in project_ids:
             await session.execute(
@@ -262,7 +262,11 @@ async def cleanup_resources(
                 await session.execute(
                     statement=delete(Project)
                     .where(Project.id == project_id)
-                    .returning(Project.admin_group_id, Project.member_group_id, Project.waitlisted_group_id)
+                    .returning(
+                        Project.admin_group_id,
+                        Project.member_group_id,
+                        Project.waitlisted_group_id,
+                    )
                 )
             ).first()
 
