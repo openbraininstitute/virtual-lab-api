@@ -1,7 +1,7 @@
 from datetime import datetime
-from typing import Optional
+from typing import Literal, Optional
 
-from pydantic import UUID4, BaseModel, ConfigDict, Field
+from pydantic import UUID4, BaseModel, ConfigDict, Field, PositiveInt, model_validator
 
 # ──────────────────────────────────────────────────────────────────────
 # Request schemas
@@ -13,6 +13,24 @@ class ProvisionSeatsBody(BaseModel):
 
     course_id: UUID4
     number_of_seats: int = Field(..., gt=0, le=100)
+
+
+class TransferSeatsBody(BaseModel):
+    """Payload for transferring available seats from one course to another."""
+
+    source_course_id: UUID4
+    target_course_id: UUID4
+    amount: PositiveInt | Literal["all"] = Field(
+        ...,
+        description="Number of seats to transfer or 'all'",
+        json_schema_extra={"examples": ["all", 3]},
+    )
+
+    @model_validator(mode="after")
+    def source_and_target_must_differ(self) -> "TransferSeatsBody":
+        if self.source_course_id == self.target_course_id:
+            raise ValueError("source_course_id and target_course_id must be different")
+        return self
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -57,6 +75,11 @@ class SeatDetailOut(SeatOut):
 
 class ProvisionSeatsResponse(BaseModel):
     seats: list[SeatOut]
+
+
+class TransferSeatsResponse(BaseModel):
+    transferred_count: int
+    transferred_seats: list[SeatOut]
 
 
 class ListSeatsResponse(BaseModel):
