@@ -13,7 +13,7 @@ from virtual_labs.domain.project import (
     ProjectsWithWorkspaceResponse,
     ProjectVlOut,
 )
-from virtual_labs.infrastructure.kc.models import AuthUser
+from virtual_labs.infrastructure.kc.grant import AuthUserGrants
 from virtual_labs.repositories.group_repo import GroupQueryRepository
 from virtual_labs.repositories.project_repo import ProjectQueryRepository
 from virtual_labs.repositories.user_preference_repo import (
@@ -23,12 +23,13 @@ from virtual_labs.shared.utils.auth import get_user_id_from_auth
 
 
 async def retrieve_all_user_projects_use_case(
-    session: AsyncSession, auth: Tuple[AuthUser, str], pagination: PageParams
+    session: AsyncSession, auth: Tuple[AuthUserGrants, str], pagination: PageParams
 ) -> Response:
     prefr = UserPreferenceQueryRepository(session)
     pr = ProjectQueryRepository(session)
     gqr = GroupQueryRepository()
 
+    user, _token = auth
     user_id = get_user_id_from_auth(auth)
 
     try:
@@ -48,6 +49,7 @@ async def retrieve_all_user_projects_use_case(
                     "admins": await gqr.a_retrieve_group_user_ids(
                         group_id=p.admin_group_id
                     ),
+                    "waitlisted": user.is_project_waitlisted(p.id),
                 }
             )
             for p, _ in results.rows
