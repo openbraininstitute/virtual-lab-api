@@ -3,6 +3,7 @@
 from datetime import datetime, timezone
 from http import HTTPStatus
 from uuid import UUID, uuid4
+import asyncio
 
 from loguru import logger
 from pydantic import UUID4
@@ -10,7 +11,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
-from virtual_labs.core.ledger import ledger_container
+from virtual_labs.core.ledger import Ledger, ledger_container
+from virtual_labs.core.types import UserRoleEnum
 from virtual_labs.domain.course import SeatAssignmentEntry, SeatAssignmentResult
 from virtual_labs.domain.project import ProjectCreationBody
 from virtual_labs.infrastructure.db.models import (
@@ -23,10 +25,14 @@ from virtual_labs.infrastructure.email.send_enrolment_claim_email import (
     EnrolmentClaimEmailDetails,
     send_enrolment_claim_email,
 )
+from virtual_labs.infrastructure.kc.config import KeycloakRealm
 from virtual_labs.infrastructure.kc.grant import AuthUserGrants
+from virtual_labs.infrastructure.kc.models import CreatedGroup
+from virtual_labs.shared.group_namespace import make_project_group_name
 from virtual_labs.usecases import accounting as accounting_cases
 from virtual_labs.usecases.project.create_new_project import (
     _make_deplete_compensation,
+    _make_kc_group_compensation,
     create_project_record,
     ensure_accounting_initialization,
     ensure_group_creation,
@@ -35,11 +41,58 @@ from virtual_labs.usecases.project.create_new_project import (
 )
 
 
+async def _ensure_project_access(
+    *,
+    virtual_lab_id: UUID4,
+    project_id: UUID4,
+    user_id: UUID,
+    vlab_member_group_id: str,
+    course: Course,
+    comp: Ledger,
+) -> str | None:
+    """Add the user to the appropriate KC group based on whether the course has started.
+
+    Returns the waitlisted_group_id if the course hasn't started, else None.
+    """
+    now = datetime.now(timezone.utc)
+    course_started = course.start_date is None or now >= course.start_date.replace(
+        tzinfo=timezone.utc
+    )
+
+    if course_started:
+        member_group_name = make_project_group_name(
+            virtual_lab_id, project_id, UserRoleEnum.member
+        )
+        member_group_id = await KeycloakRealm.a_get_group_by_path(member_group_name)
+        await asyncio.gather(
+            KeycloakRealm.a_group_user_add(
+                user_id=user_id, group_id=member_group_id["id"]
+            ),
+            KeycloakRealm.a_group_user_add(
+                user_id=user_id, group_id=vlab_member_group_id
+            ),
+        )
+        return None
+
+    waitlisted_group_name = make_project_group_name(
+        virtual_lab_id, project_id, UserRoleEnum.waitlisted
+    )
+    wg_id = await KeycloakRealm.a_create_group({"name": waitlisted_group_name})
+    assert wg_id is not None
+    waitlisted_group: CreatedGroup = {"id": wg_id, "name": waitlisted_group_name}
+    comp.push(await _make_kc_group_compensation(waitlisted_group))
+    await asyncio.gather(
+        KeycloakRealm.a_group_user_add(user_id=user_id, group_id=wg_id),
+        KeycloakRealm.a_group_user_add(user_id=user_id, group_id=vlab_member_group_id),
+    )
+    return wg_id
+
+
 async def _assign_seat(
     session: AsyncSession,
     *,
     virtual_lab_id: UUID4,
-    course_id: UUID4,
+    course: Course,
     student_email: str,
     student_id: str,
     seat: Seat,
@@ -88,6 +141,15 @@ async def _assign_seat(
             comp=comp,
         )
 
+        waitlisted_group_id = await _ensure_project_access(
+            virtual_lab_id=virtual_lab_id,
+            project_id=project_draft_id,
+            user_id=user_id,
+            vlab_member_group_id=vlab_member_group_id,
+            course=course,
+            comp=comp,
+        )
+
         await ensure_accounting_initialization(
             virtual_lab_id=virtual_lab_id,
             project_id=project_draft_id,
@@ -102,6 +164,7 @@ async def _assign_seat(
             payload=payload,
             admin_group=admin_group,
             member_group=member_group,
+            waitlisted_group_id=waitlisted_group_id,
             user_id=user_id,
             commit=False,
         )
@@ -117,7 +180,7 @@ async def _assign_seat(
         comp.push(_make_deplete_compensation(virtual_lab_id, project_draft_id))
 
         enrolment = CourseEnrolment(
-            course_id=course_id,
+            course_id=course.id,
             contact_email=student_email,
             student_id=student_id,
             project_id=project_draft_id,
@@ -228,21 +291,19 @@ async def assign_seats(
     # Lock seats up front
     seats = await get_available_seats(db, course.id, len(students))
 
-    course_id = course.id
     virtual_lab_id = course.virtual_lab_id
     course_name = course.virtual_lab.name
-    seat_ids = [s.id for s in seats]
 
     # Create projects, enrolments, and assign seats.
     results: list[SeatAssignmentResult] = []
 
-    for seat, student, seat_id in zip(seats, students, seat_ids):
+    for seat, student in zip(seats, students):
         try:
             async with db.begin_nested():
                 result = await _assign_seat(
                     db,
                     virtual_lab_id=virtual_lab_id,
-                    course_id=course_id,
+                    course=course,
                     student_email=student.email,
                     student_id=student.student_id,
                     seat=seat,
@@ -260,7 +321,7 @@ async def assign_seats(
                     student_id=student.student_id,
                     email=student.email,
                     assignment_successful=False,
-                    seat_id=seat_id,
+                    seat_id=seat.id,
                     error=str(ex),
                 )
             )
