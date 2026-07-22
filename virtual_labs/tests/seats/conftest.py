@@ -4,6 +4,7 @@ Creates a course-enabled virtual lab (is_course=True) through the API,
 which uses COURSE_LAB_POLICY (no billing/subscription required).
 """
 
+from datetime import datetime, timedelta, timezone
 from typing import AsyncGenerator
 from uuid import UUID, uuid4
 
@@ -138,12 +139,13 @@ async def course_for_seats(
     course_id = course_response.json()["data"]["id"]
 
     # 4. Set required dates and activate the course
+    now = datetime.now(timezone.utc)
     await client.patch(
         f"/courses/{course_id}",
         json={
-            "start_date": "2026-09-01T00:00:00Z",
-            "end_date": "2026-12-15T00:00:00Z",
-            "last_drop_date": "2026-09-14T00:00:00Z",
+            "start_date": now.isoformat(),
+            "end_date": (now + timedelta(days=180)).isoformat(),
+            "last_drop_date": (now + timedelta(days=14)).isoformat(),
         },
         headers=SERVICE_ADMIN_HEADERS,
     )
