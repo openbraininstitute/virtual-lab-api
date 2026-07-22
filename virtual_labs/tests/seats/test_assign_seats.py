@@ -6,9 +6,16 @@ from uuid import uuid4
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import select
 
+from virtual_labs.infrastructure.db.models import Project, VirtualLab
+from virtual_labs.infrastructure.kc.config import KeycloakRealm
 from virtual_labs.tests.seats.helpers import provision_seats
-from virtual_labs.tests.utils import get_headers
+from virtual_labs.tests.utils import (
+    get_headers,
+    get_user_id_from_test_auth,
+    session_context_factory,
+)
 
 
 def _assign_payload(students: list[dict] | None = None) -> dict:
@@ -398,3 +405,113 @@ async def test_assign_seats_fails_for_non_admin_user(
     )
 
     assert response.status_code == 403
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Group membership tests
+# ──────────────────────────────────────────────────────────────────────
+
+
+async def _get_user_group_ids(user_id: str) -> set[str]:
+    groups = await KeycloakRealm.a_get_user_groups(user_id=user_id)
+    return {g["id"] for g in groups}
+
+
+@pytest.mark.asyncio
+async def test_assign_seat_started_course_adds_user_to_member_groups(
+    async_test_client: AsyncClient,
+    course_for_seats: str,
+) -> None:
+    """When course has already started, student is added to vlab member + project member groups."""
+    headers = get_headers()
+    course_id = course_for_seats
+    await provision_seats(async_test_client, course_id, 1)
+
+    student = {
+        "student_id": f"stu-{uuid4().hex[:8]}",
+        "email": f"{uuid4().hex[:8]}@uni.org",
+    }
+
+    with mock_assign_accounting(fund_succeeds=True):
+        response = await async_test_client.post(
+            f"/seats/courses/{course_id}/assign",
+            json=_assign_payload([student]),
+            headers=headers,
+        )
+
+    assert response.status_code == 200
+    result = response.json()["results"][0]
+    assert result["assignment_successful"] is True
+
+    project_id = result["project_id"]
+
+    async with session_context_factory() as session:
+        row = (
+            await session.execute(
+                select(
+                    VirtualLab.member_group_id,
+                    Project.member_group_id,
+                ).where(
+                    Project.id == project_id,
+                    VirtualLab.id == Project.virtual_lab_id,
+                )
+            )
+        ).one()
+    vlab_member_group_id, project_member_group_id = row
+
+    user_id = str(await get_user_id_from_test_auth(headers["Authorization"]))
+    user_group_ids = await _get_user_group_ids(user_id)
+
+    assert vlab_member_group_id in user_group_ids
+    assert project_member_group_id in user_group_ids
+
+
+@pytest.mark.asyncio
+async def test_assign_seat_future_course_adds_user_to_vlab_member_and_project_waitlisted(
+    async_test_client: AsyncClient,
+    future_course_for_seats: str,
+) -> None:
+    """When course hasn't started yet, student is added to vlab member + project waitlisted groups."""
+    headers = get_headers()
+    course_id = future_course_for_seats
+    await provision_seats(async_test_client, course_id, 1)
+
+    student = {
+        "student_id": f"stu-{uuid4().hex[:8]}",
+        "email": f"{uuid4().hex[:8]}@uni.org",
+    }
+
+    with mock_assign_accounting(fund_succeeds=True):
+        response = await async_test_client.post(
+            f"/seats/courses/{course_id}/assign",
+            json=_assign_payload([student]),
+            headers=headers,
+        )
+
+    assert response.status_code == 200
+    result = response.json()["results"][0]
+    assert result["assignment_successful"] is True
+
+    project_id = result["project_id"]
+
+    async with session_context_factory() as session:
+        row = (
+            await session.execute(
+                select(
+                    VirtualLab.member_group_id,
+                    Project.waitlisted_group_id,
+                ).where(
+                    Project.id == project_id,
+                    VirtualLab.id == Project.virtual_lab_id,
+                )
+            )
+        ).one()
+    vlab_member_group_id, project_waitlisted_group_id = row
+
+    assert project_waitlisted_group_id is not None
+
+    user_id = str(await get_user_id_from_test_auth(headers["Authorization"]))
+    user_group_ids = await _get_user_group_ids(user_id)
+
+    assert vlab_member_group_id in user_group_ids
+    assert project_waitlisted_group_id in user_group_ids

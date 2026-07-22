@@ -81,19 +81,15 @@ async def institution_id() -> str:
     return await get_or_create_institution()
 
 
-@pytest_asyncio.fixture
-async def course_for_seats(
-    async_test_client: AsyncClient,
+async def _create_active_course(
+    client: AsyncClient,
     institution_id: str,
+    start_date: datetime | None = None,
 ) -> AsyncGenerator[str, None]:
-    """Create a course-enabled virtual lab and a course. Returns the course_id.
-
-    Uses is_course=True so COURSE_LAB_POLICY is applied (no billing/subscription).
-    """
-    client = async_test_client
+    """Shared factory: create a course-enabled vlab + active course. Yields course_id."""
     headers = get_headers()
+    now = start_date or datetime.now(timezone.utc)
 
-    # 1. Create a course-enabled vlab (no subscription needed)
     lab_body = {
         "name": f"Course Lab {uuid4()}",
         "description": "Test course lab",
@@ -105,7 +101,6 @@ async def course_for_seats(
     assert lab_response.status_code == 200
     lab_id = lab_response.json()["id"]
 
-    # Mark as course lab (owner_id must be the service user for course validation)
     async with session_context_factory() as session:
         await session.execute(
             update(VirtualLab)
@@ -114,7 +109,6 @@ async def course_for_seats(
         )
         await session.commit()
 
-    # 2. Create a project (needed as template_project_id)
     project_body = {
         "name": f"Template Project {uuid4()}",
         "description": "Template",
@@ -125,7 +119,6 @@ async def course_for_seats(
     assert project_response.status_code == 200
     project_id = project_response.json()["id"]
 
-    # 3. Create a course for this vlab
     course_body = {
         "virtual_lab_id": lab_id,
         "template_project_id": project_id,
@@ -134,12 +127,9 @@ async def course_for_seats(
     course_response = await client.post(
         "/courses", json=course_body, headers=SERVICE_ADMIN_HEADERS
     )
-
     assert course_response.status_code == 200
     course_id = course_response.json()["data"]["id"]
 
-    # 4. Set required dates and activate the course
-    now = datetime.now(timezone.utc)
     await client.patch(
         f"/courses/{course_id}",
         json={
@@ -159,6 +149,29 @@ async def course_for_seats(
     await cleanup_seats(course_id)
     await cleanup_course(course_id)
     await cleanup_resources(client, lab_id)
+
+
+@pytest_asyncio.fixture
+async def course_for_seats(
+    async_test_client: AsyncClient,
+    institution_id: str,
+) -> AsyncGenerator[str, None]:
+    """Active course with start_date=now (course already started)."""
+    async for course_id in _create_active_course(async_test_client, institution_id):
+        yield course_id
+
+
+@pytest_asyncio.fixture
+async def future_course_for_seats(
+    async_test_client: AsyncClient,
+    institution_id: str,
+) -> AsyncGenerator[str, None]:
+    """Active course with start_date=now+1d (course not yet started)."""
+    future_start = datetime.now(timezone.utc) + timedelta(days=1)
+    async for course_id in _create_active_course(
+        async_test_client, institution_id, start_date=future_start
+    ):
+        yield course_id
 
 
 @pytest_asyncio.fixture
