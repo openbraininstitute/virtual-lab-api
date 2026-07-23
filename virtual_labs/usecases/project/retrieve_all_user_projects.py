@@ -49,7 +49,6 @@ async def retrieve_all_user_projects_use_case(
                     "admins": await gqr.a_retrieve_group_user_ids(
                         group_id=p.admin_group_id
                     ),
-                    "waitlisted": user.is_project_waitlisted(p.id),
                 }
             )
             for p, _ in results.rows

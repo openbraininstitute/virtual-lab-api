@@ -96,12 +96,13 @@ class ProjectGrants(ResourceGrants):
     waitlisted: frozenset[UUID] = frozenset()
     _vlab_by_project: dict[UUID, UUID] = field(default_factory=dict)
 
+    @property
+    def all(self) -> frozenset[UUID]:
+        return self.admin | self.member | self.waitlisted
+
     def vlab_of(self, project_id: UUID) -> UUID | None:
         """Return the vlab id this project belongs to, when known."""
         return self._vlab_by_project.get(project_id)
-
-    def is_waitlisted(self, project_id: UUID) -> bool:
-        return project_id in self.waitlisted
 
 
 @dataclass(frozen=True, slots=True)
@@ -321,9 +322,6 @@ class AuthUserGrants(AuthUser):
 
     def is_project_member(self, project_id: UUID) -> bool:
         return self.grants.projects.is_member(project_id)
-
-    def is_project_waitlisted(self, project_id: UUID) -> bool:
-        return self.grants.projects.is_waitlisted(project_id)
 
     def has_project_access(self, project_id: UUID) -> bool:
         return self.grants.projects.has_access(project_id)
