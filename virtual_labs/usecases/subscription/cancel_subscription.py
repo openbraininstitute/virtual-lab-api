@@ -49,16 +49,33 @@ async def cancel_subscription(
     session: AsyncSession,
     auth: tuple[AuthUser, str],
 ) -> Response:
-    """Mark the active paid subscription for cancellation at period end."""
+    """Mark the requester's active paid subscription for cancellation
+    at period end."""
+    return await cancel_subscription_for_user(
+        payload, session, user_id=get_user_id_from_auth(auth)
+    )
+
+
+async def cancel_subscription_for_user(
+    payload: CancelSubscriptionRequest,
+    session: AsyncSession,
+    *,
+    user_id: UUID,
+    expected_subscription_id: UUID | None = None,
+) -> Response:
+    """Cancellation core, keyed on the *target* user rather than the
+    requester — the platform-admin flow cancels on behalf of another
+    user. `expected_subscription_id` guards the admin path: when set,
+    the user's active paid subscription must be that exact row.
+    """
     try:
-        user_id = get_user_id_from_auth(auth)
         subscription_repo = SubscriptionRepository(session)
         stripe_service = get_stripe_repository()
 
         # validate state, snapshot the Stripe id
         async with session.begin():
             stripe_subscription_id = await _validate_and_snapshot_stripe_id(
-                subscription_repo, user_id
+                subscription_repo, user_id, expected_subscription_id
             )
 
         # Stripe write outside any DB transaction so the connection
@@ -136,7 +153,9 @@ async def cancel_subscription(
 
 
 async def _validate_and_snapshot_stripe_id(
-    subscription_repo: SubscriptionRepository, user_id: UUID
+    subscription_repo: SubscriptionRepository,
+    user_id: UUID,
+    expected_subscription_id: UUID | None = None,
 ) -> str:
     """Return the Stripe subscription id for the user's active paid sub.
 
@@ -148,6 +167,13 @@ async def _validate_and_snapshot_stripe_id(
     subscription = await subscription_repo.get_active_paid_subscription_locked(user_id)
     if subscription is None:
         raise EntityNotFound(message="No active paid subscription found")
+    if (
+        expected_subscription_id is not None
+        and subscription.id != expected_subscription_id
+    ):
+        raise SubscriptionNotActive(
+            message="Subscription is not the user's active paid subscription"
+        )
     if subscription.cancel_at_period_end:
         raise SubscriptionAlreadyCanceled(
             message="Subscription has already been canceled"

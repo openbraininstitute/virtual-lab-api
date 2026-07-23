@@ -1,15 +1,15 @@
 from datetime import datetime
-from typing import List, Tuple, cast
+from typing import Any, List, Tuple, cast
 from uuid import UUID
 
 from pydantic import UUID4
 from sqlalchemy import Row, delete, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import noload
-from sqlalchemy.sql import and_
+from sqlalchemy.sql import ColumnElement, and_
 
 from virtual_labs.core.types import PaginatedDbResult
-from virtual_labs.domain.common import PageParams
+from virtual_labs.domain.common import PageParams, PaginationRequest
 from virtual_labs.domain.project import (
     ProjectCreationBody,
     ProjectUpdateBody,
@@ -390,6 +390,91 @@ class ProjectQueryRepository:
             result,
         )
 
+    async def admin_list_projects(
+        self,
+        *,
+        query: str | None,
+        virtual_lab_id: UUID4 | None,
+        include_deleted: bool,
+        deleted_only: bool,
+        pagination: PaginationRequest,
+        order_by: tuple[ColumnElement[Any], ...],
+    ) -> tuple[list[Row[Tuple[Project, VirtualLab]]], int]:
+        """Global (non-membership-scoped) paginated listing for the
+        platform-admin namespace. Returns ``((project, virtual_lab)
+        rows, total)``.
+        """
+        conditions: list[ColumnElement[bool]] = []
+        if deleted_only:
+            conditions.append(Project.deleted.is_(True))
+        elif not include_deleted:
+            conditions.append(Project.deleted.is_(False))
+        if virtual_lab_id is not None:
+            conditions.append(Project.virtual_lab_id == virtual_lab_id)
+        if query:
+            conditions.append(
+                func.lower(Project.name).ilike(f"%{query.strip().lower()}%")
+            )
+
+        base = select(Project, VirtualLab).join(
+            VirtualLab, Project.virtual_lab_id == VirtualLab.id
+        )
+        if conditions:
+            base = base.where(and_(*conditions))
+
+        total = (
+            await self.session.scalar(
+                select(func.count()).select_from(base.options(noload("*")).subquery())
+            )
+        ) or 0
+
+        rows = (
+            await self.session.execute(
+                base.order_by(*order_by, Project.id.asc())
+                .offset(pagination.offset)
+                .limit(pagination.page_size)
+            )
+        ).all()
+
+        return list(rows), total
+
+    async def get_project_names(
+        self, project_ids: list[UUID4]
+    ) -> list[Row[Tuple[UUID, str, UUID]]]:
+        """Resolve project ids to ``(id, name, virtual_lab_id)`` rows
+        (soft-deleted projects included)."""
+        if not project_ids:
+            return []
+        rows = (
+            await self.session.execute(
+                select(Project.id, Project.name, Project.virtual_lab_id).where(
+                    Project.id.in_(project_ids)
+                )
+            )
+        ).all()
+        return list(rows)
+
+    async def count_active_project_name_conflicts(
+        self, *, virtual_lab_id: UUID4, name: str, exclude_project_id: UUID4
+    ) -> int:
+        """Non-deleted projects in the lab holding the same name.
+
+        Mirrors the `unique_project_name_for_non_deleted` partial index
+        (exact match on raw columns) so a restore can be pre-checked
+        instead of failing on the constraint.
+        """
+        count = await self.session.scalar(
+            select(func.count(Project.id)).where(
+                and_(
+                    Project.virtual_lab_id == virtual_lab_id,
+                    Project.name == name,
+                    Project.deleted.is_(False),
+                    Project.id != exclude_project_id,
+                )
+            )
+        )
+        return count or 0
+
     async def check_project_exists_by_name(self, *, query_term: str) -> int | None:
         count = await self.session.scalar(
             select(func.count(Project.id)).filter(
@@ -482,7 +567,7 @@ class ProjectMutationRepository:
             .where(
                 and_(Project.id == project_id, Project.virtual_lab_id == virtual_lab_id)
             )
-            .values(deleted=False, deleted_at=None)
+            .values(deleted=False, deleted_at=None, deleted_by=None)
             .returning(
                 Project.id,
                 Project.admin_group_id,

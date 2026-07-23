@@ -127,6 +127,10 @@ class ServiceGrants:
     def has(self, service: str, role: str = "admin") -> bool:
         return role in self._roles_by_service.get(service, frozenset())
 
+    def has_any(self, service: str, roles: Iterable[str]) -> bool:
+        """True if the user holds at least one of `roles` in `service`."""
+        return not self.roles_for(service).isdisjoint(roles)
+
 
 @dataclass(frozen=True, slots=True)
 class Grants:
@@ -330,9 +334,6 @@ class AuthUserGrants(AuthUser):
 
     def is_service_admin(self, service: str) -> bool:
         return self.grants.services.is_admin(service)
-
-    def has_service_role(self, service: str, role: str = "admin") -> bool:
-        return self.grants.services.has(service, role)
 
 
 # FastAPI dependency

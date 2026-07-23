@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from decimal import Decimal
 from typing import Optional
+from uuid import UUID
 
-from sqlalchemy import and_, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.infrastructure.db.models import CreditPackageRate
@@ -92,3 +93,59 @@ class CreditPackageRateRepository:
         )
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
+
+    async def get_all_rates(
+        self, currency: Optional[str] = None
+    ) -> list[CreditPackageRate]:
+        """All rates — active and inactive — for the platform-admin
+        namespace, optionally narrowed to one currency."""
+        stmt = select(CreditPackageRate).order_by(
+            CreditPackageRate.currency.asc(), CreditPackageRate.min_credits.asc()
+        )
+        if currency:
+            stmt = stmt.where(CreditPackageRate.currency == currency.lower())
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def get_rate_by_id(self, rate_id: UUID) -> Optional[CreditPackageRate]:
+        return await self.session.get(CreditPackageRate, rate_id)
+
+    async def count_active_range_conflicts(
+        self, *, currency: str, min_credits: int, exclude_rate_id: UUID
+    ) -> int:
+        """Active rows colliding with the `uq_credit_package_rate_currency_min`
+        partial unique index, so an activation can be pre-checked."""
+        count = await self.session.scalar(
+            select(func.count(CreditPackageRate.id)).where(
+                and_(
+                    CreditPackageRate.currency == currency.lower(),
+                    CreditPackageRate.min_credits == min_credits,
+                    CreditPackageRate.active.is_(True),
+                    CreditPackageRate.id != exclude_rate_id,
+                )
+            )
+        )
+        return count or 0
+
+
+class CreditPackageRateMutationRepository:
+    """Write access to credit package rates (platform-admin only)."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+
+    async def update_rate(
+        self, rate: CreditPackageRate, fields: dict[str, object]
+    ) -> CreditPackageRate:
+        """Apply the given field values to a rate row and persist.
+        Stamps `activated_at`/`deactivated_at` on `active` flips."""
+        if "active" in fields and bool(fields["active"]) != rate.active:
+            if fields["active"]:
+                fields = {**fields, "activated_at": func.now(), "deactivated_at": None}
+            else:
+                fields = {**fields, "deactivated_at": func.now()}
+        for key, value in fields.items():
+            setattr(rate, key, value)
+        await self.session.commit()
+        await self.session.refresh(rate)
+        return rate

@@ -428,6 +428,12 @@
               "name": "admin",
               "path": "/service/virtual-lab-svc/admin",
               "subGroups": []
+            },
+            {
+              "id": "vlab-svc-maintainer-group",
+              "name": "maintainer",
+              "path": "/service/virtual-lab-svc/maintainer",
+              "subGroups": []
             }
           ]
         }
@@ -841,6 +847,42 @@
       "notBefore": 0,
       "groups": [
         "/service/virtual-lab-svc/admin"
+      ]
+    },
+    {
+      "id": "1f3d8a6e-52c4-47b1-9c6a-4e0b7d2f8a15",
+      "username": "test-service-maintainer",
+      "firstName": "Service",
+      "lastName": "Maintainer",
+      "email": "service-maintainer@test.com",
+      "emailVerified": true,
+      "createdTimestamp": 1578311988958,
+      "enabled": true,
+      "totp": false,
+      "credentials": [
+        {
+          "type": "password",
+          "userLabel": "My password",
+          "createdDate": 1710853579448,
+          "secretData": "{\"value\":\"BwCJ4By3F46GmWtpJml6aLDTmIwBwaKYL1+q6ILRLUOMLzfk6P0PMkvbjyKMdfv+jBQ0czZuCZNFoIg+sAUE1A==\",\"salt\":\"k4IdhhKonpZ7slbuBjrHPw==\",\"additionalParameters\":{}}",
+          "credentialData": "{\"hashIterations\":210000,\"algorithm\":\"pbkdf2-sha512\",\"additionalParameters\":{}}"
+        }
+      ],
+      "disableableCredentialTypes": [],
+      "requiredActions": [],
+      "realmRoles": [
+        "offline_access",
+        "uma_authorization"
+      ],
+      "clientRoles": {
+        "account": [
+          "view-profile",
+          "manage-account"
+        ]
+      },
+      "notBefore": 0,
+      "groups": [
+        "/service/virtual-lab-svc/maintainer"
       ]
     }
   ],

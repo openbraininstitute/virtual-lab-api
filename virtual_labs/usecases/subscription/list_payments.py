@@ -32,6 +32,39 @@ def _is_standalone_payment(payment: SubscriptionPayment) -> bool:
     return payment.standalone
 
 
+def payment_to_details(payment: SubscriptionPayment) -> PaymentDetails:
+    """Map a `SubscriptionPayment` row to the response DTO. Shared
+    with the platform-admin payment endpoints."""
+    return PaymentDetails(
+        id=payment.id,
+        amount_paid=payment.amount_paid,
+        amount_subtotal=payment.amount_subtotal,
+        amount_tax=payment.amount_tax,
+        amount_total=payment.amount_total,
+        currency=payment.currency,
+        tax_country=payment.tax_country,
+        tax_behavior=payment.tax_behavior,
+        tax_status=payment.tax_status,
+        credits_purchased=payment.credits_purchased,
+        status=payment.status,
+        payment_date=payment.payment_date,
+        payment_type=PaymentType.STANDALONE
+        if _is_standalone_payment(payment)
+        else PaymentType.SUBSCRIPTION,
+        card_brand=payment.card_brand,
+        card_last4=payment.card_last4,
+        card_exp_month=payment.card_exp_month,
+        card_exp_year=payment.card_exp_year,
+        receipt_url=payment.receipt_url,
+        invoice_pdf=payment.invoice_pdf,
+        virtual_lab_id=payment.virtual_lab_id,
+        period_start=getattr(payment, "period_start", None),
+        period_end=getattr(payment, "period_end", None),
+        created_at=payment.created_at,
+        updated_at=payment.updated_at,
+    )
+
+
 async def list_payments(
     session: AsyncSession,
     filters: PaymentFilter,
@@ -74,51 +107,11 @@ async def list_payments(
             filters=filters,
         )
 
-        total_pages = (total_count + filters.page_size - 1) // filters.page_size
-        has_next = filters.page < total_pages
-        has_previous = filters.page > 1
-
-        payment_details = []
-
-        for payment in payments:
-            details = PaymentDetails(
-                id=payment.id,
-                amount_paid=payment.amount_paid,
-                amount_subtotal=payment.amount_subtotal,
-                amount_tax=payment.amount_tax,
-                amount_total=payment.amount_total,
-                currency=payment.currency,
-                tax_country=payment.tax_country,
-                tax_behavior=payment.tax_behavior,
-                tax_status=payment.tax_status,
-                credits_purchased=payment.credits_purchased,
-                status=payment.status,
-                payment_date=payment.payment_date,
-                payment_type=PaymentType.STANDALONE
-                if _is_standalone_payment(payment)
-                else PaymentType.SUBSCRIPTION,
-                card_brand=payment.card_brand,
-                card_last4=payment.card_last4,
-                card_exp_month=payment.card_exp_month,
-                card_exp_year=payment.card_exp_year,
-                receipt_url=payment.receipt_url,
-                invoice_pdf=payment.invoice_pdf,
-                virtual_lab_id=payment.virtual_lab_id,
-                period_start=getattr(payment, "period_start", None),
-                period_end=getattr(payment, "period_end", None),
-                created_at=payment.created_at,
-                updated_at=payment.updated_at,
-            )
-            payment_details.append(details)
-
-        response = PaymentListResponse(
-            total_count=total_count,
-            total_pages=total_pages,
-            current_page=filters.page,
+        response = PaymentListResponse.build(
+            [payment_to_details(payment) for payment in payments],
+            total=total_count,
+            page=filters.page,
             page_size=filters.page_size,
-            has_next=has_next,
-            has_previous=has_previous,
-            payments=payment_details,
         )
 
         return VliResponse.new(

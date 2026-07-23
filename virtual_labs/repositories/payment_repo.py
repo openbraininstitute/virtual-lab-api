@@ -1,4 +1,5 @@
-from typing import List, Tuple
+from typing import List, Optional, Tuple
+from uuid import UUID
 
 from sqlalchemy import and_, false, func, select, true
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -40,6 +41,43 @@ class PaymentRepository:
             query = query.where(and_(*conditions))
 
         return query
+
+    async def admin_list_payments(
+        self,
+        filters: PaymentFilter,
+        customer_id: Optional[str] = None,
+    ) -> Tuple[List[SubscriptionPayment], int]:
+        """`list_payments` without the mandatory customer scope, for
+        the platform-admin namespace. Returns ``(payments, total)``.
+        """
+        query = select(SubscriptionPayment)
+        if customer_id:
+            query = query.where(SubscriptionPayment.customer_id == customer_id)
+        query = self._apply_filters(query, filters)
+
+        total = (
+            await self.session.scalar(
+                select(func.count()).select_from(query.subquery())
+            )
+        ) or 0
+
+        rows = (
+            (
+                await self.session.execute(
+                    query.order_by(SubscriptionPayment.payment_date.desc())
+                    .offset(filters.offset)
+                    .limit(filters.page_size)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        return list(rows), total
+
+    async def get_payment_by_id(
+        self, payment_id: UUID
+    ) -> Optional[SubscriptionPayment]:
+        return await self.session.get(SubscriptionPayment, payment_id)
 
     async def list_payments(
         self,

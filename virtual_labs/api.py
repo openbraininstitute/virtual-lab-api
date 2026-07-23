@@ -24,6 +24,8 @@ from virtual_labs.infrastructure.redis import get_redis
 from virtual_labs.infrastructure.sentry import init_sentry
 from virtual_labs.infrastructure.settings import settings
 from virtual_labs.routes.accounting import router as accounting_router
+from virtual_labs.routes.admin import router as admin_router
+from virtual_labs.routes.admin.deps import PLATFORM_ADMIN_TAG_PREFIX
 from virtual_labs.routes.billing import router as billing_router
 from virtual_labs.routes.bookmarks import router as bookmarks_router
 from virtual_labs.routes.common import router as common_router
@@ -92,7 +94,8 @@ def custom_openapi() -> dict[str, Any]:
         VlmValidationError.model_json_schema()
     )
 
-    # hide DELETE endpoints and subscription/accounting from Swagger in production
+    # hide DELETE endpoints, subscription/accounting and the
+    # platform-admin namespace from Swagger in production
     if settings.DEPLOYMENT_ENV == "production":
         hidden_tags = {"Subscriptions", "Accounting Endpoints"}
         for path_key, path_item in list(openapi_schema.get("paths", {}).items()):
@@ -100,7 +103,9 @@ def custom_openapi() -> dict[str, Any]:
             # Remove operations tagged with hidden tags
             for method in list(path_item.keys()):
                 op_tags = set(path_item[method].get("tags", []))
-                if op_tags & hidden_tags:
+                if op_tags & hidden_tags or any(
+                    tag.startswith(PLATFORM_ADMIN_TAG_PREFIX) for tag in op_tags
+                ):
                     path_item.pop(method)
             # Remove empty paths
             if not path_item:
@@ -187,6 +192,7 @@ base_router.include_router(subscription_router)
 base_router.include_router(user_router)
 base_router.include_router(promotions_router)
 base_router.include_router(admin_promotions_router)
+base_router.include_router(admin_router)
 base_router.include_router(config_router)
 base_router.include_router(institution_router)
 base_router.include_router(course_router)

@@ -1,5 +1,7 @@
 """Gate that authorizes access to a Keycloak service group."""
 
+from collections.abc import Iterable
+
 from fastapi import Depends
 
 from virtual_labs.core.gate.base import forbidden
@@ -24,19 +26,25 @@ class ServiceGate:
     For an arbitrary role (anything other than `admin`) pass `role=`:
 
         Depends(ServiceGate("small-scale-simulator", role="operator"))
+
+    `role` also accepts an iterable of roles with any-of semantics.
+    Roles are independent sets in Keycloak (`admin` does not imply
+    `maintainer`), so an endpoint open to several tiers must list them:
+
+        Depends(ServiceGate("virtual-lab-svc", role=("admin", "maintainer")))
     """
 
-    __slots__ = ("_service", "_role")
+    __slots__ = ("_service", "_roles")
 
-    def __init__(self, service: str, *, role: str = "admin") -> None:
+    def __init__(self, service: str, *, role: str | Iterable[str] = "admin") -> None:
         self._service = service
-        self._role = role
+        self._roles = frozenset([role] if isinstance(role, str) else role)
 
     async def __call__(
         self,
         auth: tuple[AuthUserGrants, str] = Depends(parse_auth_grants),
     ) -> AuthUserGrants:
         user, _token = auth
-        if not user.has_service_role(self._service, self._role):
-            raise forbidden(f"service:{self._service}:{self._role}")
+        if not user.grants.services.has_any(self._service, self._roles):
+            raise forbidden(f"service:{self._service}:{'|'.join(sorted(self._roles))}")
         return user
