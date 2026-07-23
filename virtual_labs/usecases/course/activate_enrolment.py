@@ -120,17 +120,26 @@ async def activate_enrolment(
     project = enrolment.project
     vlab = course.virtual_lab
 
-    async with ledger_container() as comp:
-        await _activate_in_kc(
-            user_id=user_id,
-            project_member_group_id=project.member_group_id,
-            vlab_member_group_id=vlab.member_group_id,
-            waitlisted_group_id=project.waitlisted_group_id,
-            comp=comp,
-        )
+    try:
+        async with ledger_container() as comp:
+            await _activate_in_kc(
+                user_id=user_id,
+                project_member_group_id=project.member_group_id,
+                vlab_member_group_id=vlab.member_group_id,
+                waitlisted_group_id=project.waitlisted_group_id,
+                comp=comp,
+            )
 
-        enrolment.activated_at = now
-        await db.commit()
-        await db.refresh(enrolment)
+            enrolment.activated_at = now
+            await db.commit()
+            await db.refresh(enrolment)
+    except VliError:
+        raise
+    except Exception as exc:
+        raise VliError(
+            error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
+            http_status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            message="Failed to activate enrolment",
+        ) from exc
 
     return enrolment
