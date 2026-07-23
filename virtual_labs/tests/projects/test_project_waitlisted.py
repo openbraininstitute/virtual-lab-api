@@ -41,7 +41,9 @@ async def mock_waitlisted_project(
             .values(waitlisted_group_id=group_id)
         )
         result = await session.execute(
-            select(VirtualLab.member_group_id).where(VirtualLab.id == UUID(virtual_lab_id))
+            select(VirtualLab.member_group_id).where(
+                VirtualLab.id == UUID(virtual_lab_id)
+            )
         )
         vlab_member_group_id = str(result.scalar_one())
         await session.commit()
