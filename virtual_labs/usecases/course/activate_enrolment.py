@@ -131,5 +131,6 @@ async def activate_enrolment(
 
         enrolment.activated_at = now
         await db.commit()
+        await db.refresh(enrolment)
 
     return enrolment
