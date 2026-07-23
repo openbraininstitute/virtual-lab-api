@@ -7,7 +7,7 @@ from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import contains_eager
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.ledger import Ledger, LedgerAction, ledger_container
@@ -61,7 +61,8 @@ async def activate_enrolment(
     """
     result = await db.execute(
         select(CourseEnrolment)
-        .options(joinedload(CourseEnrolment.project))
+        .join(CourseEnrolment.project)
+        .options(contains_eager(CourseEnrolment.project))
         .where(
             CourseEnrolment.course_id == course_id,
             CourseEnrolment.claimed_by == user_id,
