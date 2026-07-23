@@ -66,7 +66,7 @@ async def activate_enrolment(
             CourseEnrolment.course_id == course_id,
             CourseEnrolment.claimed_by == user_id,
         )
-        .with_for_update()
+        .with_for_update(of=CourseEnrolment)
     )
     enrolment = result.scalars().unique().one_or_none()
 
