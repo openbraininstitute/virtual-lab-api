@@ -468,7 +468,9 @@ async def test_assign_seat_started_course_adds_user_to_member_groups(
         ).one()
     vlab_member_group_id, project_member_group_id = row
 
-    claim_user_id = str(await get_user_id_from_test_auth(get_headers("test-1")["Authorization"]))
+    claim_user_id = str(
+        await get_user_id_from_test_auth(get_headers("test-1")["Authorization"])
+    )
     user_group_ids = await _get_user_group_ids(claim_user_id)
 
     assert vlab_member_group_id in user_group_ids
@@ -527,7 +529,9 @@ async def test_assign_seat_future_course_adds_user_to_vlab_member_and_project_wa
     )
     assert claim_response.status_code == 200
 
-    user_id = str(await get_user_id_from_test_auth(get_headers("test-1")["Authorization"]))
+    user_id = str(
+        await get_user_id_from_test_auth(get_headers("test-1")["Authorization"])
+    )
     user_group_ids = await _get_user_group_ids(user_id)
 
     assert vlab_member_group_id in user_group_ids
