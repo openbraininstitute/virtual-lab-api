@@ -422,7 +422,7 @@ async def test_assign_seat_started_course_adds_user_to_member_groups(
     async_test_client: AsyncClient,
     course_for_seats: str,
 ) -> None:
-    """When course has already started, student is added to vlab member + project member groups."""
+    """When course has already started, claiming adds student to vlab member + project member groups."""
     headers = get_headers()
     course_id = course_for_seats
     await provision_seats(async_test_client, course_id, 1)
@@ -443,7 +443,16 @@ async def test_assign_seat_started_course_adds_user_to_member_groups(
     result = response.json()["results"][0]
     assert result["assignment_successful"] is True
 
+    enrolment_id = result["enrolment_id"]
     project_id = result["project_id"]
+
+    # Group membership happens at claim time, not assign time
+    claim_response = await async_test_client.post(
+        "/courses/claim",
+        json={"enrolment_id": enrolment_id},
+        headers=get_headers("test-1"),
+    )
+    assert claim_response.status_code == 200
 
     async with session_context_factory() as session:
         row = (
@@ -459,8 +468,8 @@ async def test_assign_seat_started_course_adds_user_to_member_groups(
         ).one()
     vlab_member_group_id, project_member_group_id = row
 
-    user_id = str(await get_user_id_from_test_auth(headers["Authorization"]))
-    user_group_ids = await _get_user_group_ids(user_id)
+    claim_user_id = str(await get_user_id_from_test_auth(get_headers("test-1")["Authorization"]))
+    user_group_ids = await _get_user_group_ids(claim_user_id)
 
     assert vlab_member_group_id in user_group_ids
     assert project_member_group_id in user_group_ids
@@ -471,7 +480,7 @@ async def test_assign_seat_future_course_adds_user_to_vlab_member_and_project_wa
     async_test_client: AsyncClient,
     future_course_for_seats: str,
 ) -> None:
-    """When course hasn't started yet, student is added to vlab member + project waitlisted groups."""
+    """When course hasn't started yet, claiming adds student to vlab member + project waitlisted groups."""
     headers = get_headers()
     course_id = future_course_for_seats
     await provision_seats(async_test_client, course_id, 1)
@@ -492,8 +501,10 @@ async def test_assign_seat_future_course_adds_user_to_vlab_member_and_project_wa
     result = response.json()["results"][0]
     assert result["assignment_successful"] is True
 
+    enrolment_id = result["enrolment_id"]
     project_id = result["project_id"]
 
+    # Waitlisted group is created at assign time, but membership happens at claim time
     async with session_context_factory() as session:
         row = (
             await session.execute(
@@ -507,10 +518,16 @@ async def test_assign_seat_future_course_adds_user_to_vlab_member_and_project_wa
             )
         ).one()
     vlab_member_group_id, project_waitlisted_group_id = row
-
     assert project_waitlisted_group_id is not None
 
-    user_id = str(await get_user_id_from_test_auth(headers["Authorization"]))
+    claim_response = await async_test_client.post(
+        "/courses/claim",
+        json={"enrolment_id": enrolment_id},
+        headers=get_headers("test-1"),
+    )
+    assert claim_response.status_code == 200
+
+    user_id = str(await get_user_id_from_test_auth(get_headers("test-1")["Authorization"]))
     user_group_ids = await _get_user_group_ids(user_id)
 
     assert vlab_member_group_id in user_group_ids
