@@ -51,7 +51,7 @@ from virtual_labs.infrastructure.kc.auth import auth_header
 from virtual_labs.infrastructure.kc.config import kc_auth
 from virtual_labs.infrastructure.kc.models import AuthUser
 
-ResourceRole = Literal["admin", "member"]
+ResourceRole = Literal["admin", "member", "waitlisted"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -93,7 +93,12 @@ class ProjectGrants(ResourceGrants):
     in their vlab" can be expressed without a DB round-trip.
     """
 
+    waitlisted: frozenset[UUID] = frozenset()
     _vlab_by_project: dict[UUID, UUID] = field(default_factory=dict)
+
+    @property
+    def all(self) -> frozenset[UUID]:
+        return self.admin | self.member | self.waitlisted
 
     def vlab_of(self, project_id: UUID) -> UUID | None:
         """Return the vlab id this project belongs to, when known."""
@@ -160,6 +165,7 @@ def _build_grants(groups: Iterable[str]) -> Grants:
     vlab_member: set[UUID] = set()
     proj_admin: set[UUID] = set()
     proj_member: set[UUID] = set()
+    proj_waitlisted: set[UUID] = set()
     proj_vlab: dict[UUID, UUID] = {}
     svc_admin: set[str] = set()
     svc_member: set[str] = set()
@@ -188,6 +194,8 @@ def _build_grants(groups: Iterable[str]) -> Grants:
                     proj_admin.add(pid_uuid)
                 elif role == "member":
                     proj_member.add(pid_uuid)
+                elif role == "waitlisted":
+                    proj_waitlisted.add(pid_uuid)
 
             case ["service", svc_name, role]:
                 svc_roles.setdefault(svc_name, set()).add(role)
@@ -208,6 +216,7 @@ def _build_grants(groups: Iterable[str]) -> Grants:
         projects=ProjectGrants(
             admin=frozenset(proj_admin),
             member=frozenset(proj_member),
+            waitlisted=frozenset(proj_waitlisted),
             _vlab_by_project=proj_vlab,
         ),
         services=ServiceGrants(

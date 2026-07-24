@@ -1,5 +1,6 @@
 """Claim an enrolment — student validates their link and we record who claimed it."""
 
+import asyncio
 from datetime import datetime, timezone
 from http import HTTPStatus
 from uuid import UUID
@@ -9,7 +10,21 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
-from virtual_labs.infrastructure.db.models import CourseEnrolment, CourseStatus
+from virtual_labs.core.ledger import LedgerAction, ledger_container
+from virtual_labs.infrastructure.db.models import (
+    CourseEnrolment,
+    CourseStatus,
+    Project,
+    VirtualLab,
+)
+from virtual_labs.infrastructure.kc.config import KeycloakRealm
+
+
+def _make_remove_from_group(user_id: UUID, group_id: str) -> LedgerAction:
+    async def _undo() -> None:
+        await KeycloakRealm.a_group_user_remove(user_id=user_id, group_id=group_id)
+
+    return _undo
 
 
 async def claim_enrolment(
@@ -73,9 +88,49 @@ async def claim_enrolment(
             message="Cannot claim enrolment: course has ended",
         )
 
-    enrolment.claimed_by = user_id
-    await db.commit()
-    await db.refresh(enrolment)
+    # Read course data before commit — after refresh the relationship is expired
+    course = enrolment.course
+    virtual_lab_id = course.virtual_lab_id
+    course_started = course.start_date is None or now >= course.start_date.replace(
+        tzinfo=timezone.utc
+    )
+    project_id = enrolment.project_id
+
+    project = await db.get(Project, project_id)
+    assert project is not None
+    virtual_lab = await db.get(VirtualLab, virtual_lab_id)
+    assert virtual_lab is not None
+    target_group_id = (
+        project.member_group_id if course_started else project.waitlisted_group_id
+    )
+
+    try:
+        async with ledger_container() as comp:
+            if target_group_id is not None:
+                await asyncio.gather(
+                    KeycloakRealm.a_group_user_add(
+                        user_id=user_id, group_id=target_group_id
+                    ),
+                    KeycloakRealm.a_group_user_add(
+                        user_id=user_id, group_id=str(virtual_lab.member_group_id)
+                    ),
+                )
+                comp.push(_make_remove_from_group(user_id, target_group_id))
+                comp.push(
+                    _make_remove_from_group(user_id, str(virtual_lab.member_group_id))
+                )
+
+            enrolment.claimed_by = user_id
+            await db.commit()
+            await db.refresh(enrolment)
+    except VliError:
+        raise
+    except Exception as exc:
+        raise VliError(
+            error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
+            http_status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            message="Failed to claim enrolment",
+        ) from exc
 
     logger.info(
         f"Enrolment {enrolment_id} claimed by user {user_id} (course={enrolment.course_id})"

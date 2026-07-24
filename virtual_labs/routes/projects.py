@@ -78,7 +78,7 @@ async def retrieve_all_projects(
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=0),
     session: AsyncSession = Depends(default_session_factory),
-    auth: Tuple[AuthUser, str] = Depends(verify_jwt),
+    auth: Tuple[AuthUserGrants, str] = Depends(parse_auth_grants),
 ) -> Response | VliError:
     return await project_cases.retrieve_all_user_projects_use_case(
         session, auth, pagination=PageParams(page=page, size=size)

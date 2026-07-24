@@ -320,6 +320,7 @@ async def create_project_record(
     admin_group: CreatedGroup,
     member_group: CreatedGroup,
     user_id: UUID,
+    waitlisted_group_id: str | None = None,
     commit: bool = True,
 ) -> dict[str, object]:
     try:
@@ -330,6 +331,7 @@ async def create_project_record(
             virtual_lab_id=virtual_lab_id,
             admin_group_id=admin_group["id"],
             member_group_id=member_group["id"],
+            waitlisted_group_id=waitlisted_group_id,
             owner_id=user_id,
         )
         session.add(project)

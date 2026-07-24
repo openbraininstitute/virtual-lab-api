@@ -146,6 +146,7 @@ class ProjectQueryRepository:
                     or_(
                         Project.admin_group_id.in_(groups),
                         Project.member_group_id.in_(groups),
+                        Project.waitlisted_group_id.in_(groups),
                     ),
                     ~Project.deleted,
                 )
