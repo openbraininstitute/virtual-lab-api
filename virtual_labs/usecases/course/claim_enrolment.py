@@ -1,5 +1,6 @@
 """Claim an enrolment — student validates their link and we record who claimed it."""
 
+import asyncio
 from datetime import datetime, timezone
 from http import HTTPStatus
 from uuid import UUID
@@ -9,7 +10,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
-from virtual_labs.infrastructure.db.models import CourseEnrolment, CourseStatus
+from virtual_labs.infrastructure.db.models import (
+    CourseEnrolment,
+    CourseStatus,
+    Project,
+    VirtualLab,
+)
+from virtual_labs.infrastructure.kc.config import KeycloakRealm
 
 
 async def claim_enrolment(
@@ -73,10 +80,33 @@ async def claim_enrolment(
             message="Cannot claim enrolment: course has ended",
         )
 
+    # Read course data before commit — after refresh the relationship is expired
+    course = enrolment.course
+    virtual_lab_id = course.virtual_lab_id
+    course_started = course.start_date is None or now >= course.start_date.replace(
+        tzinfo=timezone.utc
+    )
+    project_id = enrolment.project_id
+
     enrolment.claimed_by = user_id
     await db.commit()
     await db.refresh(enrolment)
 
+    # Add the student to the appropriate KC groups now that they've claimed
+    project = await db.get(Project, project_id)
+    assert project is not None
+    virtual_lab = await db.get(VirtualLab, virtual_lab_id)
+    assert virtual_lab is not None
+    target_group_id = (
+        project.member_group_id if course_started else project.waitlisted_group_id
+    )
+    if target_group_id is not None:
+        await asyncio.gather(
+            KeycloakRealm.a_group_user_add(user_id=user_id, group_id=target_group_id),
+            KeycloakRealm.a_group_user_add(
+                user_id=user_id, group_id=str(virtual_lab.member_group_id)
+            ),
+        )
     logger.info(
         f"Enrolment {enrolment_id} claimed by user {user_id} (course={enrolment.course_id})"
     )

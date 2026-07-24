@@ -3,7 +3,6 @@
 from datetime import datetime, timezone
 from http import HTTPStatus
 from uuid import UUID, uuid4
-import asyncio
 
 from loguru import logger
 from pydantic import UUID4
@@ -41,37 +40,23 @@ from virtual_labs.usecases.project.create_new_project import (
 )
 
 
-async def _ensure_project_access(
+async def _create_waitlisted_group(
     *,
     virtual_lab_id: UUID4,
     project_id: UUID4,
-    user_id: UUID,
-    vlab_member_group_id: str,
     course: Course,
     comp: Ledger,
 ) -> str | None:
-    """Add the user to the appropriate KC group based on whether the course has started.
+    """Create the waitlisted KC group if the course hasn't started yet.
 
-    Returns the waitlisted_group_id if the course hasn't started, else None.
+    Returns the waitlisted_group_id, or None if the course has already started.
+    User membership is handled later at claim time.
     """
     now = datetime.now(timezone.utc)
     course_started = course.start_date is None or now >= course.start_date.replace(
         tzinfo=timezone.utc
     )
-
     if course_started:
-        member_group_name = make_project_group_name(
-            virtual_lab_id, project_id, UserRoleEnum.member
-        )
-        member_group_id = await KeycloakRealm.a_get_group_by_path(member_group_name)
-        await asyncio.gather(
-            KeycloakRealm.a_group_user_add(
-                user_id=user_id, group_id=member_group_id["id"]
-            ),
-            KeycloakRealm.a_group_user_add(
-                user_id=user_id, group_id=vlab_member_group_id
-            ),
-        )
         return None
 
     waitlisted_group_name = make_project_group_name(
@@ -81,10 +66,6 @@ async def _ensure_project_access(
     assert wg_id is not None
     waitlisted_group: CreatedGroup = {"id": wg_id, "name": waitlisted_group_name}
     comp.push(await _make_kc_group_compensation(waitlisted_group))
-    await asyncio.gather(
-        KeycloakRealm.a_group_user_add(user_id=user_id, group_id=wg_id),
-        KeycloakRealm.a_group_user_add(user_id=user_id, group_id=vlab_member_group_id),
-    )
     return wg_id
 
 
@@ -141,11 +122,9 @@ async def _assign_seat(
             comp=comp,
         )
 
-        waitlisted_group_id = await _ensure_project_access(
+        waitlisted_group_id = await _create_waitlisted_group(
             virtual_lab_id=virtual_lab_id,
             project_id=project_draft_id,
-            user_id=user_id,
-            vlab_member_group_id=vlab_member_group_id,
             course=course,
             comp=comp,
         )
