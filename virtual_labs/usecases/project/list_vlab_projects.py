@@ -146,7 +146,12 @@ async def list_vlab_projects_use_case(
             message="Failed to list projects",
         )
 
-    items = [Project.model_validate(p) for p in rows]
+    items = [
+        Project.model_validate(
+            {**p.__dict__, "is_waitlisted": p.id in user.grants.projects.waitlisted}
+        )
+        for p in rows
+    ]
     return ListResponse[Project](
         data=items,
         pagination=PaginationResponse(

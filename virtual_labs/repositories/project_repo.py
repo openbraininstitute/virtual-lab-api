@@ -94,60 +94,20 @@ class ProjectQueryRepository:
         result = await self.session.scalars(stmt)
         return list(result)
 
-    async def retrieve_projects_per_vl_batch(
-        self,
-        virtual_lab_id: UUID4,
-        groups: List[str],
-        pagination: PageParams,
-    ) -> PaginatedDbResult[List[Row[Tuple[Project, VirtualLab]]]]:
-        query = (
-            select(Project, VirtualLab)
-            .join(VirtualLab)
-            .filter(
-                and_(
-                    or_(
-                        Project.admin_group_id.in_(groups),
-                        Project.member_group_id.in_(groups),
-                        VirtualLab.admin_group_id.in_(groups),
-                    ),
-                    Project.virtual_lab_id == virtual_lab_id,
-                    ~Project.deleted,
-                    ~VirtualLab.deleted,
-                )
-            )
-        )
-
-        count = await self.session.scalar(
-            select(func.count()).select_from(query.options(noload("*")).subquery())
-        )
-        result = (
-            await self.session.execute(
-                statement=query.order_by(Project.updated_at)
-                .offset((pagination.page - 1) * pagination.size)
-                .limit(pagination.size)
-            )
-        ).all()
-
-        return PaginatedDbResult(
-            count=count or 0,
-            rows=[row for row in result],
-        )
-
     async def retrieve_projects_batch(
         self,
-        groups: List[str],
+        project_ids: frozenset[UUID],
         pagination: PageParams,
     ) -> PaginatedDbResult[List[Tuple[Project, VirtualLab]]]:
+        if not project_ids:
+            return PaginatedDbResult(count=0, rows=[])
+
         query = (
             select(Project, VirtualLab)
             .join(VirtualLab)
             .filter(
                 and_(
-                    or_(
-                        Project.admin_group_id.in_(groups),
-                        Project.member_group_id.in_(groups),
-                        Project.waitlisted_group_id.in_(groups),
-                    ),
+                    Project.id.in_(project_ids),
                     ~Project.deleted,
                 )
             )

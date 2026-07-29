@@ -55,6 +55,7 @@ class Project(BaseModel):
     description: str | None
     created_at: datetime
     updated_at: datetime | None
+    is_waitlisted: bool = False
 
 
 class ProjectVlOut(Project):

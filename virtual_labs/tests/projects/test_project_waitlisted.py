@@ -72,7 +72,9 @@ async def test_waitlisted_user_sees_project_in_vlab_list(
     assert list_response.status_code == 200
     projects = list_response.json()["data"]
 
-    assert any(p["id"] == project_id for p in projects)
+    matched = next((p for p in projects if p["id"] == project_id), None)
+    assert matched is not None
+    assert matched["is_waitlisted"] is True
 
 
 @pytest.mark.asyncio
@@ -88,4 +90,6 @@ async def test_waitlisted_user_sees_project_in_list(
     assert list_response.status_code == 200
     projects = list_response.json()["data"]["results"]
 
-    assert any(p["id"] == project_id for p in projects)
+    matched = next((p for p in projects if p["id"] == project_id), None)
+    assert matched is not None
+    assert matched["is_waitlisted"] is True
