@@ -16,7 +16,7 @@ membership checks without re-querying Keycloak:
 
     auth.grants.projects.admin                    # frozenset[UUID]
     auth.grants.projects.is_member(project_id)    # bool
-    auth.grants.projects.role_for(project_id)     # "admin" | "member" | None
+    auth.grants.projects.role_for(project_id)     # "admin" | "member" | "waitlisted" | None
 
     auth.grants.services.admin                    # frozenset[str]
     auth.grants.services.has("entitycore")        # bool — default role=admin
