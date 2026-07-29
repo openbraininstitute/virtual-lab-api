@@ -71,6 +71,7 @@ async def claim_enrolment(
             message="This enrolment has already been claimed",
         )
 
+    # Read course data before commit — after refresh the relationship is expired
     # Verify the course is still active
     course = enrolment.course
     if course.status != CourseStatus.ACTIVE:
@@ -88,8 +89,6 @@ async def claim_enrolment(
             message="Cannot claim enrolment: course has ended",
         )
 
-    # Read course data before commit — after refresh the relationship is expired
-    course = enrolment.course
     virtual_lab_id = course.virtual_lab_id
     course_started = course.start_date is None or now >= course.start_date.replace(
         tzinfo=timezone.utc
