@@ -100,6 +100,13 @@ class ProjectGrants(ResourceGrants):
     def all(self) -> frozenset[UUID]:
         return self.admin | self.member | self.waitlisted
 
+    def has_access(self, resource_id: UUID) -> bool:
+        return (
+            resource_id in self.admin
+            or resource_id in self.member
+            or resource_id in self.waitlisted
+        )
+
     def vlab_of(self, project_id: UUID) -> UUID | None:
         """Return the vlab id this project belongs to, when known."""
         return self._vlab_by_project.get(project_id)
