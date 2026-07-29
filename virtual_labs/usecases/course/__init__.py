@@ -1,3 +1,4 @@
+from virtual_labs.usecases.course.activate_enrolment import activate_enrolment
 from virtual_labs.usecases.course.activate_enrolments import activate_enrolments
 from virtual_labs.usecases.course.delete_course import delete_course
 from virtual_labs.usecases.course.assign_seats import assign_seats
@@ -17,6 +18,7 @@ from virtual_labs.usecases.course.update_course_status import (
 )
 
 __all__ = [
+    "activate_enrolment",
     "activate_enrolments",
     "delete_course",
     "assign_seats",

@@ -164,6 +164,7 @@ async def claim_enrolment_endpoint(
     operation_id="activate_enrolments",
     summary="Activate all pending enrolments for the authenticated user (adds to KC groups)",
     response_model=ActivateEnrolmentsResponse,
+    deprecated=True,
 )
 async def activate_enrolments_endpoint(
     auth: tuple[AuthUserGrants, str] = Depends(parse_auth_grants),
@@ -176,6 +177,30 @@ async def activate_enrolments_endpoint(
     )
     return ActivateEnrolmentsResponse(
         results=[ActivateEnrolmentResult(**r) for r in results]
+    )
+
+
+@router.post(
+    "/{course_id}/enrolment/activate",
+    operation_id="activate_enrolment",
+    summary="Activate the calling user's enrolment in a course — adds to member groups, removes from waitlisted",
+    response_model=ActivateEnrolmentResult,
+)
+async def activate_enrolment_endpoint(
+    course_id: UUID4,
+    auth: tuple[AuthUserGrants, str] = Depends(parse_auth_grants),
+    session: AsyncSession = Depends(default_session_factory),
+) -> ActivateEnrolmentResult:
+    user, _ = auth
+    enrolment = await usecases.activate_enrolment(
+        session,
+        course_id=course_id,
+        user_id=user.id,
+    )
+    return ActivateEnrolmentResult(
+        enrolment_id=enrolment.id,
+        activated=True,
+        project_id=enrolment.project_id,
     )
 
 

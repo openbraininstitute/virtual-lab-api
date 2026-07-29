@@ -11,9 +11,6 @@ from .get_user_groups import get_user_project_groups
 from .invite_user_to_project import invite_user_to_project
 from .list_vlab_projects import list_vlab_projects_use_case
 from .retrieve_all_user_projects import retrieve_all_user_projects_use_case
-from .retrieve_all_user_projects_per_vl import (
-    retrieve_all_user_projects_per_vl_use_case,
-)
 from .retrieve_all_users_per_project import retrieve_all_users_per_project_use_case
 from .retrieve_projects_per_lab_count import (
     retrieve_projects_count_per_virtual_lab_use_case,
@@ -32,7 +29,6 @@ from .update_user_role_in_project import update_user_role_in_project
 __all__ = [
     "get_project_detail_use_case",
     "list_vlab_projects_use_case",
-    "retrieve_all_user_projects_per_vl_use_case",
     "retrieve_all_user_projects_use_case",
     "retrieve_all_users_per_project_use_case",
     "retrieve_projects_count_per_virtual_lab_use_case",

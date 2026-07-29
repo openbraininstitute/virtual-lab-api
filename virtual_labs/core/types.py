@@ -16,6 +16,7 @@ class PaginatedDbResult(BaseModel, Generic[K]):
 class UserRoleEnum(str, Enum):
     admin = "admin"
     member = "member"
+    waitlisted = "waitlisted"
 
 
 class LabTypeEnum(str, Enum):
