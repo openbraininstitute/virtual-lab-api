@@ -29,7 +29,6 @@ async def retrieve_all_user_projects_use_case(
     pr = ProjectQueryRepository(session)
     gqr = GroupQueryRepository()
 
-    user, _token = auth
     user_id = get_user_id_from_auth(auth)
 
     try:
