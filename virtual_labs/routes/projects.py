@@ -308,13 +308,14 @@ async def retrieve_project(
         ),
     ] = None,
     session: AsyncSession = Depends(default_session_factory),
-    _: AuthUserGrants = Depends(workspace_access),
+    auth: AuthUserGrants = Depends(workspace_access),
 ) -> ProjectDetailOut:
     return await project_cases.get_project_detail_use_case(
         session,
         virtual_lab_id=virtual_lab_id,
         project_id=project_id,
         expand=expand,
+        auth=auth,
     )
 
 
