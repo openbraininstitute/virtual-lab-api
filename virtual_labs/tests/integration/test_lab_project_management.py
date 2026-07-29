@@ -311,6 +311,10 @@ class TestVirtualLabCreation:
     ) -> None:
         """Users can create a virtual lab even with an unverified email."""
         owner_username = "test-2"
+        # a leftover lab from a previous run would trip the
+        # one-lab-per-user rule and 403 the creation below
+        await cleanup_all_user_labs(async_test_client, owner_username)
+
         lab_name = f"Unverified Email Lab {uuid4()}"
         body = {
             "name": lab_name,
@@ -326,6 +330,9 @@ class TestVirtualLabCreation:
         )
 
         assert response.status_code == HTTPStatus.OK
+        await cleanup_resources(
+            async_test_client, response.json()["id"], owner_username
+        )
 
     async def test_create_virtual_lab_missing_name(
         self, async_test_client: AsyncClient, test_user_ids: Dict[str, str]

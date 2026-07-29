@@ -1,13 +1,15 @@
+from typing import Any
+
 from pydantic import UUID4, EmailStr
 from sqlalchemy import exists, false, func, select, update
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import noload
-from sqlalchemy.sql import and_, or_
+from sqlalchemy.sql import ColumnElement, and_, or_
 
 from virtual_labs.core.types import PaginatedDbResult
 from virtual_labs.domain import labs
-from virtual_labs.domain.common import DbPagination, PageParams
+from virtual_labs.domain.common import DbPagination, PageParams, PaginationRequest
 from virtual_labs.infrastructure.db.models import Project, VirtualLab
 
 
@@ -62,6 +64,52 @@ async def get_paginated_virtual_labs(
         count=count or 0,
         rows=list(result),
     )
+
+
+async def admin_list_virtual_labs(
+    db: AsyncSession,
+    *,
+    query: str | None,
+    include_deleted: bool,
+    deleted_only: bool,
+    pagination: PaginationRequest,
+    order_by: tuple[ColumnElement[Any], ...],
+) -> tuple[list[VirtualLab], int]:
+    """Global (non-membership-scoped) paginated listing for the
+    platform-admin namespace. Returns ``(rows, total)``.
+
+    ``VirtualLab.id ASC`` is always appended as a stable tiebreaker so
+    pages of same-timestamp rows don't shuffle between requests.
+    """
+    conditions: list[ColumnElement[bool]] = []
+    if deleted_only:
+        conditions.append(VirtualLab.deleted.is_(True))
+    elif not include_deleted:
+        conditions.append(VirtualLab.deleted.is_(False))
+    if query:
+        conditions.append(
+            func.lower(VirtualLab.name).ilike(f"%{query.strip().lower()}%")
+        )
+
+    base = select(VirtualLab)
+    if conditions:
+        base = base.where(and_(*conditions))
+
+    total = (
+        await db.scalar(
+            select(func.count()).select_from(base.options(noload("*")).subquery())
+        )
+    ) or 0
+
+    rows = (
+        await db.scalars(
+            base.order_by(*order_by, VirtualLab.id.asc())
+            .offset(pagination.offset)
+            .limit(pagination.page_size)
+        )
+    ).all()
+
+    return list(rows), total
 
 
 async def get_undeleted_virtual_lab(db: AsyncSession, lab_id: UUID4) -> VirtualLab:
@@ -250,6 +298,20 @@ async def get_user_virtual_lab(db: AsyncSession, owner_id: UUID4) -> VirtualLab 
     vlab = result.scalars().first()
 
     return vlab
+
+
+async def get_virtual_lab_names(
+    db: AsyncSession, lab_ids: list[UUID4]
+) -> dict[UUID4, str]:
+    """Resolve lab ids to names (soft-deleted labs included)."""
+    if not lab_ids:
+        return {}
+    rows = (
+        await db.execute(
+            select(VirtualLab.id, VirtualLab.name).where(VirtualLab.id.in_(lab_ids))
+        )
+    ).all()
+    return {lab_id: name for lab_id, name in rows}
 
 
 async def get_virtual_labs_in_list(

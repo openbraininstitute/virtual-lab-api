@@ -2,9 +2,15 @@ from datetime import datetime
 from typing import Literal, Optional, Union, overload
 from uuid import UUID
 
-from sqlalchemy import and_, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectin_polymorphic, with_polymorphic
+from sqlalchemy.orm import (
+    joinedload,
+    noload,
+    selectin_polymorphic,
+    with_polymorphic,
+)
+from sqlalchemy.sql import ColumnElement
 
 from virtual_labs.infrastructure.db.models import (
     FreeSubscription,
@@ -38,6 +44,70 @@ class SubscriptionRepository:
             the subscription if found, None otherwise
         """
         stmt = select(Subscription).where(Subscription.id == subscription_id)
+        result = await self.db_session.execute(stmt)
+        return result.scalars().first()
+
+    async def admin_list_subscriptions(
+        self,
+        *,
+        user_id: Optional[UUID] = None,
+        virtual_lab_id: Optional[UUID] = None,
+        status: Optional[SubscriptionStatus] = None,
+        subscription_type: Optional[str] = None,
+        offset: int,
+        limit: int,
+    ) -> tuple[list[Subscription], int]:
+        """Global paginated subscription listing for the platform-admin
+        namespace. Returns ``(rows, total)`` with the tier eagerly
+        loaded. All filter fields live on the polymorphic base table.
+        """
+        conditions: list[ColumnElement[bool]] = []
+        if user_id is not None:
+            conditions.append(Subscription.user_id == user_id)
+        if virtual_lab_id is not None:
+            conditions.append(Subscription.virtual_lab_id == virtual_lab_id)
+        if status is not None:
+            conditions.append(Subscription.status == status)
+        if subscription_type:
+            conditions.append(
+                Subscription.subscription_type == subscription_type.lower()
+            )
+
+        base = select(Subscription)
+        if conditions:
+            base = base.where(and_(*conditions))
+
+        total = (
+            await self.db_session.scalar(
+                select(func.count()).select_from(base.options(noload("*")).subquery())
+            )
+        ) or 0
+
+        rows = (
+            (
+                await self.db_session.execute(
+                    base.options(joinedload(Subscription.tier))
+                    .order_by(Subscription.created_at.desc(), Subscription.id.asc())
+                    .offset(offset)
+                    .limit(limit)
+                )
+            )
+            .scalars()
+            .all()
+        )
+
+        return list(rows), total
+
+    async def get_subscription_by_id_with_tier(
+        self, subscription_id: UUID
+    ) -> Optional[Subscription]:
+        """`get_subscription_by_id` with the tier eagerly loaded, for
+        response shapes that surface the tier name."""
+        stmt = (
+            select(Subscription)
+            .options(joinedload(Subscription.tier))
+            .where(Subscription.id == subscription_id)
+        )
         result = await self.db_session.execute(stmt)
         return result.scalars().first()
 
@@ -379,6 +449,23 @@ class SubscriptionRepository:
         )
         result = await self.db_session.execute(stmt)
         return list(result.scalars().all())
+
+    async def admin_list_tiers(self) -> list[SubscriptionTier]:
+        """All subscription tiers, active and inactive, for the
+        platform-admin namespace."""
+        stmt = select(SubscriptionTier).order_by(SubscriptionTier.created_at.asc())
+        result = await self.db_session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def update_tier(
+        self, tier: SubscriptionTier, fields: dict[str, object]
+    ) -> SubscriptionTier:
+        """Apply the given field values to a tier row and persist."""
+        for key, value in fields.items():
+            setattr(tier, key, value)
+        await self.db_session.commit()
+        await self.db_session.refresh(tier)
+        return tier
 
     # get subscription plan by id
     async def get_subscription_tier_by_id(

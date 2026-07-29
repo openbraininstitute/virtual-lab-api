@@ -39,7 +39,7 @@ from virtual_labs.infrastructure.db.models import (
     VirtualLabInvite,
 )
 from virtual_labs.infrastructure.kc.auth import get_client_token
-from virtual_labs.infrastructure.kc.config import kc_auth
+from virtual_labs.infrastructure.kc.config import KeycloakRealm, kc_auth
 from virtual_labs.infrastructure.stripe.config import stripe_client
 from virtual_labs.repositories.group_repo import GroupMutationRepository
 
@@ -63,6 +63,15 @@ def get_headers(username: str = "test") -> dict[str, str]:
         "Accept": "application/json",
         "Authorization": f"Bearer {auth(username)}",
     }
+
+
+def restore_seeded_user_name(username: str = "test") -> None:
+    """Reset a seeded user's Keycloak name to the realm-export values
+    (first and last name both equal the username). Profile tests
+    rename the shared users; tests asserting the seeded name call
+    this to stay independent of run order."""
+    user_id = KeycloakRealm.get_user_id(username)
+    KeycloakRealm.update_user(user_id, {"firstName": username, "lastName": username})
 
 
 def get_client_headers() -> dict[str, str]:

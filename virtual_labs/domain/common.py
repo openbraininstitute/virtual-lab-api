@@ -10,6 +10,14 @@ from virtual_labs.infrastructure.settings import settings
 M = TypeVar("M", bound=BaseModel)
 
 
+class OrderBy(str, Enum):
+    """Order fields understood by `core.ordering.order_clauses`."""
+
+    CREATED_AT = "created_at"
+    UPDATED_AT = "updated_at"
+    NAME = "name"
+
+
 class WorkspaceOrderBy(str, Enum):
     CREATED_AT = "created_at"
     UPDATED_AT = "updated_at"

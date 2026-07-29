@@ -43,7 +43,7 @@ async def enrich_vlab(
     )
 
 
-async def _project_counts_by_vlab(
+async def project_counts_by_vlab(
     session: AsyncSession, vlab_ids: list[UUID]
 ) -> dict[UUID, int]:
     if not vlab_ids:
@@ -68,7 +68,7 @@ async def enrich_many(
     vlabs: list[VirtualLab], session: AsyncSession
 ) -> list[VirtualLabDetails]:
     """Compose enriched domain payloads for one page."""
-    counts = await _project_counts_by_vlab(session, [UUID(str(v.id)) for v in vlabs])
+    counts = await project_counts_by_vlab(session, [UUID(str(v.id)) for v in vlabs])
     return list(
         await asyncio.gather(
             *(enrich_vlab(v, counts.get(UUID(str(v.id)), 0)) for v in vlabs)
