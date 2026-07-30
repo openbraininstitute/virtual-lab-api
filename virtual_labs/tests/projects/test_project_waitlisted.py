@@ -93,3 +93,17 @@ async def test_waitlisted_user_sees_project_in_list(
     matched = next((p for p in projects if p["id"] == project_id), None)
     assert matched is not None
     assert matched["is_waitlisted"] is True
+
+
+@pytest.mark.asyncio
+async def test_waitlisted_user_sees_is_waitlisted_on_single_project(
+    async_test_client: AsyncClient,
+    mock_waitlisted_project: tuple[str, str, dict[str, str]],
+) -> None:
+    project_id, virtual_lab_id, headers = mock_waitlisted_project
+
+    response = await async_test_client.get(
+        f"/virtual-labs/{virtual_lab_id}/projects/{project_id}", headers=headers
+    )
+    assert response.status_code == 200
+    assert response.json()["is_waitlisted"] is True

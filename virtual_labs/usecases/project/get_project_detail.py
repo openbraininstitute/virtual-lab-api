@@ -25,6 +25,7 @@ from virtual_labs.domain.labs import VirtualLabDetails
 from virtual_labs.domain.project import ProjectDetailExpand, ProjectDetailOut
 from virtual_labs.infrastructure.db.models import Project, VirtualLab
 from virtual_labs.infrastructure.kc.config import KeycloakRealm
+from virtual_labs.infrastructure.kc.grant import AuthUserGrants
 from virtual_labs.infrastructure.kc.models import UserRepresentation
 
 
@@ -34,6 +35,7 @@ async def get_project_detail_use_case(
     virtual_lab_id: UUID4,
     project_id: UUID4,
     expand: list[ProjectDetailExpand] | None,
+    auth: AuthUserGrants,
 ) -> ProjectDetailOut:
     requested = set(expand or [])
 
@@ -88,7 +90,12 @@ async def get_project_detail_use_case(
             message="Failed to load project admins",
         )
 
-    found_project = ProjectDetailOut.model_validate(project)
+    found_project = ProjectDetailOut.model_validate(
+        {
+            **project.__dict__,
+            "is_waitlisted": project_id in auth.grants.projects.waitlisted,
+        }
+    )
     if admin_ids is not None:
         found_project.admins = admin_ids
     if ProjectDetailExpand.virtual_lab in requested and virtual_lab is not None:
