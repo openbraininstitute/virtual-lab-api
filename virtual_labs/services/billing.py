@@ -144,6 +144,27 @@ def _extract_tax_amount(tax_calculation: dict[str, Any], subtotal: int) -> int:
     return 0
 
 
+def apply_subscription_discount(amount: int, discount: int | None) -> tuple[int, int]:
+    """Subtract a tier's promotional discount from a price.
+
+    `discount` is the amount off the list price in cents
+    (`SubscriptionTier.monthly_discount` / `yearly_discount`), and must mirror
+    the Stripe coupon in `DISCOUNT_MONTHLY_ID` / `DISCOUNT_YEARLY_ID` — the
+    coupon is what reduces the actual charge.
+
+    Args:
+        amount: List price in cents.
+        discount: Amount off in cents, clamped to `amount`.
+
+    Returns:
+        `(net_amount, discount_pct)`; `discount_pct` is rounded, for display.
+    """
+    if not settings.ENABLE_DISCOUNT or not discount or discount <= 0 or amount <= 0:
+        return amount, 0
+    applied = min(discount, amount)
+    return amount - applied, round(applied * 100 / amount)
+
+
 def quote_expires_at_end_of_today(now: datetime | None = None) -> datetime:
     current_time = now or datetime.now(timezone.utc)
     if current_time.tzinfo is None:
@@ -252,6 +273,8 @@ class BillingQuoteService:
     ) -> tuple[int, int, UUID | None]:
         """Resolve the subtotal amount, discount percentage, and rate tier ID.
 
+        The subtotal is net of any discount, matching what Stripe charges.
+
         Returns:
             (subtotal_in_cents, discount_pct, credit_package_rate_id)
         """
@@ -268,8 +291,11 @@ class BillingQuoteService:
         if tier is None:
             raise ValueError("Subscription plan not found")
         if payload.interval == "year":
-            return tier.yearly_amount, 0, None
-        return tier.monthly_amount, 0, None
+            amount, discount = tier.yearly_amount, tier.yearly_discount
+        else:
+            amount, discount = tier.monthly_amount, tier.monthly_discount
+        net_amount, discount_pct = apply_subscription_discount(amount, discount)
+        return net_amount, discount_pct, None
 
 
 def quote_to_response(quote: BillingQuote) -> BillingQuoteResponse:
@@ -287,6 +313,7 @@ def quote_to_response(quote: BillingQuote) -> BillingQuoteResponse:
             if isinstance(quote.tax_behavior, TaxBehavior)
             else TaxBehavior(quote.tax_behavior)
         ),
+        discount_pct=quote.discount_pct or 0,
         tax_country=quote.tax_country,
         tax_status=(
             quote.tax_status

@@ -71,6 +71,8 @@ class BillingQuoteResponse(BaseModel):
     subtotal: int
     tax_amount: int
     total: int
+    # Percentage off, for display; `subtotal` is already net of it.
+    discount_pct: int = 0
     currency: str
     tax_behavior: TaxBehavior
     tax_country: Optional[str] = None
