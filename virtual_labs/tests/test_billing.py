@@ -19,10 +19,13 @@ from virtual_labs.domain.billing import (
 )
 from virtual_labs.infrastructure.settings import Settings, settings
 from virtual_labs.services.billing import (
+    BillingQuoteService,
+    apply_subscription_discount,
     billing_address_to_profile_attributes,
     billing_address_to_stripe,
     is_tax_enabled_for_country,
     quote_expires_at_end_of_today,
+    quote_to_response,
 )
 from virtual_labs.tests.utils import (
     cleanup_all_user_labs,
@@ -81,6 +84,7 @@ def _stub_quote_record(virtual_lab_id: str) -> SimpleNamespace:
         tax_behavior=TaxBehavior.EXCLUSIVE,
         tax_country="CH",
         tax_status=TaxStatus.NOT_APPLICABLE,
+        discount_pct=0,
         expires_at=datetime.now(timezone.utc),
         virtual_lab_id=virtual_lab_id,
     )
@@ -246,3 +250,141 @@ async def test_create_billing_quote_rejects_unauthorized_lab_before_service(
         )
 
     assert response.status_code == HTTPStatus.FORBIDDEN, response.text
+
+
+def _subscription_quote_payload(interval: str) -> CreateBillingQuoteRequest:
+    return CreateBillingQuoteRequest(
+        flow=BillingFlow.SUBSCRIPTION,
+        currency="chf",
+        billing_address=BillingAddress(country="DZ"),
+        virtual_lab_id=uuid4(),
+        tier_id=uuid4(),
+        interval=interval,
+    )
+
+
+def _service_with_tier(tier: SimpleNamespace | None) -> BillingQuoteService:
+    """Service with only the collaborator `_resolve_subtotal` needs — no DB,
+    no Stripe."""
+    service = object.__new__(BillingQuoteService)
+    service.subscription_repo = cast(
+        Any,
+        SimpleNamespace(get_subscription_tier_by_id=AsyncMock(return_value=tier)),
+    )
+    return service
+
+
+def _pro_tier() -> SimpleNamespace:
+    return SimpleNamespace(
+        monthly_amount=5000,
+        monthly_discount=2500,
+        yearly_amount=55000,
+        yearly_discount=27500,
+    )
+
+
+def test_discount_is_subtracted_from_the_list_price(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "ENABLE_DISCOUNT", True)
+
+    assert apply_subscription_discount(5000, 2500) == (2500, 50)
+    assert apply_subscription_discount(55000, 27500) == (27500, 50)
+    assert apply_subscription_discount(5000, 1000) == (4000, 20)
+
+
+def test_discount_is_ignored_when_the_feature_flag_is_off(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "ENABLE_DISCOUNT", False)
+
+    assert apply_subscription_discount(5000, 2500) == (5000, 0)
+
+
+def test_absent_or_empty_discount_leaves_the_price_untouched(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "ENABLE_DISCOUNT", True)
+
+    assert apply_subscription_discount(5000, None) == (5000, 0)
+    assert apply_subscription_discount(5000, 0) == (5000, 0)
+    assert apply_subscription_discount(5000, -100) == (5000, 0)
+    assert apply_subscription_discount(0, 2500) == (0, 0)
+
+
+def test_discount_larger_than_the_price_never_goes_negative(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "ENABLE_DISCOUNT", True)
+
+    assert apply_subscription_discount(5000, 9000) == (0, 100)
+
+
+@pytest.mark.asyncio
+async def test_subscription_subtotal_applies_the_monthly_discount(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "ENABLE_DISCOUNT", True)
+    service = _service_with_tier(_pro_tier())
+
+    subtotal, discount_pct, rate_id = await service._resolve_subtotal(
+        _subscription_quote_payload("month")
+    )
+
+    assert (subtotal, discount_pct, rate_id) == (2500, 50, None)
+
+
+@pytest.mark.asyncio
+async def test_subscription_subtotal_applies_the_yearly_discount(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "ENABLE_DISCOUNT", True)
+    service = _service_with_tier(_pro_tier())
+
+    subtotal, discount_pct, rate_id = await service._resolve_subtotal(
+        _subscription_quote_payload("year")
+    )
+
+    assert (subtotal, discount_pct, rate_id) == (27500, 50, None)
+
+
+@pytest.mark.asyncio
+async def test_subscription_subtotal_is_the_list_price_without_the_flag(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "ENABLE_DISCOUNT", False)
+    service = _service_with_tier(_pro_tier())
+
+    subtotal, discount_pct, _ = await service._resolve_subtotal(
+        _subscription_quote_payload("month")
+    )
+
+    assert (subtotal, discount_pct) == (5000, 0)
+
+
+@pytest.mark.asyncio
+async def test_subscription_subtotal_rejects_an_unknown_tier() -> None:
+    service = _service_with_tier(None)
+
+    with pytest.raises(ValueError, match="Subscription plan not found"):
+        await service._resolve_subtotal(_subscription_quote_payload("month"))
+
+
+def test_quote_response_exposes_the_discount_percentage() -> None:
+    quote = _stub_quote_record(str(uuid4()))
+    quote.subtotal = 2500
+    quote.total = 2500
+    quote.discount_pct = 50
+
+    response = quote_to_response(cast(Any, quote))
+
+    assert response.discount_pct == 50
+    assert response.subtotal == 2500
+    assert response.total == 2500
+
+
+def test_quote_response_defaults_a_null_discount_to_zero() -> None:
+    quote = _stub_quote_record(str(uuid4()))
+    quote.discount_pct = None
+
+    assert quote_to_response(cast(Any, quote)).discount_pct == 0

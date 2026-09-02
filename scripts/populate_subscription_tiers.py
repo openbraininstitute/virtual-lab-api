@@ -35,7 +35,7 @@ DEFAULT_DATABASE_URL = "postgresql+asyncpg://vlm:vlm@localhost:15432/vlm"
 DATABASE_URL = os.getenv("DATABASE_URL", DEFAULT_DATABASE_URL)
 
 # Default values for Stripe and Sanity IDs
-DEFAULT_PROD_ID = "prod_test_example123"
+DEFAULT_PROD_ID = "prod_RtTisr8wmgg9gJ"
 DEFAULT_FREE_SANITY_ID = "06dd229f-0a8c-4561-9b2c-4e810e0435d7"
 DEFAULT_PRO_SANITY_ID = "7c1fde88-36da-406f-8d2b-14b83e7c5d6b"
 DEFAULT_PREMIUM_SANITY_ID = "1944c35d-e546-4331-9939-3d04fb82befc"
@@ -45,7 +45,8 @@ PROD_ID = os.getenv("PROD_ID", DEFAULT_PROD_ID)
 FREE_SANITY_ID = os.getenv("FREE_SANITY_ID", DEFAULT_FREE_SANITY_ID)
 PRO_SANITY_ID = os.getenv("PRO_SANITY_ID", DEFAULT_PRO_SANITY_ID)
 PREMIUM_SANITY_ID = os.getenv("PREMIUM_SANITY_ID", DEFAULT_PREMIUM_SANITY_ID)
-
+STRIPE_MONTHLY_PRICE_ID = os.getenv("STRIPE_MONTHLY_PRICE_ID", "price_ProMonthlyExample123")
+STRIPE_YEARLY_PRICE_ID = os.getenv("STRIPE_YEARLY_PRICE_ID", "price_ProYearlyExample456")
 
 # Fixed UUIDs for test mode
 TEST_FREE_TIER_ID = UUID("00000000-0000-0000-0000-000000000001")
@@ -80,11 +81,11 @@ PRO_PLAN = {
     "description": "Pro plan with advanced features",
     "active": True,
     "sanity_id": PRO_SANITY_ID,
-    "stripe_monthly_price_id": "price_ProMonthlyExample123", 
+    "stripe_monthly_price_id": STRIPE_MONTHLY_PRICE_ID, 
     "monthly_amount": 5000, 
     "monthly_discount": 2500,
     "yearly_discount": 27500,
-    "stripe_yearly_price_id": "price_ProYearlyExample456",
+    "stripe_yearly_price_id": STRIPE_YEARLY_PRICE_ID,
     "yearly_amount": 55000, 
     "features": None,
     "currency": "chf",
