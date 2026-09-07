@@ -18,6 +18,7 @@ from virtual_labs.infrastructure.db.models import (
     VirtualLab,
 )
 from virtual_labs.infrastructure.kc.config import KeycloakRealm
+from virtual_labs.repositories.group_repo import GroupQueryRepository
 
 
 def _make_remove_from_group(user_id: UUID, group_id: str) -> LedgerAction:
@@ -40,6 +41,9 @@ async def claim_enrolment(
     2. Enrolment is not dropped.
     3. Enrolment is not already claimed.
     4. Course is active.
+
+    If the claimant is already a vlab admin, the Keycloak group assignment is
+    skipped — we just record `claimed_by`.
 
     Returns the updated enrolment.
     """
@@ -102,6 +106,21 @@ async def claim_enrolment(
     target_group_id = (
         project.member_group_id if course_started else project.waitlisted_group_id
     )
+
+    # If the claimant already administers the vlab, they have access to every
+    # project group — just record the claim and return.
+    admin_ids = await GroupQueryRepository().a_retrieve_group_user_ids(
+        group_id=str(virtual_lab.admin_group_id)
+    )
+    if str(user_id) in admin_ids:
+        enrolment.claimed_by = user_id
+        await db.commit()
+        await db.refresh(enrolment)
+        logger.info(
+            f"Enrolment {enrolment_id} claimed by vlab admin {user_id} "
+            f"(course={enrolment.course_id}) — skipped group assignment"
+        )
+        return enrolment
 
     try:
         async with ledger_container() as comp:
