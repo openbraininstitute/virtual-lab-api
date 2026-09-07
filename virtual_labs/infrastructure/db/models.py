@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime
 from decimal import Decimal
 from enum import Enum
 from typing import Any, Dict, Literal, Optional, TypedDict
@@ -1114,6 +1114,22 @@ class Course(Base):
         """Transition to voided. Always allowed (idempotent)."""
         self.status = CourseStatus.VOIDED
 
+    def validate_dates(self) -> None:
+        """Validate date ordering (only when all three dates are set).
+
+        Enforces start_date < last_drop_date < end_date.
+        """
+        if (
+            self.start_date is not None
+            and self.last_drop_date is not None
+            and self.end_date is not None
+            and not (self.start_date < self.last_drop_date < self.end_date)
+        ):
+            raise ValueError(
+                f"Dates must satisfy start_date < last_drop_date < end_date, "
+                f"got {self.start_date} / {self.last_drop_date} / {self.end_date}"
+            )
+
     def activate(self) -> None:
         """Transition from draft to active. Requires all dates to be set and ordered."""
 
@@ -1131,20 +1147,7 @@ class Course(Base):
             raise ValueError(
                 f"Cannot activate: the following fields are not set: {', '.join(missing)}"
             )
-        assert self.start_date is not None
-        assert self.end_date is not None
-        assert self.last_drop_date is not None
-        if not (self.start_date < self.last_drop_date < self.end_date):
-            raise ValueError(
-                f"Cannot activate: dates must satisfy start_date < last_drop_date < end_date, "
-                f"got {self.start_date} / {self.last_drop_date} / {self.end_date}"
-            )
-        max_drop = self.start_date + timedelta(weeks=2)
-        if self.last_drop_date > max_drop:
-            raise ValueError(
-                f"Cannot activate: last_drop_date must be within 2 weeks of start_date, "
-                f"got {self.last_drop_date} but max allowed is {max_drop}"
-            )
+        self.validate_dates()
         self.status = CourseStatus.ACTIVE
 
 

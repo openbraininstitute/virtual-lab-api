@@ -22,7 +22,10 @@ async def update_course(
     payload: CourseUpdateBody,
     auth: tuple[AuthUser, str],
 ) -> VliAppResponse[CourseOut]:
-    """Update mutable fields on a course. Only draft courses can be updated."""
+    """Update fields on a course, regardless of its status.
+
+    Applies the same date-ordering checks as course activation.
+    """
     result = await db.execute(select(Course).where(Course.id == course_id))
     course = result.scalar_one_or_none()
 
@@ -33,18 +36,18 @@ async def update_course(
             message=f"Course {course_id} not found",
         )
 
+    update_data = payload.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(course, field, value)
+
     try:
-        course.ensure_mutable()
+        course.validate_dates()
     except ValueError as e:
         raise VliError(
             error_code=VliErrorCode.NOT_ALLOWED_OP,
             http_status_code=HTTPStatus.CONFLICT,
             message=str(e),
         )
-
-    update_data = payload.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(course, field, value)
 
     await db.commit()
     await db.refresh(course)

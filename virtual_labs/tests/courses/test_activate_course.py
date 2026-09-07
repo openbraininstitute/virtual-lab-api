@@ -97,11 +97,11 @@ async def test_activate_course_fails_with_unordered_dates(
     async_test_client: AsyncClient,
     draft_course: tuple[str, str],
 ) -> None:
-    """Cannot activate if dates don't satisfy start_date < last_drop_date < end_date."""
+    """Unordered dates are rejected (the update carries the same date checks)."""
     course_id, _ = draft_course
 
     # Set dates in wrong order: end_date before last_drop_date
-    await async_test_client.patch(
+    response = await async_test_client.patch(
         f"/courses/{course_id}",
         json={
             "start_date": "2026-09-01T00:00:00Z",
@@ -110,38 +110,9 @@ async def test_activate_course_fails_with_unordered_dates(
         },
         headers=SERVICE_ADMIN_HEADERS,
     )
-    response = await async_test_client.post(
-        f"/courses/{course_id}/activate", headers=SERVICE_ADMIN_HEADERS
-    )
 
     assert response.status_code == 409
     assert "start_date < last_drop_date < end_date" in response.json()["message"]
-
-
-@pytest.mark.asyncio
-async def test_activate_course_fails_when_last_drop_date_exceeds_two_weeks(
-    async_test_client: AsyncClient,
-    draft_course: tuple[str, str],
-) -> None:
-    """Cannot activate if last_drop_date is more than 2 weeks after start_date."""
-    course_id, _ = draft_course
-
-    # last_drop_date is 15 days after start_date (exceeds 2 weeks)
-    await async_test_client.patch(
-        f"/courses/{course_id}",
-        json={
-            "start_date": "2026-09-01T00:00:00Z",
-            "end_date": "2026-12-15T00:00:00Z",
-            "last_drop_date": "2026-09-16T00:00:00Z",
-        },
-        headers=SERVICE_ADMIN_HEADERS,
-    )
-    response = await async_test_client.post(
-        f"/courses/{course_id}/activate", headers=SERVICE_ADMIN_HEADERS
-    )
-
-    assert response.status_code == 409
-    assert "within 2 weeks" in response.json()["message"]
 
 
 @pytest.mark.asyncio

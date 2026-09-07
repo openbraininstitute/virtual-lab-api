@@ -77,7 +77,7 @@ async def create_course_endpoint(
 @router.patch(
     "/{course_id}",
     operation_id="update_course",
-    summary="Update a draft course",
+    summary="Update a course",
     response_model=VliAppResponse[CourseOut],
 )
 @verify_service_admin([VLAB_SERVICE_ADMIN_GROUP])
