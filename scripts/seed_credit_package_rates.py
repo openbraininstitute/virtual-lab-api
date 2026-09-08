@@ -172,9 +172,8 @@ def main() -> None:
 
     database_url = os.getenv("DATABASE_URL") or os.getenv(
         "DATABASE_URI",
-        "postgresql+asyncpg://vlm:vlm@localhost:15432/vlm",
+        "postgresql+asyncpg://user:pass@host:port/db_name",
     )
-
     tiers = CHF_FLAT_TIER if args.flat else CHF_VOLUME_TIERS
 
     asyncio.run(
