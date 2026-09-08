@@ -1,16 +1,24 @@
 """Tests for the claim-enrolment endpoint (POST /courses/claim)."""
 
 from unittest.mock import AsyncMock
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import update
+from sqlalchemy import select, update
 
-from virtual_labs.infrastructure.db.models import CourseEnrolment
+from virtual_labs.infrastructure.db.models import CourseEnrolment, Project, VirtualLab
+from virtual_labs.infrastructure.kc.config import KeycloakRealm
 from virtual_labs.tests.seats.helpers import provision_seats
-from virtual_labs.tests.seats.test_assign_seats import mock_assign_accounting
-from virtual_labs.tests.utils import get_headers, session_context_factory
+from virtual_labs.tests.seats.test_assign_seats import (
+    _get_user_group_ids,
+    mock_assign_accounting,
+)
+from virtual_labs.tests.utils import (
+    get_headers,
+    get_user_id_from_test_auth,
+    session_context_factory,
+)
 
 # ──────────────────────────────────────────────────────────────────────
 # Helpers
@@ -98,6 +106,55 @@ async def test_claim_enrolment_by_different_user(
     assert response.status_code == 200
     data = response.json()["data"]
     assert data["claimed_by"] is not None
+
+
+@pytest.mark.asyncio
+async def test_claim_enrolment_vlab_admin_skips_group_assignment(
+    async_test_client: AsyncClient,
+    course_for_seats: str,
+) -> None:
+    """A claimant who is already a vlab admin is recorded without any group changes."""
+    course_id = course_for_seats
+    enrolment_id = await _create_enrolment(async_test_client, course_id)
+
+    claim_headers = get_headers("test-1")
+    claim_user_id = str(
+        await get_user_id_from_test_auth(claim_headers["Authorization"])
+    )
+
+    async with session_context_factory() as session:
+        row = (
+            await session.execute(
+                select(
+                    VirtualLab.admin_group_id,
+                    VirtualLab.member_group_id,
+                    Project.member_group_id,
+                )
+                .join(Project, Project.virtual_lab_id == VirtualLab.id)
+                .join(CourseEnrolment, CourseEnrolment.project_id == Project.id)
+                .where(CourseEnrolment.id == UUID(enrolment_id))
+            )
+        ).one()
+    vlab_admin_group_id, vlab_member_group_id, project_member_group_id = row
+
+    # Make the claimant a vlab admin
+    await KeycloakRealm.a_group_user_add(
+        user_id=claim_user_id, group_id=vlab_admin_group_id
+    )
+
+    response = await async_test_client.post(
+        "/courses/claim",
+        json={"enrolment_id": enrolment_id},
+        headers=claim_headers,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["data"]["claimed_by"] is not None
+
+    # No member/project groups were added by the claim
+    group_ids = await _get_user_group_ids(claim_user_id)
+    assert vlab_member_group_id not in group_ids
+    assert project_member_group_id not in group_ids
 
 
 # ──────────────────────────────────────────────────────────────────────

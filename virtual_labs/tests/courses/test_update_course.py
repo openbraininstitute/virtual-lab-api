@@ -78,16 +78,16 @@ async def test_update_draft_course_institution(
 
 
 # ──────────────────────────────────────────────────────────────────────
-# Immutability tests
+# Status-independent update tests
 # ──────────────────────────────────────────────────────────────────────
 
 
 @pytest.mark.asyncio
-async def test_update_active_course_fails(
+async def test_update_active_course_succeeds(
     async_test_client: AsyncClient,
     draft_course: tuple[str, str],
 ) -> None:
-    """Active courses cannot be updated."""
+    """Active courses can be updated (as long as date ordering stays valid)."""
     course_id, _ = draft_course
 
     # Set dates and activate
@@ -104,37 +104,57 @@ async def test_update_active_course_fails(
         f"/courses/{course_id}/activate", headers=SERVICE_ADMIN_HEADERS
     )
 
-    # Try to update
     response = await async_test_client.patch(
         f"/courses/{course_id}",
-        json={"start_date": "2027-01-01T00:00:00Z"},
+        json={"end_date": "2027-01-15T00:00:00Z"},
         headers=SERVICE_ADMIN_HEADERS,
     )
 
-    assert response.status_code == 409
+    assert response.status_code == 200
+    assert response.json()["data"]["end_date"] == "2027-01-15T00:00:00Z"
 
 
 @pytest.mark.asyncio
-async def test_update_voided_course_fails(
+async def test_update_voided_course_succeeds(
     async_test_client: AsyncClient,
     draft_course: tuple[str, str],
 ) -> None:
-    """Voided courses cannot be updated."""
+    """Voided courses can be updated."""
     course_id, _ = draft_course
 
-    # Void the course
     await async_test_client.post(
         f"/courses/{course_id}/void", headers=SERVICE_ADMIN_HEADERS
     )
 
-    # Try to update
     response = await async_test_client.patch(
         f"/courses/{course_id}",
         json={"start_date": "2027-01-01T00:00:00Z"},
         headers=SERVICE_ADMIN_HEADERS,
     )
 
+    assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_update_course_rejects_unordered_dates(
+    async_test_client: AsyncClient,
+    draft_course: tuple[str, str],
+) -> None:
+    """The same date checks as activation apply to updates."""
+    course_id, _ = draft_course
+
+    response = await async_test_client.patch(
+        f"/courses/{course_id}",
+        json={
+            "start_date": "2026-09-01T00:00:00Z",
+            "end_date": "2026-09-10T00:00:00Z",
+            "last_drop_date": "2026-12-15T00:00:00Z",
+        },
+        headers=SERVICE_ADMIN_HEADERS,
+    )
+
     assert response.status_code == 409
+    assert "start_date < last_drop_date < end_date" in response.json()["message"]
 
 
 # ──────────────────────────────────────────────────────────────────────
