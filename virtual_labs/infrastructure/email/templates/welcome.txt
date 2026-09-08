@@ -25,4 +25,4 @@ LinkedIn: https://www.linkedin.com/company/openbraininstitute/
 X: https://x.com/OpenBrainInst
 YouTube: https://www.youtube.com/@openbraininstitute
 
-Copyright (C) 2025 Open Brain Institute. All rights reserved
+Copyright (C) {{ year }} Open Brain Institute. All rights reserved

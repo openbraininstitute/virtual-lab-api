@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from fastapi_mail import FastMail, MessageSchema, MessageType
 from loguru import logger
 from pydantic import NameEmail
@@ -13,7 +15,7 @@ async def send_welcome_email(recipient: str) -> str:
             recipients=[NameEmail("", recipient)],
             body="",
             subtype=MessageType.html,
-            template_body={},
+            template_body={"year": datetime.now(timezone.utc).year},
             attachments=[
                 {
                     "file": "virtual_labs/infrastructure/email/assets/advertisement-video-poster.webp",
