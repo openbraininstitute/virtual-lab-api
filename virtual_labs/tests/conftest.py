@@ -3,7 +3,7 @@ from typing import AsyncGenerator
 from uuid import uuid4
 
 import pytest_asyncio
-from httpx import AsyncClient, Response
+from httpx import ASGITransport, AsyncClient, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.api import app
@@ -26,7 +26,7 @@ async def async_test_client() -> AsyncGenerator[AsyncClient, None]:
     # if you need another test user please override the headers in the test
     headers = get_headers()
     async with AsyncClient(
-        app=app,
+        transport=ASGITransport(app=app),
         base_url="http://localhost:8000",
         headers=headers,
     ) as ac:
