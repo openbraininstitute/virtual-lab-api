@@ -8,7 +8,6 @@ from virtual_labs.core.types import VliAppResponse
 from virtual_labs.domain.course import (
     ActivateEnrolmentResult,
     ActivateEnrolmentsResponse,
-    ApplyCourseDiscountBody,
     ClaimCourseSummary,
     ClaimEnrolmentBody,
     ClaimEnrolmentOut,
@@ -85,11 +84,10 @@ async def create_course_endpoint(
 @verify_service_admin([VLAB_SERVICE_ADMIN_GROUP])
 async def apply_course_discount_endpoint(
     course_id: UUID4,
-    payload: ApplyCourseDiscountBody,
     session: AsyncSession = Depends(default_session_factory),
     auth: tuple[AuthUser, str] = Depends(verify_jwt),
 ) -> VliAppResponse[CourseDiscountOut]:
-    return await usecases.apply_course_discount(session, course_id, payload, auth)
+    return await usecases.apply_course_discount(session, course_id, auth)
 
 
 @router.patch(

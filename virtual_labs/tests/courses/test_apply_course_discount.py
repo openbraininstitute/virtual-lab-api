@@ -1,6 +1,7 @@
 """Tests for the apply-course-discount endpoint (POST /courses/{course_id}/discount)."""
 
 from contextlib import contextmanager
+from datetime import timedelta
 from decimal import Decimal
 from http import HTTPStatus
 from typing import Any, Iterator
@@ -15,6 +16,7 @@ from virtual_labs.core.exceptions.accounting_error import (
     AccountingErrorValue,
 )
 from virtual_labs.external.accounting.models import CreateDiscountResponse
+from virtual_labs.infrastructure.settings import settings
 from virtual_labs.tests.courses.conftest import SERVICE_ADMIN_HEADERS
 from virtual_labs.tests.utils import get_headers
 
@@ -66,7 +68,7 @@ async def _set_course_dates(async_test_client: AsyncClient, course_id: str) -> N
 
 
 @pytest.mark.asyncio
-async def test_apply_discount_uses_course_window(
+async def test_apply_discount_uses_course_window_and_settings_amount(
     async_test_client: AsyncClient,
     draft_course: tuple[str, str],
 ) -> None:
@@ -76,30 +78,55 @@ async def test_apply_discount_uses_course_window(
     with mock_create_discount() as mock:
         response = await async_test_client.post(
             f"/courses/{course_id}/discount",
-            json={"discount": "0.5"},
             headers=SERVICE_ADMIN_HEADERS,
         )
 
     assert response.status_code == 200
     data = response.json()["data"]
     assert data["virtual_lab_id"] == vlab_id
-    assert Decimal(data["discount"]) == Decimal("0.5")
+    # The amount is fixed by settings, not caller-supplied.
+    assert Decimal(data["discount"]) == settings.COURSE_COMPUTE_DISCOUNT
 
     mock.assert_awaited_once()
     assert mock.await_args is not None
     kwargs = mock.await_args.kwargs
     assert str(kwargs["virtual_lab_id"]) == vlab_id
+    assert kwargs["discount"] == settings.COURSE_COMPUTE_DISCOUNT
     assert kwargs["valid_from"].isoformat().startswith("2026-09-01")
     assert kwargs["valid_to"].isoformat().startswith("2026-12-15")
 
 
 @pytest.mark.asyncio
-async def test_apply_discount_ignores_window_fields_in_body(
+async def test_apply_discount_sends_timezone_aware_utc(
     async_test_client: AsyncClient,
     draft_course: tuple[str, str],
 ) -> None:
-    """The API no longer accepts a window — extra fields are ignored and the
-    course dates are always used."""
+    """The window sent upstream must be timezone-aware and in UTC (offset 0)."""
+    course_id, _ = draft_course
+    await _set_course_dates(async_test_client, course_id)
+
+    with mock_create_discount() as mock:
+        response = await async_test_client.post(
+            f"/courses/{course_id}/discount",
+            headers=SERVICE_ADMIN_HEADERS,
+        )
+
+    assert response.status_code == 200
+    assert mock.await_args is not None
+    kwargs = mock.await_args.kwargs
+    for key in ("valid_from", "valid_to"):
+        dt = kwargs[key]
+        assert dt.tzinfo is not None
+        assert dt.utcoffset() == timedelta(0)
+
+
+@pytest.mark.asyncio
+async def test_apply_discount_ignores_request_body(
+    async_test_client: AsyncClient,
+    draft_course: tuple[str, str],
+) -> None:
+    """The API accepts no body — any fields sent are ignored, the course
+    dates and the settings amount are always used."""
     course_id, _ = draft_course
     await _set_course_dates(async_test_client, course_id)
 
@@ -117,6 +144,7 @@ async def test_apply_discount_ignores_window_fields_in_body(
     assert response.status_code == 200
     assert mock.await_args is not None
     kwargs = mock.await_args.kwargs
+    assert kwargs["discount"] == settings.COURSE_COMPUTE_DISCOUNT
     assert kwargs["valid_from"].isoformat().startswith("2026-09-01")
     assert kwargs["valid_to"].isoformat().startswith("2026-12-15")
 
@@ -124,49 +152,6 @@ async def test_apply_discount_ignores_window_fields_in_body(
 # ──────────────────────────────────────────────────────────────────────
 # Validation / errors
 # ──────────────────────────────────────────────────────────────────────
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize("discount", ["1.5", "-0.2", "1.0001"])
-async def test_apply_discount_rejects_out_of_range(
-    async_test_client: AsyncClient,
-    draft_course: tuple[str, str],
-    discount: str,
-) -> None:
-    course_id, _ = draft_course
-
-    with mock_create_discount() as mock:
-        response = await async_test_client.post(
-            f"/courses/{course_id}/discount",
-            json={"discount": discount},
-            headers=SERVICE_ADMIN_HEADERS,
-        )
-
-    assert response.status_code == 422
-    mock.assert_not_awaited()
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize("discount", ["0", "1"])
-async def test_apply_discount_accepts_boundary_values(
-    async_test_client: AsyncClient,
-    draft_course: tuple[str, str],
-    discount: str,
-) -> None:
-    """The bound is 0-1 inclusive, matching the accounting contract."""
-    course_id, _ = draft_course
-    await _set_course_dates(async_test_client, course_id)
-
-    with mock_create_discount() as mock:
-        response = await async_test_client.post(
-            f"/courses/{course_id}/discount",
-            json={"discount": discount},
-            headers=SERVICE_ADMIN_HEADERS,
-        )
-
-    assert response.status_code == 200
-    assert Decimal(response.json()["data"]["discount"]) == Decimal(discount)
-    mock.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -180,7 +165,6 @@ async def test_apply_discount_requires_course_dates(
     with mock_create_discount() as mock:
         response = await async_test_client.post(
             f"/courses/{course_id}/discount",
-            json={"discount": "0.5"},
             headers=SERVICE_ADMIN_HEADERS,
         )
 
@@ -196,7 +180,6 @@ async def test_apply_discount_course_not_found(
     with mock_create_discount():
         response = await async_test_client.post(
             f"/courses/{uuid4()}/discount",
-            json={"discount": "0.5"},
             headers=SERVICE_ADMIN_HEADERS,
         )
 
@@ -233,7 +216,6 @@ async def test_apply_discount_maps_accounting_error_to_contract(
     with patch(_DISCOUNT_TARGET, new_callable=AsyncMock, side_effect=error):
         response = await async_test_client.post(
             f"/courses/{course_id}/discount",
-            json={"discount": "0.5"},
             headers=SERVICE_ADMIN_HEADERS,
         )
 
@@ -253,7 +235,6 @@ async def test_apply_discount_forbidden_for_non_admin(
 
     response = await async_test_client.post(
         f"/courses/{course_id}/discount",
-        json={"discount": "0.5"},
         headers=get_headers(),
     )
 
@@ -269,7 +250,6 @@ async def test_apply_discount_unauthenticated(
 
     response = await async_test_client.post(
         f"/courses/{course_id}/discount",
-        json={"discount": "0.5"},
         headers={"Content-Type": "application/json", "Authorization": ""},
     )
 

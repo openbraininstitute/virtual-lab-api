@@ -69,21 +69,6 @@ class CourseDetailOut(BaseModel):
 # ──────────────────────────────────────────────────────────────────────
 
 
-class ApplyCourseDiscountBody(BaseModel):
-    """Payload for applying a compute-usage discount to a course's virtual lab.
-
-    The discount window is always the course's own start/end dates; the
-    request cannot override it.
-    """
-
-    discount: Decimal = Field(
-        ...,
-        ge=0,
-        le=1,
-        description="Fraction off compute usage, 0-1 inclusive (e.g. 0.5 = 50% off).",
-    )
-
-
 class CourseDiscountOut(BaseModel):
     """A discount applied to a course's virtual lab."""
 

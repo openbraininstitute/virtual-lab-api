@@ -3,8 +3,12 @@
 Service-admin operation. Grants the course's virtual lab a reduced compute
 rate at the accounting service for the course window.
 
-The discount window is always the course's own start/end dates. If the
-course has no start_date or end_date set, the request is refused.
+The discount window is always the course's own start/end dates, normalised
+to timezone-aware UTC before they are sent upstream. If the course has no
+start_date or end_date set, the request is refused.
+
+The discount amount is not caller-supplied: it is fixed by
+`settings.COURSE_COMPUTE_DISCOUNT`.
 
 This is a thin wrapper over `accounting.create_virtual_lab_discount`: the
 call is not idempotent, so each invocation creates a new discount row at
@@ -18,6 +22,7 @@ connection error / timeout -> 503.
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from http import HTTPStatus
 from uuid import UUID
 
@@ -28,9 +33,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from virtual_labs.core.exceptions.accounting_error import AccountingError
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.types import VliAppResponse
-from virtual_labs.domain.course import ApplyCourseDiscountBody, CourseDiscountOut
+from virtual_labs.domain.course import CourseDiscountOut
 from virtual_labs.infrastructure.db.models import Course
 from virtual_labs.infrastructure.kc.models import AuthUser
+from virtual_labs.infrastructure.settings import settings
 from virtual_labs.usecases import accounting as accounting_cases
 
 # Stable, downstream-agnostic messages returned to API callers. The detailed
@@ -55,7 +61,8 @@ def _map_accounting_error(
     upstream_status = ex.http_status_code
     logger.error(
         f"Failed to apply discount to course {course_id} (vlab {virtual_lab_id}): "
-        f"upstream_status={upstream_status} detail={ex}"
+        f"upstream_status={upstream_status} accounting_error_type={ex.type} "
+        f"accounting_detail={ex.message!r}"
     )
 
     retryable = upstream_status in (
@@ -91,10 +98,21 @@ def _map_accounting_error(
     )
 
 
+def _as_utc(dt: datetime) -> datetime:
+    """Return ``dt`` as a timezone-aware UTC datetime.
+
+    Course dates may come back from the database as naive values; the
+    accounting contract requires an aware datetime, so a naive value is
+    assumed to already be UTC and an aware value is converted to UTC.
+    """
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
 async def apply_course_discount(
     db: AsyncSession,
     course_id: UUID,
-    payload: ApplyCourseDiscountBody,
     auth: tuple[AuthUser, str],
 ) -> VliAppResponse[CourseDiscountOut]:
     course = (
@@ -107,10 +125,7 @@ async def apply_course_discount(
             message=f"Course {course_id} not found",
         )
 
-    valid_from = course.start_date
-    valid_to = course.end_date
-
-    if valid_from is None or valid_to is None:
+    if course.start_date is None or course.end_date is None:
         raise VliError(
             error_code=VliErrorCode.INVALID_REQUEST,
             http_status_code=HTTPStatus.BAD_REQUEST,
@@ -120,10 +135,14 @@ async def apply_course_discount(
             ),
         )
 
+    valid_from = _as_utc(course.start_date)
+    valid_to = _as_utc(course.end_date)
+    discount = settings.COURSE_COMPUTE_DISCOUNT
+
     try:
         result = await accounting_cases.create_virtual_lab_discount(
             virtual_lab_id=course.virtual_lab_id,
-            discount=payload.discount,
+            discount=discount,
             valid_from=valid_from,
             valid_to=valid_to,
         )
@@ -131,7 +150,7 @@ async def apply_course_discount(
         raise _map_accounting_error(ex, course_id, course.virtual_lab_id) from ex
 
     logger.info(
-        f"Applied {payload.discount} discount to course {course_id} "
+        f"Applied {discount} discount to course {course_id} "
         f"(vlab {course.virtual_lab_id}) valid {valid_from} → {valid_to} "
         f"by user {auth[0].sub}"
     )
