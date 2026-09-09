@@ -28,7 +28,7 @@ class DiscountInterface:
 
     @property
     def _api_url(cls) -> str:
-        return f"{settings.ACCOUNTING_BASE_URL}/discount"
+        return f"{settings.ACCOUNTING_BASE_URL}/admin/discount"
 
     async def create_discount(
         self,

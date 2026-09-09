@@ -32,7 +32,7 @@ def discount_interface(mock_client: AsyncMock) -> DiscountInterface:
 
 @pytest.mark.asyncio
 async def test_api_url(discount_interface: DiscountInterface) -> None:
-    expected_url = f"{settings.ACCOUNTING_BASE_URL}/discount"
+    expected_url = f"{settings.ACCOUNTING_BASE_URL}/admin/discount"
     assert discount_interface._api_url == expected_url
 
 
@@ -67,7 +67,7 @@ async def test_create_virtual_lab_discount_success(
 
     mock_client.post.assert_called_once()
 
-    expected_url = f"{settings.ACCOUNTING_BASE_URL}/discount"
+    expected_url = f"{settings.ACCOUNTING_BASE_URL}/admin/discount"
     assert mock_client.post.call_args[0][0] == expected_url
 
 
