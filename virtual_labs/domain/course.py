@@ -1,7 +1,15 @@
 from datetime import datetime
+from decimal import Decimal
 from typing import Optional
 
-from pydantic import UUID4, BaseModel, ConfigDict, Field, model_validator
+from pydantic import (
+    UUID4,
+    AwareDatetime,
+    BaseModel,
+    ConfigDict,
+    Field,
+    model_validator,
+)
 
 from virtual_labs.domain.seat import SeatOut
 
@@ -55,6 +63,52 @@ class CourseDetailOut(BaseModel):
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
     last_drop_date: Optional[datetime] = None
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Course discount schemas
+# ──────────────────────────────────────────────────────────────────────
+
+
+class ApplyCourseDiscountBody(BaseModel):
+    """Payload for applying a compute-usage discount to a course's virtual lab.
+
+    The window defaults to the course's own start/end dates when omitted.
+    """
+
+    discount: Decimal = Field(
+        ...,
+        gt=0,
+        le=1,
+        description="Fraction off compute usage, 0-1 (e.g. 0.5 = 50% off).",
+    )
+    valid_from: Optional[AwareDatetime] = Field(
+        default=None,
+        description="Discount window start; defaults to the course start_date.",
+    )
+    valid_to: Optional[AwareDatetime] = Field(
+        default=None,
+        description="Discount window end; defaults to the course end_date.",
+    )
+
+    @model_validator(mode="after")
+    def _check_window(self) -> "ApplyCourseDiscountBody":
+        if (
+            self.valid_from is not None
+            and self.valid_to is not None
+            and self.valid_from >= self.valid_to
+        ):
+            raise ValueError("valid_to must be after valid_from")
+        return self
+
+
+class CourseDiscountOut(BaseModel):
+    """A discount applied to a course's virtual lab."""
+
+    virtual_lab_id: UUID4
+    discount: Decimal
+    valid_from: datetime
+    valid_to: Optional[datetime] = None
 
 
 # ──────────────────────────────────────────────────────────────────────
