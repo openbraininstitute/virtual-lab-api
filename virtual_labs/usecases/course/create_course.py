@@ -71,12 +71,7 @@ async def _validate_project(
 
 
 async def _apply_pro_discount(virtual_lab_id: UUID) -> None:
-    """Apply the pro discount to the course's virtual lab via accounting.
-
-    Raises VliError (EXTERNAL_SERVICE_ERROR) if the accounting call fails, so the
-    caller aborts course creation. Skipped when accounting is not configured
-    (e.g. local/testing deployments where ACCOUNTING_BASE_URL is unset).
-    """
+    """Apply the pro discount to the course's virtual lab, aborting on failure."""
     if settings.ACCOUNTING_BASE_URL is None:
         return
 
@@ -109,12 +104,10 @@ async def _apply_pro_discount(virtual_lab_id: UUID) -> None:
 def _make_pro_discount_compensation(
     virtual_lab_id: UUID,
 ) -> Callable[[], Awaitable[None]]:
-    """Build a ledger undo that neutralizes the pro discount.
+    """Undo the pro discount.
 
-    Accounting has no "delete discount" endpoint, so the compensation records a
-    fresh discount of 0 on the virtual lab, superseding the pro discount applied
-    earlier. Pushed onto the ledger after the discount succeeds so that a later
-    failure (e.g. the course DB commit) unwinds it automatically.
+    Accounting has no "delete discount" endpoint, so this records a fresh
+    discount of 0 to supersede the pro discount.
     """
 
     async def _undo() -> None:
@@ -136,12 +129,7 @@ def _make_pro_discount_compensation(
 def _make_deplete_compensation(
     virtual_lab_id: UUID, project_id: UUID
 ) -> Callable[[], Awaitable[None]]:
-    """Build a ledger undo that removes the credits granted to the project.
-
-    Reverses `_fund_template_project` by depleting the project budget via
-    accounting. Pushed after funding succeeds so a later failure (e.g. the
-    course DB commit) unwinds it automatically.
-    """
+    """Undo project funding by depleting the granted credits."""
 
     async def _undo() -> None:
         await accounting_cases.deplete_project_budget(
@@ -153,13 +141,7 @@ def _make_deplete_compensation(
 
 
 async def _fund_template_project(virtual_lab_id: UUID, project_id: UUID) -> None:
-    """Grant the template project its per-seat credits via accounting.
-
-    Raises VliError (EXTERNAL_SERVICE_ERROR) on failure so course creation
-    aborts. Skipped when accounting is not configured. Unlike the discount,
-    this grants credits; its compensation (`deplete_project_budget`) removes
-    them again.
-    """
+    """Grant the template project its per-seat credits, aborting on failure."""
     if settings.ACCOUNTING_BASE_URL is None:
         return
 
@@ -177,12 +159,7 @@ async def _fund_template_project(virtual_lab_id: UUID, project_id: UUID) -> None
 
 
 async def _persist_course(db: AsyncSession, db_course: Course) -> None:
-    """Commit the course row, translating DB failures into VliError.
-
-    Runs inside the ledger scope so that if the commit fails the enclosing
-    `ledger_container` unwinds the recorded compensations (reversing the pro
-    discount and depleting the project funding) before the error propagates.
-    """
+    """Commit the course row, translating DB failures into VliError."""
     db.add(db_course)
     try:
         await db.commit()
@@ -210,7 +187,6 @@ async def create_course(
     payload: CourseCreateBody,
     auth: tuple[AuthUser, str],
 ) -> VliAppResponse[CourseOut]:
-    # Validate that the referenced virtual lab and project exist
     vlab = await _validate_virtual_lab(db, payload.virtual_lab_id)
     await _validate_project(db, payload.template_project_id, payload.virtual_lab_id)
 
@@ -225,12 +201,9 @@ async def create_course(
         credits_per_seat=settings.CREDITS_PER_SEAT,
     )
 
-    # Run the two accounting side-effects, then persist the course, all under a
-    # ledger scope. Each side-effect records its own compensation:
-    #   * pro discount   -> superseded by a discount of 0 (affects future spend)
-    #   * project funding -> reversed by depleting the project budget (credits)
-    # If any step (including the final DB commit) fails, the ledger unwinds every
-    # recorded compensation in LIFO order, so course creation is aborted cleanly.
+    # Each accounting side-effect pushes its own compensation before the commit,
+    # so if any step (including the commit) fails the ledger unwinds them in LIFO
+    # order, aborting creation cleanly.
     async with ledger_container() as comp:
         await _apply_pro_discount(vlab.id)
         comp.push(_make_pro_discount_compensation(vlab.id))
@@ -240,7 +213,6 @@ async def create_course(
 
         await _persist_course(db, db_course)
 
-    # Post-commit: refresh vlab so the response reflects the course relationship
     await db.refresh(vlab)
 
     return VliAppResponse[CourseOut](
