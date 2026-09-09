@@ -35,9 +35,7 @@ from virtual_labs.usecases import accounting as accounting_cases
 
 # Stable, downstream-agnostic messages returned to API callers. The detailed
 # accounting error (upstream response body / exception text) is only logged.
-_MSG_INVALID = (
-    "The discount request was rejected as invalid by the accounting service."
-)
+_MSG_INVALID = "The discount request was rejected as invalid by the accounting service."
 _MSG_UPSTREAM_FAILURE = (
     "The accounting service could not apply the discount. Please try again later."
 )
