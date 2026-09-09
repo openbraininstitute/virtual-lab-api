@@ -70,16 +70,37 @@ async def _validate_project(
     return project
 
 
-async def _apply_pro_discount(virtual_lab_id: UUID) -> None:
-    """Apply the pro discount to the course's virtual lab, aborting on failure."""
+def _as_utc(value: datetime | None) -> datetime | None:
+    """Coerce a datetime to UTC-aware (accounting requires AwareDatetime)."""
+    if value is None:
+        return None
+    return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+
+
+async def _apply_pro_discount(
+    virtual_lab_id: UUID,
+    *,
+    start_date: datetime | None,
+    end_date: datetime | None,
+) -> None:
+    """Apply the pro discount to the course's virtual lab, aborting on failure.
+
+    The discount validity mirrors the course window: it starts at the course
+    start date (or now, if the course has no start date yet) and ends at the
+    course end date (open-ended if unset).
+    """
     if settings.ACCOUNTING_BASE_URL is None:
         return
+
+    valid_from = _as_utc(start_date) or datetime.now(timezone.utc)
+    valid_to = _as_utc(end_date)
 
     try:
         await accounting_cases.create_virtual_lab_discount(
             virtual_lab_id=virtual_lab_id,
             discount=settings.COURSE_PRO_DISCOUNT,
-            valid_from=datetime.now(timezone.utc),
+            valid_from=valid_from,
+            valid_to=valid_to,
         )
     except AccountingError as err:
         logger.error(
@@ -205,7 +226,11 @@ async def create_course(
     # so if any step (including the commit) fails the ledger unwinds them in LIFO
     # order, aborting creation cleanly.
     async with ledger_container() as comp:
-        await _apply_pro_discount(vlab.id)
+        await _apply_pro_discount(
+            vlab.id,
+            start_date=payload.start_date,
+            end_date=payload.end_date,
+        )
         comp.push(_make_pro_discount_compensation(vlab.id))
 
         await _fund_template_project(vlab.id, payload.template_project_id)
