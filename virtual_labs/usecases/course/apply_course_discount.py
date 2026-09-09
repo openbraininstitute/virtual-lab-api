@@ -50,8 +50,7 @@ async def apply_course_discount(
             error_code=VliErrorCode.INVALID_REQUEST,
             http_status_code=HTTPStatus.BAD_REQUEST,
             message=(
-                "valid_from is required — the course has no start_date to fall "
-                "back on"
+                "valid_from is required — the course has no start_date to fall back on"
             ),
         )
     if valid_to is not None and valid_from >= valid_to:
