@@ -7,6 +7,8 @@ to a new course record.
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
+from decimal import Decimal
 from http import HTTPStatus
 from uuid import UUID
 
@@ -16,6 +18,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
+from virtual_labs.core.ledger import ledger_container
 from virtual_labs.core.types import VliAppResponse
 from virtual_labs.domain.course import CourseCreateBody, CourseOut
 from virtual_labs.infrastructure.db.models import (
@@ -27,6 +30,10 @@ from virtual_labs.infrastructure.db.models import (
 from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.infrastructure.settings import settings
 from virtual_labs.usecases import accounting as accounting_cases
+from virtual_labs.usecases.course.pro_discount import (
+    apply_pro_discount,
+    make_pro_discount_compensation,
+)
 from virtual_labs.usecases.labs.get_virtual_lab_or_raise import (
     get_virtual_lab_or_raise,
 )
@@ -65,27 +72,41 @@ async def _validate_project(
     return project
 
 
-async def create_course(
-    db: AsyncSession,
-    payload: CourseCreateBody,
-    auth: tuple[AuthUser, str],
-) -> VliAppResponse[CourseOut]:
-    # Validate that the referenced virtual lab and project exist
-    vlab = await _validate_virtual_lab(db, payload.virtual_lab_id)
-    await _validate_project(db, payload.template_project_id, payload.virtual_lab_id)
+def _make_deplete_compensation(
+    virtual_lab_id: UUID, project_id: UUID
+) -> Callable[[], Awaitable[None]]:
+    """Undo project funding by depleting the granted credits."""
 
-    db_course = Course(
-        virtual_lab_id=payload.virtual_lab_id,
-        institution_id=payload.institution_id,
-        template_project_id=payload.template_project_id,
-        start_date=payload.start_date,
-        end_date=payload.end_date,
-        last_drop_date=payload.last_drop_date,
-        status=CourseStatus.DRAFT,
-        credits_per_seat=settings.CREDITS_PER_SEAT,
+    async def _undo() -> None:
+        await accounting_cases.deplete_project_budget(
+            virtual_lab_id=virtual_lab_id,
+            project_id=project_id,
+        )
+
+    return _undo
+
+
+async def _fund_template_project(virtual_lab_id: UUID, project_id: UUID) -> None:
+    """Grant the template project its per-seat credits, aborting on failure."""
+    if settings.ACCOUNTING_BASE_URL is None:
+        return
+
+    funded = await accounting_cases.fund_project(
+        virtual_lab_id=virtual_lab_id,
+        project_id=project_id,
+        amount=settings.CREDITS_PER_SEAT,
     )
-    db.add(db_course)
+    if not funded:
+        raise VliError(
+            error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
+            http_status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            message="Course creation failed: could not fund the template project",
+        )
 
+
+async def _persist_course(db: AsyncSession, db_course: Course) -> None:
+    """Commit the course row, translating DB failures into VliError."""
+    db.add(db_course)
     try:
         await db.commit()
         await db.refresh(db_course)
@@ -106,13 +127,44 @@ async def create_course(
             message="Course creation failed",
         ) from err
 
-    # Post-commit: refresh vlab (now has course relationship) and fund template project
-    await db.refresh(vlab)
-    await accounting_cases.fund_project(
-        virtual_lab_id=vlab.id,
-        project_id=payload.template_project_id,
-        amount=settings.CREDITS_PER_SEAT,
+
+async def create_course(
+    db: AsyncSession,
+    payload: CourseCreateBody,
+    auth: tuple[AuthUser, str],
+) -> VliAppResponse[CourseOut]:
+    vlab = await _validate_virtual_lab(db, payload.virtual_lab_id)
+    await _validate_project(db, payload.template_project_id, payload.virtual_lab_id)
+
+    db_course = Course(
+        virtual_lab_id=payload.virtual_lab_id,
+        institution_id=payload.institution_id,
+        template_project_id=payload.template_project_id,
+        start_date=payload.start_date,
+        end_date=payload.end_date,
+        last_drop_date=payload.last_drop_date,
+        status=CourseStatus.DRAFT,
+        credits_per_seat=settings.CREDITS_PER_SEAT,
     )
+
+    # Each accounting side-effect pushes its own compensation before the commit,
+    # so if any step (including the commit) fails the ledger unwinds them in LIFO
+    # order, aborting creation cleanly.
+    async with ledger_container() as comp:
+        await apply_pro_discount(
+            vlab.id,
+            valid_from=payload.start_date,
+            valid_to=payload.end_date,
+            failure_message="Course creation failed: could not apply the pro discount",
+        )
+        comp.push(make_pro_discount_compensation(vlab.id, discount=Decimal(0)))
+
+        await _fund_template_project(vlab.id, payload.template_project_id)
+        comp.push(_make_deplete_compensation(vlab.id, payload.template_project_id))
+
+        await _persist_course(db, db_course)
+
+    await db.refresh(vlab)
 
     return VliAppResponse[CourseOut](
         message="Course created successfully",
