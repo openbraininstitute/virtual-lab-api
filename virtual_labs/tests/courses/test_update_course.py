@@ -146,7 +146,11 @@ async def test_update_voided_course_succeeds(
 
     response = await async_test_client.patch(
         f"/courses/{course_id}",
-        json={"start_date": "2027-01-01T00:00:00Z"},
+        json={
+            "start_date": "2027-01-01T00:00:00Z",
+            "last_drop_date": "2027-01-14T00:00:00Z",
+            "end_date": "2027-03-15T00:00:00Z",
+        },
         headers=SERVICE_ADMIN_HEADERS,
     )
 
