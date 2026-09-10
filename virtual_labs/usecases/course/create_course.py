@@ -8,7 +8,6 @@ to a new course record.
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
-from datetime import datetime, timezone
 from decimal import Decimal
 from http import HTTPStatus
 from uuid import UUID
@@ -18,7 +17,6 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from virtual_labs.core.exceptions.accounting_error import AccountingError
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
 from virtual_labs.core.ledger import ledger_container
 from virtual_labs.core.types import VliAppResponse
@@ -32,6 +30,10 @@ from virtual_labs.infrastructure.db.models import (
 from virtual_labs.infrastructure.kc.models import AuthUser
 from virtual_labs.infrastructure.settings import settings
 from virtual_labs.usecases import accounting as accounting_cases
+from virtual_labs.usecases.course.pro_discount import (
+    apply_pro_discount,
+    make_pro_discount_compensation,
+)
 from virtual_labs.usecases.labs.get_virtual_lab_or_raise import (
     get_virtual_lab_or_raise,
 )
@@ -68,83 +70,6 @@ async def _validate_project(
             message=(f"Project {project_id} not found in virtual lab {virtual_lab_id}"),
         )
     return project
-
-
-def _as_utc(value: datetime | None) -> datetime | None:
-    """Coerce a datetime to UTC-aware (accounting requires AwareDatetime)."""
-    if value is None:
-        return None
-    return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
-
-
-async def _apply_pro_discount(
-    virtual_lab_id: UUID,
-    *,
-    start_date: datetime | None,
-    end_date: datetime | None,
-) -> None:
-    """Apply the pro discount to the course's virtual lab, aborting on failure.
-
-    The discount validity mirrors the course window: it starts at the course
-    start date (or now, if the course has no start date yet) and ends at the
-    course end date (open-ended if unset).
-    """
-    if settings.ACCOUNTING_BASE_URL is None:
-        return
-
-    valid_from = _as_utc(start_date) or datetime.now(timezone.utc)
-    valid_to = _as_utc(end_date)
-
-    try:
-        await accounting_cases.create_virtual_lab_discount(
-            virtual_lab_id=virtual_lab_id,
-            discount=settings.COURSE_PRO_DISCOUNT,
-            valid_from=valid_from,
-            valid_to=valid_to,
-        )
-    except AccountingError as err:
-        logger.error(
-            f"Failed to apply pro discount for virtual lab {virtual_lab_id}: {err}"
-        )
-        raise VliError(
-            error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
-            http_status_code=err.http_status_code or HTTPStatus.INTERNAL_SERVER_ERROR,
-            message="Course creation failed: could not apply the pro discount",
-        ) from err
-    except Exception as err:
-        logger.exception(
-            f"Unexpected error applying pro discount for virtual lab {virtual_lab_id}: {err}"
-        )
-        raise VliError(
-            error_code=VliErrorCode.EXTERNAL_SERVICE_ERROR,
-            http_status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-            message="Course creation failed: could not apply the pro discount",
-        ) from err
-
-
-def _make_pro_discount_compensation(
-    virtual_lab_id: UUID,
-) -> Callable[[], Awaitable[None]]:
-    """Undo the pro discount.
-
-    Accounting has no "delete discount" endpoint, so this records a fresh
-    discount of 0 to supersede the pro discount.
-    """
-
-    async def _undo() -> None:
-        try:
-            await accounting_cases.create_virtual_lab_discount(
-                virtual_lab_id=virtual_lab_id,
-                discount=Decimal(0),
-                valid_from=datetime.now(timezone.utc),
-            )
-        except Exception as exc:  # noqa: BLE001
-            logger.error(
-                f"Failed to reverse pro discount (apply 0) for virtual lab "
-                f"{virtual_lab_id}; reconcile manually: {exc}"
-            )
-
-    return _undo
 
 
 def _make_deplete_compensation(
@@ -226,12 +151,13 @@ async def create_course(
     # so if any step (including the commit) fails the ledger unwinds them in LIFO
     # order, aborting creation cleanly.
     async with ledger_container() as comp:
-        await _apply_pro_discount(
+        await apply_pro_discount(
             vlab.id,
-            start_date=payload.start_date,
-            end_date=payload.end_date,
+            valid_from=payload.start_date,
+            valid_to=payload.end_date,
+            failure_message="Course creation failed: could not apply the pro discount",
         )
-        comp.push(_make_pro_discount_compensation(vlab.id))
+        comp.push(make_pro_discount_compensation(vlab.id, discount=Decimal(0)))
 
         await _fund_template_project(vlab.id, payload.template_project_id)
         comp.push(_make_deplete_compensation(vlab.id, payload.template_project_id))

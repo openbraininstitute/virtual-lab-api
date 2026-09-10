@@ -53,46 +53,6 @@ async def test_activate_course_successfully(
 
 
 @pytest.mark.asyncio
-async def test_activate_course_fails_when_dates_missing(
-    async_test_client: AsyncClient,
-    draft_course: tuple[str, str],
-) -> None:
-    """Cannot activate a course without all dates set."""
-    course_id, _ = draft_course
-
-    response = await async_test_client.post(
-        f"/courses/{course_id}/activate", headers=SERVICE_ADMIN_HEADERS
-    )
-
-    assert response.status_code == 409
-    assert "not set" in response.json()["message"]
-
-
-@pytest.mark.asyncio
-async def test_activate_course_fails_with_partial_dates(
-    async_test_client: AsyncClient,
-    draft_course: tuple[str, str],
-) -> None:
-    """Cannot activate if only some dates are set."""
-    course_id, _ = draft_course
-
-    # Set only start_date
-    await async_test_client.patch(
-        f"/courses/{course_id}",
-        json={"start_date": "2026-09-01T00:00:00Z"},
-        headers=SERVICE_ADMIN_HEADERS,
-    )
-    response = await async_test_client.post(
-        f"/courses/{course_id}/activate", headers=SERVICE_ADMIN_HEADERS
-    )
-
-    assert response.status_code == 409
-    msg = response.json()["message"]
-    assert "end_date" in msg
-    assert "last_drop_date" in msg
-
-
-@pytest.mark.asyncio
 async def test_activate_course_fails_with_unordered_dates(
     async_test_client: AsyncClient,
     draft_course: tuple[str, str],

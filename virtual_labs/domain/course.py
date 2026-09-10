@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
 from pydantic import UUID4, BaseModel, ConfigDict, Field, model_validator
 
@@ -12,18 +12,41 @@ class CourseCreateBody(BaseModel):
     virtual_lab_id: UUID4
     template_project_id: UUID4
     institution_id: UUID4
-    start_date: Optional[datetime] = None
-    end_date: Optional[datetime] = None
-    last_drop_date: Optional[datetime] = None
+    start_date: datetime
+    last_drop_date: datetime
+    end_date: datetime
+
+    @model_validator(mode="after")
+    def _validate_date_ordering(self) -> "CourseCreateBody":
+        if not (self.start_date < self.last_drop_date < self.end_date):
+            raise ValueError(
+                "Dates must satisfy start_date < last_drop_date < end_date"
+            )
+        return self
 
 
 class CourseUpdateBody(BaseModel):
-    """Payload for updating a draft course."""
+    """Payload for updating a course.
+
+    Every field is optional, but a field that is sent must not be null — the
+    course columns it maps to are all NOT NULL.
+    """
 
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
     last_drop_date: Optional[datetime] = None
     institution_id: Optional[UUID4] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _reject_explicit_nulls(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            null_fields = [key for key, value in data.items() if value is None]
+            if null_fields:
+                raise ValueError(
+                    f"Fields may not be null: {', '.join(sorted(null_fields))}"
+                )
+        return data
 
 
 class CourseOut(BaseModel):
