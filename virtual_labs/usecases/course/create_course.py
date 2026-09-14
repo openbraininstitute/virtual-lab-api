@@ -151,16 +151,16 @@ async def create_course(
     # so if any step (including the commit) fails the ledger unwinds them in LIFO
     # order, aborting creation cleanly.
     async with ledger_container() as comp:
+        comp.push(make_pro_discount_compensation(vlab.id, discount=Decimal(0)))
         await apply_pro_discount(
             vlab.id,
             valid_from=payload.start_date,
             valid_to=payload.end_date,
             failure_message="Course creation failed: could not apply the pro discount",
         )
-        comp.push(make_pro_discount_compensation(vlab.id, discount=Decimal(0)))
 
-        await _fund_template_project(vlab.id, payload.template_project_id)
         comp.push(_make_deplete_compensation(vlab.id, payload.template_project_id))
+        await _fund_template_project(vlab.id, payload.template_project_id)
 
         await _persist_course(db, db_course)
 
