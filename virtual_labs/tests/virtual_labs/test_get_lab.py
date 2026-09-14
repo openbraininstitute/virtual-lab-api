@@ -1,4 +1,5 @@
 import copy
+from datetime import datetime, timezone
 from http import HTTPStatus
 from typing import Any, AsyncGenerator, cast
 from uuid import UUID, uuid4
@@ -83,6 +84,9 @@ async def mock_lab_with_course(
             template_project_id=UUID(project_id),
             institution_id=institution.id,
             credits_per_seat=100,
+            start_date=datetime(2026, 9, 1, tzinfo=timezone.utc),
+            last_drop_date=datetime(2026, 9, 14, tzinfo=timezone.utc),
+            end_date=datetime(2026, 12, 15, tzinfo=timezone.utc),
         )
         session.add(course)
         await session.commit()
@@ -149,9 +153,9 @@ async def test_get_lab_by_id_with_course(
     assert actual["course"]["virtual_lab_id"] == lab_id
     assert actual["course"]["template_project_id"] == project_id
     assert actual["course"]["institution_id"] is not None
-    assert actual["course"]["start_date"] is None
-    assert actual["course"]["end_date"] is None
-    assert actual["course"]["last_drop_date"] is None
+    assert actual["course"]["start_date"] == "2026-09-01T00:00:00Z"
+    assert actual["course"]["last_drop_date"] == "2026-09-14T00:00:00Z"
+    assert actual["course"]["end_date"] == "2026-12-15T00:00:00Z"
     assert actual["course"]["credits_per_seat"] == 100
 
 

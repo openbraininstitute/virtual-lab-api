@@ -27,6 +27,9 @@ def _make_course_payload(
         "virtual_lab_id": virtual_lab_id,
         "template_project_id": template_project_id,
         "institution_id": institution_id,
+        "start_date": "2026-09-01T00:00:00Z",
+        "last_drop_date": "2026-09-14T00:00:00Z",
+        "end_date": "2026-12-15T00:00:00Z",
     }
 
 
@@ -99,7 +102,7 @@ async def test_course_default_status_is_draft(
 
 
 @pytest.mark.asyncio
-async def test_course_creation_with_optional_dates(
+async def test_course_creation_persists_dates(
     async_test_client: AsyncClient,
     institution_id: str,
     vlab_with_project: tuple[str, str],
@@ -124,6 +127,47 @@ async def test_course_creation_with_optional_dates(
     assert data["last_drop_date"] == "2026-09-14T00:00:00Z"
 
     await cleanup_course(data["id"])
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("missing_field", ["start_date", "last_drop_date", "end_date"])
+async def test_course_creation_fails_without_a_date(
+    async_test_client: AsyncClient,
+    institution_id: str,
+    vlab_with_project: tuple[str, str],
+    missing_field: str,
+) -> None:
+    """All three dates are required at creation."""
+    vlab_id, project_id = vlab_with_project
+    body = _make_course_payload(vlab_id, project_id, institution_id)
+    del body[missing_field]
+
+    response = await async_test_client.post(
+        "/courses", json=body, headers=SERVICE_ADMIN_HEADERS
+    )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_course_creation_fails_with_unordered_dates(
+    async_test_client: AsyncClient,
+    institution_id: str,
+    vlab_with_project: tuple[str, str],
+) -> None:
+    vlab_id, project_id = vlab_with_project
+    body = {
+        **_make_course_payload(vlab_id, project_id, institution_id),
+        "start_date": "2026-09-01T00:00:00Z",
+        "last_drop_date": "2026-12-15T00:00:00Z",
+        "end_date": "2026-09-10T00:00:00Z",
+    }
+
+    response = await async_test_client.post(
+        "/courses", json=body, headers=SERVICE_ADMIN_HEADERS
+    )
+
+    assert response.status_code == 422
 
 
 # ──────────────────────────────────────────────────────────────────────

@@ -123,6 +123,9 @@ async def _create_active_course(
         "virtual_lab_id": lab_id,
         "template_project_id": project_id,
         "institution_id": institution_id,
+        "start_date": "2026-09-01T00:00:00Z",
+        "last_drop_date": "2026-09-14T00:00:00Z",
+        "end_date": "2026-12-15T00:00:00Z",
     }
     course_response = await client.post(
         "/courses", json=course_body, headers=SERVICE_ADMIN_HEADERS
@@ -216,6 +219,9 @@ async def draft_course_for_seats(
         "virtual_lab_id": lab_id,
         "template_project_id": project_id,
         "institution_id": institution_id,
+        "start_date": "2026-09-01T00:00:00Z",
+        "last_drop_date": "2026-09-14T00:00:00Z",
+        "end_date": "2026-12-15T00:00:00Z",
     }
     course_response = await client.post(
         "/courses", json=course_body, headers=SERVICE_ADMIN_HEADERS
@@ -273,6 +279,9 @@ async def voided_course_for_seats(
         "virtual_lab_id": lab_id,
         "template_project_id": project_id,
         "institution_id": institution_id,
+        "start_date": "2026-09-01T00:00:00Z",
+        "last_drop_date": "2026-09-14T00:00:00Z",
+        "end_date": "2026-12-15T00:00:00Z",
     }
     course_response = await client.post(
         "/courses", json=course_body, headers=SERVICE_ADMIN_HEADERS

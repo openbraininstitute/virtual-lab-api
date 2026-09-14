@@ -123,6 +123,8 @@ class Settings(BaseSettings):
     ENABLE_WELCOME_BONUS: bool = True
 
     PAID_SUBSCRIPTION_DISCOUNT: Decimal = Decimal("0.5")
+    # Pro discount applied to a course's virtual lab at creation time.
+    COURSE_PRO_DISCOUNT: Decimal = Decimal("0.5")
     MAX_PROJECTS_NUMBER: int = 20
     PAGINATION_DEFAULT_PAGE_SIZE: int = 20
     PAGINATION_MAX_PAGE_SIZE: int = 100
@@ -194,11 +196,11 @@ class Settings(BaseSettings):
             raise ValueError("BILLING_TAX_ENABLED_COUNTRIES cannot be empty")
         return ",".join(normalized)
 
-    @field_validator("PAID_SUBSCRIPTION_DISCOUNT")
+    @field_validator("PAID_SUBSCRIPTION_DISCOUNT", "COURSE_PRO_DISCOUNT")
     @classmethod
     def validate_discount(cls, discount: Decimal) -> Decimal:
         if discount < Decimal(0) or Decimal(1) < discount:
-            raise ValueError("Paid subscription discount must be between 0 and 1")
+            raise ValueError("Discount must be between 0 and 1")
         return discount
 
 

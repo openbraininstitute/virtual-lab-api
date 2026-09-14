@@ -1077,14 +1077,14 @@ class Course(Base):
         unique=True,
         index=True,
     )
-    start_date: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
+    start_date: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
     )
-    end_date: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True, index=True
+    end_date: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, index=True
     )
-    last_drop_date: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
+    last_drop_date: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
     )
     status: Mapped[CourseStatus] = mapped_column(
         SAEnum(CourseStatus), nullable=False, default=CourseStatus.DRAFT, index=True
