@@ -58,9 +58,9 @@ class CourseOut(BaseModel):
     template_project_id: UUID4
     status: str
     credits_per_seat: int
-    start_date: Optional[datetime] = None
-    end_date: Optional[datetime] = None
-    last_drop_date: Optional[datetime] = None
+    start_date: datetime
+    end_date: datetime
+    last_drop_date: datetime
 
 
 class CourseDetailOut(BaseModel):
@@ -175,8 +175,8 @@ class ClaimCourseSummary(BaseModel):
     virtual_lab_id: UUID4
     virtual_lab_name: str
     institution_name: str
-    start_date: Optional[datetime] = None
-    end_date: Optional[datetime] = None
+    start_date: datetime
+    end_date: datetime
 
 
 class ClaimEnrolmentOut(BaseModel):
