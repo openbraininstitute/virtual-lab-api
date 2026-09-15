@@ -248,6 +248,7 @@ class OnboardingFeature(str, Enum):
     WORKSPACE_DATA = "workspace-data"
     WORKSPACE_PROJECT = "workspace-project"
     WORKSPACE_WORKFLOW = "workspace-workflow"
+    SIMULATION_SPIKE_REPLAY = "simulation-spike-replay"
 
 
 class OnboardingStatus(BaseModel):
