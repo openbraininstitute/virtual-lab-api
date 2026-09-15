@@ -136,6 +136,11 @@ async def create_course(
     vlab = await _validate_virtual_lab(db, payload.virtual_lab_id)
     await _validate_project(db, payload.template_project_id, payload.virtual_lab_id)
 
+    # The pro discount applies from the moment the course is created, not from
+    # its start date. Capture the creation timestamp up front so it is both the
+    # course's created_at and the discount's invariant valid_from.
+    created_at = datetime.now(timezone.utc)
+
     db_course = Course(
         virtual_lab_id=payload.virtual_lab_id,
         institution_id=payload.institution_id,
@@ -145,6 +150,7 @@ async def create_course(
         last_drop_date=payload.last_drop_date,
         status=CourseStatus.DRAFT,
         credits_per_seat=settings.CREDITS_PER_SEAT,
+        created_at=created_at,
     )
 
     # Each accounting side-effect pushes its own compensation before the commit,
@@ -154,7 +160,7 @@ async def create_course(
         comp.push(make_pro_discount_compensation(vlab.id, discount=Decimal(0)))
         await apply_pro_discount(
             vlab.id,
-            valid_from=payload.start_date,
+            valid_from=created_at,
             valid_to=payload.end_date,
             failure_message="Course creation failed: could not apply the pro discount",
         )
