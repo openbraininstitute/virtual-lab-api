@@ -152,6 +152,31 @@ class TestUpdateOnboardingStatus:
         assert response_data["data"]["workspace-workflow"]["dismissed"] is True
 
     @pytest.mark.asyncio
+    async def test_update_onboarding_status_dismiss_spike_replay(
+        self,
+        async_test_client: AsyncClient,
+        mock_user_with_lab_and_project: tuple[Any, str, Dict[str, Any]],
+    ) -> None:
+        """Test dismissing the spike replay announcement."""
+        client = async_test_client
+        _, _, data = mock_user_with_lab_and_project
+        headers = data["headers"]
+
+        await client.delete("/users/preferences/onboarding", headers=headers)
+
+        payload = {"dismissed": True}
+        response = await client.put(
+            "/users/preferences/onboarding/simulation-spike-replay",
+            json=payload,
+            headers=headers,
+        )
+
+        assert response.status_code == HTTPStatus.OK
+        response_data = response.json()
+        assert "simulation-spike-replay" in response_data["data"]
+        assert response_data["data"]["simulation-spike-replay"]["dismissed"] is True
+
+    @pytest.mark.asyncio
     async def test_update_onboarding_status_partial_update(
         self,
         async_test_client: AsyncClient,
