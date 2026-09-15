@@ -1,9 +1,10 @@
 """Apply / reverse the course pro discount on a course's virtual lab.
 
-Shared by course creation and update: both mirror the discount validity to
-the course window (``start_date`` → ``end_date``). Accounting has no
-"update discount" endpoint, so a new discount is recorded each time and the
-latest one wins.
+Shared by course creation and update. The discount validity runs from the
+course's creation timestamp (``valid_from``) to its end date (``valid_to``);
+``valid_from`` is fixed at creation and stays invariant across updates.
+Accounting has no "update discount" endpoint, so a new discount is recorded
+each time and the latest one wins.
 """
 
 from __future__ import annotations
@@ -38,8 +39,8 @@ async def apply_pro_discount(
 ) -> None:
     """Record the pro discount on the virtual lab, aborting on failure.
 
-    The discount validity mirrors the course window: ``valid_from`` is the
-    course start date and ``valid_to`` the course end date.
+    ``valid_from`` is the course creation timestamp (invariant across updates)
+    and ``valid_to`` the course end date.
     """
     if settings.ACCOUNTING_BASE_URL is None:
         return

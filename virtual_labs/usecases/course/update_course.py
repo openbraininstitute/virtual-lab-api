@@ -30,9 +30,11 @@ async def update_course(
 ) -> VliAppResponse[CourseOut]:
     """Update fields on a course, regardless of its status.
 
-    Applies the same date-ordering checks as course activation. When the
-    course window (start/end date) changes, the pro discount on the course's
-    virtual lab is re-applied so its validity keeps mirroring the window.
+    Applies the same date-ordering checks as course activation. The pro
+    discount's start (``valid_from``) is fixed at course creation and never
+    changes; only its end (``valid_to``) tracks the course end date, so the
+    discount is re-applied on the course's virtual lab whenever the end date
+    changes.
     """
     result = await db.execute(select(Course).where(Course.id == course_id))
     course = result.scalar_one_or_none()
@@ -44,7 +46,7 @@ async def update_course(
             message=f"Course {course_id} not found",
         )
 
-    previous_start, previous_end = course.start_date, course.end_date
+    previous_end = course.end_date
 
     update_data = payload.model_dump(exclude_unset=True)
     for field, value in update_data.items():
@@ -59,15 +61,16 @@ async def update_course(
             message=str(e),
         )
 
-    window_changed = (
-        course.start_date != previous_start or course.end_date != previous_end
-    )
+    # The discount's valid_from is fixed at course creation and never moves.
+    # Only the end of the validity window (valid_to) tracks the course end date,
+    # so we only re-apply the discount when the end date changes.
+    end_changed = course.end_date != previous_end
 
     async with ledger_container() as comp:
-        if window_changed:
+        if end_changed:
             await apply_pro_discount(
                 course.virtual_lab_id,
-                valid_from=course.start_date,
+                valid_from=course.created_at,
                 valid_to=course.end_date,
                 failure_message=(
                     "Course update failed: could not update the pro discount"
@@ -77,7 +80,7 @@ async def update_course(
                 make_pro_discount_compensation(
                     course.virtual_lab_id,
                     discount=settings.COURSE_PRO_DISCOUNT,
-                    valid_from=previous_start,
+                    valid_from=course.created_at,
                     valid_to=previous_end,
                 )
             )
