@@ -8,6 +8,7 @@ to a new course record.
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
+from datetime import datetime, timezone
 from decimal import Decimal
 from http import HTTPStatus
 from uuid import UUID
