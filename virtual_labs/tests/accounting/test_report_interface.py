@@ -12,6 +12,7 @@ from virtual_labs.core.exceptions.accounting_error import (
 )
 from virtual_labs.external.accounting.interfaces.report_interface import ReportInterface
 from virtual_labs.external.accounting.models import (
+    ProjectJobReport,
     ProjectReportsResponse,
     VirtualLabReportsResponse,
 )
@@ -273,3 +274,34 @@ async def test_get_project_reports_general_error(
         await report_interface.get_project_reports(project_id, page=1, page_size=10)
 
     assert exc_info.value.type == AccountingErrorValue.FETCH_PROJECT_REPORTS_ERROR
+
+
+@pytest.mark.parametrize(
+    "subtype",
+    [
+        "circuit-extraction",
+        "circuit-simplification",
+        "em-synapse-mapping",
+        "brian2-circuit-simulation",
+        "emodel-features-extraction",
+        "emodel-optimisation",
+        "emodel-validation",
+        "synapse-parameterization-small",
+        "synapse-parameterization-large",
+    ],
+)
+def test_project_job_report_accepts_subtype(subtype: str) -> None:
+    # raw values as returned by the accounting service, to catch an outdated SDK
+    report = ProjectJobReport.model_validate(
+        {
+            "job_id": str(uuid4()),
+            "user_id": str(uuid4()),
+            "type": "oneshot",
+            "subtype": subtype,
+            "amount": "10.0",
+            "count": 1,
+            "reserved_amount": "10.0",
+            "reserved_count": 1,
+        }
+    )
+    assert report.subtype == ServiceSubtype(subtype)
