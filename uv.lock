@@ -1069,14 +1069,14 @@ wheels = [
 
 [[package]]
 name = "obp-accounting-sdk"
-version = "0.6.6"
+version = "0.6.7"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "httpx" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/2d/d2/52d3f467e7355629e6aec4c5b82aae37dfe9856c61c63b551c576f51363d/obp_accounting_sdk-0.6.6.tar.gz", hash = "sha256:9dddbda9bd36da1713806003932d506ac79f4e0faa938207ad62e95cac4df3ed", size = 36789, upload-time = "2026-09-24T12:28:03.176Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/bd/b0/74f9cf9dce1d13136055d7026924838d4f2b91af4a2538ceab7c498f2c64/obp_accounting_sdk-0.6.7.tar.gz", hash = "sha256:20964abc562618b65f844e4199376db8b12ba0322b4e74133344ec36ca32992c", size = 36955, upload-time = "2026-10-06T12:43:13.922Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ee/82/a61a3dec8624a72bb50fb73be0f0b6d9e4bf5522110374c39ed9e668a6c4/obp_accounting_sdk-0.6.6-py3-none-any.whl", hash = "sha256:6c8ce44a96f0bdb78e58acd11432c0e896b5973c6c0f664a06231b56c855f6c5", size = 27820, upload-time = "2026-09-24T12:28:02.049Z" },
+    { url = "https://files.pythonhosted.org/packages/bb/bc/8e81ec3d4177b5c56c99ff1f8c820e5ce5d675c342c8637bdfcc01226de0/obp_accounting_sdk-0.6.7-py3-none-any.whl", hash = "sha256:fed5a243392fa229e3bca8ce5f1c816da147edfa8f84f84d0a96f90a308241fd", size = 27854, upload-time = "2026-10-06T12:43:12.703Z" },
 ]
 
 [[package]]
@@ -2073,7 +2073,7 @@ requires-dist = [
     { name = "fastapi-mail", specifier = ">=1.6.8,<2" },
     { name = "httpx", specifier = ">=0.28.1,<0.29" },
     { name = "loguru", specifier = ">=0.7.2,<0.8" },
-    { name = "obp-accounting-sdk", specifier = ">=0.6.6,<0.7" },
+    { name = "obp-accounting-sdk", specifier = ">=0.6.7,<0.7" },
     { name = "psycopg2-binary", specifier = ">=2.9.9,<3" },
     { name = "pydantic", extras = ["email"], specifier = ">=2.12.5,<3" },
     { name = "pydantic-settings", specifier = ">=2.2.1,<3" },

@@ -38,7 +38,7 @@ dependencies = [
     "redis>=5.2.1,<6",
     "asyncssh>=2.21.0,<3",
     "apscheduler>=3.11.2",
-    "obp-accounting-sdk>=0.6.6,<0.7",
+    "obp-accounting-sdk>=0.6.7,<0.7",
 ]
 
 [project.scripts]
