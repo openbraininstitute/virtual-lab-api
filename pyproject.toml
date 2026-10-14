@@ -50,6 +50,7 @@ bulk-invite = "scripts.bulk_invite_to_project:run_async"
 migrate-tax-billing = "scripts.migrate_to_tax_billing:run"
 delete-projects = "scripts.delete_projects:run"
 vlab-manager = "scripts.vlab_manager:run"
+seed-vlab-project = "scripts.seed_vlab_project:run"
 
 [dependency-groups]
 dev = [
