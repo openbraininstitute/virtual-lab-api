@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.12, <4"
 resolution-markers = [
     "python_full_version >= '3.14'",
@@ -1069,14 +1069,14 @@ wheels = [
 
 [[package]]
 name = "obp-accounting-sdk"
-version = "0.6.7"
+version = "0.6.8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "httpx" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/bd/b0/74f9cf9dce1d13136055d7026924838d4f2b91af4a2538ceab7c498f2c64/obp_accounting_sdk-0.6.7.tar.gz", hash = "sha256:20964abc562618b65f844e4199376db8b12ba0322b4e74133344ec36ca32992c", size = 36955, upload-time = "2026-10-06T12:43:13.922Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/35/4b/5c2839462cee59097a00830f471a11f225a2a138c236c9d145bc26043a1c/obp_accounting_sdk-0.6.8.tar.gz", hash = "sha256:dd895d3250a1767274550b714620e193196dfc52c834c8357234b6cd57697cf4", size = 37055, upload-time = "2026-10-14T10:24:18.303Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/bb/bc/8e81ec3d4177b5c56c99ff1f8c820e5ce5d675c342c8637bdfcc01226de0/obp_accounting_sdk-0.6.7-py3-none-any.whl", hash = "sha256:fed5a243392fa229e3bca8ce5f1c816da147edfa8f84f84d0a96f90a308241fd", size = 27854, upload-time = "2026-10-06T12:43:12.703Z" },
+    { url = "https://files.pythonhosted.org/packages/d2/d0/8d16eff282e7730131e61fffc2c2c68cde56b473bf8331bf71ed637f7265/obp_accounting_sdk-0.6.8-py3-none-any.whl", hash = "sha256:ec746ff2d30d598722fe87d0d665c3be81ea2f221881e112383b473618c8013a", size = 27877, upload-time = "2026-10-14T10:24:16.684Z" },
 ]
 
 [[package]]
@@ -2010,6 +2010,7 @@ wheels = [
 name = "virtual-labs"
 version = "1.0.0"
 source = { editable = "." }
+default-groups = "all"
 dependencies = [
     { name = "alembic" },
     { name = "apscheduler" },
@@ -2073,7 +2074,7 @@ requires-dist = [
     { name = "fastapi-mail", specifier = ">=1.6.8,<2" },
     { name = "httpx", specifier = ">=0.28.1,<0.29" },
     { name = "loguru", specifier = ">=0.7.2,<0.8" },
-    { name = "obp-accounting-sdk", specifier = ">=0.6.7,<0.7" },
+    { name = "obp-accounting-sdk", specifier = ">=0.6.8,<0.7" },
     { name = "psycopg2-binary", specifier = ">=2.9.9,<3" },
     { name = "pydantic", extras = ["email"], specifier = ">=2.12.5,<3" },
     { name = "pydantic-settings", specifier = ">=2.2.1,<3" },
