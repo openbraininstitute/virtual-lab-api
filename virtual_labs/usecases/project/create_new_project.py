@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Awaitable, Callable
 from http import HTTPStatus as status
-from typing import Awaitable, Callable
 from uuid import UUID, uuid4
 
 from keycloak import KeycloakError  # type: ignore[import-untyped]
@@ -155,18 +155,50 @@ async def ensure_virtual_lab_exists(
         )
 
 
-async def ensure_allow_creation_by_count_restriction(
-    session: AsyncSession,
-    *,
-    virtual_lab: VirtualLab,
-    user_id: UUID,
-) -> int:
+async def count_owned_projects(session: AsyncSession, *, user_id: UUID) -> int:
+    """Non-deleted projects owned by `user_id`; drives first-project budget seeding."""
     try:
-        owned_count = (
+        return (
             await session.scalar(
                 select(func.count(Project.id)).where(
                     Project.deleted.is_(False),
                     Project.owner_id == user_id,
+                )
+            )
+        ) or 0
+    except Exception as ex:
+        logger.error(f"Owned project count failed: {ex}")
+        raise VliError(
+            error_code=VliErrorCode.SERVER_ERROR,
+            http_status_code=status.INTERNAL_SERVER_ERROR,
+            message="Could not load virtual lab context",
+        )
+
+
+async def ensure_virtual_lab_project_capacity(
+    session: AsyncSession,
+    *,
+    virtual_lab_id: UUID4,
+    lock: bool = False,
+) -> None:
+    """Reject creation once the lab holds `MAX_PROJECTS_PER_VIRTUAL_LAB` live projects.
+
+    With `lock=True` the virtual lab row is locked `FOR UPDATE` first, so
+    concurrent creations in the same lab serialize on it until the caller's
+    transaction commits; the count can't be raced past the limit.
+    """
+    try:
+        if lock:
+            await session.execute(
+                select(VirtualLab.id)
+                .where(VirtualLab.id == virtual_lab_id)
+                .with_for_update()
+            )
+        lab_count = (
+            await session.scalar(
+                select(func.count(Project.id)).where(
+                    Project.deleted.is_(False),
+                    Project.virtual_lab_id == virtual_lab_id,
                 )
             )
         ) or 0
@@ -178,14 +210,17 @@ async def ensure_allow_creation_by_count_restriction(
             message="Could not load virtual lab context",
         )
 
-    if not virtual_lab.course and owned_count >= settings.MAX_PROJECTS_NUMBER:
+    if lab_count >= settings.MAX_PROJECTS_PER_VIRTUAL_LAB:
+        if lock:
+            await session.rollback()  # release the row lock right away
         raise VliError(
             error_code=VliErrorCode.LIMIT_EXCEEDED,
             http_status_code=status.BAD_REQUEST,
-            message=f"You have reached the maximum limit of {settings.MAX_PROJECTS_NUMBER} projects",
+            message=(
+                "This virtual lab has reached the maximum of "
+                f"{settings.MAX_PROJECTS_PER_VIRTUAL_LAB} projects"
+            ),
         )
-
-    return owned_count
 
 
 async def ensure_group_creation(
@@ -429,17 +464,19 @@ async def create_new_project_use_case(
         if ProjectCreateExpand.virtual_lab in requested
         else None
     )
-    owned_count = await ensure_allow_creation_by_count_restriction(
-        session,
-        virtual_lab=virtual_lab,
-        user_id=user_id,
-    )
-
     vlab_admin_group_id = str(virtual_lab.admin_group_id)
     vlab_member_group_id = str(virtual_lab.member_group_id)
     # Resolve the course relationship before rollback expires the instance
     await session.refresh(virtual_lab, ["course"])
     is_course_vlab = bool(virtual_lab.course)
+
+    # Course labs get one project per seat, bounded by seats, not this cap.
+    # Fast pre-check so a full lab fails before any Keycloak/accounting work.
+    if not is_course_vlab:
+        await ensure_virtual_lab_project_capacity(
+            session, virtual_lab_id=virtual_lab_id
+        )
+    owned_count = await count_owned_projects(session, user_id=user_id)
 
     # release the read-only transaction held by the pre-checks above before
     # opening the write transaction inside `create_project_record`, we roll
@@ -465,6 +502,13 @@ async def create_new_project_use_case(
             project_name=payload.name,
             comp=comp,
         )
+
+        # Authoritative re-check under a lab row lock, held until the insert
+        # below commits, so concurrent requests can't overshoot the cap.
+        if not is_course_vlab:
+            await ensure_virtual_lab_project_capacity(
+                session, virtual_lab_id=virtual_lab_id, lock=True
+            )
 
         project_row_snapshot = await create_project_record(
             session,
