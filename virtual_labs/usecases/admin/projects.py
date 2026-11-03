@@ -151,6 +151,16 @@ async def restore_project(
             http_status_code=HTTPStatus.CONFLICT,
             message="Cannot restore a project of a deleted virtual lab",
         )
+    # Restoring adds a live project, so it must respect the per-lab cap. Taking
+    # the lab lock first also serializes the name check below: without it two
+    # concurrent restores of same-named projects both pass and the second hits
+    # the unique_project_name_for_non_deleted index as a 500 instead of a 409.
+    await session.refresh(virtual_lab, ["course"])
+    if not virtual_lab.course:
+        await ensure_virtual_lab_project_capacity(
+            session, virtual_lab_id=project.virtual_lab_id
+        )
+
     conflicts = await query_repo.count_active_project_name_conflicts(
         virtual_lab_id=project.virtual_lab_id,
         name=project.name,
@@ -161,12 +171,6 @@ async def restore_project(
             error_code=VliErrorCode.ENTITY_ALREADY_EXISTS,
             http_status_code=HTTPStatus.CONFLICT,
             message="Another non-deleted project with the same name exists in this virtual lab",
-        )
-    await session.refresh(virtual_lab, ["course"])
-    if not virtual_lab.course:
-        # restoring adds a live project, so it must respect the per-lab cap
-        await ensure_virtual_lab_project_capacity(
-            session, virtual_lab_id=project.virtual_lab_id, lock=True
         )
 
     await ProjectMutationRepository(session).un_delete_project(

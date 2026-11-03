@@ -168,6 +168,15 @@ class Project(Base):
             unique=True,
             postgresql_where=(not_(deleted)),
         ),
+        # Every project creation counts the caller's live projects to decide the
+        # first-project credit transfer, and the user stats page reads the same
+        # count. Partial because both queries filter `NOT deleted`, which keeps
+        # the index to the live rows only.
+        Index(
+            "ix_project_owner_id_not_deleted",
+            owner_id,
+            postgresql_where=(not_(deleted)),
+        ),
     )
 
 

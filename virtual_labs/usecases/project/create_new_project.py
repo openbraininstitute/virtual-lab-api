@@ -37,6 +37,7 @@ from virtual_labs.infrastructure.kc.models import (
     UserRepresentation,
 )
 from virtual_labs.infrastructure.settings import settings
+from virtual_labs.repositories.project_repo import ProjectQueryRepository
 from virtual_labs.shared.group_namespace import make_project_group_name
 from virtual_labs.usecases import accounting as accounting_cases
 
@@ -155,51 +156,33 @@ async def ensure_virtual_lab_exists(
         )
 
 
-async def count_owned_projects(session: AsyncSession, *, user_id: UUID) -> int:
-    """Non-deleted projects owned by `user_id`; drives first-project budget seeding."""
-    try:
-        return (
-            await session.scalar(
-                select(func.count(Project.id)).where(
-                    Project.deleted.is_(False),
-                    Project.owner_id == user_id,
-                )
-            )
-        ) or 0
-    except Exception as ex:
-        logger.error(f"Owned project count failed: {ex}")
-        raise VliError(
-            error_code=VliErrorCode.SERVER_ERROR,
-            http_status_code=status.INTERNAL_SERVER_ERROR,
-            message="Could not load virtual lab context",
-        )
-
-
 async def ensure_virtual_lab_project_capacity(
     session: AsyncSession,
     *,
     virtual_lab_id: UUID4,
-    lock: bool = False,
 ) -> None:
-    """Reject creation once the lab holds `MAX_PROJECTS_PER_VIRTUAL_LAB` live projects.
+    """Guard the per-lab project cap with double-checked locking.
 
-    With `lock=True` the virtual lab row is locked `FOR UPDATE` first, so
-    concurrent creations in the same lab serialize on it until the caller's
-    transaction commits; the count can't be raced past the limit.
+    Takes the virtual lab row `FOR UPDATE`, then counts the lab's live
+    projects. Concurrent creations in the same lab queue on that row until the
+    caller's transaction commits, so the count cannot be raced past
+    `MAX_PROJECTS_PER_VIRTUAL_LAB`. The lock is the lab row, not the project
+    table, so labs stay independent of one another; releasing it belongs to the
+    caller's transaction boundary, not to this function.
+
+    Call it before the first irreversible step of the caller's saga. The
+    accounting project account has no delete endpoint, so a rejection raised
+    after that call leaves an orphan account behind every time.
     """
     try:
-        if lock:
-            await session.execute(
-                select(VirtualLab.id)
-                .where(VirtualLab.id == virtual_lab_id)
-                .with_for_update()
-            )
-        lab_count = (
-            await session.scalar(
-                select(func.count(Project.id)).where(
-                    Project.deleted.is_(False),
-                    Project.virtual_lab_id == virtual_lab_id,
-                )
+        await session.execute(
+            select(VirtualLab.id)
+            .where(VirtualLab.id == virtual_lab_id)
+            .with_for_update()
+        )
+        live_projects = (
+            await ProjectQueryRepository(session).retrieve_projects_per_lab_count(
+                virtual_lab_id=virtual_lab_id
             )
         ) or 0
     except Exception as ex:
@@ -210,9 +193,7 @@ async def ensure_virtual_lab_project_capacity(
             message="Could not load virtual lab context",
         )
 
-    if lab_count >= settings.MAX_PROJECTS_PER_VIRTUAL_LAB:
-        if lock:
-            await session.rollback()  # release the row lock right away
+    if live_projects >= settings.MAX_PROJECTS_PER_VIRTUAL_LAB:
         raise VliError(
             error_code=VliErrorCode.LIMIT_EXCEEDED,
             http_status_code=status.BAD_REQUEST,
@@ -470,13 +451,12 @@ async def create_new_project_use_case(
     await session.refresh(virtual_lab, ["course"])
     is_course_vlab = bool(virtual_lab.course)
 
-    # Course labs get one project per seat, bounded by seats, not this cap.
-    # Fast pre-check so a full lab fails before any Keycloak/accounting work.
-    if not is_course_vlab:
-        await ensure_virtual_lab_project_capacity(
-            session, virtual_lab_id=virtual_lab_id
-        )
-    owned_count = await count_owned_projects(session, user_id=user_id)
+    # Served by the partial index on (owner_id) WHERE NOT deleted, so this
+    # reads only this user's rows. It decides the first-project credit
+    # transfer further down and nothing else.
+    owned_count = await ProjectQueryRepository(session).get_owned_projects_count(
+        user_id
+    )
 
     # release the read-only transaction held by the pre-checks above before
     # opening the write transaction inside `create_project_record`, we roll
@@ -496,19 +476,24 @@ async def create_new_project_use_case(
             comp=comp,
         )
 
+        # Last point before the first irreversible step: the Keycloak groups
+        # above are deletable by the ledger, the accounting account below is
+        # not. The lab row lock is held from here until the insert commits, so
+        # the cap cannot be overshot; that serializes creations within a single
+        # lab for the length of one accounting call, which is acceptable for a
+        # human-driven action bounded at 100 projects.
+        # Course labs get one project per seat, bounded by seats, not this cap.
+        if not is_course_vlab:
+            await ensure_virtual_lab_project_capacity(
+                session, virtual_lab_id=virtual_lab_id
+            )
+
         await ensure_accounting_initialization(
             virtual_lab_id=virtual_lab_id,
             project_id=project_draft_id,
             project_name=payload.name,
             comp=comp,
         )
-
-        # Authoritative re-check under a lab row lock, held until the insert
-        # below commits, so concurrent requests can't overshoot the cap.
-        if not is_course_vlab:
-            await ensure_virtual_lab_project_capacity(
-                session, virtual_lab_id=virtual_lab_id, lock=True
-            )
 
         project_row_snapshot = await create_project_record(
             session,

@@ -11,7 +11,7 @@ from sqlalchemy import delete, func, select
 
 from virtual_labs.infrastructure.db.models import Project
 from virtual_labs.infrastructure.kc.config import KeycloakRealm
-from virtual_labs.infrastructure.settings import settings
+from virtual_labs.infrastructure.settings import Settings, settings
 from virtual_labs.tests.utils import get_headers, session_context_factory
 
 Filler = Callable[[int], Coroutine[None, None, None]]
@@ -75,7 +75,6 @@ async def test_lab_rejects_project_beyond_cap(
 ) -> None:
     lab_id, fill = lab_filler
     cap = settings.MAX_PROJECTS_PER_VIRTUAL_LAB
-    assert cap == 100
 
     await fill(cap - 1)
     last = await _create(async_test_client, lab_id)
@@ -124,7 +123,7 @@ async def test_concurrent_creation_cannot_overshoot_cap(
     cap = settings.MAX_PROJECTS_PER_VIRTUAL_LAB
     await fill(cap - 1)
 
-    # both pass the unlocked pre-check; the locked re-check lets only one in
+    # all three reach the guard; the lab row lock lets exactly one commit
     responses = await asyncio.gather(
         *(_create(async_test_client, lab_id) for _ in range(3))
     )
@@ -152,3 +151,18 @@ async def test_admin_restore_respects_cap(
     )
     assert restored.status_code == 400
     assert restored.json()["error_code"] == "LIMIT_EXCEEDED"
+
+
+def test_cap_is_one_hundred_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The product rule, asserted on the code default and apart from the
+    behaviour tests, so those can run against a lowered cap."""
+    monkeypatch.delenv("MAX_PROJECTS_PER_VIRTUAL_LAB", raising=False)
+    monkeypatch.delenv("MAX_PROJECTS_NUMBER", raising=False)
+    assert Settings().MAX_PROJECTS_PER_VIRTUAL_LAB == 100
+
+
+def test_pre_rename_env_key_still_applies(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`extra="allow"` would swallow the old key silently; the alias keeps a
+    deployment that still sets MAX_PROJECTS_NUMBER in effect."""
+    monkeypatch.setenv("MAX_PROJECTS_NUMBER", "7")
+    assert Settings().MAX_PROJECTS_PER_VIRTUAL_LAB == 7

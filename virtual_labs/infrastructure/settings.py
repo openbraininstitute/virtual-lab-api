@@ -6,6 +6,7 @@ from uuid import UUID
 from dotenv import load_dotenv
 from pydantic import (
     UUID4,
+    AliasChoices,
     EmailStr,
     Field,
     PostgresDsn,
@@ -126,7 +127,14 @@ class Settings(BaseSettings):
     # Pro discount applied to a course's virtual lab at creation time.
     COURSE_PRO_DISCOUNT: Decimal = Decimal("0.5")
     # Max non-deleted projects in one (non-course) virtual lab. No per-user cap.
-    MAX_PROJECTS_PER_VIRTUAL_LAB: int = 100
+    # `extra="allow"` would silently swallow the pre-rename key, so the alias
+    # keeps a deployment that still sets MAX_PROJECTS_NUMBER in effect.
+    MAX_PROJECTS_PER_VIRTUAL_LAB: int = Field(
+        default=100,
+        validation_alias=AliasChoices(
+            "MAX_PROJECTS_PER_VIRTUAL_LAB", "MAX_PROJECTS_NUMBER"
+        ),
+    )
     PAGINATION_DEFAULT_PAGE_SIZE: int = 20
     PAGINATION_MAX_PAGE_SIZE: int = 100
 
