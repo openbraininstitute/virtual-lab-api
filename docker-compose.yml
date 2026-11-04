@@ -99,7 +99,9 @@ services:
       MP_SMTP_AUTH_ALLOW_INSECURE: 1
 
   stripe-cli:
-    image: stripe/stripe-cli:latest
+    # Pinned to the version CI uses: a newer stripe-cli requires an
+    # explicit --events/--all-* flag on `listen`, so :latest broke `make init`.
+    image: stripe/stripe-cli:v1.40.0
     container_name: stripe
     environment:
       STRIPE_CLI_TELEMETRY_OPTOUT: 1

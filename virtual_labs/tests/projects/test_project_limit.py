@@ -165,7 +165,4 @@ def test_pre_rename_env_key_still_applies(monkeypatch: pytest.MonkeyPatch) -> No
     deployment that still sets MAX_PROJECTS_NUMBER in effect."""
     monkeypatch.delenv("MAX_PROJECTS_PER_VIRTUAL_LAB", raising=False)
     monkeypatch.setenv("MAX_PROJECTS_NUMBER", "7")
-    # _env_file=None: a developer's .env.local must not decide this assertion.
-    # The kwarg is pydantic-settings runtime behaviour its mypy plugin cannot see.
-    settings_without_env_file = Settings(_env_file=None)  # type: ignore[call-arg]
-    assert settings_without_env_file.MAX_PROJECTS_PER_VIRTUAL_LAB == 7
+    assert Settings().MAX_PROJECTS_PER_VIRTUAL_LAB == 7
