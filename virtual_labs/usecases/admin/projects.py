@@ -7,7 +7,6 @@ membership groups to derive it from — then delegates and audit-logs.
 """
 
 from http import HTTPStatus
-from typing import Tuple
 
 from fastapi.responses import Response
 from httpx import AsyncClient
@@ -16,6 +15,7 @@ from sqlalchemy.exc import NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from virtual_labs.core.exceptions.api_error import VliError, VliErrorCode
+from virtual_labs.core.ordering import order_clauses
 from virtual_labs.core.types import UserRoleEnum
 from virtual_labs.domain.admin import AdminProjectDetails, AdminProjectsListQuery
 from virtual_labs.domain.common import PaginatedResponse
@@ -26,7 +26,6 @@ from virtual_labs.repositories.project_repo import (
     ProjectMutationRepository,
     ProjectQueryRepository,
 )
-from virtual_labs.core.ordering import order_clauses
 from virtual_labs.usecases.admin._audit import log_admin_action
 from virtual_labs.usecases.project import (
     delete_project_use_case,
@@ -34,6 +33,9 @@ from virtual_labs.usecases.project import (
     retrieve_all_users_per_project_use_case,
     update_project_data,
     update_user_role_in_project,
+)
+from virtual_labs.usecases.project.create_new_project import (
+    ensure_virtual_lab_project_capacity,
 )
 
 
@@ -45,7 +47,7 @@ def _details(project: Project, virtual_lab: VirtualLab) -> AdminProjectDetails:
 
 async def _resolve(
     session: AsyncSession, project_id: UUID4
-) -> Tuple[Project, VirtualLab]:
+) -> tuple[Project, VirtualLab]:
     try:
         project, virtual_lab = await ProjectQueryRepository(
             session
@@ -149,6 +151,15 @@ async def restore_project(
             http_status_code=HTTPStatus.CONFLICT,
             message="Cannot restore a project of a deleted virtual lab",
         )
+    # A restore adds a live project, so the cap applies. Taking the lab lock
+    # first also serializes the name check below, which would otherwise let two
+    # concurrent restores of one name through and turn the second into a 500.
+    await session.refresh(virtual_lab, ["course"])
+    if not virtual_lab.course:
+        await ensure_virtual_lab_project_capacity(
+            session, virtual_lab_id=project.virtual_lab_id
+        )
+
     conflicts = await query_repo.count_active_project_name_conflicts(
         virtual_lab_id=project.virtual_lab_id,
         name=project.name,

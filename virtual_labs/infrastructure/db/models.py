@@ -168,6 +168,13 @@ class Project(Base):
             unique=True,
             postgresql_where=(not_(deleted)),
         ),
+        # Serves the owner counts in project creation (first-project credit
+        # transfer) and in user stats; partial because both filter NOT deleted.
+        Index(
+            "ix_project_owner_id_not_deleted",
+            owner_id,
+            postgresql_where=(not_(deleted)),
+        ),
     )
 
 

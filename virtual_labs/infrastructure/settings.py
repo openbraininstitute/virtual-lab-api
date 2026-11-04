@@ -1,11 +1,12 @@
 from decimal import Decimal
 from os import getenv
-from typing import Annotated, Any, Literal, Optional, TypeGuard, get_args
+from typing import Annotated, Any, Literal, TypeGuard, get_args
 from uuid import UUID
 
 from dotenv import load_dotenv
 from pydantic import (
     UUID4,
+    AliasChoices,
     EmailStr,
     Field,
     PostgresDsn,
@@ -125,7 +126,15 @@ class Settings(BaseSettings):
     PAID_SUBSCRIPTION_DISCOUNT: Decimal = Decimal("0.5")
     # Pro discount applied to a course's virtual lab at creation time.
     COURSE_PRO_DISCOUNT: Decimal = Decimal("0.5")
-    MAX_PROJECTS_NUMBER: int = 20
+    # Max live projects in one non-course virtual lab; no per-user cap. The
+    # alias keeps deployments that still set MAX_PROJECTS_NUMBER working —
+    # `extra="allow"` would otherwise swallow that key silently.
+    MAX_PROJECTS_PER_VIRTUAL_LAB: int = Field(
+        default=100,
+        validation_alias=AliasChoices(
+            "MAX_PROJECTS_PER_VIRTUAL_LAB", "MAX_PROJECTS_NUMBER"
+        ),
+    )
     PAGINATION_DEFAULT_PAGE_SIZE: int = 20
     PAGINATION_MAX_PAGE_SIZE: int = 100
 
@@ -143,7 +152,7 @@ class Settings(BaseSettings):
 
     @field_validator("DATABASE_URI", mode="before")
     @classmethod
-    def build_db_connection(cls, v: Optional[str], values: ValidationInfo) -> Any:
+    def build_db_connection(cls, v: str | None, values: ValidationInfo) -> Any:
         if isinstance(v, str):
             return v
         return PostgresDsn.build(
@@ -158,7 +167,7 @@ class Settings(BaseSettings):
     @field_validator("ACCOUNTING_BASE_URL")
     @classmethod
     def ensure_accounting_base_url(
-        cls, value: Optional[str], values: ValidationInfo
+        cls, value: str | None, values: ValidationInfo
     ) -> Any:
         if value is None and values.data.get("DEPLOYMENT_ENV") not in [
             "development",
@@ -171,7 +180,7 @@ class Settings(BaseSettings):
 
     @field_validator("STRIPE_CREDIT_TAX_CODE", mode="before")
     @classmethod
-    def normalize_credit_tax_code(cls, value: Optional[str]) -> Optional[str]:
+    def normalize_credit_tax_code(cls, value: str | None) -> str | None:
         if value is None:
             return None
         value = value.strip()
