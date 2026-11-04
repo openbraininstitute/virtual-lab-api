@@ -126,9 +126,9 @@ class Settings(BaseSettings):
     PAID_SUBSCRIPTION_DISCOUNT: Decimal = Decimal("0.5")
     # Pro discount applied to a course's virtual lab at creation time.
     COURSE_PRO_DISCOUNT: Decimal = Decimal("0.5")
-    # Max non-deleted projects in one (non-course) virtual lab. No per-user cap.
-    # `extra="allow"` would silently swallow the pre-rename key, so the alias
-    # keeps a deployment that still sets MAX_PROJECTS_NUMBER in effect.
+    # Max live projects in one non-course virtual lab; no per-user cap. The
+    # alias keeps deployments that still set MAX_PROJECTS_NUMBER working —
+    # `extra="allow"` would otherwise swallow that key silently.
     MAX_PROJECTS_PER_VIRTUAL_LAB: int = Field(
         default=100,
         validation_alias=AliasChoices(

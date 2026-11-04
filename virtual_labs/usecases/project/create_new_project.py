@@ -163,22 +163,20 @@ async def ensure_virtual_lab_project_capacity(
 ) -> None:
     """Guard the per-lab project cap with double-checked locking.
 
-    Takes the virtual lab row `FOR UPDATE`, then counts the lab's live
-    projects. Concurrent creations in the same lab queue on that row until the
-    caller's transaction commits, so the count cannot be raced past
-    `MAX_PROJECTS_PER_VIRTUAL_LAB`. The lock is the lab row, not the project
-    table, so labs stay independent of one another; releasing it belongs to the
-    caller's transaction boundary, not to this function.
+    Locks the lab row, then counts its live projects, so two creations in one
+    lab cannot both read `cap - 1` and both commit. `FOR NO KEY UPDATE`, not
+    `FOR UPDATE`: it still excludes the other creations, but not the
+    `FOR KEY SHARE` Postgres takes on this lab row for every insert that
+    references it, which would otherwise block for the accounting call below.
 
-    Call it before the first irreversible step of the caller's saga. The
-    accounting project account has no delete endpoint, so a rejection raised
-    after that call leaves an orphan account behind every time.
+    The caller's commit releases the lock, so call this at the last reversible
+    point of its saga — the accounting account below has no delete endpoint.
     """
     try:
         await session.execute(
             select(VirtualLab.id)
             .where(VirtualLab.id == virtual_lab_id)
-            .with_for_update()
+            .with_for_update(key_share=True)
         )
         live_projects = (
             await ProjectQueryRepository(session).retrieve_projects_per_lab_count(
@@ -451,9 +449,8 @@ async def create_new_project_use_case(
     await session.refresh(virtual_lab, ["course"])
     is_course_vlab = bool(virtual_lab.course)
 
-    # Served by the partial index on (owner_id) WHERE NOT deleted, so this
-    # reads only this user's rows. It decides the first-project credit
-    # transfer further down and nothing else.
+    # Served by the partial index on (owner_id) WHERE NOT deleted; feeds the
+    # first-project credit transfer below and nothing else.
     owned_count = await ProjectQueryRepository(session).get_owned_projects_count(
         user_id
     )
@@ -476,14 +473,11 @@ async def create_new_project_use_case(
             comp=comp,
         )
 
-        # Last point before the first irreversible step: the Keycloak groups
-        # above are deletable by the ledger, the accounting account below is
-        # not. The lab row lock is held from here until the insert commits, so
-        # the cap cannot be overshot; that serializes creations within a single
-        # lab for the length of one accounting call, which is acceptable for a
-        # human-driven action bounded at 100 projects.
-        # Course labs get one project per seat, bounded by seats, not this cap.
-        if not is_course_vlab:
+        # Last reversible point: the ledger can delete the Keycloak groups
+        # above, but not the accounting account below. The lab lock is held
+        # from here to the insert, so creations in this one lab serialize
+        # across the accounting call — fine for a human action capped at 100.
+        if not is_course_vlab:  # course labs are bounded by seats, not the cap
             await ensure_virtual_lab_project_capacity(
                 session, virtual_lab_id=virtual_lab_id
             )

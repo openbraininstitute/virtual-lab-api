@@ -123,7 +123,8 @@ async def test_concurrent_creation_cannot_overshoot_cap(
     cap = settings.MAX_PROJECTS_PER_VIRTUAL_LAB
     await fill(cap - 1)
 
-    # all three reach the guard; the lab row lock lets exactly one commit
+    # exactly one may commit; whether the losers are stopped by the lock or
+    # by a plain re-count depends on how the test client interleaves them
     responses = await asyncio.gather(
         *(_create(async_test_client, lab_id) for _ in range(3))
     )
@@ -153,16 +154,18 @@ async def test_admin_restore_respects_cap(
     assert restored.json()["error_code"] == "LIMIT_EXCEEDED"
 
 
-def test_cap_is_one_hundred_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The product rule, asserted on the code default and apart from the
-    behaviour tests, so those can run against a lowered cap."""
-    monkeypatch.delenv("MAX_PROJECTS_PER_VIRTUAL_LAB", raising=False)
-    monkeypatch.delenv("MAX_PROJECTS_NUMBER", raising=False)
-    assert Settings().MAX_PROJECTS_PER_VIRTUAL_LAB == 100
+def test_cap_is_one_hundred_by_default() -> None:
+    """The product rule, asserted on the field default so no env file or
+    variable can mask it, and so the behaviour tests may run a lowered cap."""
+    assert Settings.model_fields["MAX_PROJECTS_PER_VIRTUAL_LAB"].default == 100
 
 
 def test_pre_rename_env_key_still_applies(monkeypatch: pytest.MonkeyPatch) -> None:
     """`extra="allow"` would swallow the old key silently; the alias keeps a
     deployment that still sets MAX_PROJECTS_NUMBER in effect."""
+    monkeypatch.delenv("MAX_PROJECTS_PER_VIRTUAL_LAB", raising=False)
     monkeypatch.setenv("MAX_PROJECTS_NUMBER", "7")
-    assert Settings().MAX_PROJECTS_PER_VIRTUAL_LAB == 7
+    # _env_file=None: a developer's .env.local must not decide this assertion.
+    # The kwarg is pydantic-settings runtime behaviour its mypy plugin cannot see.
+    settings_without_env_file = Settings(_env_file=None)  # type: ignore[call-arg]
+    assert settings_without_env_file.MAX_PROJECTS_PER_VIRTUAL_LAB == 7

@@ -151,10 +151,9 @@ async def restore_project(
             http_status_code=HTTPStatus.CONFLICT,
             message="Cannot restore a project of a deleted virtual lab",
         )
-    # Restoring adds a live project, so it must respect the per-lab cap. Taking
-    # the lab lock first also serializes the name check below: without it two
-    # concurrent restores of same-named projects both pass and the second hits
-    # the unique_project_name_for_non_deleted index as a 500 instead of a 409.
+    # A restore adds a live project, so the cap applies. Taking the lab lock
+    # first also serializes the name check below, which would otherwise let two
+    # concurrent restores of one name through and turn the second into a 500.
     await session.refresh(virtual_lab, ["course"])
     if not virtual_lab.course:
         await ensure_virtual_lab_project_capacity(
