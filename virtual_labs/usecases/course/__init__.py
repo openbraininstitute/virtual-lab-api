@@ -12,6 +12,9 @@ from virtual_labs.usecases.course.get_course import (
 )
 from virtual_labs.usecases.course.list_enrolments import list_enrolments
 from virtual_labs.usecases.course.update_course import update_course
+from virtual_labs.usecases.course.update_course_notebook_profiles import (
+    update_course_notebook_profiles,
+)
 from virtual_labs.usecases.course.update_course_status import (
     activate_course,
     void_course,
@@ -30,6 +33,7 @@ __all__ = [
     "list_enrolments",
     "search_courses_by_vlab_name",
     "update_course",
+    "update_course_notebook_profiles",
     "activate_course",
     "void_course",
 ]

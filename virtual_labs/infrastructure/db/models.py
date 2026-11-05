@@ -1100,6 +1100,10 @@ class Course(Base):
     budget_depleted: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default="false"
     )
+    # Course-wide allowlist of notebook profile names; NULL = all profiles offered.
+    allowed_notebook_profiles: Mapped[Optional[list[str]]] = mapped_column(
+        JSON, nullable=True
+    )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=func.now(), nullable=False

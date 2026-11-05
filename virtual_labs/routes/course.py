@@ -17,6 +17,7 @@ from virtual_labs.domain.course import (
     CourseUpdateBody,
     EnrolmentOut,
     ListEnrolmentsResponse,
+    UpdateCourseNotebookProfilesBody,
 )
 from virtual_labs.infrastructure.db.config import default_session_factory
 from virtual_labs.infrastructure.db.models import Course
@@ -234,4 +235,21 @@ async def list_enrolments_endpoint(
     enrolments = await usecases.list_enrolments(session, course_id=course.id)
     return ListEnrolmentsResponse(
         enrolments=[EnrolmentOut.model_validate(e) for e in enrolments]
+    )
+
+
+@router.patch(
+    "/{course_id}/notebook-profiles",
+    operation_id="update_course_notebook_profiles",
+    summary="Set the course-wide allowed notebook profiles (vlab admin)",
+    response_model=VliAppResponse[CourseOut],
+)
+async def update_course_notebook_profiles_endpoint(
+    payload: UpdateCourseNotebookProfilesBody,
+    grant: tuple[AuthUserGrants, Course] = Depends(verify_course_admin),
+    session: AsyncSession = Depends(default_session_factory),
+) -> VliAppResponse[CourseOut]:
+    user, course = grant
+    return await usecases.update_course_notebook_profiles(
+        session, course, payload, user
     )

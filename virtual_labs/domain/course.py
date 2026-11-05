@@ -49,6 +49,25 @@ class CourseUpdateBody(BaseModel):
         return data
 
 
+class UpdateCourseNotebookProfilesBody(BaseModel):
+    """Set the course-wide allowed notebook profiles. None resets to all allowed;
+    a list must be non-empty so students always keep a runnable size."""
+
+    allowed_notebook_profiles: Optional[list[str]] = None
+
+    @model_validator(mode="after")
+    def _non_empty_and_unique(self) -> "UpdateCourseNotebookProfilesBody":
+        profiles = self.allowed_notebook_profiles
+        if profiles is not None:
+            if len(profiles) == 0:
+                raise ValueError(
+                    "allowed_notebook_profiles must be non-empty (send null to allow all)"
+                )
+            if len(profiles) != len(set(profiles)):
+                raise ValueError("Duplicate profile name in request")
+        return self
+
+
 class CourseOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -61,6 +80,7 @@ class CourseOut(BaseModel):
     start_date: datetime
     end_date: datetime
     last_drop_date: datetime
+    allowed_notebook_profiles: Optional[list[str]] = None
 
 
 class CourseDetailOut(BaseModel):
@@ -78,6 +98,7 @@ class CourseDetailOut(BaseModel):
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
     last_drop_date: Optional[datetime] = None
+    allowed_notebook_profiles: Optional[list[str]] = None
 
 
 # ──────────────────────────────────────────────────────────────────────

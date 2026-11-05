@@ -33,6 +33,7 @@ class CourseDetails(BaseModel):
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
     last_drop_date: Optional[datetime] = None
+    allowed_notebook_profiles: Optional[list[str]] = None
 
 
 class VirtualLabBase(BaseModel):
